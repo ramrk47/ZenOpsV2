@@ -81,7 +81,7 @@
     },
     "/v1/assignments": {
       "get": {
-        "summary": "List assignments",
+        "summary": "List assignments with filters",
         "responses": {
           "200": {
             "description": "OK"
@@ -93,6 +93,118 @@
         "responses": {
           "201": {
             "description": "Created"
+          }
+        }
+      }
+    },
+    "/v1/assignments/{id}": {
+      "get": {
+        "summary": "Get assignment detail graph",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update assignment fields/status",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Soft-delete assignment",
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          }
+        }
+      }
+    },
+    "/v1/assignments/{id}/assignees": {
+      "post": {
+        "summary": "Add assignment assignee",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/assignments/{id}/assignees/{user_id}": {
+      "delete": {
+        "summary": "Remove assignment assignee",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/assignments/{id}/tasks": {
+      "get": {
+        "summary": "List assignment tasks",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create assignment task",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/assignments/{id}/tasks/{task_id}": {
+      "patch": {
+        "summary": "Update assignment task",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete assignment task",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/assignments/{id}/messages": {
+      "post": {
+        "summary": "Post assignment message",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/assignments/{id}/activities": {
+      "get": {
+        "summary": "List assignment activities",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/assignments/{id}/attach-document": {
+      "post": {
+        "summary": "Attach existing document to assignment",
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
@@ -138,6 +250,84 @@
     "/v1/report-jobs": {
       "get": {
         "summary": "List report jobs",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/files/presign-upload": {
+      "post": {
+        "summary": "Create document record and presign upload",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/files/confirm-upload": {
+      "post": {
+        "summary": "Confirm upload and attach links",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/files/{id}/presign-download": {
+      "get": {
+        "summary": "Presign document download",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/documents": {
+      "get": {
+        "summary": "List documents with filters",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/documents/{id}/metadata": {
+      "patch": {
+        "summary": "Patch document metadata",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/documents/{id}/tags": {
+      "post": {
+        "summary": "Upsert document tags",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/report-requests/{id}/data-bundle": {
+      "get": {
+        "summary": "Get report data bundle",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Patch report data bundle",
         "responses": {
           "200": {
             "description": "OK"

@@ -2,19 +2,47 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Patch,
   Delete,
   ForbiddenException,
   Get,
   Inject,
   Param,
   Post,
+  Query,
   Req
 } from '@nestjs/common';
 import {
+  AssignmentAssigneeAddSchema,
+  type AssignmentAssigneeAdd,
+  AssignmentAttachDocumentSchema,
+  type AssignmentAttachDocument,
   AssignmentCreateSchema,
   type AssignmentCreate,
+  AssignmentListQuerySchema,
+  type AssignmentListQuery,
+  AssignmentMessageCreateSchema,
+  type AssignmentMessageCreate,
+  AssignmentTaskCreateSchema,
+  type AssignmentTaskCreate,
+  AssignmentTaskUpdateSchema,
+  type AssignmentTaskUpdate,
+  AssignmentUpdateSchema,
+  type AssignmentUpdate,
+  DocumentListQuerySchema,
+  type DocumentListQuery,
+  DocumentMetadataPatchSchema,
+  type DocumentMetadataPatch,
+  DocumentTagsUpsertSchema,
+  type DocumentTagsUpsert,
+  FileConfirmUploadRequestSchema,
+  type FileConfirmUploadRequest,
+  FilePresignUploadRequestSchema,
+  type FilePresignUploadRequest,
   ReportRequestCreateSchema,
   type ReportRequestCreate,
+  ReportDataBundlePatchSchema,
+  type ReportDataBundlePatch,
   SoftDeleteResponseSchema,
   TenantCreateSchema,
   type TenantCreate,
@@ -108,22 +136,114 @@ export class DomainController {
   }
 
   @Get('assignments')
-  async listAssignments(@Claims() claims: JwtClaims) {
-    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.listAssignments(tx));
+  async listAssignments(@Claims() claims: JwtClaims, @Query() query: Record<string, string | undefined>) {
+    const parsed = AssignmentListQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error);
+    }
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.listAssignments(tx, claims, parsed.data as AssignmentListQuery)
+    );
   }
 
   @Post('assignments')
   async createAssignment(@Claims() claims: JwtClaims, @Body() body: unknown) {
     const input = parseOrThrow<AssignmentCreate>(AssignmentCreateSchema, body);
-    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.createAssignment(tx, input));
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.createAssignment(tx, claims, input));
+  }
+
+  @Get('assignments/:id')
+  async getAssignment(@Claims() claims: JwtClaims, @Param('id') id: string) {
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.getAssignmentDetail(tx, claims, id));
+  }
+
+  @Patch('assignments/:id')
+  async patchAssignment(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
+    const input = parseOrThrow<AssignmentUpdate>(AssignmentUpdateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.patchAssignment(tx, claims, id, input)
+    );
   }
 
   @Delete('assignments/:id')
   async deleteAssignment(@Claims() claims: JwtClaims, @Param('id') id: string) {
     const deleted = await this.requestContext.runWithClaims(claims, (tx) =>
-      this.domainService.softDeleteAssignment(tx, id)
+      this.domainService.softDeleteAssignment(tx, claims, id)
     );
     return SoftDeleteResponseSchema.parse({ id: deleted.id, deleted_at: deleted.deletedAt?.toISOString() });
+  }
+
+  @Post('assignments/:id/assignees')
+  async addAssignee(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
+    const input = parseOrThrow<AssignmentAssigneeAdd>(AssignmentAssigneeAddSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.addAssignmentAssignee(tx, claims, id, input)
+    );
+  }
+
+  @Delete('assignments/:id/assignees/:user_id')
+  async removeAssignee(@Claims() claims: JwtClaims, @Param('id') id: string, @Param('user_id') userId: string) {
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.removeAssignmentAssignee(tx, claims, id, userId)
+    );
+  }
+
+  @Get('assignments/:id/tasks')
+  async listTasks(@Claims() claims: JwtClaims, @Param('id') id: string) {
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.listAssignmentTasks(tx, claims, id)
+    );
+  }
+
+  @Post('assignments/:id/tasks')
+  async createTask(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
+    const input = parseOrThrow<AssignmentTaskCreate>(AssignmentTaskCreateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.createAssignmentTask(tx, claims, id, input)
+    );
+  }
+
+  @Patch('assignments/:id/tasks/:task_id')
+  async patchTask(
+    @Claims() claims: JwtClaims,
+    @Param('id') id: string,
+    @Param('task_id') taskId: string,
+    @Body() body: unknown
+  ) {
+    const input = parseOrThrow<AssignmentTaskUpdate>(AssignmentTaskUpdateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.patchAssignmentTask(tx, claims, id, taskId, input)
+    );
+  }
+
+  @Delete('assignments/:id/tasks/:task_id')
+  async deleteTask(@Claims() claims: JwtClaims, @Param('id') id: string, @Param('task_id') taskId: string) {
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.deleteAssignmentTask(tx, claims, id, taskId)
+    );
+  }
+
+  @Post('assignments/:id/messages')
+  async postMessage(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
+    const input = parseOrThrow<AssignmentMessageCreate>(AssignmentMessageCreateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.postAssignmentMessage(tx, claims, id, input)
+    );
+  }
+
+  @Get('assignments/:id/activities')
+  async listActivities(@Claims() claims: JwtClaims, @Param('id') id: string) {
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.listAssignmentActivities(tx, claims, id)
+    );
+  }
+
+  @Post('assignments/:id/attach-document')
+  async attachDocument(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
+    const input = parseOrThrow<AssignmentAttachDocument>(AssignmentAttachDocumentSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.attachDocumentToAssignment(tx, claims, id, input)
+    );
   }
 
   @Get('report-requests')
@@ -152,7 +272,7 @@ export class DomainController {
     @Req() req: AuthenticatedRequest
   ) {
     const queueResult = await this.requestContext.runWithClaims(claims, (tx) =>
-      this.domainService.queueDraft(tx, reportRequestId)
+      this.domainService.queueDraft(tx, reportRequestId, claims.user_id)
     );
 
     await this.queueService.enqueueDraft({
@@ -167,12 +287,79 @@ export class DomainController {
 
   @Post('report-requests/:id/finalize')
   async finalize(@Claims() claims: JwtClaims, @Param('id') reportRequestId: string) {
-    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.finalize(tx, reportRequestId));
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.finalize(tx, reportRequestId, claims.user_id)
+    );
   }
 
   @Get('report-jobs')
   async listReportJobs(@Claims() claims: JwtClaims) {
     return this.requestContext.runWithClaims(claims, (tx) => this.domainService.listReportJobs(tx));
+  }
+
+  @Post('files/presign-upload')
+  async presignUpload(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<FilePresignUploadRequest>(FilePresignUploadRequestSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.presignUpload(tx, claims, input)
+    );
+  }
+
+  @Post('files/confirm-upload')
+  async confirmUpload(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<FileConfirmUploadRequest>(FileConfirmUploadRequestSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.confirmUpload(tx, claims, input)
+    );
+  }
+
+  @Get('files/:id/presign-download')
+  async presignDownload(@Claims() claims: JwtClaims, @Param('id') id: string) {
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.presignDownload(tx, id)
+    );
+  }
+
+  @Patch('documents/:id/metadata')
+  async patchDocumentMetadata(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
+    const input = parseOrThrow<DocumentMetadataPatch>(DocumentMetadataPatchSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.patchDocumentMetadata(tx, id, input)
+    );
+  }
+
+  @Post('documents/:id/tags')
+  async upsertDocumentTags(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
+    const input = parseOrThrow<DocumentTagsUpsert>(DocumentTagsUpsertSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.upsertDocumentTags(tx, id, input)
+    );
+  }
+
+  @Get('documents')
+  async listDocuments(@Claims() claims: JwtClaims, @Query() query: Record<string, string | undefined>) {
+    const parsed = DocumentListQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error);
+    }
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.listDocuments(tx, parsed.data as DocumentListQuery)
+    );
+  }
+
+  @Get('report-requests/:id/data-bundle')
+  async getDataBundle(@Claims() claims: JwtClaims, @Param('id') id: string) {
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.getDataBundle(tx, id)
+    );
+  }
+
+  @Patch('report-requests/:id/data-bundle')
+  async patchDataBundle(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
+    const input = parseOrThrow<ReportDataBundlePatch>(ReportDataBundlePatchSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.patchDataBundle(tx, id, input)
+    );
   }
 
   @Get('studio/report-jobs')
