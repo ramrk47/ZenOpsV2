@@ -70,11 +70,7 @@ export interface MarkInvoicePaidInput {
 
 @Injectable()
 export class BillingService {
-  private readonly timezone: string;
-
-  constructor(timezone = 'Asia/Kolkata') {
-    this.timezone = timezone;
-  }
+  private readonly timezone = 'Asia/Kolkata';
 
   async getOrCreateOpenInvoice(tx: TxClient, tenantId: string, now: Date) {
     const period = getCalendarMonthlyPeriod(now, this.timezone);
