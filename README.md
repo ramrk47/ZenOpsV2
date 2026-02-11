@@ -33,6 +33,17 @@ ZenOps v2 foundation scaffold as a Turborepo + pnpm monorepo.
 - `pnpm dev:down`
 - `pnpm reset`
 
+## 5-Minute Demo
+- Reset a clean local demo state:
+  - `./scripts/reset-demo.sh`
+- Run the assignment spine API demo:
+  - `./scripts/demo.sh`
+- Expected outcome:
+  - PASS summary with `tasks=1`, `messages=1`, `documents=1`, `activities>=4`.
+- Optional flags:
+  - `DEMO_ASSUME_INFRA_RUNNING=1 ./scripts/demo.sh` (skip infra startup)
+  - `DEMO_ASSUME_API_RUNNING=1 ./scripts/demo.sh` (skip API startup)
+
 ## Local Dev Notes
 - `infra:up` starts only Postgres + Redis.
 - `dev:local` runs app services on the host to avoid host/container `node_modules` cross-platform corruption.
@@ -61,3 +72,18 @@ ZenOps v2 foundation scaffold as a Turborepo + pnpm monorepo.
 
 ## Notes
 This is a foundation scaffold with minimal business logic and clear extension points.
+
+## Staging Deploy Notes (Hostinger VPS + Traefik)
+- DNS/subdomains:
+  - `v2.<your-domain>` -> web
+  - `api-v2.<your-domain>` -> API
+  - `portal.<your-domain>` -> portal (optional)
+- Networking:
+  - Only Traefik binds host ports `80/443`.
+  - API/web/portal should be attached to an internal Docker network and exposed to Traefik by labels, not host `ports`.
+- Staging protection:
+  - Add Traefik BasicAuth middleware (or IP allowlist) on all staging routers.
+  - Keep studio/internal routes protected behind auth and capability checks.
+- Runtime components:
+  - Keep API + worker + infra services enabled.
+  - Keep `ZENOPS_MULTI_TENANT_ENABLED=false` for internal-only launch mode.

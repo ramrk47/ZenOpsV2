@@ -10,6 +10,9 @@ import { DomainService } from './domain/domain.service.js';
 import { ReportQueueService } from './queue/report-queue.service.js';
 import { RequestIdMiddleware } from './common/request-id.middleware.js';
 import { loadLaunchModeConfig } from './common/launch-mode.js';
+import { loadEnv } from '@zenops/config';
+import { LocalDiskProvider, S3CompatibleProvider } from '@zenops/storage';
+import { BillingService } from './billing/billing.service.js';
 
 @Module({
   controllers: [HealthController, AuthController, DomainController],
@@ -34,7 +37,33 @@ import { loadLaunchModeConfig } from './common/launch-mode.js';
       provide: 'LAUNCH_MODE_CONFIG',
       useFactory: () => loadLaunchModeConfig(process.env)
     },
+    {
+      provide: 'STORAGE_PROVIDER',
+      useFactory: () => {
+        const env = loadEnv(process.env);
+        if (env.STORAGE_DRIVER === 's3') {
+          if (!env.S3_ACCESS_KEY_ID || !env.S3_SECRET_ACCESS_KEY) {
+            throw new Error('S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY are required when STORAGE_DRIVER=s3');
+          }
+          return new S3CompatibleProvider({
+            bucket: env.S3_BUCKET,
+            region: env.S3_REGION,
+            endpoint: env.S3_ENDPOINT,
+            accessKeyId: env.S3_ACCESS_KEY_ID,
+            secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+            forcePathStyle: ['1', 'true', 'yes', 'on'].includes(env.S3_FORCE_PATH_STYLE.toLowerCase()),
+            publicBaseUrl: env.S3_PUBLIC_BASE_URL
+          });
+        }
+
+        return new LocalDiskProvider({
+          rootDir: `${env.ARTIFACTS_DIR}/objects`,
+          baseUrl: `http://localhost:${env.API_PORT}/local-storage`
+        });
+      }
+    },
     RequestContextService,
+    BillingService,
     DomainService,
     {
       provide: APP_GUARD,

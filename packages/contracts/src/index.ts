@@ -201,6 +201,12 @@ export const ReportDataBundlePatchSchema = z.object({
   expected_schema_version: z.number().int().positive().optional()
 });
 
+export const BillingInvoiceMarkPaidSchema = z.object({
+  amount_paise: z.number().int().positive().optional(),
+  reference: z.string().min(1).optional(),
+  notes: z.string().min(1).optional()
+});
+
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 export type TenantCreate = z.infer<typeof TenantCreateSchema>;
 export type UserCreate = z.infer<typeof UserCreateSchema>;
@@ -221,3 +227,4 @@ export type DocumentMetadataPatch = z.infer<typeof DocumentMetadataPatchSchema>;
 export type DocumentTagsUpsert = z.infer<typeof DocumentTagsUpsertSchema>;
 export type DocumentListQuery = z.infer<typeof DocumentListQuerySchema>;
 export type ReportDataBundlePatch = z.infer<typeof ReportDataBundlePatchSchema>;
+export type BillingInvoiceMarkPaid = z.infer<typeof BillingInvoiceMarkPaidSchema>;

@@ -29,6 +29,8 @@ import {
   type AssignmentTaskUpdate,
   AssignmentUpdateSchema,
   type AssignmentUpdate,
+  BillingInvoiceMarkPaidSchema,
+  type BillingInvoiceMarkPaid,
   DocumentListQuerySchema,
   type DocumentListQuery,
   DocumentMetadataPatchSchema,
@@ -295,6 +297,34 @@ export class DomainController {
   @Get('report-jobs')
   async listReportJobs(@Claims() claims: JwtClaims) {
     return this.requestContext.runWithClaims(claims, (tx) => this.domainService.listReportJobs(tx));
+  }
+
+  @Get('billing/me')
+  async billingMe(@Claims() claims: JwtClaims) {
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.getBillingMe(tx, claims));
+  }
+
+  @Get('billing/invoices')
+  async listBillingInvoices(@Claims() claims: JwtClaims) {
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.listBillingInvoices(tx, claims)
+    );
+  }
+
+  @Get('billing/invoices/:id')
+  async getBillingInvoice(@Claims() claims: JwtClaims, @Param('id') id: string) {
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.getBillingInvoice(tx, claims, id)
+    );
+  }
+
+  @Post('billing/invoices/:id/mark-paid')
+  @RequireAudience('studio')
+  async markBillingInvoicePaid(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
+    const input = parseOrThrow<BillingInvoiceMarkPaid>(BillingInvoiceMarkPaidSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.markBillingInvoicePaid(tx, claims, id, input)
+    );
   }
 
   @Post('files/presign-upload')

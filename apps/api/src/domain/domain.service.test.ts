@@ -1,7 +1,45 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DomainService } from './domain.service.js';
 
-const createService = () =>
+const createBillingServiceMock = () => ({
+  addUsageLineForFinalize: vi.fn().mockResolvedValue({
+    invoice: {
+      id: 'invoice-1',
+      tenantId: 'tenant-1',
+      periodStart: new Date('2026-02-01T00:00:00.000Z'),
+      periodEnd: new Date('2026-03-01T00:00:00.000Z'),
+      status: 'open',
+      currency: 'INR',
+      subtotalPaise: BigInt(0),
+      taxPaise: BigInt(0),
+      totalPaise: BigInt(0),
+      issuedAt: null,
+      paidAt: null,
+      createdAt: new Date('2026-02-11T00:00:00.000Z'),
+      updatedAt: new Date('2026-02-11T00:00:00.000Z')
+    },
+    usageEvent: {
+      id: 'usage-1',
+      unitPricePaise: 0,
+      amountPaise: BigInt(0),
+      units: 1
+    },
+    invoiceLine: {
+      id: 'line-1',
+      amountPaise: BigInt(0),
+      unitPricePaise: 0,
+      qty: 1
+    },
+    createdUsageEvent: true,
+    createdInvoiceLine: true
+  }),
+  getBillingMe: vi.fn().mockResolvedValue({}),
+  listInvoices: vi.fn().mockResolvedValue([]),
+  getInvoice: vi.fn().mockResolvedValue({}),
+  markInvoicePaid: vi.fn().mockResolvedValue({})
+});
+
+const createService = (billingService: ReturnType<typeof createBillingServiceMock> = createBillingServiceMock()) =>
   new DomainService(
     {
       presignUpload: vi.fn(),
@@ -12,11 +50,18 @@ const createService = () =>
       multiTenantEnabled: false,
       internalTenantId: '11111111-1111-1111-1111-111111111111',
       externalTenantId: '22222222-2222-2222-2222-222222222222'
-    }
+    },
+    billingService as any
   );
 
 const buildTx = () => {
-  const reportRequest = { id: 'req-1', tenantId: 'tenant-1', status: 'requested', deletedAt: null };
+  const reportRequest = {
+    id: 'req-1',
+    tenantId: 'tenant-1',
+    assignmentId: null,
+    status: 'requested',
+    deletedAt: null
+  };
   const reservation = { id: 'ledger-1', reportJobId: null };
   const reportJob = { id: 'job-1' };
 
@@ -30,9 +75,12 @@ const buildTx = () => {
       create: vi.fn().mockResolvedValue(reservation),
       update: vi.fn().mockResolvedValue({ ...reservation, status: 'consumed' })
     },
-    reportJob: {
+      reportJob: {
       findFirst: vi.fn().mockResolvedValue(reportJob),
       create: vi.fn().mockResolvedValue(reportJob)
+    },
+    assignmentActivity: {
+      create: vi.fn().mockResolvedValue(undefined)
     }
   } as any;
 };
@@ -148,7 +196,71 @@ describe('DomainService queue/finalize idempotency', () => {
 
   it('converts reserved to consumed and remains idempotent on repeated finalize', async () => {
     const tx = buildTx();
-    const service = createService();
+    const billingService = createBillingServiceMock();
+    billingService.addUsageLineForFinalize
+      .mockResolvedValueOnce({
+        invoice: {
+          id: 'invoice-1',
+          tenantId: 'tenant-1',
+          periodStart: new Date('2026-02-01T00:00:00.000Z'),
+          periodEnd: new Date('2026-03-01T00:00:00.000Z'),
+          status: 'open',
+          currency: 'INR',
+          subtotalPaise: BigInt(0),
+          taxPaise: BigInt(0),
+          totalPaise: BigInt(0),
+          issuedAt: null,
+          paidAt: null,
+          createdAt: new Date('2026-02-11T00:00:00.000Z'),
+          updatedAt: new Date('2026-02-11T00:00:00.000Z')
+        },
+        usageEvent: {
+          id: 'usage-1',
+          unitPricePaise: 0,
+          amountPaise: BigInt(0),
+          units: 1
+        },
+        invoiceLine: {
+          id: 'line-1',
+          amountPaise: BigInt(0),
+          unitPricePaise: 0,
+          qty: 1
+        },
+        createdUsageEvent: true,
+        createdInvoiceLine: true
+      })
+      .mockResolvedValueOnce({
+        invoice: {
+          id: 'invoice-1',
+          tenantId: 'tenant-1',
+          periodStart: new Date('2026-02-01T00:00:00.000Z'),
+          periodEnd: new Date('2026-03-01T00:00:00.000Z'),
+          status: 'open',
+          currency: 'INR',
+          subtotalPaise: BigInt(0),
+          taxPaise: BigInt(0),
+          totalPaise: BigInt(0),
+          issuedAt: null,
+          paidAt: null,
+          createdAt: new Date('2026-02-11T00:00:00.000Z'),
+          updatedAt: new Date('2026-02-11T00:00:00.000Z')
+        },
+        usageEvent: {
+          id: 'usage-1',
+          unitPricePaise: 0,
+          amountPaise: BigInt(0),
+          units: 1
+        },
+        invoiceLine: {
+          id: 'line-1',
+          amountPaise: BigInt(0),
+          unitPricePaise: 0,
+          qty: 1
+        },
+        createdUsageEvent: false,
+        createdInvoiceLine: false
+      });
+    const service = createService(billingService);
 
     tx.creditsLedger.findFirst
       .mockResolvedValueOnce(null)
@@ -172,6 +284,7 @@ describe('DomainService queue/finalize idempotency', () => {
 
     expect(tx.creditsLedger.update).not.toHaveBeenCalled();
     expect(tx.creditsLedger.create).not.toHaveBeenCalled();
+    expect(billingService.addUsageLineForFinalize).toHaveBeenCalledTimes(2);
   });
 
   it('reserves once across concurrent queue attempts (mocked concurrency)', async () => {
@@ -214,6 +327,40 @@ describe('DomainService queue/finalize idempotency', () => {
     expect(second.reportJobId).toBe('job-1');
     expect(state.reservation?.id).toBe('reserve-1');
     expect(state.job?.id).toBe('job-1');
+  });
+});
+
+describe('DomainService billing gates', () => {
+  it('blocks non-studio users from marking invoice paid', async () => {
+    const billingService = createBillingServiceMock();
+    const service = createService(billingService);
+
+    await expect(service.markBillingInvoicePaid({} as any, webClaims, 'invoice-1', {})).rejects.toThrow(
+      'BILLING_WRITE_FORBIDDEN'
+    );
+    expect(billingService.markInvoicePaid).not.toHaveBeenCalled();
+  });
+
+  it('allows studio billing:write capability to mark invoice paid', async () => {
+    const billingService = createBillingServiceMock();
+    const service = createService(billingService);
+    const studioClaims = {
+      ...webClaims,
+      aud: 'studio' as const,
+      capabilities: ['billing:write']
+    };
+
+    await service.markBillingInvoicePaid({} as any, studioClaims, 'invoice-1', {
+      amount_paise: 12345,
+      reference: 'manual-ref'
+    });
+
+    expect(billingService.markInvoicePaid).toHaveBeenCalledWith({} as any, webClaims.tenant_id, 'invoice-1', {
+      amount_paise: 12345,
+      reference: 'manual-ref',
+      notes: undefined,
+      actor_user_id: webClaims.user_id
+    });
   });
 });
 

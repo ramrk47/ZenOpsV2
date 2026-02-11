@@ -1,0 +1,138 @@
+model BillingPlan {
+  id               String         @id @default(uuid()) @db.Uuid
+  tenantId         String         @map("tenant_id") @db.Uuid
+  code             String
+  name             String
+  currency         String         @default("INR")
+  includedReports  Int            @default(0) @map("included_reports")
+  unitPricePaise   Int            @default(0) @map("unit_price_paise")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  tenant           Tenant         @relation(fields: [tenantId], references: [id])
+  tenantBilling    TenantBilling[]
+  usageEvents      UsageEvent[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("billing_plans")
+}
+
+model TenantBilling {
+  id             String      @id @default(uuid()) @db.Uuid
+  tenantId       String      @unique @map("tenant_id") @db.Uuid
+  billingPlanId  String      @map("billing_plan_id") @db.Uuid
+  status         String      @default("active")
+  billingEmail   String?     @map("billing_email")
+  currency       String      @default("INR")
+  taxRateBps     Int         @default(0) @map("tax_rate_bps")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  tenant         Tenant      @relation(fields: [tenantId], references: [id])
+  billingPlan    BillingPlan @relation(fields: [billingPlanId], references: [id])
+  invoices       Invoice[]
+
+  @@index([billingPlanId])
+  @@map("tenant_billing")
+}
+
+model UsageEvent {
+  id              String         @id @default(uuid()) @db.Uuid
+  tenantId        String         @map("tenant_id") @db.Uuid
+  billingPlanId   String?        @map("billing_plan_id") @db.Uuid
+  reportRequestId String?        @map("report_request_id") @db.Uuid
+  assignmentId    String?        @map("assignment_id") @db.Uuid
+  eventType       UsageEventType @map("event_type")
+  units           Int            @default(1)
+  idempotencyKey  String         @map("idempotency_key")
+  unitPricePaise  Int            @default(0) @map("unit_price_paise")
+  amountPaise     BigInt         @default(0) @db.BigInt @map("amount_paise")
+  occurredAt      DateTime       @default(now()) @map("occurred_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  billingPlan     BillingPlan?   @relation(fields: [billingPlanId], references: [id])
+  reportRequest   ReportRequest? @relation(fields: [reportRequestId], references: [id])
+  assignment      Assignment?    @relation(fields: [assignmentId], references: [id])
+  invoiceLines    InvoiceLine[]
+
+  @@unique([tenantId, eventType, idempotencyKey])
+  @@unique([reportRequestId, eventType])
+  @@index([tenantId, occurredAt])
+  @@index([reportRequestId])
+  @@index([assignmentId])
+  @@map("usage_events")
+}
+
+model Invoice {
+  id              String        @id @default(uuid()) @db.Uuid
+  tenantId        String        @map("tenant_id") @db.Uuid
+  tenantBillingId String?       @map("tenant_billing_id") @db.Uuid
+  periodStart     DateTime      @db.Date @map("period_start")
+  periodEnd       DateTime      @db.Date @map("period_end")
+  status          InvoiceStatus @default(open)
+  currency        String        @default("INR")
+  subtotalPaise   BigInt        @default(0) @db.BigInt @map("subtotal_paise")
+  taxPaise        BigInt        @default(0) @db.BigInt @map("tax_paise")
+  totalPaise      BigInt        @default(0) @db.BigInt @map("total_paise")
+  issuedAt        DateTime?     @map("issued_at")
+  paidAt          DateTime?     @map("paid_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  tenant          Tenant        @relation(fields: [tenantId], references: [id])
+  tenantBilling   TenantBilling? @relation(fields: [tenantBillingId], references: [id])
+  lines           InvoiceLine[]
+  payments        Payment[]
+
+  @@unique([tenantId, periodStart, periodEnd])
+  @@index([tenantId, status])
+  @@index([periodStart, periodEnd])
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id             String          @id @default(uuid()) @db.Uuid
+  invoiceId      String          @map("invoice_id") @db.Uuid
+  tenantId       String          @map("tenant_id") @db.Uuid
+  lineType       InvoiceLineType @default(usage_report_finalized) @map("line_type")
+  qty            Int             @default(1)
+  unitPricePaise Int             @default(0) @map("unit_price_paise")
+  amountPaise    BigInt          @default(0) @db.BigInt @map("amount_paise")
+  usageEventId   String?         @map("usage_event_id") @db.Uuid
+  reportRequestId String?        @map("report_request_id") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  invoice        Invoice         @relation(fields: [invoiceId], references: [id])
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  usageEvent     UsageEvent?     @relation(fields: [usageEventId], references: [id])
+  reportRequest  ReportRequest?  @relation(fields: [reportRequestId], references: [id])
+
+  @@unique([invoiceId, usageEventId])
+  @@unique([usageEventId])
+  @@index([invoiceId])
+  @@index([tenantId])
+  @@index([reportRequestId])
+  @@map("invoice_lines")
+}
+
+model Payment {
+  id              String        @id @default(uuid()) @db.Uuid
+  tenantId        String        @map("tenant_id") @db.Uuid
+  invoiceId       String        @map("invoice_id") @db.Uuid
+  createdByUserId String?       @map("created_by_user_id") @db.Uuid
+  method          PaymentMethod @default(manual)
+  status          PaymentStatus @default(posted)
+  amountPaise     BigInt        @default(0) @db.BigInt @map("amount_paise")
+  currency        String        @default("INR")
+  reference       String?
+  notes           String?
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  tenant          Tenant        @relation(fields: [tenantId], references: [id])
+  invoice         Invoice       @relation(fields: [invoiceId], references: [id])
+  createdByUser   User?         @relation("PaymentCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@index([createdByUserId])
+  @@map("payments")
+}

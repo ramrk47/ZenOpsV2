@@ -257,6 +257,46 @@
         }
       }
     },
+    "/v1/billing/me": {
+      "get": {
+        "summary": "Get tenant billing summary for current period",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/billing/invoices": {
+      "get": {
+        "summary": "List tenant invoices",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/billing/invoices/{id}": {
+      "get": {
+        "summary": "Get invoice detail with lines and payments",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/billing/invoices/{id}/mark-paid": {
+      "post": {
+        "summary": "Studio-only: mark invoice paid with manual payment record",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/v1/files/presign-upload": {
       "post": {
         "summary": "Create document record and presign upload",

@@ -21,6 +21,12 @@ DECLARE
     'document_tag_keys',
     'document_tag_values',
     'document_tag_map',
+    'billing_plans',
+    'tenant_billing',
+    'usage_events',
+    'invoices',
+    'invoice_lines',
+    'payments',
     'assignment_assignees',
     'assignment_floors',
     'assignment_tasks',
@@ -71,6 +77,12 @@ DECLARE
     'document_tag_keys',
     'document_tag_values',
     'document_tag_map',
+    'billing_plans',
+    'tenant_billing',
+    'usage_events',
+    'invoices',
+    'invoice_lines',
+    'payments',
     'assignment_assignees',
     'assignment_floors',
     'assignment_tasks',
@@ -324,6 +336,12 @@ DECLARE
     'document_tag_keys',
     'document_tag_values',
     'document_tag_map',
+    'billing_plans',
+    'tenant_billing',
+    'usage_events',
+    'invoices',
+    'invoice_lines',
+    'payments',
     'assignment_assignees',
     'assignment_floors',
     'assignment_tasks',
@@ -357,6 +375,18 @@ CREATE POLICY studio_read ON public.audit_events
   FOR SELECT TO zen_studio
   USING (current_setting('app.aud', true) = 'studio');
 
+DROP POLICY IF EXISTS studio_billing_write_invoices ON public.invoices;
+CREATE POLICY studio_billing_write_invoices ON public.invoices
+  FOR UPDATE TO zen_studio
+  USING (current_setting('app.aud', true) = 'studio')
+  WITH CHECK (current_setting('app.aud', true) = 'studio');
+
+DROP POLICY IF EXISTS studio_billing_write_payments ON public.payments;
+CREATE POLICY studio_billing_write_payments ON public.payments
+  FOR ALL TO zen_studio
+  USING (current_setting('app.aud', true) = 'studio')
+  WITH CHECK (current_setting('app.aud', true) = 'studio');
+
 -- Worker policies: explicit aud with tenant context for read/write
 DO $$
 DECLARE
@@ -380,6 +410,12 @@ DECLARE
     'document_tag_keys',
     'document_tag_values',
     'document_tag_map',
+    'billing_plans',
+    'tenant_billing',
+    'usage_events',
+    'invoices',
+    'invoice_lines',
+    'payments',
     'assignment_assignees',
     'assignment_floors',
     'assignment_tasks',
@@ -423,6 +459,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS credits_ledger_one_active_reservation_idx
 CREATE UNIQUE INDEX IF NOT EXISTS assignments_one_active_work_order_idx
   ON public.assignments (work_order_id)
   WHERE work_order_id IS NOT NULL AND deleted_at IS NULL;
+
+-- Enforce finalize billing idempotency surfaces
+CREATE UNIQUE INDEX IF NOT EXISTS usage_events_idempotency_idx
+  ON public.usage_events (tenant_id, event_type, idempotency_key);
+
+CREATE UNIQUE INDEX IF NOT EXISTS usage_events_finalize_once_idx
+  ON public.usage_events (report_request_id, event_type)
+  WHERE report_request_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS invoice_lines_usage_once_idx
+  ON public.invoice_lines (invoice_id, usage_event_id)
+  WHERE usage_event_id IS NOT NULL;
 
 -- Enforce one flag-style tag entry per (document,key) when value is null
 CREATE UNIQUE INDEX IF NOT EXISTS document_tag_map_one_flag_value_idx

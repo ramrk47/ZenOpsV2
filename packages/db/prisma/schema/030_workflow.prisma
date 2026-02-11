@@ -43,6 +43,7 @@ model Assignment {
   tasks             AssignmentTask[]
   messages          AssignmentMessage[]
   activities        AssignmentActivity[]
+  usageEvents       UsageEvent[]
   reportRequests    ReportRequest[]
   documentLinks     DocumentLink[]
 
@@ -170,6 +171,8 @@ model ReportRequest {
   creditsLedger     CreditsLedger[]
   documentLinks     DocumentLink[]
   reportInput       ReportInput?
+  usageEvents       UsageEvent[]
+  invoiceLines      InvoiceLine[]
 
   @@index([tenantId])
   @@index([status])
