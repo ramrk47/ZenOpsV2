@@ -1,0 +1,49 @@
+enum TenantLane {
+  internal
+  external
+  tenant
+}
+
+enum WorkOrderSource {
+  tenant
+  external
+  partner
+  internal
+}
+
+enum WorkOrderStatus {
+  submitted
+  accepted
+  rejected
+  completed
+}
+
+enum AssignmentStatus {
+  queued
+  in_progress
+  blocked
+  done
+}
+
+enum ReportRequestStatus {
+  requested
+  queued
+  draft_ready
+  under_review
+  finalized
+  failed
+  cancelled
+}
+
+enum ReportJobStatus {
+  pending
+  processing
+  succeeded
+  failed
+}
+
+enum CreditsLedgerStatus {
+  reserved
+  consumed
+  released
+}

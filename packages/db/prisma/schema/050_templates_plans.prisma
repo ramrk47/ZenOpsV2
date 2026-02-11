@@ -1,0 +1,68 @@
+model ReportTemplate {
+  id            String            @id @default(uuid()) @db.Uuid
+  tenantId      String            @map("tenant_id") @db.Uuid
+  name          String
+  deletedAt     DateTime?         @map("deleted_at")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+  tenant        Tenant            @relation(fields: [tenantId], references: [id])
+  versions      TemplateVersion[]
+
+  @@index([tenantId])
+  @@map("report_templates")
+}
+
+model TemplateVersion {
+  id              String          @id @default(uuid()) @db.Uuid
+  tenantId        String          @map("tenant_id") @db.Uuid
+  reportTemplateId String         @map("report_template_id") @db.Uuid
+  version         Int
+  label           String?
+  deletedAt       DateTime?       @map("deleted_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  tenant          Tenant          @relation(fields: [tenantId], references: [id])
+  reportTemplate  ReportTemplate  @relation(fields: [reportTemplateId], references: [id])
+  reportRequests  ReportRequest[]
+
+  @@index([tenantId])
+  @@unique([reportTemplateId, version])
+  @@map("template_versions")
+}
+
+model Plan {
+  id              String       @id @default(uuid()) @db.Uuid
+  tenantId        String       @map("tenant_id") @db.Uuid
+  name            String
+  includedCredits Int          @default(0) @map("included_credits")
+  activeFrom      DateTime?    @map("active_from")
+  activeTo        DateTime?    @map("active_to")
+  deletedAt       DateTime?    @map("deleted_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  tenant          Tenant       @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map("plans")
+}
+
+model CreditsLedger {
+  id              String              @id @default(uuid()) @db.Uuid
+  tenantId        String              @map("tenant_id") @db.Uuid
+  reportRequestId String              @map("report_request_id") @db.Uuid
+  reportJobId     String?             @map("report_job_id") @db.Uuid
+  delta           Int
+  status          CreditsLedgerStatus
+  idempotencyKey  String              @map("idempotency_key")
+  deletedAt       DateTime?           @map("deleted_at")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  tenant          Tenant              @relation(fields: [tenantId], references: [id])
+  reportRequest   ReportRequest       @relation(fields: [reportRequestId], references: [id])
+  reportJob       ReportJob?          @relation(fields: [reportJobId], references: [id])
+
+  @@index([tenantId])
+  @@index([reportRequestId])
+  @@unique([idempotencyKey])
+  @@map("credits_ledger")
+}

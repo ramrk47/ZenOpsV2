@@ -1,0 +1,38 @@
+model ReportArtifact {
+  id              String           @id @default(uuid()) @db.Uuid
+  tenantId        String           @map("tenant_id") @db.Uuid
+  reportRequestId String           @map("report_request_id") @db.Uuid
+  kind            String
+  deletedAt       DateTime?        @map("deleted_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  reportRequest   ReportRequest    @relation(fields: [reportRequestId], references: [id])
+  versions        ArtifactVersion[]
+
+  @@index([tenantId])
+  @@index([reportRequestId])
+  @@map("report_artifacts")
+}
+
+model ArtifactVersion {
+  id               String         @id @default(uuid()) @db.Uuid
+  tenantId         String         @map("tenant_id") @db.Uuid
+  reportArtifactId String         @map("report_artifact_id") @db.Uuid
+  createdByUserId  String?        @map("created_by_user_id") @db.Uuid
+  version          Int
+  path             String
+  mimeType         String         @map("mime_type")
+  sizeBytes        Int            @default(0) @map("size_bytes")
+  deletedAt        DateTime?      @map("deleted_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  tenant           Tenant         @relation(fields: [tenantId], references: [id])
+  reportArtifact   ReportArtifact @relation(fields: [reportArtifactId], references: [id])
+  createdByUser    User?          @relation(fields: [createdByUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([reportArtifactId])
+  @@unique([reportArtifactId, version])
+  @@map("artifact_versions")
+}

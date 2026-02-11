@@ -1,0 +1,80 @@
+model Tenant {
+  id          String       @id @default(uuid()) @db.Uuid
+  slug        String       @unique
+  name        String
+  lane        TenantLane   @default(tenant)
+  deletedAt   DateTime?    @map("deleted_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  memberships Membership[]
+  partners    Partner[]
+  plans       Plan[]
+  workOrders  WorkOrder[]
+  assignments Assignment[]
+  reportRequests ReportRequest[]
+  reportJobs      ReportJob[]
+  reportArtifacts ReportArtifact[]
+  artifactVersions ArtifactVersion[]
+  reportTemplates ReportTemplate[]
+  templateVersions TemplateVersion[]
+  creditsLedger CreditsLedger[]
+  auditEvents AuditEvent[]
+
+  @@map("tenants")
+}
+
+model User {
+  id          String       @id @default(uuid()) @db.Uuid
+  email       String       @unique
+  name        String
+  deletedAt   DateTime?    @map("deleted_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  memberships Membership[]
+  assignments Assignment[] @relation("AssignmentAssignee")
+  workOrders  WorkOrder[]  @relation("PortalUserWorkOrders")
+  artifactVersions ArtifactVersion[]
+  auditEvents AuditEvent[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String       @unique
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  memberships Membership[]
+
+  @@map("roles")
+}
+
+model Membership {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  roleId      String    @map("role_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+  role        Role      @relation(fields: [roleId], references: [id])
+
+  @@unique([tenantId, userId, roleId])
+  @@index([tenantId])
+  @@index([userId])
+  @@map("memberships")
+}
+
+model Partner {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  name        String
+  deletedAt   DateTime? @map("deleted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map("partners")
+}

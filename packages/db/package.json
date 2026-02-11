@@ -1,0 +1,28 @@
+{
+  "name": "@zenops/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "prisma:validate": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/zenops} prisma validate --schema prisma/schema",
+    "prisma:generate": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/zenops} prisma generate --schema prisma/schema",
+    "prisma:push": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/zenops} prisma db push --schema prisma/schema",
+    "build": "pnpm run prisma:generate && tsc -p tsconfig.json",
+    "lint": "pnpm run prisma:validate && tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "contract_check": "pnpm run prisma:validate && pnpm run prisma:generate",
+    "postinstall": "pnpm run prisma:generate"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.2",
+    "@zenops/rls": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/pg": "8.11.11",
+    "pg": "8.13.3",
+    "prisma": "6.19.2",
+    "vitest": "3.0.6"
+  }
+}

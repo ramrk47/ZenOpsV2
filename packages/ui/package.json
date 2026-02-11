@@ -1,0 +1,19 @@
+{
+  "name": "@zenops/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    "./styles/tokens.css": "./styles/tokens.css"
+  },
+  "scripts": {
+    "build": "echo 'ui package is style-only'",
+    "lint": "echo 'no lint for style-only package'",
+    "test": "vitest run --passWithNoTests",
+    "contract_check": "echo 'no contract checks for ui'"
+  },
+  "devDependencies": {
+    "vitest": "3.0.6"
+  }
+}

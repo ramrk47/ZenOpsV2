@@ -1,0 +1,91 @@
+model WorkOrder {
+  id            String         @id @default(uuid()) @db.Uuid
+  tenantId      String         @map("tenant_id") @db.Uuid
+  portalUserId  String?        @map("portal_user_id") @db.Uuid
+  source        WorkOrderSource
+  status        WorkOrderStatus @default(submitted)
+  title         String
+  description   String?
+  deletedAt     DateTime?      @map("deleted_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  portalUser    User?          @relation("PortalUserWorkOrders", fields: [portalUserId], references: [id])
+  assignments   Assignment[]   @relation("WorkOrderAssignments")
+  sourceAssignments Assignment[] @relation("SourceWorkOrderAssignments")
+  reportRequests ReportRequest[]
+
+  @@index([tenantId])
+  @@index([portalUserId])
+  @@index([status])
+  @@map("work_orders")
+}
+
+model Assignment {
+  id               String          @id @default(uuid()) @db.Uuid
+  tenantId         String          @map("tenant_id") @db.Uuid
+  workOrderId      String          @map("work_order_id") @db.Uuid
+  sourceWorkOrderId String?        @map("source_work_order_id") @db.Uuid
+  assigneeUserId   String?         @map("assignee_user_id") @db.Uuid
+  status           AssignmentStatus @default(queued)
+  deletedAt        DateTime?       @map("deleted_at")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+  tenant           Tenant          @relation(fields: [tenantId], references: [id])
+  workOrder        WorkOrder       @relation("WorkOrderAssignments", fields: [workOrderId], references: [id])
+  sourceWorkOrder  WorkOrder?      @relation("SourceWorkOrderAssignments", fields: [sourceWorkOrderId], references: [id])
+  assigneeUser     User?           @relation("AssignmentAssignee", fields: [assigneeUserId], references: [id])
+  reportRequests   ReportRequest[]
+
+  @@index([tenantId])
+  @@index([workOrderId])
+  @@index([sourceWorkOrderId])
+  @@map("assignments")
+}
+
+model ReportRequest {
+  id                String             @id @default(uuid()) @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
+  assignmentId      String?            @map("assignment_id") @db.Uuid
+  workOrderId       String?            @map("work_order_id") @db.Uuid
+  templateVersionId String?            @map("template_version_id") @db.Uuid
+  title             String
+  status            ReportRequestStatus @default(requested)
+  deletedAt         DateTime?          @map("deleted_at")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  assignment        Assignment?        @relation(fields: [assignmentId], references: [id])
+  workOrder         WorkOrder?         @relation(fields: [workOrderId], references: [id])
+  templateVersion   TemplateVersion?   @relation(fields: [templateVersionId], references: [id])
+  reportJobs        ReportJob[]
+  reportArtifacts   ReportArtifact[]
+  creditsLedger     CreditsLedger[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("report_requests")
+}
+
+model ReportJob {
+  id              String         @id @default(uuid()) @db.Uuid
+  tenantId        String         @map("tenant_id") @db.Uuid
+  reportRequestId String         @map("report_request_id") @db.Uuid
+  status          ReportJobStatus @default(pending)
+  attempts        Int            @default(0)
+  errorMessage    String?        @map("error_message")
+  deletedAt       DateTime?      @map("deleted_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  queuedAt        DateTime?      @map("queued_at")
+  startedAt       DateTime?      @map("started_at")
+  finishedAt      DateTime?      @map("finished_at")
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  reportRequest   ReportRequest  @relation(fields: [reportRequestId], references: [id])
+  creditsLedger   CreditsLedger[]
+
+  @@index([tenantId])
+  @@index([reportRequestId])
+  @@index([status])
+  @@map("report_jobs")
+}

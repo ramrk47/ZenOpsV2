@@ -1,0 +1,25 @@
+{
+  "name": "@zenops/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "contract_check": "echo 'no contract checks for worker'"
+  },
+  "dependencies": {
+    "@zenops/common": "workspace:*",
+    "@zenops/config": "workspace:*",
+    "@zenops/db": "workspace:*",
+    "bullmq": "5.67.3"
+  },
+  "devDependencies": {
+    "tsx": "4.20.5",
+    "typescript": "5.7.3",
+    "vitest": "3.0.6"
+  }
+}

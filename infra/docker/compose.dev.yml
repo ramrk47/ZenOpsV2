@@ -1,0 +1,148 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: zenops-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zenops
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - zenops_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d zenops"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: zenops-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - zenops_redisdata:/data
+
+  api:
+    image: node:20-alpine
+    container_name: zenops-api
+    working_dir: /workspace
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file:
+      - ../../.env.example
+    environment:
+      DATABASE_URL: postgresql://zen_api:zen_api@postgres:5432/zenops
+      DATABASE_URL_API: postgresql://zen_api:zen_api@postgres:5432/zenops
+      DATABASE_URL_ROOT: postgresql://postgres:postgres@postgres:5432/zenops
+      REDIS_URL: redis://redis:6379
+      ARTIFACTS_DIR: /var/zenops/artifacts
+    command: >-
+      sh -lc "corepack enable
+      && pnpm install
+      && node scripts/bootstrap-db.mjs
+      && pnpm --filter @zenops/api dev"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../../:/workspace
+      - zenops_artifacts:/var/zenops/artifacts
+
+  worker:
+    image: node:20-alpine
+    container_name: zenops-worker
+    working_dir: /workspace
+    depends_on:
+      api:
+        condition: service_started
+      redis:
+        condition: service_started
+    env_file:
+      - ../../.env.example
+    environment:
+      DATABASE_URL: postgresql://zen_worker:zen_worker@postgres:5432/zenops
+      DATABASE_URL_WORKER: postgresql://zen_worker:zen_worker@postgres:5432/zenops
+      DATABASE_URL_ROOT: postgresql://postgres:postgres@postgres:5432/zenops
+      REDIS_URL: redis://redis:6379
+      ARTIFACTS_DIR: /var/zenops/artifacts
+    command: >-
+      sh -lc "corepack enable
+      && pnpm install
+      && pnpm --filter @zenops/worker dev"
+    volumes:
+      - ../../:/workspace
+      - zenops_artifacts:/var/zenops/artifacts
+
+  web:
+    image: node:20-alpine
+    container_name: zenops-web
+    working_dir: /workspace
+    depends_on:
+      api:
+        condition: service_started
+    env_file:
+      - ../../.env.example
+    environment:
+      VITE_API_BASE_URL: http://localhost:3000/v1
+      PORT: 5173
+    command: >-
+      sh -lc "corepack enable
+      && pnpm install
+      && pnpm --filter @zenops/web dev --host 0.0.0.0 --port 5173"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../../:/workspace
+
+  studio:
+    image: node:20-alpine
+    container_name: zenops-studio
+    working_dir: /workspace
+    depends_on:
+      api:
+        condition: service_started
+    env_file:
+      - ../../.env.example
+    environment:
+      VITE_API_BASE_URL: http://localhost:3000/v1
+      PORT: 5174
+    command: >-
+      sh -lc "corepack enable
+      && pnpm install
+      && pnpm --filter @zenops/studio dev --host 0.0.0.0 --port 5174"
+    ports:
+      - "5174:5174"
+    volumes:
+      - ../../:/workspace
+
+  portal:
+    image: node:20-alpine
+    container_name: zenops-portal
+    working_dir: /workspace
+    depends_on:
+      api:
+        condition: service_started
+    env_file:
+      - ../../.env.example
+    environment:
+      VITE_API_BASE_URL: http://localhost:3000/v1
+      PORT: 5175
+    command: >-
+      sh -lc "corepack enable
+      && pnpm install
+      && pnpm --filter @zenops/portal dev --host 0.0.0.0 --port 5175"
+    ports:
+      - "5175:5175"
+    volumes:
+      - ../../:/workspace
+
+volumes:
+  zenops_pgdata:
+  zenops_redisdata:
+  zenops_artifacts:

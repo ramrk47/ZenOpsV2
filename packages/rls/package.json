@@ -1,0 +1,17 @@
+{
+  "name": "@zenops/rls",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "contract_check": "echo 'no contract checks for rls'"
+  },
+  "devDependencies": {
+    "vitest": "3.0.6"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "zenops-v2",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.0.0",
+  "pnpm": {
+    "overrides": {
+      "prisma": "6.19.2",
+      "@prisma/client": "6.19.2"
+    }
+  },
+  "scripts": {
+    "dev": "docker compose -f infra/docker/compose.dev.yml up --build",
+    "dev:down": "docker compose -f infra/docker/compose.dev.yml down -v",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "contract_check": "turbo run contract_check",
+    "reset": "docker compose -f infra/docker/compose.dev.yml down -v --remove-orphans && docker compose -f infra/docker/compose.dev.yml up --build -d"
+  },
+  "devDependencies": {
+    "@types/node": "22.13.1",
+    "eslint": "9.20.1",
+    "prettier": "3.5.1",
+    "turbo": "2.4.2",
+    "typescript": "5.7.3"
+  }
+}

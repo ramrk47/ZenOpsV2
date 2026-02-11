@@ -1,0 +1,38 @@
+{
+  "name": "@zenops/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "start:prod": "node dist/main.js",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "openapi:generate": "tsx src/openapi.ts",
+    "contract_check": "pnpm run openapi:generate && git diff --exit-code -- openapi.json"
+  },
+  "dependencies": {
+    "@fastify/cors": "10.1.0",
+    "@nestjs/common": "11.1.13",
+    "@nestjs/core": "11.1.13",
+    "@nestjs/platform-fastify": "11.1.13",
+    "@nestjs/swagger": "11.2.6",
+    "@zenops/auth": "workspace:*",
+    "@zenops/common": "workspace:*",
+    "@zenops/config": "workspace:*",
+    "@zenops/contracts": "workspace:*",
+    "@zenops/db": "workspace:*",
+    "@zenops/rls": "workspace:*",
+    "bullmq": "5.67.3",
+    "fastify": "5.7.4",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2"
+  },
+  "devDependencies": {
+    "tsx": "4.20.5",
+    "typescript": "5.7.3",
+    "vitest": "3.0.6"
+  }
+}

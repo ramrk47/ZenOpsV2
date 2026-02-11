@@ -1,0 +1,27 @@
+@import '@zenops/ui/styles/tokens.css';
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Sora', sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--zen-text);
+  background:
+    linear-gradient(160deg, rgba(15, 118, 110, 0.08), transparent 45%),
+    linear-gradient(20deg, rgba(245, 158, 11, 0.12), transparent 40%),
+    #f4f8f1;
+}
+
+.panel {
+  border: 1px solid var(--zen-border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 10px 24px rgba(18, 35, 29, 0.08);
+}

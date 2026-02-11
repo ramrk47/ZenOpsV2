@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zenops
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - zenops_pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - zenops_redisdata:/data
+
+  api:
+    image: node:20-alpine
+    working_dir: /workspace
+    env_file:
+      - ../../.env
+    command: >-
+      sh -lc "corepack enable
+      && pnpm install --prod
+      && pnpm --filter @zenops/api build
+      && pnpm --filter @zenops/api start:prod"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../../:/workspace
+      - zenops_artifacts:/var/zenops/artifacts
+
+  worker:
+    image: node:20-alpine
+    working_dir: /workspace
+    env_file:
+      - ../../.env
+    command: >-
+      sh -lc "corepack enable
+      && pnpm install --prod
+      && pnpm --filter @zenops/worker build
+      && pnpm --filter @zenops/worker start"
+    volumes:
+      - ../../:/workspace
+      - zenops_artifacts:/var/zenops/artifacts
+
+volumes:
+  zenops_pgdata:
+  zenops_redisdata:
+  zenops_artifacts:
