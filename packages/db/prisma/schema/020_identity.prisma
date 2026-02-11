@@ -11,6 +11,11 @@ model Tenant {
   plans       Plan[]
   workOrders  WorkOrder[]
   assignments Assignment[]
+  assignmentAssignees AssignmentAssignee[]
+  assignmentFloors AssignmentFloor[]
+  assignmentTasks AssignmentTask[]
+  assignmentMessages AssignmentMessage[]
+  assignmentActivities AssignmentActivity[]
   reportRequests ReportRequest[]
   reportJobs      ReportJob[]
   reportArtifacts ReportArtifact[]
@@ -19,6 +24,13 @@ model Tenant {
   templateVersions TemplateVersion[]
   creditsLedger CreditsLedger[]
   auditEvents AuditEvent[]
+  documents Document[]
+  documentLinks DocumentLink[]
+  documentTagKeys DocumentTagKey[]
+  documentTagValues DocumentTagValue[]
+  documentTagMap DocumentTagMap[]
+  reportInputs ReportInput[]
+  extractionRuns ExtractionRun[]
 
   @@map("tenants")
 }
@@ -31,10 +43,15 @@ model User {
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
   memberships Membership[]
-  assignments Assignment[] @relation("AssignmentAssignee")
+  createdAssignments Assignment[] @relation("AssignmentCreatedBy")
+  assignmentAssignees AssignmentAssignee[]
+  assignedTasks AssignmentTask[] @relation("AssignmentTaskAssignee")
+  assignmentMessages AssignmentMessage[] @relation("AssignmentMessageAuthor")
+  assignmentActivities AssignmentActivity[] @relation("AssignmentActivityActor")
   workOrders  WorkOrder[]  @relation("PortalUserWorkOrders")
   artifactVersions ArtifactVersion[]
   auditEvents AuditEvent[]
+  ownedDocuments Document[] @relation("DocumentOwner")
 
   @@map("users")
 }

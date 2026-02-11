@@ -19,6 +19,15 @@ const setupFixtures = async () => {
 
   const userA = randomUUID();
   const userB = randomUUID();
+  const internalWorkOrderId = randomUUID();
+  const externalWorkOrderId = randomUUID();
+  const portalWorkOrderA = randomUUID();
+  const portalWorkOrderB = randomUUID();
+  const internalAssignmentId = randomUUID();
+  const externalAssignmentId = randomUUID();
+  const internalDocId = randomUUID();
+  const portalDocA = randomUUID();
+  const portalDocB = randomUUID();
 
   await rootClient.query(
     `INSERT INTO users (id, email, name, created_at, updated_at)
@@ -36,22 +45,65 @@ const setupFixtures = async () => {
       ($8, $4, $9, 'external', 'submitted', 'Portal B WO', NOW(), NOW())
      ON CONFLICT (id) DO NOTHING`,
     [
-      randomUUID(),
-      randomUUID(),
+      internalWorkOrderId,
+      externalWorkOrderId,
       cfg.tenantInternal,
       cfg.tenantExternal,
       userA,
-      randomUUID(),
+      portalWorkOrderA,
       userA,
-      randomUUID(),
+      portalWorkOrderB,
       userB
     ]
+  );
+
+  await rootClient.query(
+    `INSERT INTO documents (id, tenant_id, owner_user_id, source, storage_key, original_filename, content_type, size_bytes, status, metadata_json, created_at, updated_at)
+     VALUES
+      ($1, $2, NULL, 'tenant', $3, 'internal.pdf', 'application/pdf', 1024, 'uploaded', '{}'::jsonb, NOW(), NOW()),
+      ($4, $5, $6, 'portal', $7, 'portal-a.pdf', 'application/pdf', 2048, 'uploaded', '{}'::jsonb, NOW(), NOW()),
+      ($8, $5, $9, 'portal', $10, 'portal-b.pdf', 'application/pdf', 2048, 'uploaded', '{}'::jsonb, NOW(), NOW())
+     ON CONFLICT (id) DO NOTHING`,
+    [
+      internalDocId,
+      cfg.tenantInternal,
+      `fixtures/${internalDocId}.pdf`,
+      portalDocA,
+      cfg.tenantExternal,
+      userA,
+      `fixtures/${portalDocA}.pdf`,
+      portalDocB,
+      userB,
+      `fixtures/${portalDocB}.pdf`
+    ]
+  );
+
+  await rootClient.query(
+    `INSERT INTO assignments (id, tenant_id, source, work_order_id, title, summary, priority, status, created_by_user_id, created_at, updated_at)
+     VALUES
+      ($1, $3, 'tenant', $5, 'Internal Assignment', 'Internal lane test assignment', 'normal', 'requested', $7, NOW(), NOW()),
+      ($2, $4, 'external_portal', $6, 'External Assignment', 'External lane test assignment', 'high', 'requested', $7, NOW(), NOW())
+     ON CONFLICT (id) DO NOTHING`,
+    [internalAssignmentId, externalAssignmentId, cfg.tenantInternal, cfg.tenantExternal, internalWorkOrderId, externalWorkOrderId, userA]
+  );
+
+  await rootClient.query(
+    `INSERT INTO document_links (id, tenant_id, document_id, work_order_id, purpose, created_at)
+     VALUES
+      ($1, $2, $3, $4, 'reference', NOW()),
+      ($5, $2, $6, $7, 'reference', NOW())
+     ON CONFLICT (id) DO NOTHING`,
+    [randomUUID(), cfg.tenantExternal, portalDocA, portalWorkOrderA, randomUUID(), portalDocB, portalWorkOrderB]
   );
 
   await rootClient.end();
 
   process.env.TEST_PORTAL_USER_A = userA;
   process.env.TEST_PORTAL_USER_B = userB;
+  process.env.TEST_PORTAL_DOC_A = portalDocA;
+  process.env.TEST_PORTAL_DOC_B = portalDocB;
+  process.env.TEST_INTERNAL_ASSIGNMENT = internalAssignmentId;
+  process.env.TEST_EXTERNAL_ASSIGNMENT = externalAssignmentId;
 };
 
 describe('RLS integration', () => {
@@ -88,9 +140,11 @@ describe('RLS integration', () => {
     await webClient.connect();
 
     const noContext = await webClient.query('SELECT id FROM work_orders');
+    const noContextAssignments = await webClient.query('SELECT id FROM assignments');
     await webClient.end();
 
     expect(noContext.rows.length).toBe(0);
+    expect(noContextAssignments.rows.length).toBe(0);
   });
 
   it.skipIf(!ready)('enforces portal user isolation', async () => {
@@ -113,5 +167,70 @@ describe('RLS integration', () => {
 
     expect(rowsA.rows.every((row) => row.portal_user_id === process.env.TEST_PORTAL_USER_A)).toBe(true);
     expect(rowsB.rows.every((row) => row.portal_user_id === process.env.TEST_PORTAL_USER_B)).toBe(true);
+  });
+
+  it.skipIf(!ready)('blocks portal user A from reading portal user B documents', async () => {
+    const portalClient = new Client({ connectionString: cfg.portal });
+    await portalClient.connect();
+
+    await portalClient.query('BEGIN');
+    await portalClient.query(`SELECT set_config('app.aud', 'portal', true)`);
+    await portalClient.query(`SELECT set_config('app.user_id', $1, true)`, [process.env.TEST_PORTAL_USER_A]);
+    const canReadOwn = await portalClient.query('SELECT id FROM documents WHERE id = $1', [process.env.TEST_PORTAL_DOC_A]);
+    const canReadOther = await portalClient.query('SELECT id FROM documents WHERE id = $1', [process.env.TEST_PORTAL_DOC_B]);
+    await portalClient.query('COMMIT');
+
+    await portalClient.end();
+
+    expect(canReadOwn.rows.length).toBe(1);
+    expect(canReadOther.rows.length).toBe(0);
+  });
+
+  it.skipIf(!ready)('enforces tenant isolation for documents on zen_web', async () => {
+    const webClient = new Client({ connectionString: cfg.web });
+    await webClient.connect();
+
+    await webClient.query('BEGIN');
+    await webClient.query(`SELECT set_config('app.tenant_id', $1, true)`, [cfg.tenantInternal]);
+    await webClient.query(`SELECT set_config('app.user_id', '', true)`);
+    await webClient.query(`SELECT set_config('app.aud', 'web', true)`);
+    const internal = await webClient.query('SELECT tenant_id FROM documents');
+    await webClient.query('COMMIT');
+
+    await webClient.query('BEGIN');
+    await webClient.query(`SELECT set_config('app.tenant_id', $1, true)`, [cfg.tenantExternal]);
+    await webClient.query(`SELECT set_config('app.user_id', '', true)`);
+    await webClient.query(`SELECT set_config('app.aud', 'web', true)`);
+    const external = await webClient.query('SELECT tenant_id FROM documents');
+    await webClient.query('COMMIT');
+
+    await webClient.end();
+
+    expect(internal.rows.every((row) => row.tenant_id === cfg.tenantInternal)).toBe(true);
+    expect(external.rows.every((row) => row.tenant_id === cfg.tenantExternal)).toBe(true);
+  });
+
+  it.skipIf(!ready)('enforces tenant isolation for assignments on zen_web', async () => {
+    const webClient = new Client({ connectionString: cfg.web });
+    await webClient.connect();
+
+    await webClient.query('BEGIN');
+    await webClient.query(`SELECT set_config('app.tenant_id', $1, true)`, [cfg.tenantInternal]);
+    await webClient.query(`SELECT set_config('app.user_id', '', true)`);
+    await webClient.query(`SELECT set_config('app.aud', 'web', true)`);
+    const internal = await webClient.query('SELECT tenant_id FROM assignments');
+    await webClient.query('COMMIT');
+
+    await webClient.query('BEGIN');
+    await webClient.query(`SELECT set_config('app.tenant_id', $1, true)`, [cfg.tenantExternal]);
+    await webClient.query(`SELECT set_config('app.user_id', '', true)`);
+    await webClient.query(`SELECT set_config('app.aud', 'web', true)`);
+    const external = await webClient.query('SELECT tenant_id FROM assignments');
+    await webClient.query('COMMIT');
+
+    await webClient.end();
+
+    expect(internal.rows.every((row) => row.tenant_id === cfg.tenantInternal)).toBe(true);
+    expect(external.rows.every((row) => row.tenant_id === cfg.tenantExternal)).toBe(true);
   });
 });
