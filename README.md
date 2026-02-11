@@ -38,11 +38,16 @@ ZenOps v2 foundation scaffold as a Turborepo + pnpm monorepo.
   - `./scripts/reset-demo.sh`
 - Run the assignment spine API demo:
   - `./scripts/demo.sh`
+- Run the billable-finalize idempotency demo:
+  - `./scripts/demo-billing.sh`
 - Expected outcome:
   - PASS summary with `tasks=1`, `messages=1`, `documents=1`, `activities>=4`.
+  - PASS summary from billing demo with `usage_events=1`, `invoice_lines=1`, stable total after retry.
 - Optional flags:
   - `DEMO_ASSUME_INFRA_RUNNING=1 ./scripts/demo.sh` (skip infra startup)
   - `DEMO_ASSUME_API_RUNNING=1 ./scripts/demo.sh` (skip API startup)
+  - Same flags apply to `./scripts/demo-billing.sh`.
+  - `DEMO_FORCE_RESET=0 ./scripts/demo-billing.sh` (do not call `reset-demo.sh` first)
 
 ## Local Dev Notes
 - `infra:up` starts only Postgres + Redis.
@@ -87,3 +92,6 @@ This is a foundation scaffold with minimal business logic and clear extension po
 - Runtime components:
   - Keep API + worker + infra services enabled.
   - Keep `ZENOPS_MULTI_TENANT_ENABLED=false` for internal-only launch mode.
+
+## CI Notes
+- `/Users/dr.156/ZenOpsV2/.github/workflows/rls-integration.yml` runs DB RLS integration tests on every PR/push to `main` using ephemeral Postgres + Redis and seeded role-based URLs (`zen_web`, `zen_portal`).
