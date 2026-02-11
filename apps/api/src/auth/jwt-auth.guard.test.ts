@@ -1,4 +1,4 @@
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 import { signJwt } from '@zenops/auth';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
@@ -28,6 +28,12 @@ const makeExecutionContext = (authorization: string): ExecutionContext => {
   } as ExecutionContext;
 };
 
+const launchMode = {
+  multiTenantEnabled: false,
+  internalTenantId: '11111111-1111-1111-1111-111111111111',
+  externalTenantId: '22222222-2222-2222-2222-222222222222'
+} as const;
+
 describe('JwtAuthGuard audience gating', () => {
   it('denies non-studio token on studio-only route', () => {
     const secret = 'dev-secret';
@@ -43,7 +49,7 @@ describe('JwtAuthGuard audience gating', () => {
       }
     });
 
-    const guard = new JwtAuthGuard(new ReflectorStub('studio') as any, secret);
+    const guard = new JwtAuthGuard(new ReflectorStub('studio') as any, secret, launchMode);
 
     expect(() => guard.canActivate(makeExecutionContext(`Bearer ${token}`))).toThrowError(UnauthorizedException);
   });
@@ -62,8 +68,26 @@ describe('JwtAuthGuard audience gating', () => {
       }
     });
 
-    const guard = new JwtAuthGuard(new ReflectorStub('studio') as any, secret);
+    const guard = new JwtAuthGuard(new ReflectorStub('studio') as any, secret, launchMode);
 
     expect(guard.canActivate(makeExecutionContext(`Bearer ${token}`))).toBe(true);
+  });
+
+  it('rejects non-internal web tenant in single-tenant mode', () => {
+    const secret = 'dev-secret';
+    const token = signJwt({
+      secret,
+      claims: {
+        sub: '33333333-3333-3333-3333-333333333333',
+        tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        user_id: '33333333-3333-3333-3333-333333333333',
+        aud: 'web',
+        roles: [],
+        capabilities: []
+      }
+    });
+
+    const guard = new JwtAuthGuard(new ReflectorStub('web') as any, secret, launchMode);
+    expect(() => guard.canActivate(makeExecutionContext(`Bearer ${token}`))).toThrowError(ForbiddenException);
   });
 });

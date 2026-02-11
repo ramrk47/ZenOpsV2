@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Button } from './components/ui/button';
 
 const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/v1';
+const MULTI_TENANT_ENABLED = (import.meta.env.VITE_MULTI_TENANT_ENABLED ?? 'false') === 'true';
 
 interface ReportRequestRow {
   id: string;
@@ -79,6 +80,15 @@ export default function App() {
           <p className="text-2xl font-bold">{requests.filter((r) => r.status === 'draft_ready').length}</p>
         </article>
       </section>
+
+      {MULTI_TENANT_ENABLED ? (
+        <section className="card mb-6">
+          <h2 className="m-0 text-xl">Tenant Onboarding</h2>
+          <p className="text-sm text-[var(--zen-muted)]">
+            Multi-tenant onboarding and subscription management are enabled.
+          </p>
+        </section>
+      ) : null}
 
       <section className="card">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">

@@ -11,7 +11,8 @@ const logger = createJsonLogger();
 const prisma = createPrismaClient(env.DATABASE_URL_WORKER);
 
 const artifactsRoot = process.env.ARTIFACTS_DIR ?? env.ARTIFACTS_DIR;
-const defaultTenantId = process.env.TENANT_INTERNAL_UUID ?? env.TENANT_INTERNAL_UUID;
+const defaultTenantId =
+  process.env.ZENOPS_INTERNAL_TENANT_ID ?? process.env.TENANT_INTERNAL_UUID ?? env.ZENOPS_INTERNAL_TENANT_ID;
 const concurrency = Number(process.env.WORKER_CONCURRENCY ?? env.WORKER_CONCURRENCY);
 
 const worker = new Worker<QueueDraftPayload>(

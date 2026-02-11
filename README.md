@@ -29,6 +29,12 @@ ZenOps v2 foundation scaffold as a Turborepo + pnpm monorepo.
 - `pnpm dev:down`
 - `pnpm reset`
 
+## Launch Gating
+- `ZENOPS_MULTI_TENANT_ENABLED=false` by default.
+- In single-tenant mode, `aud=web` is restricted to `ZENOPS_INTERNAL_TENANT_ID`.
+- `aud=portal` is always forced to `ZENOPS_EXTERNAL_TENANT_ID`.
+- Tenant creation APIs return `403 MULTI_TENANT_DISABLED` until multi-tenant mode is enabled.
+
 ## Security Model
 - Dedicated DB roles: `zen_web`, `zen_studio`, `zen_portal`, `zen_worker`
 - `FORCE ROW LEVEL SECURITY` on tenant-owned tables

@@ -9,6 +9,7 @@ import { RequestContextService } from './db/request-context.service.js';
 import { DomainService } from './domain/domain.service.js';
 import { ReportQueueService } from './queue/report-queue.service.js';
 import { RequestIdMiddleware } from './common/request-id.middleware.js';
+import { loadLaunchModeConfig } from './common/launch-mode.js';
 
 @Module({
   controllers: [HealthController, AuthController, DomainController],
@@ -28,6 +29,10 @@ import { RequestIdMiddleware } from './common/request-id.middleware.js';
     {
       provide: 'JWT_SECRET_VALUE',
       useFactory: () => process.env.JWT_SECRET ?? 'dev-secret'
+    },
+    {
+      provide: 'LAUNCH_MODE_CONFIG',
+      useFactory: () => loadLaunchModeConfig(process.env)
     },
     RequestContextService,
     DomainService,

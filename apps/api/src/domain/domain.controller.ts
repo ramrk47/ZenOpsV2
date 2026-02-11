@@ -1,4 +1,15 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Req } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  Inject,
+  Param,
+  Post,
+  Req
+} from '@nestjs/common';
 import {
   AssignmentCreateSchema,
   type AssignmentCreate,
@@ -19,6 +30,7 @@ import { RequestContextService } from '../db/request-context.service.js';
 import { DomainService } from './domain.service.js';
 import { ReportQueueService } from '../queue/report-queue.service.js';
 import { RequireAudience } from '../auth/public.decorator.js';
+import type { LaunchModeConfig } from '../common/launch-mode.js';
 
 const parseOrThrow = <T>(parser: { safeParse: (input: unknown) => any }, body: unknown): T => {
   const parsed = parser.safeParse(body);
@@ -33,7 +45,8 @@ export class DomainController {
   constructor(
     private readonly requestContext: RequestContextService,
     private readonly domainService: DomainService,
-    private readonly queueService: ReportQueueService
+    private readonly queueService: ReportQueueService,
+    @Inject('LAUNCH_MODE_CONFIG') private readonly launchMode: LaunchModeConfig
   ) {}
 
   @Get('tenants')
@@ -43,6 +56,9 @@ export class DomainController {
 
   @Post('tenants')
   async createTenant(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    if (!this.launchMode.multiTenantEnabled) {
+      throw new ForbiddenException('MULTI_TENANT_DISABLED');
+    }
     const input = parseOrThrow<TenantCreate>(TenantCreateSchema, body);
     return this.requestContext.runWithClaims(claims, (tx) => this.domainService.createTenant(tx, input));
   }

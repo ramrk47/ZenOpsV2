@@ -1,14 +1,23 @@
-import { CanActivate, ExecutionContext, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  UnauthorizedException
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { parseBearerToken, verifyJwt } from '@zenops/auth';
 import { IS_PUBLIC_KEY, REQUIRED_AUDIENCE_KEY } from './public.decorator.js';
 import type { AuthenticatedRequest } from '../types.js';
+import type { LaunchModeConfig } from '../common/launch-mode.js';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    @Inject('JWT_SECRET_VALUE') private readonly jwtSecret: string
+    @Inject('JWT_SECRET_VALUE') private readonly jwtSecret: string,
+    @Inject('LAUNCH_MODE_CONFIG') private readonly launchMode: LaunchModeConfig
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -29,6 +38,15 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     const claims = verifyJwt(token, this.jwtSecret);
+
+    if (
+      !this.launchMode.multiTenantEnabled &&
+      claims.aud === 'web' &&
+      claims.tenant_id !== this.launchMode.internalTenantId
+    ) {
+      throw new ForbiddenException('TENANT_NOT_ENABLED');
+    }
+
     const requiredAudience = this.reflector.getAllAndOverride<string | undefined>(REQUIRED_AUDIENCE_KEY, [
       context.getHandler(),
       context.getClass()
