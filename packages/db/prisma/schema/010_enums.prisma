@@ -19,10 +19,55 @@ enum WorkOrderStatus {
 }
 
 enum AssignmentStatus {
-  queued
+  requested
+  assigned
   in_progress
-  blocked
+  awaiting_docs
+  draft_in_progress
+  under_review
+  finalized
+  delivered
+  cancelled
+}
+
+enum AssignmentSource {
+  tenant
+  external_portal
+  partner
+}
+
+enum AssignmentPriority {
+  low
+  normal
+  high
+  urgent
+}
+
+enum AssignmentAssigneeRole {
+  lead
+  assistant
+  reviewer
+  field
+}
+
+enum AssignmentTaskStatus {
+  todo
+  doing
   done
+  blocked
+}
+
+enum AssignmentActivityType {
+  created
+  status_changed
+  assignee_added
+  assignee_removed
+  task_added
+  task_done
+  message_posted
+  document_attached
+  report_queued
+  report_finalized
 }
 
 enum ReportRequestStatus {
@@ -46,4 +91,31 @@ enum CreditsLedgerStatus {
   reserved
   consumed
   released
+}
+
+enum DocumentSource {
+  portal
+  tenant
+  internal
+}
+
+enum DocumentStatus {
+  pending
+  uploaded
+  deleted
+}
+
+enum DocumentLinkPurpose {
+  evidence
+  reference
+  photo
+  annexure
+  other
+}
+
+enum ExtractionRunStatus {
+  queued
+  processing
+  done
+  failed
 }

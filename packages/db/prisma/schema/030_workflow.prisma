@@ -12,8 +12,8 @@ model WorkOrder {
   tenant        Tenant         @relation(fields: [tenantId], references: [id])
   portalUser    User?          @relation("PortalUserWorkOrders", fields: [portalUserId], references: [id])
   assignments   Assignment[]   @relation("WorkOrderAssignments")
-  sourceAssignments Assignment[] @relation("SourceWorkOrderAssignments")
   reportRequests ReportRequest[]
+  documentLinks DocumentLink[]
 
   @@index([tenantId])
   @@index([portalUserId])
@@ -22,25 +22,132 @@ model WorkOrder {
 }
 
 model Assignment {
-  id               String          @id @default(uuid()) @db.Uuid
-  tenantId         String          @map("tenant_id") @db.Uuid
-  workOrderId      String          @map("work_order_id") @db.Uuid
-  sourceWorkOrderId String?        @map("source_work_order_id") @db.Uuid
-  assigneeUserId   String?         @map("assignee_user_id") @db.Uuid
-  status           AssignmentStatus @default(queued)
-  deletedAt        DateTime?       @map("deleted_at")
-  createdAt        DateTime        @default(now()) @map("created_at")
-  updatedAt        DateTime        @updatedAt @map("updated_at")
-  tenant           Tenant          @relation(fields: [tenantId], references: [id])
-  workOrder        WorkOrder       @relation("WorkOrderAssignments", fields: [workOrderId], references: [id])
-  sourceWorkOrder  WorkOrder?      @relation("SourceWorkOrderAssignments", fields: [sourceWorkOrderId], references: [id])
-  assigneeUser     User?           @relation("AssignmentAssignee", fields: [assigneeUserId], references: [id])
-  reportRequests   ReportRequest[]
+  id                String                @id @default(uuid()) @db.Uuid
+  tenantId          String                @map("tenant_id") @db.Uuid
+  source            AssignmentSource      @default(tenant)
+  workOrderId       String?               @map("work_order_id") @db.Uuid
+  title             String
+  summary           String?
+  priority          AssignmentPriority    @default(normal)
+  status            AssignmentStatus      @default(requested)
+  dueDate           DateTime?             @map("due_date") @db.Date
+  createdByUserId   String                @map("created_by_user_id") @db.Uuid
+  deletedAt         DateTime?             @map("deleted_at")
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+  tenant            Tenant                @relation(fields: [tenantId], references: [id])
+  workOrder         WorkOrder?            @relation("WorkOrderAssignments", fields: [workOrderId], references: [id])
+  createdByUser     User                  @relation("AssignmentCreatedBy", fields: [createdByUserId], references: [id])
+  assignees         AssignmentAssignee[]
+  floors            AssignmentFloor[]
+  tasks             AssignmentTask[]
+  messages          AssignmentMessage[]
+  activities        AssignmentActivity[]
+  reportRequests    ReportRequest[]
+  documentLinks     DocumentLink[]
 
   @@index([tenantId])
   @@index([workOrderId])
-  @@index([sourceWorkOrderId])
+  @@index([status])
+  @@index([priority])
+  @@index([dueDate])
+  @@index([createdByUserId])
   @@map("assignments")
+}
+
+model AssignmentAssignee {
+  id            String               @id @default(uuid()) @db.Uuid
+  tenantId      String               @map("tenant_id") @db.Uuid
+  assignmentId  String               @map("assignment_id") @db.Uuid
+  userId        String               @map("user_id") @db.Uuid
+  role          AssignmentAssigneeRole @default(assistant)
+  createdAt     DateTime             @default(now()) @map("created_at")
+  tenant        Tenant               @relation(fields: [tenantId], references: [id])
+  assignment    Assignment           @relation(fields: [assignmentId], references: [id])
+  user          User                 @relation(fields: [userId], references: [id])
+
+  @@unique([assignmentId, userId])
+  @@index([tenantId])
+  @@index([assignmentId])
+  @@index([userId])
+  @@map("assignment_assignees")
+}
+
+model AssignmentFloor {
+  id            String             @id @default(uuid()) @db.Uuid
+  tenantId      String             @map("tenant_id") @db.Uuid
+  assignmentId  String             @map("assignment_id") @db.Uuid
+  name          String
+  sortOrder     Int                @default(0) @map("sort_order")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  tenant        Tenant             @relation(fields: [tenantId], references: [id])
+  assignment    Assignment         @relation(fields: [assignmentId], references: [id])
+  tasks         AssignmentTask[]
+
+  @@index([tenantId])
+  @@index([assignmentId])
+  @@index([sortOrder])
+  @@map("assignment_floors")
+}
+
+model AssignmentTask {
+  id               String               @id @default(uuid()) @db.Uuid
+  tenantId         String               @map("tenant_id") @db.Uuid
+  assignmentId     String               @map("assignment_id") @db.Uuid
+  floorId          String?              @map("floor_id") @db.Uuid
+  title            String
+  status           AssignmentTaskStatus @default(todo)
+  assignedToUserId String?              @map("assigned_to_user_id") @db.Uuid
+  dueDate          DateTime?            @map("due_date") @db.Date
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+  tenant           Tenant               @relation(fields: [tenantId], references: [id])
+  assignment       Assignment           @relation(fields: [assignmentId], references: [id])
+  floor            AssignmentFloor?     @relation(fields: [floorId], references: [id])
+  assignedToUser   User?                @relation("AssignmentTaskAssignee", fields: [assignedToUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([assignmentId])
+  @@index([floorId])
+  @@index([assignedToUserId])
+  @@index([status])
+  @@map("assignment_tasks")
+}
+
+model AssignmentMessage {
+  id            String           @id @default(uuid()) @db.Uuid
+  tenantId      String           @map("tenant_id") @db.Uuid
+  assignmentId  String           @map("assignment_id") @db.Uuid
+  authorUserId  String           @map("author_user_id") @db.Uuid
+  body          String
+  createdAt     DateTime         @default(now()) @map("created_at")
+  tenant        Tenant           @relation(fields: [tenantId], references: [id])
+  assignment    Assignment       @relation(fields: [assignmentId], references: [id])
+  authorUser    User             @relation("AssignmentMessageAuthor", fields: [authorUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([assignmentId])
+  @@index([authorUserId])
+  @@map("assignment_messages")
+}
+
+model AssignmentActivity {
+  id            String                 @id @default(uuid()) @db.Uuid
+  tenantId      String                 @map("tenant_id") @db.Uuid
+  assignmentId  String                 @map("assignment_id") @db.Uuid
+  actorUserId   String?                @map("actor_user_id") @db.Uuid
+  type          AssignmentActivityType
+  payload       Json                   @default("{}") @db.JsonB
+  createdAt     DateTime               @default(now()) @map("created_at")
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id])
+  assignment    Assignment             @relation(fields: [assignmentId], references: [id])
+  actorUser     User?                  @relation("AssignmentActivityActor", fields: [actorUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([assignmentId])
+  @@index([actorUserId])
+  @@index([type])
+  @@map("assignment_activities")
 }
 
 model ReportRequest {
@@ -61,6 +168,8 @@ model ReportRequest {
   reportJobs        ReportJob[]
   reportArtifacts   ReportArtifact[]
   creditsLedger     CreditsLedger[]
+  documentLinks     DocumentLink[]
+  reportInput       ReportInput?
 
   @@index([tenantId])
   @@index([status])
