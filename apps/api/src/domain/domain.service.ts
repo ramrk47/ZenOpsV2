@@ -19,6 +19,7 @@ import type {
   DocumentListQuery,
   DocumentMetadataPatch,
   DocumentTagsUpsert,
+  BillingInvoiceMarkPaid,
   FileConfirmUploadRequest,
   FilePresignUploadRequest,
   ReportDataBundlePatch,
@@ -30,6 +31,7 @@ import type {
 import { Prisma, type TxClient } from '@zenops/db';
 import { buildStorageKey, type StorageProvider } from '@zenops/storage';
 import type { LaunchModeConfig } from '../common/launch-mode.js';
+import { BillingService } from '../billing/billing.service.js';
 
 export interface QueueResult {
   reportRequestId: string;
@@ -76,7 +78,8 @@ const toDateOnly = (value: Date | null | undefined): string | null => {
 export class DomainService {
   constructor(
     @Inject('STORAGE_PROVIDER') private readonly storageProvider: StorageProvider,
-    @Inject('LAUNCH_MODE_CONFIG') private readonly launchMode: LaunchModeConfig
+    @Inject('LAUNCH_MODE_CONFIG') private readonly launchMode: LaunchModeConfig,
+    private readonly billingService: BillingService
   ) {}
 
   async listTenants(tx: TxClient) {
@@ -991,6 +994,47 @@ export class DomainService {
     return tx.reportJob.findMany({ where: { deletedAt: null }, orderBy: { createdAt: 'desc' } });
   }
 
+  async getBillingMe(tx: TxClient, claims: JwtClaims) {
+    if (claims.aud === 'portal') {
+      throw new ForbiddenException('PORTAL_BILLING_FORBIDDEN');
+    }
+
+    const tenantId = this.resolveTenantIdForMutation(claims);
+    return this.billingService.getBillingMe(tx, tenantId, new Date());
+  }
+
+  async listBillingInvoices(tx: TxClient, claims: JwtClaims) {
+    if (claims.aud === 'portal') {
+      throw new ForbiddenException('PORTAL_BILLING_FORBIDDEN');
+    }
+
+    const tenantId = this.resolveTenantIdForMutation(claims);
+    return this.billingService.listInvoices(tx, tenantId);
+  }
+
+  async getBillingInvoice(tx: TxClient, claims: JwtClaims, invoiceId: string) {
+    if (claims.aud === 'portal') {
+      throw new ForbiddenException('PORTAL_BILLING_FORBIDDEN');
+    }
+
+    const tenantId = this.resolveTenantIdForMutation(claims);
+    return this.billingService.getInvoice(tx, tenantId, invoiceId);
+  }
+
+  async markBillingInvoicePaid(tx: TxClient, claims: JwtClaims, invoiceId: string, input: BillingInvoiceMarkPaid) {
+    if (claims.aud !== 'studio' || !claims.capabilities.includes('billing:write')) {
+      throw new ForbiddenException('BILLING_WRITE_FORBIDDEN');
+    }
+
+    const tenantId = this.resolveTenantIdForMutation(claims);
+    return this.billingService.markInvoicePaid(tx, tenantId, invoiceId, {
+      amount_paise: input.amount_paise,
+      reference: input.reference,
+      notes: input.notes,
+      actor_user_id: claims.user_id
+    });
+  }
+
   async queueDraft(tx: TxClient, reportRequestId: string, actorUserId?: string | null): Promise<QueueResult> {
     const reportRequest = await tx.reportRequest.findFirst({
       where: { id: reportRequestId, deletedAt: null }
@@ -1120,6 +1164,13 @@ export class DomainService {
       }
     }
 
+    const billing = await this.billingService.addUsageLineForFinalize(tx, {
+      tenantId: reportRequest.tenantId,
+      reportRequestId,
+      assignmentId: reportRequest.assignmentId ?? null,
+      now: new Date()
+    });
+
     const updated = await tx.reportRequest.update({
       where: { id: reportRequestId },
       data: {
@@ -1127,14 +1178,16 @@ export class DomainService {
       }
     });
 
-    if (reportRequest.assignmentId) {
+    if (reportRequest.assignmentId && billing.createdInvoiceLine) {
       await this.appendAssignmentActivity(tx, {
         tenantId: reportRequest.tenantId,
         assignmentId: reportRequest.assignmentId,
         actorUserId: actorUserId ?? null,
         type: 'report_finalized',
         payload: {
-          report_request_id: reportRequestId
+          report_request_id: reportRequestId,
+          invoice_id: billing.invoice.id,
+          amount_paise: Number(billing.invoiceLine.amountPaise)
         }
       });
     }
