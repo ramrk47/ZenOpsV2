@@ -25,9 +25,21 @@ ZenOps v2 foundation scaffold as a Turborepo + pnpm monorepo.
 - `pnpm lint`
 - `pnpm test`
 - `pnpm contract_check`
+- `pnpm infra:up`
+- `pnpm infra:down`
+- `pnpm bootstrap:db`
+- `pnpm dev:local`
 - `pnpm dev`
 - `pnpm dev:down`
 - `pnpm reset`
+
+## Local Dev Notes
+- `infra:up` starts only Postgres + Redis.
+- `dev:local` runs app services on the host to avoid host/container `node_modules` cross-platform corruption.
+- Compose scripts support project and port overrides for running alongside Zen v1:
+  - `COMPOSE_PROJECT_NAME=zenopsv2workaround`
+  - `POSTGRES_BIND_PORT=65432`
+  - `REDIS_BIND_PORT=65379`
 
 ## Launch Gating
 - `ZENOPS_MULTI_TENANT_ENABLED=false` by default.
