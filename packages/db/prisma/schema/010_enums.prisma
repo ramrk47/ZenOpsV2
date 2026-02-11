@@ -119,3 +119,27 @@ enum ExtractionRunStatus {
   done
   failed
 }
+
+enum UsageEventType {
+  report_finalized
+}
+
+enum InvoiceStatus {
+  open
+  issued
+  paid
+  void
+}
+
+enum PaymentMethod {
+  manual
+}
+
+enum PaymentStatus {
+  posted
+  reversed
+}
+
+enum InvoiceLineType {
+  usage_report_finalized
+}

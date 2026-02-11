@@ -16,6 +16,12 @@ model Tenant {
   assignmentTasks AssignmentTask[]
   assignmentMessages AssignmentMessage[]
   assignmentActivities AssignmentActivity[]
+  billingPlans BillingPlan[]
+  tenantBilling TenantBilling?
+  usageEvents UsageEvent[]
+  invoices Invoice[]
+  invoiceLines InvoiceLine[]
+  payments Payment[]
   reportRequests ReportRequest[]
   reportJobs      ReportJob[]
   reportArtifacts ReportArtifact[]
@@ -48,6 +54,7 @@ model User {
   assignedTasks AssignmentTask[] @relation("AssignmentTaskAssignee")
   assignmentMessages AssignmentMessage[] @relation("AssignmentMessageAuthor")
   assignmentActivities AssignmentActivity[] @relation("AssignmentActivityActor")
+  createdPayments Payment[] @relation("PaymentCreatedBy")
   workOrders  WorkOrder[]  @relation("PortalUserWorkOrders")
   artifactVersions ArtifactVersion[]
   auditEvents AuditEvent[]
