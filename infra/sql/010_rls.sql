@@ -13,10 +13,30 @@ DECLARE
     'report_templates',
     'template_versions',
     'plans',
-    'credits_ledger'
+    'credits_ledger',
+    'documents'
+  ];
+  tables_without_deleted_at text[] := ARRAY[
+    'document_links',
+    'document_tag_keys',
+    'document_tag_values',
+    'document_tag_map',
+    'assignment_assignees',
+    'assignment_floors',
+    'assignment_tasks',
+    'assignment_messages',
+    'assignment_activities',
+    'report_inputs',
+    'extraction_runs'
   ];
 BEGIN
   FOREACH t IN ARRAY tables_with_deleted_at
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY', t);
+  END LOOP;
+
+  FOREACH t IN ARRAY tables_without_deleted_at
   LOOP
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY', t);
@@ -29,21 +49,11 @@ END $$;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO zen_web, zen_studio, zen_portal, zen_worker;
 
 -- Baseline tenant policy for web users
-DROP POLICY IF EXISTS tenant_web_select ON public.partners;
-CREATE POLICY tenant_web_select ON public.partners
-  FOR SELECT TO zen_web
-  USING (tenant_id = app.current_tenant_id() AND deleted_at IS NULL);
-
-DROP POLICY IF EXISTS tenant_web_modify ON public.partners;
-CREATE POLICY tenant_web_modify ON public.partners
-  FOR ALL TO zen_web
-  USING (tenant_id = app.current_tenant_id())
-  WITH CHECK (tenant_id = app.current_tenant_id());
-
 DO $$
 DECLARE
   t text;
-  targets text[] := ARRAY[
+  targets_with_deleted_at text[] := ARRAY[
+    'partners',
     'work_orders',
     'assignments',
     'report_requests',
@@ -53,14 +63,42 @@ DECLARE
     'report_templates',
     'template_versions',
     'plans',
-    'credits_ledger'
+    'credits_ledger',
+    'documents'
+  ];
+  targets_without_deleted_at text[] := ARRAY[
+    'document_links',
+    'document_tag_keys',
+    'document_tag_values',
+    'document_tag_map',
+    'assignment_assignees',
+    'assignment_floors',
+    'assignment_tasks',
+    'assignment_messages',
+    'assignment_activities',
+    'report_inputs',
+    'extraction_runs'
   ];
 BEGIN
-  FOREACH t IN ARRAY targets
+  FOREACH t IN ARRAY targets_with_deleted_at
   LOOP
     EXECUTE format('DROP POLICY IF EXISTS tenant_web_select ON public.%I', t);
     EXECUTE format(
       'CREATE POLICY tenant_web_select ON public.%I FOR SELECT TO zen_web USING (tenant_id = app.current_tenant_id() AND deleted_at IS NULL)',
+      t
+    );
+    EXECUTE format('DROP POLICY IF EXISTS tenant_web_modify ON public.%I', t);
+    EXECUTE format(
+      'CREATE POLICY tenant_web_modify ON public.%I FOR ALL TO zen_web USING (tenant_id = app.current_tenant_id()) WITH CHECK (tenant_id = app.current_tenant_id())',
+      t
+    );
+  END LOOP;
+
+  FOREACH t IN ARRAY targets_without_deleted_at
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS tenant_web_select ON public.%I', t);
+    EXECUTE format(
+      'CREATE POLICY tenant_web_select ON public.%I FOR SELECT TO zen_web USING (tenant_id = app.current_tenant_id())',
       t
     );
     EXECUTE format('DROP POLICY IF EXISTS tenant_web_modify ON public.%I', t);
@@ -103,11 +141,171 @@ CREATE POLICY portal_work_orders_modify ON public.work_orders
     AND portal_user_id = app.current_user_id()
   );
 
+DROP POLICY IF EXISTS portal_documents_select ON public.documents;
+CREATE POLICY portal_documents_select ON public.documents
+  FOR SELECT TO zen_portal
+  USING (
+    tenant_id = '22222222-2222-2222-2222-222222222222'::uuid
+    AND deleted_at IS NULL
+    AND (
+      owner_user_id = app.current_user_id()
+      OR EXISTS (
+        SELECT 1
+        FROM public.document_links dl
+        JOIN public.work_orders wo ON wo.id = dl.work_order_id
+        WHERE dl.document_id = documents.id
+          AND dl.tenant_id = documents.tenant_id
+          AND wo.tenant_id = documents.tenant_id
+          AND wo.portal_user_id = app.current_user_id()
+          AND wo.deleted_at IS NULL
+      )
+    )
+  );
+
+DROP POLICY IF EXISTS portal_documents_modify ON public.documents;
+CREATE POLICY portal_documents_modify ON public.documents
+  FOR ALL TO zen_portal
+  USING (
+    tenant_id = '22222222-2222-2222-2222-222222222222'::uuid
+    AND owner_user_id = app.current_user_id()
+  )
+  WITH CHECK (
+    tenant_id = '22222222-2222-2222-2222-222222222222'::uuid
+    AND owner_user_id = app.current_user_id()
+  );
+
+DROP POLICY IF EXISTS portal_document_links_select ON public.document_links;
+CREATE POLICY portal_document_links_select ON public.document_links
+  FOR SELECT TO zen_portal
+  USING (
+    tenant_id = '22222222-2222-2222-2222-222222222222'::uuid
+    AND work_order_id IS NOT NULL
+    AND EXISTS (
+      SELECT 1
+      FROM public.work_orders wo
+      WHERE wo.id = document_links.work_order_id
+        AND wo.tenant_id = document_links.tenant_id
+        AND wo.portal_user_id = app.current_user_id()
+        AND wo.deleted_at IS NULL
+    )
+  );
+
+DROP POLICY IF EXISTS portal_document_links_modify ON public.document_links;
+CREATE POLICY portal_document_links_modify ON public.document_links
+  FOR ALL TO zen_portal
+  USING (
+    tenant_id = '22222222-2222-2222-2222-222222222222'::uuid
+    AND work_order_id IS NOT NULL
+    AND EXISTS (
+      SELECT 1
+      FROM public.work_orders wo
+      WHERE wo.id = document_links.work_order_id
+        AND wo.tenant_id = document_links.tenant_id
+        AND wo.portal_user_id = app.current_user_id()
+        AND wo.deleted_at IS NULL
+    )
+  )
+  WITH CHECK (
+    tenant_id = '22222222-2222-2222-2222-222222222222'::uuid
+    AND work_order_id IS NOT NULL
+    AND EXISTS (
+      SELECT 1
+      FROM public.work_orders wo
+      WHERE wo.id = document_links.work_order_id
+        AND wo.tenant_id = document_links.tenant_id
+        AND wo.portal_user_id = app.current_user_id()
+        AND wo.deleted_at IS NULL
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM public.documents d
+      WHERE d.id = document_links.document_id
+        AND d.tenant_id = document_links.tenant_id
+        AND d.owner_user_id = app.current_user_id()
+        AND d.deleted_at IS NULL
+    )
+  );
+
+DROP POLICY IF EXISTS portal_document_tag_keys_select ON public.document_tag_keys;
+CREATE POLICY portal_document_tag_keys_select ON public.document_tag_keys
+  FOR SELECT TO zen_portal
+  USING (tenant_id = '22222222-2222-2222-2222-222222222222'::uuid);
+
+DROP POLICY IF EXISTS portal_document_tag_keys_modify ON public.document_tag_keys;
+CREATE POLICY portal_document_tag_keys_modify ON public.document_tag_keys
+  FOR ALL TO zen_portal
+  USING (tenant_id = '22222222-2222-2222-2222-222222222222'::uuid)
+  WITH CHECK (tenant_id = '22222222-2222-2222-2222-222222222222'::uuid);
+
+DROP POLICY IF EXISTS portal_document_tag_values_select ON public.document_tag_values;
+CREATE POLICY portal_document_tag_values_select ON public.document_tag_values
+  FOR SELECT TO zen_portal
+  USING (tenant_id = '22222222-2222-2222-2222-222222222222'::uuid);
+
+DROP POLICY IF EXISTS portal_document_tag_values_modify ON public.document_tag_values;
+CREATE POLICY portal_document_tag_values_modify ON public.document_tag_values
+  FOR ALL TO zen_portal
+  USING (tenant_id = '22222222-2222-2222-2222-222222222222'::uuid)
+  WITH CHECK (tenant_id = '22222222-2222-2222-2222-222222222222'::uuid);
+
+DROP POLICY IF EXISTS portal_document_tag_map_select ON public.document_tag_map;
+CREATE POLICY portal_document_tag_map_select ON public.document_tag_map
+  FOR SELECT TO zen_portal
+  USING (
+    tenant_id = '22222222-2222-2222-2222-222222222222'::uuid
+    AND EXISTS (
+      SELECT 1
+      FROM public.documents d
+      WHERE d.id = document_tag_map.document_id
+        AND d.tenant_id = document_tag_map.tenant_id
+        AND d.deleted_at IS NULL
+        AND (
+          d.owner_user_id = app.current_user_id()
+          OR EXISTS (
+            SELECT 1
+            FROM public.document_links dl
+            JOIN public.work_orders wo ON wo.id = dl.work_order_id
+            WHERE dl.document_id = d.id
+              AND dl.tenant_id = d.tenant_id
+              AND wo.tenant_id = d.tenant_id
+              AND wo.portal_user_id = app.current_user_id()
+              AND wo.deleted_at IS NULL
+          )
+        )
+    )
+  );
+
+DROP POLICY IF EXISTS portal_document_tag_map_modify ON public.document_tag_map;
+CREATE POLICY portal_document_tag_map_modify ON public.document_tag_map
+  FOR ALL TO zen_portal
+  USING (
+    tenant_id = '22222222-2222-2222-2222-222222222222'::uuid
+    AND EXISTS (
+      SELECT 1
+      FROM public.documents d
+      WHERE d.id = document_tag_map.document_id
+        AND d.tenant_id = document_tag_map.tenant_id
+        AND d.owner_user_id = app.current_user_id()
+        AND d.deleted_at IS NULL
+    )
+  )
+  WITH CHECK (
+    tenant_id = '22222222-2222-2222-2222-222222222222'::uuid
+    AND EXISTS (
+      SELECT 1
+      FROM public.documents d
+      WHERE d.id = document_tag_map.document_id
+        AND d.tenant_id = document_tag_map.tenant_id
+        AND d.owner_user_id = app.current_user_id()
+        AND d.deleted_at IS NULL
+    )
+  );
+
 -- Studio read policies across tenants with aud check
 DO $$
 DECLARE
   t text;
-  targets text[] := ARRAY[
+  targets_with_deleted_at text[] := ARRAY[
     'partners',
     'work_orders',
     'assignments',
@@ -118,14 +316,37 @@ DECLARE
     'report_templates',
     'template_versions',
     'plans',
-    'credits_ledger'
+    'credits_ledger',
+    'documents'
+  ];
+  targets_without_deleted_at text[] := ARRAY[
+    'document_links',
+    'document_tag_keys',
+    'document_tag_values',
+    'document_tag_map',
+    'assignment_assignees',
+    'assignment_floors',
+    'assignment_tasks',
+    'assignment_messages',
+    'assignment_activities',
+    'report_inputs',
+    'extraction_runs'
   ];
 BEGIN
-  FOREACH t IN ARRAY targets
+  FOREACH t IN ARRAY targets_with_deleted_at
   LOOP
     EXECUTE format('DROP POLICY IF EXISTS studio_read ON public.%I', t);
     EXECUTE format(
       'CREATE POLICY studio_read ON public.%I FOR SELECT TO zen_studio USING (current_setting(''app.aud'', true) = ''studio'' AND deleted_at IS NULL)',
+      t
+    );
+  END LOOP;
+
+  FOREACH t IN ARRAY targets_without_deleted_at
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS studio_read ON public.%I', t);
+    EXECUTE format(
+      'CREATE POLICY studio_read ON public.%I FOR SELECT TO zen_studio USING (current_setting(''app.aud'', true) = ''studio'')',
       t
     );
   END LOOP;
@@ -140,7 +361,7 @@ CREATE POLICY studio_read ON public.audit_events
 DO $$
 DECLARE
   t text;
-  targets text[] := ARRAY[
+  targets_with_deleted_at text[] := ARRAY[
     'partners',
     'work_orders',
     'assignments',
@@ -151,10 +372,33 @@ DECLARE
     'report_templates',
     'template_versions',
     'plans',
-    'credits_ledger'
+    'credits_ledger',
+    'documents'
+  ];
+  targets_without_deleted_at text[] := ARRAY[
+    'document_links',
+    'document_tag_keys',
+    'document_tag_values',
+    'document_tag_map',
+    'assignment_assignees',
+    'assignment_floors',
+    'assignment_tasks',
+    'assignment_messages',
+    'assignment_activities',
+    'report_inputs',
+    'extraction_runs'
   ];
 BEGIN
-  FOREACH t IN ARRAY targets
+  FOREACH t IN ARRAY targets_with_deleted_at
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS worker_rw ON public.%I', t);
+    EXECUTE format(
+      'CREATE POLICY worker_rw ON public.%I FOR ALL TO zen_worker USING (current_setting(''app.aud'', true) IN (''worker'', ''service'') AND tenant_id = app.current_tenant_id()) WITH CHECK (tenant_id = app.current_tenant_id())',
+      t
+    );
+  END LOOP;
+
+  FOREACH t IN ARRAY targets_without_deleted_at
   LOOP
     EXECUTE format('DROP POLICY IF EXISTS worker_rw ON public.%I', t);
     EXECUTE format(
@@ -174,3 +418,26 @@ CREATE POLICY worker_rw ON public.audit_events
 CREATE UNIQUE INDEX IF NOT EXISTS credits_ledger_one_active_reservation_idx
   ON public.credits_ledger (report_request_id)
   WHERE status = 'reserved'::"CreditsLedgerStatus" AND deleted_at IS NULL;
+
+-- Enforce one active assignment per work_order_id (idempotent create-from-work-order)
+CREATE UNIQUE INDEX IF NOT EXISTS assignments_one_active_work_order_idx
+  ON public.assignments (work_order_id)
+  WHERE work_order_id IS NOT NULL AND deleted_at IS NULL;
+
+-- Enforce one flag-style tag entry per (document,key) when value is null
+CREATE UNIQUE INDEX IF NOT EXISTS document_tag_map_one_flag_value_idx
+  ON public.document_tag_map (document_id, key_id)
+  WHERE value_id IS NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'document_links_one_target_check'
+  ) THEN
+    ALTER TABLE public.document_links
+      ADD CONSTRAINT document_links_one_target_check
+      CHECK (num_nonnulls(work_order_id, assignment_id, report_request_id) >= 1);
+  END IF;
+END $$;
