@@ -25,6 +25,8 @@ const setupFixtures = async () => {
   const portalWorkOrderB = randomUUID();
   const internalAssignmentId = randomUUID();
   const externalAssignmentId = randomUUID();
+  const internalInvoiceId = randomUUID();
+  const externalInvoiceId = randomUUID();
   const internalDocId = randomUUID();
   const portalDocA = randomUUID();
   const portalDocB = randomUUID();
@@ -88,6 +90,15 @@ const setupFixtures = async () => {
   );
 
   await rootClient.query(
+    `INSERT INTO invoices (id, tenant_id, period_start, period_end, status, currency, subtotal_paise, tax_paise, total_paise, created_at, updated_at)
+     VALUES
+      ($1, $3, DATE '2026-02-01', DATE '2026-03-01', 'open', 'INR', 0, 0, 0, NOW(), NOW()),
+      ($2, $4, DATE '2026-02-01', DATE '2026-03-01', 'open', 'INR', 0, 0, 0, NOW(), NOW())
+     ON CONFLICT (id) DO NOTHING`,
+    [internalInvoiceId, externalInvoiceId, cfg.tenantInternal, cfg.tenantExternal]
+  );
+
+  await rootClient.query(
     `INSERT INTO document_links (id, tenant_id, document_id, work_order_id, purpose, created_at)
      VALUES
       ($1, $2, $3, $4, 'reference', NOW()),
@@ -104,6 +115,8 @@ const setupFixtures = async () => {
   process.env.TEST_PORTAL_DOC_B = portalDocB;
   process.env.TEST_INTERNAL_ASSIGNMENT = internalAssignmentId;
   process.env.TEST_EXTERNAL_ASSIGNMENT = externalAssignmentId;
+  process.env.TEST_INTERNAL_INVOICE = internalInvoiceId;
+  process.env.TEST_EXTERNAL_INVOICE = externalInvoiceId;
 };
 
 describe('RLS integration', () => {
@@ -141,10 +154,12 @@ describe('RLS integration', () => {
 
     const noContext = await webClient.query('SELECT id FROM work_orders');
     const noContextAssignments = await webClient.query('SELECT id FROM assignments');
+    const noContextInvoices = await webClient.query('SELECT id FROM invoices');
     await webClient.end();
 
     expect(noContext.rows.length).toBe(0);
     expect(noContextAssignments.rows.length).toBe(0);
+    expect(noContextInvoices.rows.length).toBe(0);
   });
 
   it.skipIf(!ready)('enforces portal user isolation', async () => {
@@ -230,6 +245,32 @@ describe('RLS integration', () => {
 
     await webClient.end();
 
+    expect(internal.rows.every((row) => row.tenant_id === cfg.tenantInternal)).toBe(true);
+    expect(external.rows.every((row) => row.tenant_id === cfg.tenantExternal)).toBe(true);
+  });
+
+  it.skipIf(!ready)('enforces tenant isolation for invoices on zen_web', async () => {
+    const webClient = new Client({ connectionString: cfg.web });
+    await webClient.connect();
+
+    await webClient.query('BEGIN');
+    await webClient.query(`SELECT set_config('app.tenant_id', $1, true)`, [cfg.tenantInternal]);
+    await webClient.query(`SELECT set_config('app.user_id', '', true)`);
+    await webClient.query(`SELECT set_config('app.aud', 'web', true)`);
+    const internal = await webClient.query('SELECT tenant_id FROM invoices');
+    await webClient.query('COMMIT');
+
+    await webClient.query('BEGIN');
+    await webClient.query(`SELECT set_config('app.tenant_id', $1, true)`, [cfg.tenantExternal]);
+    await webClient.query(`SELECT set_config('app.user_id', '', true)`);
+    await webClient.query(`SELECT set_config('app.aud', 'web', true)`);
+    const external = await webClient.query('SELECT tenant_id FROM invoices');
+    await webClient.query('COMMIT');
+
+    await webClient.end();
+
+    expect(internal.rows.length).toBeGreaterThan(0);
+    expect(external.rows.length).toBeGreaterThan(0);
     expect(internal.rows.every((row) => row.tenant_id === cfg.tenantInternal)).toBe(true);
     expect(external.rows.every((row) => row.tenant_id === cfg.tenantExternal)).toBe(true);
   });
