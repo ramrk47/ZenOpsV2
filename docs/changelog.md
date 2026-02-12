@@ -1,5 +1,28 @@
 # ZenOps v2 Changelog
 
+## 2026-02-12
+
+### Added
+- M4.3 RBAC surface in API auth with role-to-capability expansion at login and capability metadata checks in `JwtAuthGuard`.
+- Notification webhook coverage for Mailgun (`/v1/webhooks/mailgun`) alongside existing Twilio/SendGrid verification paths.
+- Worker notification provider adapters for real delivery:
+  - Mailgun email via `/v3/{domain}/messages`
+  - Twilio WhatsApp via Messages API
+- `scripts/demo-providers.sh` for NOOP-first provider demo with optional real sends when credentials are present.
+- New tests for:
+  - capability enforcement in guard/domain service
+  - webhook status mapping (`403` disabled, `401` invalid signature)
+  - provider adapter failure safety when secrets are missing.
+
+### Changed
+- Added provider/env config keys in `packages/config`:
+  - `NOTIFY_PROVIDER_EMAIL`, `NOTIFY_PROVIDER_WHATSAPP`
+  - `MAILGUN_*`, `TWILIO_*`, and `MAILGUN_WEBHOOK_VALIDATE`.
+- API endpoints for employees/attendance/payroll/notification-route and notifications admin outbox/test are now capability-gated.
+- Notification worker now resolves effective provider from channel + env defaults when outbox rows are `noop`.
+- Seed roles extended for internal operating model (`super_admin`, `ops_manager`, `valuer`, `accounts`, `hr`).
+- Demo billing/notifications scripts updated to request appropriate capabilities at login.
+
 ## 2026-02-11
 
 ### Added
