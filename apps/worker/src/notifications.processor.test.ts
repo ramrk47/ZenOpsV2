@@ -2,12 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { createJsonLogger } from '@zenops/common';
 import { processNotificationJob } from './notifications.processor.js';
 
-const makeTx = (provider: 'noop' | 'sendgrid' = 'noop') => {
+const makeTx = (provider: 'noop' | 'sendgrid' | 'mailgun' | 'twilio' = 'noop', channel: 'email' | 'whatsapp' = 'email') => {
   const state = {
     outbox: {
       id: 'outbox-1',
       tenantId: 'tenant-1',
-      channel: 'email',
+      channel,
       provider,
       templateKey: 'assignment_created',
       payloadJson: { assignment_id: 'assignment-1' },
@@ -74,9 +74,12 @@ describe('processNotificationJob', () => {
     expect(state.attempts[0]?.status).toBe('sent');
   });
 
-  it('marks non-noop provider as failed when provider secrets are missing', async () => {
-    const { tx, state } = makeTx('sendgrid');
-    delete process.env.SENDGRID_API_KEY;
+  it('marks mailgun send as failed when email provider is enabled but secrets are missing', async () => {
+    const { tx, state } = makeTx('noop', 'email');
+    process.env.NOTIFY_PROVIDER_EMAIL = 'mailgun';
+    delete process.env.MAILGUN_API_KEY;
+    delete process.env.MAILGUN_DOMAIN;
+    delete process.env.MAILGUN_FROM;
 
     await expect(
       processNotificationJob({
@@ -90,10 +93,40 @@ describe('processNotificationJob', () => {
         fallbackTenantId: 'tenant-1',
         runWithContext: async (_prisma, _ctx, fn) => fn(tx)
       })
-    ).rejects.toThrow('SENDGRID_API_KEY is not configured');
+    ).rejects.toThrow('MAILGUN_API_KEY/MAILGUN_DOMAIN/MAILGUN_FROM are required');
 
     expect(state.outbox.status).toBe('failed');
     expect(state.attempts).toHaveLength(1);
     expect(state.attempts[0]?.status).toBe('failed');
+
+    delete process.env.NOTIFY_PROVIDER_EMAIL;
+  });
+
+  it('marks twilio whatsapp send as failed when secrets are missing', async () => {
+    const { tx, state } = makeTx('noop', 'whatsapp');
+    process.env.NOTIFY_PROVIDER_WHATSAPP = 'twilio';
+    delete process.env.TWILIO_ACCOUNT_SID;
+    delete process.env.TWILIO_AUTH_TOKEN;
+    delete process.env.TWILIO_WHATSAPP_FROM;
+
+    await expect(
+      processNotificationJob({
+        prisma: {} as any,
+        logger: createJsonLogger(),
+        payload: {
+          outboxId: 'outbox-1',
+          tenantId: 'tenant-1',
+          requestId: 'req-3'
+        },
+        fallbackTenantId: 'tenant-1',
+        runWithContext: async (_prisma, _ctx, fn) => fn(tx)
+      })
+    ).rejects.toThrow('TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN/TWILIO_WHATSAPP_FROM are required');
+
+    expect(state.outbox.status).toBe('failed');
+    expect(state.attempts).toHaveLength(1);
+    expect(state.attempts[0]?.status).toBe('failed');
+
+    delete process.env.NOTIFY_PROVIDER_WHATSAPP;
   });
 });

@@ -1,9 +1,11 @@
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
+  buildMailgunSignature,
   buildTwilioSignature,
   resolveWebhookSecurityConfig,
   validateWebhookRequest,
+  verifyMailgunSignature,
   verifySendgridSignature
 } from './webhook-security.js';
 
@@ -13,6 +15,7 @@ describe('webhook-security', () => {
     expect(config.enabled).toBe(false);
     expect(config.twilioValidate).toBe(false);
     expect(config.sendgridValidate).toBe(false);
+    expect(config.mailgunValidate).toBe(false);
   });
 
   it('enables provider validation by default when webhooks are enabled', () => {
@@ -20,6 +23,7 @@ describe('webhook-security', () => {
     expect(config.enabled).toBe(true);
     expect(config.twilioValidate).toBe(true);
     expect(config.sendgridValidate).toBe(true);
+    expect(config.mailgunValidate).toBe(true);
   });
 
   it('allows twilio webhook when validation is disabled explicitly', () => {
@@ -134,5 +138,61 @@ describe('webhook-security', () => {
 
     expect(result.ok).toBe(true);
     expect(invalid.ok).toBe(false);
+  });
+
+  it('validates mailgun webhook signature when enabled', () => {
+    const env = {
+      WEBHOOKS_ENABLED: 'true',
+      MAILGUN_WEBHOOK_VALIDATE: 'true',
+      MAILGUN_WEBHOOK_SIGNING_KEY: 'mailgun-signing-key'
+    };
+    const payload = {
+      tenant_id: '11111111-1111-1111-1111-111111111111',
+      signature: {
+        timestamp: `${Math.floor(Date.now() / 1000)}`,
+        token: 'token-123',
+        signature: ''
+      }
+    };
+
+    payload.signature.signature = buildMailgunSignature(
+      env.MAILGUN_WEBHOOK_SIGNING_KEY,
+      payload.signature.timestamp,
+      payload.signature.token
+    );
+
+    expect(
+      verifyMailgunSignature({
+        signingKey: env.MAILGUN_WEBHOOK_SIGNING_KEY,
+        timestamp: payload.signature.timestamp,
+        token: payload.signature.token,
+        signature: payload.signature.signature
+      })
+    ).toBe(true);
+
+    const accepted = validateWebhookRequest({
+      provider: 'mailgun',
+      headers: {},
+      payload,
+      requestUrl: 'https://api.example.com/v1/webhooks/mailgun',
+      env
+    });
+
+    const rejected = validateWebhookRequest({
+      provider: 'mailgun',
+      headers: {},
+      payload: {
+        ...payload,
+        signature: {
+          ...payload.signature,
+          signature: 'bad-signature'
+        }
+      },
+      requestUrl: 'https://api.example.com/v1/webhooks/mailgun',
+      env
+    });
+
+    expect(accepted.ok).toBe(true);
+    expect(rejected.ok).toBe(false);
   });
 });
