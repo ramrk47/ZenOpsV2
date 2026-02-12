@@ -1,0 +1,108 @@
+model ContactPoint {
+  id          String           @id @default(uuid()) @db.Uuid
+  tenantId    String           @map("tenant_id") @db.Uuid
+  userId      String?          @map("user_id") @db.Uuid
+  kind        ContactPointKind
+  value       String
+  isPrimary   Boolean          @default(false) @map("is_primary")
+  isVerified  Boolean          @default(false) @map("is_verified")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  tenant      Tenant           @relation(fields: [tenantId], references: [id])
+  user        User?            @relation(fields: [userId], references: [id])
+  outboxItems NotificationOutbox[]
+
+  @@unique([tenantId, kind, value])
+  @@index([tenantId])
+  @@index([userId])
+  @@map("contact_points")
+}
+
+model NotificationTemplate {
+  id                  String              @id @default(uuid()) @db.Uuid
+  tenantId            String              @map("tenant_id") @db.Uuid
+  channel             NotificationChannel
+  templateKey         String              @map("template_key")
+  provider            NotificationProvider @default(noop)
+  providerTemplateRef String?             @map("provider_template_ref")
+  schemaJson          Json                @default("{}") @db.JsonB @map("schema_json")
+  contentJson         Json                @default("{}") @db.JsonB @map("content_json")
+  isActive            Boolean             @default(true) @map("is_active")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  tenant              Tenant              @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, channel, templateKey])
+  @@index([tenantId])
+  @@index([channel, templateKey])
+  @@map("notification_templates")
+}
+
+model NotificationOutbox {
+  id               String                  @id @default(uuid()) @db.Uuid
+  tenantId         String                  @map("tenant_id") @db.Uuid
+  toContactPointId String                  @map("to_contact_point_id") @db.Uuid
+  channel          NotificationChannel
+  provider         NotificationProvider    @default(noop)
+  templateKey      String                  @map("template_key")
+  payloadJson      Json                    @default("{}") @db.JsonB @map("payload_json")
+  status           NotificationOutboxStatus @default(queued)
+  idempotencyKey   String                  @map("idempotency_key")
+  providerMessageId String?                @map("provider_message_id")
+  assignmentId     String?                 @map("assignment_id") @db.Uuid
+  reportRequestId  String?                 @map("report_request_id") @db.Uuid
+  invoiceId        String?                 @map("invoice_id") @db.Uuid
+  documentId       String?                 @map("document_id") @db.Uuid
+  queuedAt         DateTime                @default(now()) @map("queued_at")
+  sentAt           DateTime?               @map("sent_at")
+  createdAt        DateTime                @default(now()) @map("created_at")
+  updatedAt        DateTime                @updatedAt @map("updated_at")
+  tenant           Tenant                  @relation(fields: [tenantId], references: [id])
+  toContactPoint   ContactPoint            @relation(fields: [toContactPointId], references: [id])
+  attempts         NotificationAttempt[]
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, status])
+  @@index([toContactPointId])
+  @@index([providerMessageId])
+  @@index([assignmentId])
+  @@index([reportRequestId])
+  @@index([invoiceId])
+  @@index([documentId])
+  @@map("notification_outbox")
+}
+
+model NotificationAttempt {
+  id                String                   @id @default(uuid()) @db.Uuid
+  tenantId          String                   @map("tenant_id") @db.Uuid
+  outboxId          String                   @map("outbox_id") @db.Uuid
+  attemptNo         Int                      @map("attempt_no")
+  provider          NotificationProvider
+  providerMessageId String?                  @map("provider_message_id")
+  status            NotificationAttemptStatus
+  errorCode         String?                  @map("error_code")
+  errorJson         Json?                    @db.JsonB @map("error_json")
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  tenant            Tenant                   @relation(fields: [tenantId], references: [id])
+  outbox            NotificationOutbox       @relation(fields: [outboxId], references: [id])
+
+  @@unique([outboxId, attemptNo])
+  @@index([tenantId])
+  @@index([outboxId])
+  @@map("notification_attempts")
+}
+
+model WebhookEvent {
+  id              String               @id @default(uuid()) @db.Uuid
+  tenantId        String               @map("tenant_id") @db.Uuid
+  provider        NotificationProvider
+  eventType       String               @map("event_type")
+  providerEventId String               @map("provider_event_id")
+  payloadJson     Json                 @db.JsonB @map("payload_json")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  tenant          Tenant               @relation(fields: [tenantId], references: [id])
+
+  @@unique([provider, providerEventId])
+  @@index([tenantId, createdAt])
+  @@map("webhook_events")
+}
