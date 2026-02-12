@@ -14,7 +14,8 @@ DECLARE
     'template_versions',
     'plans',
     'credits_ledger',
-    'documents'
+    'documents',
+    'employees'
   ];
   tables_without_deleted_at text[] := ARRAY[
     'document_links',
@@ -38,7 +39,13 @@ DECLARE
     'notification_templates',
     'notification_outbox',
     'notification_attempts',
-    'webhook_events'
+    'webhook_events',
+    'attendance_events',
+    'payroll_periods',
+    'payroll_items',
+    'notification_target_groups',
+    'notification_targets',
+    'notification_subscriptions'
   ];
 BEGIN
   FOREACH t IN ARRAY tables_with_deleted_at
@@ -75,7 +82,8 @@ DECLARE
     'template_versions',
     'plans',
     'credits_ledger',
-    'documents'
+    'documents',
+    'employees'
   ];
   targets_without_deleted_at text[] := ARRAY[
     'document_links',
@@ -99,7 +107,13 @@ DECLARE
     'notification_templates',
     'notification_outbox',
     'notification_attempts',
-    'webhook_events'
+    'webhook_events',
+    'attendance_events',
+    'payroll_periods',
+    'payroll_items',
+    'notification_target_groups',
+    'notification_targets',
+    'notification_subscriptions'
   ];
 BEGIN
   FOREACH t IN ARRAY targets_with_deleted_at
@@ -339,7 +353,8 @@ DECLARE
     'template_versions',
     'plans',
     'credits_ledger',
-    'documents'
+    'documents',
+    'employees'
   ];
   targets_without_deleted_at text[] := ARRAY[
     'document_links',
@@ -363,7 +378,13 @@ DECLARE
     'notification_templates',
     'notification_outbox',
     'notification_attempts',
-    'webhook_events'
+    'webhook_events',
+    'attendance_events',
+    'payroll_periods',
+    'payroll_items',
+    'notification_target_groups',
+    'notification_targets',
+    'notification_subscriptions'
   ];
 BEGIN
   FOREACH t IN ARRAY targets_with_deleted_at
@@ -448,7 +469,8 @@ DECLARE
     'template_versions',
     'plans',
     'credits_ledger',
-    'documents'
+    'documents',
+    'employees'
   ];
   targets_without_deleted_at text[] := ARRAY[
     'document_links',
@@ -472,7 +494,13 @@ DECLARE
     'notification_templates',
     'notification_outbox',
     'notification_attempts',
-    'webhook_events'
+    'webhook_events',
+    'attendance_events',
+    'payroll_periods',
+    'payroll_items',
+    'notification_target_groups',
+    'notification_targets',
+    'notification_subscriptions'
   ];
 BEGIN
   FOREACH t IN ARRAY targets_with_deleted_at

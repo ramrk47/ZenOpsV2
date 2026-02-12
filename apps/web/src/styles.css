@@ -7,6 +7,14 @@
 
 :root {
   font-family: 'Sora', sans-serif;
+  --zen-bg: #eef4ee;
+  --zen-surface: #f8fcf7;
+  --zen-text: #10211a;
+  --zen-muted: #52665c;
+  --zen-primary: #0d6b5f;
+  --zen-primary-strong: #094f47;
+  --zen-highlight: #0f4c81;
+  --zen-border: #c9dacc;
 }
 
 body {

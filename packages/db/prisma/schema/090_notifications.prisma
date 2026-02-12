@@ -11,6 +11,7 @@ model ContactPoint {
   tenant      Tenant           @relation(fields: [tenantId], references: [id])
   user        User?            @relation(fields: [userId], references: [id])
   outboxItems NotificationOutbox[]
+  notificationTargets NotificationTarget[]
 
   @@unique([tenantId, kind, value])
   @@index([tenantId])

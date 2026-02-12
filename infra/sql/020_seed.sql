@@ -229,3 +229,333 @@ SET provider = EXCLUDED.provider,
     content_json = EXCLUDED.content_json,
     is_active = EXCLUDED.is_active,
     updated_at = NOW();
+
+INSERT INTO public.employees (
+  id,
+  tenant_id,
+  user_id,
+  name,
+  phone,
+  email,
+  role,
+  status,
+  deleted_at,
+  created_at,
+  updated_at
+)
+VALUES
+  (
+    gen_random_uuid(),
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    '33333333-3333-3333-3333-333333333333'::uuid,
+    'Internal Admin',
+    '+919999000001',
+    'internal-admin@zenops.local',
+    'admin',
+    'active',
+    NULL,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid(),
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    '44444444-4444-4444-4444-444444444444'::uuid,
+    'Studio Finance',
+    '+919999000002',
+    'studio-admin@zenops.local',
+    'finance',
+    'active',
+    NULL,
+    NOW(),
+    NOW()
+  )
+ON CONFLICT (tenant_id, user_id) DO UPDATE
+SET name = EXCLUDED.name,
+    phone = EXCLUDED.phone,
+    email = EXCLUDED.email,
+    role = EXCLUDED.role,
+    status = EXCLUDED.status,
+    deleted_at = EXCLUDED.deleted_at,
+    updated_at = NOW();
+
+INSERT INTO public.attendance_events (
+  id,
+  tenant_id,
+  employee_id,
+  kind,
+  happened_at,
+  meta_json,
+  request_id,
+  created_by_user_id,
+  created_at,
+  updated_at
+)
+SELECT
+  gen_random_uuid(),
+  e.tenant_id,
+  e.id,
+  'checkin',
+  TIMESTAMPTZ '2026-02-12T09:00:00Z',
+  '{"source":"seed"}'::jsonb,
+  'seed-attendance-checkin-20260212',
+  '33333333-3333-3333-3333-333333333333'::uuid,
+  NOW(),
+  NOW()
+FROM public.employees e
+WHERE e.tenant_id = '11111111-1111-1111-1111-111111111111'::uuid
+  AND e.user_id = '33333333-3333-3333-3333-333333333333'::uuid
+ON CONFLICT (tenant_id, request_id) DO UPDATE
+SET employee_id = EXCLUDED.employee_id,
+    kind = EXCLUDED.kind,
+    happened_at = EXCLUDED.happened_at,
+    meta_json = EXCLUDED.meta_json,
+    created_by_user_id = EXCLUDED.created_by_user_id,
+    updated_at = NOW();
+
+INSERT INTO public.payroll_periods (
+  id,
+  tenant_id,
+  month_start,
+  month_end,
+  status,
+  created_at,
+  updated_at
+)
+VALUES
+  (
+    gen_random_uuid(),
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    DATE '2026-02-01',
+    DATE '2026-02-28',
+    'running',
+    NOW(),
+    NOW()
+  )
+ON CONFLICT (tenant_id, month_start, month_end) DO UPDATE
+SET status = EXCLUDED.status,
+    updated_at = NOW();
+
+INSERT INTO public.payroll_items (
+  id,
+  tenant_id,
+  employee_id,
+  payroll_period_id,
+  kind,
+  label,
+  amount_paise,
+  created_at,
+  updated_at
+)
+SELECT
+  gen_random_uuid(),
+  p.tenant_id,
+  e.id,
+  p.id,
+  'earning',
+  'Base Salary',
+  12000000,
+  NOW(),
+  NOW()
+FROM public.payroll_periods p
+JOIN public.employees e
+  ON e.tenant_id = p.tenant_id
+WHERE p.tenant_id = '11111111-1111-1111-1111-111111111111'::uuid
+  AND p.month_start = DATE '2026-02-01'
+  AND p.month_end = DATE '2026-02-28'
+  AND e.user_id = '33333333-3333-3333-3333-333333333333'::uuid
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public.payroll_items pi
+    WHERE pi.tenant_id = p.tenant_id
+      AND pi.payroll_period_id = p.id
+      AND pi.employee_id = e.id
+      AND pi.kind = 'earning'
+      AND pi.label = 'Base Salary'
+  );
+
+INSERT INTO public.payroll_items (
+  id,
+  tenant_id,
+  employee_id,
+  payroll_period_id,
+  kind,
+  label,
+  amount_paise,
+  created_at,
+  updated_at
+)
+SELECT
+  gen_random_uuid(),
+  p.tenant_id,
+  e.id,
+  p.id,
+  'deduction',
+  'Professional Tax',
+  100000,
+  NOW(),
+  NOW()
+FROM public.payroll_periods p
+JOIN public.employees e
+  ON e.tenant_id = p.tenant_id
+WHERE p.tenant_id = '11111111-1111-1111-1111-111111111111'::uuid
+  AND p.month_start = DATE '2026-02-01'
+  AND p.month_end = DATE '2026-02-28'
+  AND e.user_id = '44444444-4444-4444-4444-444444444444'::uuid
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public.payroll_items pi
+    WHERE pi.tenant_id = p.tenant_id
+      AND pi.payroll_period_id = p.id
+      AND pi.employee_id = e.id
+      AND pi.kind = 'deduction'
+      AND pi.label = 'Professional Tax'
+  );
+
+INSERT INTO public.notification_target_groups (
+  id,
+  tenant_id,
+  key,
+  name,
+  is_active,
+  created_at,
+  updated_at
+)
+VALUES
+  (
+    gen_random_uuid(),
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    'FIELD',
+    'Field Team',
+    true,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid(),
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    'FINANCE',
+    'Finance Team',
+    true,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid(),
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    'HR',
+    'HR Team',
+    true,
+    NOW(),
+    NOW()
+  )
+ON CONFLICT (tenant_id, key) DO UPDATE
+SET name = EXCLUDED.name,
+    is_active = EXCLUDED.is_active,
+    updated_at = NOW();
+
+INSERT INTO public.contact_points (
+  id,
+  tenant_id,
+  user_id,
+  kind,
+  value,
+  is_primary,
+  is_verified,
+  created_at,
+  updated_at
+)
+VALUES
+  (
+    gen_random_uuid(),
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    NULL,
+    'email',
+    'finance-team@zenops.local',
+    true,
+    true,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid(),
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    NULL,
+    'whatsapp',
+    '+919999000111',
+    true,
+    true,
+    NOW(),
+    NOW()
+  )
+ON CONFLICT (tenant_id, kind, value) DO UPDATE
+SET is_primary = EXCLUDED.is_primary,
+    is_verified = EXCLUDED.is_verified,
+    updated_at = NOW();
+
+INSERT INTO public.notification_targets (
+  id,
+  tenant_id,
+  group_id,
+  channel,
+  to_contact_point_id,
+  is_active,
+  created_at,
+  updated_at
+)
+SELECT
+  gen_random_uuid(),
+  tg.tenant_id,
+  tg.id,
+  seeded.channel::"NotificationChannel",
+  cp.id,
+  true,
+  NOW(),
+  NOW()
+FROM (
+  VALUES
+    ('FIELD', 'whatsapp', '+919999000111'),
+    ('FINANCE', 'email', 'finance-team@zenops.local'),
+    ('HR', 'email', 'internal-admin@zenops.local')
+) AS seeded(group_key, channel, contact_value)
+JOIN public.notification_target_groups tg
+  ON tg.tenant_id = '11111111-1111-1111-1111-111111111111'::uuid
+ AND tg.key = seeded.group_key
+JOIN public.contact_points cp
+  ON cp.tenant_id = tg.tenant_id
+ AND cp.kind = seeded.channel::"ContactPointKind"
+ AND cp.value = seeded.contact_value
+ON CONFLICT (tenant_id, group_id, channel, to_contact_point_id) DO UPDATE
+SET is_active = EXCLUDED.is_active,
+    updated_at = NOW();
+
+INSERT INTO public.notification_subscriptions (
+  id,
+  tenant_id,
+  employee_id,
+  event_type,
+  channel,
+  is_active,
+  created_at,
+  updated_at
+)
+SELECT
+  gen_random_uuid(),
+  e.tenant_id,
+  e.id,
+  seeded.event_type::"NotificationEventType",
+  seeded.channel::"NotificationChannel",
+  true,
+  NOW(),
+  NOW()
+FROM (
+  VALUES
+    ('33333333-3333-3333-3333-333333333333'::uuid, 'assignment_created', 'whatsapp'),
+    ('44444444-4444-4444-4444-444444444444'::uuid, 'invoice_paid', 'email')
+) AS seeded(user_id, event_type, channel)
+JOIN public.employees e
+  ON e.tenant_id = '11111111-1111-1111-1111-111111111111'::uuid
+ AND e.user_id = seeded.user_id
+ON CONFLICT (tenant_id, employee_id, event_type, channel) DO UPDATE
+SET is_active = EXCLUDED.is_active,
+    updated_at = NOW();

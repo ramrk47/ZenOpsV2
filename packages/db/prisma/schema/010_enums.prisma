@@ -176,3 +176,48 @@ enum NotificationAttemptStatus {
   delivered
   read
 }
+
+enum EmployeeRole {
+  admin
+  manager
+  assistant_valuer
+  field_valuer
+  hr
+  finance
+  operations
+}
+
+enum EmployeeStatus {
+  active
+  inactive
+}
+
+enum AttendanceEventKind {
+  checkin
+  checkout
+}
+
+enum AttendanceEventSource {
+  web
+  mobile
+  system
+}
+
+enum PayrollPeriodStatus {
+  draft
+  running
+  completed
+}
+
+enum PayrollItemKind {
+  earning
+  deduction
+}
+
+enum NotificationEventType {
+  assignment_created
+  report_draft_ready
+  report_finalized
+  invoice_created
+  invoice_paid
+}

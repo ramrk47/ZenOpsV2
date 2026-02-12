@@ -207,6 +207,66 @@ export const BillingInvoiceMarkPaidSchema = z.object({
   notes: z.string().min(1).optional()
 });
 
+export const EmployeeRoleSchema = z.enum([
+  'admin',
+  'manager',
+  'assistant_valuer',
+  'field_valuer',
+  'hr',
+  'finance',
+  'operations'
+]);
+export const EmployeeStatusSchema = z.enum(['active', 'inactive']);
+export const AttendanceEventKindSchema = z.enum(['checkin', 'checkout']);
+export const AttendanceEventSourceSchema = z.enum(['web', 'mobile', 'system']);
+export const PayrollPeriodStatusSchema = z.enum(['draft', 'running', 'completed']);
+export const PayrollItemKindSchema = z.enum(['earning', 'deduction']);
+export const NotificationEventTypeSchema = z.enum([
+  'assignment_created',
+  'report_draft_ready',
+  'report_finalized',
+  'invoice_created',
+  'invoice_paid'
+]);
+export const NotificationChannelSchema = z.enum(['email', 'whatsapp']);
+
+export const EmployeeCreateSchema = z.object({
+  user_id: UuidSchema.optional(),
+  name: z.string().min(1),
+  phone: z.string().min(3).optional(),
+  email: z.string().email().optional(),
+  role: EmployeeRoleSchema.default('operations'),
+  status: EmployeeStatusSchema.default('active')
+});
+
+export const AttendanceMarkSchema = z.object({
+  employee_id: UuidSchema,
+  happened_at: z.string().datetime().optional(),
+  source: AttendanceEventSourceSchema.default('web'),
+  meta_json: z.record(z.any()).optional()
+});
+
+export const PayrollPeriodCreateSchema = z.object({
+  month_start: DateOnlySchema,
+  month_end: DateOnlySchema,
+  status: PayrollPeriodStatusSchema.default('draft')
+});
+
+export const PayrollItemCreateSchema = z.object({
+  employee_id: UuidSchema,
+  kind: PayrollItemKindSchema,
+  label: z.string().min(1),
+  amount_paise: z.number().int()
+});
+
+export const NotificationRouteCreateSchema = z.object({
+  group_key: z.string().min(2),
+  group_name: z.string().min(2),
+  channel: NotificationChannelSchema,
+  to_contact_point_id: UuidSchema,
+  is_active: z.boolean().default(true)
+});
+
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 export type TenantCreate = z.infer<typeof TenantCreateSchema>;
 export type UserCreate = z.infer<typeof UserCreateSchema>;
@@ -228,3 +288,8 @@ export type DocumentTagsUpsert = z.infer<typeof DocumentTagsUpsertSchema>;
 export type DocumentListQuery = z.infer<typeof DocumentListQuerySchema>;
 export type ReportDataBundlePatch = z.infer<typeof ReportDataBundlePatchSchema>;
 export type BillingInvoiceMarkPaid = z.infer<typeof BillingInvoiceMarkPaidSchema>;
+export type EmployeeCreate = z.infer<typeof EmployeeCreateSchema>;
+export type AttendanceMark = z.infer<typeof AttendanceMarkSchema>;
+export type PayrollPeriodCreate = z.infer<typeof PayrollPeriodCreateSchema>;
+export type PayrollItemCreate = z.infer<typeof PayrollItemCreateSchema>;
+export type NotificationRouteCreate = z.infer<typeof NotificationRouteCreateSchema>;

@@ -28,9 +28,128 @@ export interface WebhookEventInput {
   payloadJson: Prisma.JsonObject;
 }
 
+export interface EnqueueEventInput {
+  tenantId: string;
+  eventType: 'assignment_created' | 'report_draft_ready' | 'report_finalized' | 'invoice_created' | 'invoice_paid';
+  templateKey?: string;
+  payload: Record<string, unknown>;
+  idempotencyKey: string;
+  assignmentId?: string;
+  reportRequestId?: string;
+  invoiceId?: string;
+  documentId?: string;
+  requestId?: string;
+}
+
 @Injectable()
 export class NotificationsService {
   constructor(private readonly queueService: NotificationQueueService) {}
+
+  async enqueueEvent(tx: TxClient, input: EnqueueEventInput) {
+    const groupKey = this.routeGroupForEvent(input.eventType);
+    const preferredChannels = this.channelsForEvent(input.eventType);
+
+    const groupTargets = await tx.notificationTarget.findMany({
+      where: {
+        tenantId: input.tenantId,
+        isActive: true,
+        channel: {
+          in: preferredChannels
+        },
+        group: {
+          groupKey,
+          isActive: true
+        }
+      },
+      include: {
+        toContactPoint: true
+      }
+    });
+
+    const subscriptions = await tx.notificationSubscription.findMany({
+      where: {
+        tenantId: input.tenantId,
+        eventType: input.eventType,
+        isActive: true
+      },
+      include: {
+        employee: true
+      }
+    });
+
+    const routed = new Map<string, { channel: 'email' | 'whatsapp'; contactPointId: string }>();
+    for (const target of groupTargets) {
+      routed.set(`${target.channel}:${target.toContactPointId}`, {
+        channel: target.channel,
+        contactPointId: target.toContactPointId
+      });
+    }
+
+    for (const subscription of subscriptions) {
+      const value =
+        subscription.channel === 'email'
+          ? subscription.employee.email
+          : subscription.channel === 'whatsapp'
+            ? subscription.employee.phone
+            : null;
+      if (!value) {
+        continue;
+      }
+
+      const contactPoint = await this.resolveContactPoint(tx, input.tenantId, subscription.channel, value);
+      if (!contactPoint) {
+        continue;
+      }
+
+      routed.set(`${subscription.channel}:${contactPoint.id}`, {
+        channel: subscription.channel,
+        contactPointId: contactPoint.id
+      });
+    }
+
+    if (routed.size === 0) {
+      const fallback = await this.enqueueTemplate(tx, {
+        tenantId: input.tenantId,
+        channel: 'email',
+        templateKey: input.templateKey ?? input.eventType,
+        payload: input.payload,
+        idempotencyKey: `${input.idempotencyKey}:fallback`,
+        assignmentId: input.assignmentId,
+        reportRequestId: input.reportRequestId,
+        invoiceId: input.invoiceId,
+        documentId: input.documentId,
+        requestId: input.requestId
+      });
+      return [fallback];
+    }
+
+    const routes = Array.from(routed.values()).sort((a, b) => {
+      if (a.channel === b.channel) {
+        return a.contactPointId.localeCompare(b.contactPointId);
+      }
+      return a.channel.localeCompare(b.channel);
+    });
+
+    const outbox = [];
+    for (const route of routes) {
+      const row = await this.enqueueTemplate(tx, {
+        tenantId: input.tenantId,
+        channel: route.channel,
+        templateKey: input.templateKey ?? input.eventType,
+        payload: input.payload,
+        idempotencyKey: `${input.idempotencyKey}:${route.channel}:${route.contactPointId}`,
+        toContactPointId: route.contactPointId,
+        assignmentId: input.assignmentId,
+        reportRequestId: input.reportRequestId,
+        invoiceId: input.invoiceId,
+        documentId: input.documentId,
+        requestId: input.requestId
+      });
+      outbox.push(row);
+    }
+
+    return outbox;
+  }
 
   async enqueueTemplate(tx: TxClient, input: EnqueueTemplateInput) {
     const contactPoint = input.toContactPointId
@@ -301,5 +420,26 @@ export class NotificationsService {
         isVerified: false
       }
     });
+  }
+
+  private routeGroupForEvent(
+    eventType: 'assignment_created' | 'report_draft_ready' | 'report_finalized' | 'invoice_created' | 'invoice_paid'
+  ): string {
+    if (eventType === 'assignment_created') {
+      return 'FIELD';
+    }
+    if (eventType === 'invoice_created' || eventType === 'invoice_paid') {
+      return 'FINANCE';
+    }
+    return 'HR';
+  }
+
+  private channelsForEvent(
+    eventType: 'assignment_created' | 'report_draft_ready' | 'report_finalized' | 'invoice_created' | 'invoice_paid'
+  ): Array<'email' | 'whatsapp'> {
+    if (eventType === 'assignment_created') {
+      return ['whatsapp', 'email'];
+    }
+    return ['email'];
   }
 }

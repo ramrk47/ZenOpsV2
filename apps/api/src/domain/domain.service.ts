@@ -16,12 +16,17 @@ import type {
   AssignmentTaskCreate,
   AssignmentTaskUpdate,
   AssignmentUpdate,
+  AttendanceMark,
   DocumentListQuery,
   DocumentMetadataPatch,
   DocumentTagsUpsert,
   BillingInvoiceMarkPaid,
+  EmployeeCreate,
   FileConfirmUploadRequest,
   FilePresignUploadRequest,
+  NotificationRouteCreate,
+  PayrollItemCreate,
+  PayrollPeriodCreate,
   ReportDataBundlePatch,
   ReportRequestCreate,
   TenantCreate,
@@ -102,6 +107,455 @@ export class DomainService {
 
   async createUser(tx: TxClient, input: UserCreate) {
     return tx.user.create({ data: input });
+  }
+
+  async listEmployees(tx: TxClient, claims: JwtClaims) {
+    const tenantId = this.resolvePeopleTenantId(claims);
+    const rows = await tx.employee.findMany({
+      where: {
+        tenantId,
+        deletedAt: null
+      },
+      orderBy: [{ createdAt: 'desc' }]
+    });
+
+    return rows.map((row) => this.serializeEmployee(row));
+  }
+
+  async createEmployee(tx: TxClient, claims: JwtClaims, input: EmployeeCreate) {
+    const tenantId = this.resolvePeopleTenantId(claims);
+
+    if (input.user_id) {
+      const user = await tx.user.findFirst({
+        where: {
+          id: input.user_id,
+          deletedAt: null
+        }
+      });
+      if (!user) {
+        throw new NotFoundException(`user ${input.user_id} not found`);
+      }
+    }
+
+    const created = await tx.employee.create({
+      data: {
+        tenantId,
+        userId: input.user_id,
+        name: input.name,
+        phone: input.phone,
+        email: input.email,
+        role: input.role,
+        status: input.status
+      }
+    });
+
+    return this.serializeEmployee(created);
+  }
+
+  async markAttendance(
+    tx: TxClient,
+    claims: JwtClaims,
+    requestId: string,
+    kind: 'checkin' | 'checkout',
+    input: AttendanceMark
+  ) {
+    const tenantId = this.resolvePeopleTenantId(claims);
+
+    const employee = await tx.employee.findFirst({
+      where: {
+        id: input.employee_id,
+        tenantId,
+        deletedAt: null,
+        status: 'active'
+      }
+    });
+
+    if (!employee) {
+      throw new NotFoundException(`employee ${input.employee_id} not found`);
+    }
+
+    const existing = await tx.attendanceEvent.findFirst({
+      where: {
+        tenantId,
+        requestId
+      }
+    });
+
+    if (existing) {
+      return {
+        ...this.serializeAttendanceEvent(existing),
+        duplicate: true
+      };
+    }
+
+    const happenedAt = input.happened_at ? new Date(input.happened_at) : new Date();
+
+    try {
+      const created = await tx.attendanceEvent.create({
+        data: {
+          tenantId,
+          employeeId: employee.id,
+          kind,
+          source: input.source,
+          happenedAt,
+          requestId,
+          metaJson: (input.meta_json ?? {}) as Prisma.InputJsonObject,
+          createdByUserId: claims.user_id ?? null
+        }
+      });
+
+      return {
+        ...this.serializeAttendanceEvent(created),
+        duplicate: false
+      };
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const retry = await tx.attendanceEvent.findFirst({
+          where: {
+            tenantId,
+            requestId
+          }
+        });
+        if (retry) {
+          return {
+            ...this.serializeAttendanceEvent(retry),
+            duplicate: true
+          };
+        }
+      }
+      throw error;
+    }
+  }
+
+  async listPayrollPeriods(tx: TxClient, claims: JwtClaims) {
+    const tenantId = this.resolvePeopleTenantId(claims);
+    const rows = await tx.payrollPeriod.findMany({
+      where: { tenantId },
+      include: {
+        _count: {
+          select: {
+            items: true
+          }
+        }
+      },
+      orderBy: [{ monthStart: 'desc' }]
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      tenant_id: row.tenantId,
+      month_start: toDateOnly(row.monthStart),
+      month_end: toDateOnly(row.monthEnd),
+      status: row.status,
+      item_count: row._count.items,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    }));
+  }
+
+  async createPayrollPeriod(tx: TxClient, claims: JwtClaims, input: PayrollPeriodCreate) {
+    const tenantId = this.resolvePeopleTenantId(claims);
+    const monthStart = parseDateOnly(input.month_start);
+    const monthEnd = parseDateOnly(input.month_end);
+
+    if (!monthStart || !monthEnd) {
+      throw new BadRequestException('month_start and month_end are required');
+    }
+    if (monthEnd.getTime() < monthStart.getTime()) {
+      throw new BadRequestException('month_end must be on/after month_start');
+    }
+
+    const existing = await tx.payrollPeriod.findFirst({
+      where: {
+        tenantId,
+        monthStart,
+        monthEnd
+      }
+    });
+
+    if (existing) {
+      return {
+        id: existing.id,
+        tenant_id: existing.tenantId,
+        month_start: toDateOnly(existing.monthStart),
+        month_end: toDateOnly(existing.monthEnd),
+        status: existing.status,
+        created_at: existing.createdAt.toISOString(),
+        updated_at: existing.updatedAt.toISOString()
+      };
+    }
+
+    const created = await tx.payrollPeriod.create({
+      data: {
+        tenantId,
+        monthStart,
+        monthEnd,
+        status: input.status
+      }
+    });
+
+    return {
+      id: created.id,
+      tenant_id: created.tenantId,
+      month_start: toDateOnly(created.monthStart),
+      month_end: toDateOnly(created.monthEnd),
+      status: created.status,
+      created_at: created.createdAt.toISOString(),
+      updated_at: created.updatedAt.toISOString()
+    };
+  }
+
+  async runPayrollPeriod(tx: TxClient, claims: JwtClaims, payrollPeriodId: string) {
+    const tenantId = this.resolvePeopleTenantId(claims);
+
+    const period = await tx.payrollPeriod.findFirst({
+      where: {
+        id: payrollPeriodId,
+        tenantId
+      }
+    });
+    if (!period) {
+      throw new NotFoundException(`payroll_period ${payrollPeriodId} not found`);
+    }
+
+    const updated =
+      period.status === 'draft'
+        ? await tx.payrollPeriod.update({
+            where: { id: period.id },
+            data: { status: 'running' }
+          })
+        : period;
+
+    const items = await tx.payrollItem.findMany({
+      where: {
+        tenantId,
+        payrollPeriodId: period.id
+      }
+    });
+
+    const totals = items.reduce(
+      (acc, item) => {
+        const amount = Number(item.amountPaise);
+        if (item.kind === 'earning') {
+          acc.earnings += amount;
+        } else {
+          acc.deductions += amount;
+        }
+        return acc;
+      },
+      { earnings: 0, deductions: 0 }
+    );
+
+    return {
+      id: updated.id,
+      tenant_id: updated.tenantId,
+      month_start: toDateOnly(updated.monthStart),
+      month_end: toDateOnly(updated.monthEnd),
+      status: updated.status,
+      item_count: items.length,
+      total_earnings_paise: totals.earnings,
+      total_deductions_paise: totals.deductions,
+      net_paise: totals.earnings - totals.deductions
+    };
+  }
+
+  async listPayrollItems(tx: TxClient, claims: JwtClaims, payrollPeriodId: string) {
+    const tenantId = this.resolvePeopleTenantId(claims);
+
+    const period = await tx.payrollPeriod.findFirst({
+      where: {
+        id: payrollPeriodId,
+        tenantId
+      }
+    });
+    if (!period) {
+      throw new NotFoundException(`payroll_period ${payrollPeriodId} not found`);
+    }
+
+    const rows = await tx.payrollItem.findMany({
+      where: {
+        tenantId,
+        payrollPeriodId
+      },
+      include: {
+        employee: true
+      },
+      orderBy: [{ createdAt: 'desc' }]
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      tenant_id: row.tenantId,
+      payroll_period_id: row.payrollPeriodId,
+      employee_id: row.employeeId,
+      employee_name: row.employee.name,
+      kind: row.kind,
+      label: row.label,
+      amount_paise: Number(row.amountPaise),
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    }));
+  }
+
+  async createPayrollItem(tx: TxClient, claims: JwtClaims, payrollPeriodId: string, input: PayrollItemCreate) {
+    const tenantId = this.resolvePeopleTenantId(claims);
+
+    const period = await tx.payrollPeriod.findFirst({
+      where: {
+        id: payrollPeriodId,
+        tenantId
+      }
+    });
+    if (!period) {
+      throw new NotFoundException(`payroll_period ${payrollPeriodId} not found`);
+    }
+
+    const employee = await tx.employee.findFirst({
+      where: {
+        id: input.employee_id,
+        tenantId,
+        deletedAt: null
+      }
+    });
+    if (!employee) {
+      throw new NotFoundException(`employee ${input.employee_id} not found`);
+    }
+
+    const created = await tx.payrollItem.create({
+      data: {
+        tenantId,
+        payrollPeriodId,
+        employeeId: input.employee_id,
+        kind: input.kind,
+        label: input.label,
+        amountPaise: BigInt(input.amount_paise)
+      }
+    });
+
+    return {
+      id: created.id,
+      tenant_id: created.tenantId,
+      payroll_period_id: created.payrollPeriodId,
+      employee_id: created.employeeId,
+      kind: created.kind,
+      label: created.label,
+      amount_paise: Number(created.amountPaise),
+      created_at: created.createdAt.toISOString(),
+      updated_at: created.updatedAt.toISOString()
+    };
+  }
+
+  async createNotificationRoute(tx: TxClient, claims: JwtClaims, input: NotificationRouteCreate) {
+    const tenantId = this.resolvePeopleTenantId(claims);
+    const groupKey = input.group_key.trim().toUpperCase();
+
+    const contactPoint = await tx.contactPoint.findFirst({
+      where: {
+        id: input.to_contact_point_id,
+        tenantId
+      }
+    });
+
+    if (!contactPoint) {
+      throw new NotFoundException(`contact_point ${input.to_contact_point_id} not found`);
+    }
+
+    const group = await tx.notificationTargetGroup.upsert({
+      where: {
+        tenantId_groupKey: {
+          tenantId,
+          groupKey
+        }
+      },
+      update: {
+        name: input.group_name,
+        isActive: input.is_active
+      },
+      create: {
+        tenantId,
+        groupKey,
+        name: input.group_name,
+        isActive: input.is_active
+      }
+    });
+
+    const existingTarget = await tx.notificationTarget.findFirst({
+      where: {
+        tenantId,
+        groupId: group.id,
+        channel: input.channel,
+        toContactPointId: input.to_contact_point_id
+      }
+    });
+
+    const target = existingTarget
+      ? await tx.notificationTarget.update({
+          where: { id: existingTarget.id },
+          data: {
+            isActive: input.is_active
+          }
+        })
+      : await tx.notificationTarget.create({
+          data: {
+            tenantId,
+            groupId: group.id,
+            channel: input.channel,
+            toContactPointId: input.to_contact_point_id,
+            isActive: input.is_active
+          }
+        });
+
+    return {
+      group: {
+        id: group.id,
+        tenant_id: group.tenantId,
+        key: group.groupKey,
+        name: group.name,
+        is_active: group.isActive
+      },
+      target: {
+        id: target.id,
+        tenant_id: target.tenantId,
+        group_id: target.groupId,
+        channel: target.channel,
+        to_contact_point_id: target.toContactPointId,
+        is_active: target.isActive
+      }
+    };
+  }
+
+  async listNotificationRoutes(tx: TxClient, claims: JwtClaims) {
+    const tenantId = this.resolvePeopleTenantId(claims);
+    const rows = await tx.notificationTarget.findMany({
+      where: {
+        tenantId
+      },
+      include: {
+        group: true,
+        toContactPoint: true
+      },
+      orderBy: [{ createdAt: 'desc' }]
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      tenant_id: row.tenantId,
+      group: {
+        id: row.group.id,
+        key: row.group.groupKey,
+        name: row.group.name,
+        is_active: row.group.isActive
+      },
+      channel: row.channel,
+      to_contact_point: {
+        id: row.toContactPoint.id,
+        kind: row.toContactPoint.kind,
+        value: row.toContactPoint.value
+      },
+      is_active: row.isActive,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    }));
   }
 
   async softDeleteUser(tx: TxClient, id: string) {
@@ -262,9 +716,9 @@ export class DomainService {
         }
       });
 
-      await this.notificationsService.enqueueTemplate(tx, {
+      await this.notificationsService.enqueueEvent(tx, {
         tenantId,
-        channel: 'email',
+        eventType: 'assignment_created',
         templateKey: 'assignment_created',
         payload: {
           assignment_id: created.id,
@@ -1049,9 +1503,9 @@ export class DomainService {
       actor_user_id: claims.user_id
     });
 
-    await this.notificationsService.enqueueTemplate(tx, {
+    await this.notificationsService.enqueueEvent(tx, {
       tenantId,
-      channel: 'email',
+      eventType: 'invoice_paid',
       templateKey: 'invoice_paid',
       payload: {
         invoice_id: invoice.id,
@@ -1201,9 +1655,9 @@ export class DomainService {
       now: new Date()
     });
 
-    await this.notificationsService.enqueueTemplate(tx, {
+    await this.notificationsService.enqueueEvent(tx, {
       tenantId: reportRequest.tenantId,
-      channel: 'email',
+      eventType: 'invoice_created',
       templateKey: 'invoice_created',
       payload: {
         invoice_id: billing.invoice.id,
@@ -1715,6 +2169,74 @@ export class DomainService {
     });
 
     return this.getDataBundle(tx, reportRequestId);
+  }
+
+  private resolvePeopleTenantId(claims: JwtClaims): string {
+    if (claims.aud === 'portal') {
+      throw new ForbiddenException('PORTAL_PEOPLE_FORBIDDEN');
+    }
+
+    const tenantId = this.resolveTenantIdForMutation(claims);
+    if (!this.launchMode.multiTenantEnabled && tenantId !== this.launchMode.internalTenantId) {
+      throw new ForbiddenException('TENANT_NOT_ENABLED');
+    }
+    return tenantId;
+  }
+
+  private serializeEmployee(row: {
+    id: string;
+    tenantId: string;
+    userId: string | null;
+    name: string;
+    phone: string | null;
+    email: string | null;
+    role: string;
+    status: string;
+    deletedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }) {
+    return {
+      id: row.id,
+      tenant_id: row.tenantId,
+      user_id: row.userId,
+      name: row.name,
+      phone: row.phone,
+      email: row.email,
+      role: row.role,
+      status: row.status,
+      deleted_at: row.deletedAt?.toISOString() ?? null,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    };
+  }
+
+  private serializeAttendanceEvent(row: {
+    id: string;
+    tenantId: string;
+    employeeId: string;
+    kind: string;
+    source: string;
+    happenedAt: Date;
+    metaJson: Prisma.JsonValue;
+    requestId: string;
+    createdByUserId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }) {
+    return {
+      id: row.id,
+      tenant_id: row.tenantId,
+      employee_id: row.employeeId,
+      kind: row.kind,
+      source: row.source,
+      happened_at: row.happenedAt.toISOString(),
+      meta_json: asJsonRecord(row.metaJson),
+      request_id: row.requestId,
+      created_by_user_id: row.createdByUserId,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    };
   }
 
   private assertAssignmentReadAudience(claims: JwtClaims): void {

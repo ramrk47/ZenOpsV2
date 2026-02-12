@@ -3,7 +3,10 @@ import { NotificationsService } from './notifications.service.js';
 
 const buildTx = () => {
   const state = {
-    contactPoints: [{ id: 'cp-1', tenantId: 'tenant-1', kind: 'email', value: 'ops@zenops.local' }],
+    contactPoints: [
+      { id: 'cp-1', tenantId: 'tenant-1', kind: 'email', value: 'ops@zenops.local' },
+      { id: 'cp-2', tenantId: 'tenant-1', kind: 'whatsapp', value: '+919999000111' }
+    ],
     outbox: [] as Array<Record<string, any>>,
     attempts: [] as Array<Record<string, any>>,
     webhookEvents: [] as Array<Record<string, any>>
@@ -33,6 +36,12 @@ const buildTx = () => {
     },
     notificationTemplate: {
       findFirst: vi.fn().mockResolvedValue({ provider: 'noop' })
+    },
+    notificationTarget: {
+      findMany: vi.fn().mockResolvedValue([])
+    },
+    notificationSubscription: {
+      findMany: vi.fn().mockResolvedValue([])
     },
     notificationOutbox: {
       findFirst: vi.fn().mockImplementation(async ({ where }: any) => {
@@ -171,5 +180,36 @@ describe('NotificationsService', () => {
     expect(state.attempts).toHaveLength(1);
     expect(first.duplicate).toBe(false);
     expect(second.duplicate).toBe(true);
+  });
+
+  it('routes assignment_created to FIELD group targets', async () => {
+    const queueService = {
+      enqueue: vi.fn().mockResolvedValue(undefined)
+    };
+    const service = new NotificationsService(queueService as any);
+    const { tx, state } = buildTx();
+
+    tx.notificationTarget.findMany.mockResolvedValue([
+      {
+        id: 'target-1',
+        tenantId: 'tenant-1',
+        groupId: 'group-field',
+        channel: 'whatsapp',
+        toContactPointId: 'cp-2',
+        isActive: true,
+        toContactPoint: state.contactPoints[1]
+      }
+    ]);
+
+    await service.enqueueEvent(tx, {
+      tenantId: 'tenant-1',
+      eventType: 'assignment_created',
+      payload: { assignment_id: 'assignment-1' },
+      idempotencyKey: 'assignment_created:assignment-1'
+    });
+
+    expect(state.outbox).toHaveLength(1);
+    expect(state.outbox[0]?.toContactPointId).toBe('cp-2');
+    expect(state.outbox[0]?.channel).toBe('whatsapp');
   });
 });
