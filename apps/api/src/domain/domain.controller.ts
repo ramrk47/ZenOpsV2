@@ -29,6 +29,8 @@ import {
   type AssignmentTaskUpdate,
   AssignmentUpdateSchema,
   type AssignmentUpdate,
+  AttendanceMarkSchema,
+  type AttendanceMark,
   BillingInvoiceMarkPaidSchema,
   type BillingInvoiceMarkPaid,
   DocumentListQuerySchema,
@@ -41,10 +43,18 @@ import {
   type FileConfirmUploadRequest,
   FilePresignUploadRequestSchema,
   type FilePresignUploadRequest,
+  NotificationRouteCreateSchema,
+  type NotificationRouteCreate,
+  PayrollItemCreateSchema,
+  type PayrollItemCreate,
+  PayrollPeriodCreateSchema,
+  type PayrollPeriodCreate,
   ReportRequestCreateSchema,
   type ReportRequestCreate,
   ReportDataBundlePatchSchema,
   type ReportDataBundlePatch,
+  EmployeeCreateSchema,
+  type EmployeeCreate,
   SoftDeleteResponseSchema,
   TenantCreateSchema,
   type TenantCreate,
@@ -110,6 +120,79 @@ export class DomainController {
   async createUser(@Claims() claims: JwtClaims, @Body() body: unknown) {
     const input = parseOrThrow<UserCreate>(UserCreateSchema, body);
     return this.requestContext.runWithClaims(claims, (tx) => this.domainService.createUser(tx, input));
+  }
+
+  @Get('employees')
+  async listEmployees(@Claims() claims: JwtClaims) {
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.listEmployees(tx, claims));
+  }
+
+  @Post('employees')
+  async createEmployee(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<EmployeeCreate>(EmployeeCreateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.createEmployee(tx, claims, input));
+  }
+
+  @Post('attendance/checkin')
+  async attendanceCheckin(@Claims() claims: JwtClaims, @Req() req: AuthenticatedRequest, @Body() body: unknown) {
+    const input = parseOrThrow<AttendanceMark>(AttendanceMarkSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.markAttendance(tx, claims, req.requestId, 'checkin', input)
+    );
+  }
+
+  @Post('attendance/checkout')
+  async attendanceCheckout(@Claims() claims: JwtClaims, @Req() req: AuthenticatedRequest, @Body() body: unknown) {
+    const input = parseOrThrow<AttendanceMark>(AttendanceMarkSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.markAttendance(tx, claims, req.requestId, 'checkout', input)
+    );
+  }
+
+  @Get('payroll/periods')
+  async listPayrollPeriods(@Claims() claims: JwtClaims) {
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.listPayrollPeriods(tx, claims));
+  }
+
+  @Post('payroll/periods')
+  async createPayrollPeriod(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<PayrollPeriodCreate>(PayrollPeriodCreateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.createPayrollPeriod(tx, claims, input)
+    );
+  }
+
+  @Post('payroll/periods/:id/run')
+  async runPayrollPeriod(@Claims() claims: JwtClaims, @Param('id') id: string) {
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.runPayrollPeriod(tx, claims, id));
+  }
+
+  @Get('payroll/periods/:id/items')
+  async listPayrollItems(@Claims() claims: JwtClaims, @Param('id') id: string) {
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.listPayrollItems(tx, claims, id));
+  }
+
+  @Post('payroll/periods/:id/items')
+  async createPayrollItem(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
+    const input = parseOrThrow<PayrollItemCreate>(PayrollItemCreateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.createPayrollItem(tx, claims, id, input)
+    );
+  }
+
+  @Post('notifications/routes')
+  async createNotificationRoute(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<NotificationRouteCreate>(NotificationRouteCreateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.createNotificationRoute(tx, claims, input)
+    );
+  }
+
+  @Get('notifications/routes')
+  async listNotificationRoutes(@Claims() claims: JwtClaims) {
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.listNotificationRoutes(tx, claims)
+    );
   }
 
   @Delete('users/:id')
