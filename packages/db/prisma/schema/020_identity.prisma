@@ -42,6 +42,13 @@ model Tenant {
   notificationOutbox NotificationOutbox[]
   notificationAttempts NotificationAttempt[]
   webhookEvents WebhookEvent[]
+  employees Employee[]
+  attendanceEvents AttendanceEvent[]
+  payrollPeriods PayrollPeriod[]
+  payrollItems PayrollItem[]
+  notificationTargetGroups NotificationTargetGroup[]
+  notificationTargets NotificationTarget[]
+  notificationSubscriptions NotificationSubscription[]
 
   @@map("tenants")
 }
@@ -65,6 +72,8 @@ model User {
   auditEvents AuditEvent[]
   ownedDocuments Document[] @relation("DocumentOwner")
   contactPoints ContactPoint[]
+  employeeProfiles Employee[] @relation("EmployeeUser")
+  createdAttendanceEvents AttendanceEvent[] @relation("AttendanceEventCreatedBy")
 
   @@map("users")
 }

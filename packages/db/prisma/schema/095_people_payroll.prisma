@@ -1,0 +1,137 @@
+model Employee {
+  id                      String                   @id @default(uuid()) @db.Uuid
+  tenantId                String                   @map("tenant_id") @db.Uuid
+  userId                  String?                  @map("user_id") @db.Uuid
+  name                    String
+  phone                   String?
+  email                   String?
+  role                    EmployeeRole             @default(operations)
+  status                  EmployeeStatus           @default(active)
+  deletedAt               DateTime?                @map("deleted_at")
+  createdAt               DateTime                 @default(now()) @map("created_at")
+  updatedAt               DateTime                 @updatedAt @map("updated_at")
+  tenant                  Tenant                   @relation(fields: [tenantId], references: [id])
+  user                    User?                    @relation("EmployeeUser", fields: [userId], references: [id])
+  attendanceEvents        AttendanceEvent[]
+  payrollItems            PayrollItem[]
+  notificationSubscriptions NotificationSubscription[]
+
+  @@unique([tenantId, userId])
+  @@unique([tenantId, email])
+  @@index([tenantId, status])
+  @@index([tenantId, role])
+  @@index([tenantId, deletedAt])
+  @@map("employees")
+}
+
+model AttendanceEvent {
+  id              String                @id @default(uuid()) @db.Uuid
+  tenantId        String                @map("tenant_id") @db.Uuid
+  employeeId      String                @map("employee_id") @db.Uuid
+  kind            AttendanceEventKind
+  source          AttendanceEventSource @default(web)
+  happenedAt      DateTime              @default(now()) @map("happened_at")
+  metaJson        Json                  @default("{}") @db.JsonB @map("meta_json")
+  requestId       String                @map("request_id")
+  createdByUserId String?               @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+  tenant          Tenant                @relation(fields: [tenantId], references: [id])
+  employee        Employee              @relation(fields: [employeeId], references: [id])
+  createdByUser   User?                 @relation("AttendanceEventCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@unique([tenantId, requestId])
+  @@index([tenantId, employeeId, happenedAt])
+  @@index([tenantId, kind])
+  @@index([createdByUserId])
+  @@map("attendance_events")
+}
+
+model PayrollPeriod {
+  id         String              @id @default(uuid()) @db.Uuid
+  tenantId   String              @map("tenant_id") @db.Uuid
+  monthStart DateTime            @db.Date @map("month_start")
+  monthEnd   DateTime            @db.Date @map("month_end")
+  status     PayrollPeriodStatus @default(draft)
+  createdAt  DateTime            @default(now()) @map("created_at")
+  updatedAt  DateTime            @updatedAt @map("updated_at")
+  tenant     Tenant              @relation(fields: [tenantId], references: [id])
+  items      PayrollItem[]
+
+  @@unique([tenantId, monthStart, monthEnd])
+  @@index([tenantId, status])
+  @@map("payroll_periods")
+}
+
+model PayrollItem {
+  id             String          @id @default(uuid()) @db.Uuid
+  tenantId       String          @map("tenant_id") @db.Uuid
+  employeeId     String          @map("employee_id") @db.Uuid
+  payrollPeriodId String         @map("payroll_period_id") @db.Uuid
+  kind           PayrollItemKind
+  label          String
+  amountPaise    BigInt          @db.BigInt @map("amount_paise")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  employee       Employee        @relation(fields: [employeeId], references: [id])
+  payrollPeriod  PayrollPeriod   @relation(fields: [payrollPeriodId], references: [id])
+
+  @@index([tenantId, employeeId])
+  @@index([tenantId, payrollPeriodId])
+  @@index([tenantId, kind])
+  @@map("payroll_items")
+}
+
+model NotificationTargetGroup {
+  id         String               @id @default(uuid()) @db.Uuid
+  tenantId   String               @map("tenant_id") @db.Uuid
+  groupKey   String               @map("key")
+  name       String
+  isActive   Boolean              @default(true) @map("is_active")
+  createdAt  DateTime             @default(now()) @map("created_at")
+  updatedAt  DateTime             @updatedAt @map("updated_at")
+  tenant     Tenant               @relation(fields: [tenantId], references: [id])
+  targets    NotificationTarget[]
+
+  @@unique([tenantId, groupKey])
+  @@index([tenantId, isActive])
+  @@map("notification_target_groups")
+}
+
+model NotificationTarget {
+  id               String                  @id @default(uuid()) @db.Uuid
+  tenantId         String                  @map("tenant_id") @db.Uuid
+  groupId          String                  @map("group_id") @db.Uuid
+  channel          NotificationChannel
+  toContactPointId String                  @map("to_contact_point_id") @db.Uuid
+  isActive         Boolean                 @default(true) @map("is_active")
+  createdAt        DateTime                @default(now()) @map("created_at")
+  updatedAt        DateTime                @updatedAt @map("updated_at")
+  tenant           Tenant                  @relation(fields: [tenantId], references: [id])
+  group            NotificationTargetGroup @relation(fields: [groupId], references: [id])
+  toContactPoint   ContactPoint            @relation(fields: [toContactPointId], references: [id])
+
+  @@unique([tenantId, groupId, channel, toContactPointId])
+  @@index([tenantId, groupId, channel, isActive])
+  @@index([toContactPointId])
+  @@map("notification_targets")
+}
+
+model NotificationSubscription {
+  id         String                @id @default(uuid()) @db.Uuid
+  tenantId   String                @map("tenant_id") @db.Uuid
+  employeeId String                @map("employee_id") @db.Uuid
+  eventType  NotificationEventType @map("event_type")
+  channel    NotificationChannel
+  isActive   Boolean               @default(true) @map("is_active")
+  createdAt  DateTime              @default(now()) @map("created_at")
+  updatedAt  DateTime              @updatedAt @map("updated_at")
+  tenant     Tenant                @relation(fields: [tenantId], references: [id])
+  employee   Employee              @relation(fields: [employeeId], references: [id])
+
+  @@unique([tenantId, employeeId, eventType, channel])
+  @@index([tenantId, eventType, channel, isActive])
+  @@index([employeeId])
+  @@map("notification_subscriptions")
+}
