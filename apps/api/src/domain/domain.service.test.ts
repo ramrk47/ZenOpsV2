@@ -36,10 +36,23 @@ const createBillingServiceMock = () => ({
   getBillingMe: vi.fn().mockResolvedValue({}),
   listInvoices: vi.fn().mockResolvedValue([]),
   getInvoice: vi.fn().mockResolvedValue({}),
-  markInvoicePaid: vi.fn().mockResolvedValue({})
+  markInvoicePaid: vi.fn().mockResolvedValue({
+    id: 'invoice-1',
+    total_paise: 0,
+    paid_at: null
+  })
 });
 
-const createService = (billingService: ReturnType<typeof createBillingServiceMock> = createBillingServiceMock()) =>
+const createNotificationsServiceMock = () => ({
+  enqueueTemplate: vi.fn().mockResolvedValue({
+    id: 'outbox-1'
+  })
+});
+
+const createService = (
+  billingService: ReturnType<typeof createBillingServiceMock> = createBillingServiceMock(),
+  notificationsService: ReturnType<typeof createNotificationsServiceMock> = createNotificationsServiceMock()
+) =>
   new DomainService(
     {
       presignUpload: vi.fn(),
@@ -51,7 +64,8 @@ const createService = (billingService: ReturnType<typeof createBillingServiceMoc
       internalTenantId: '11111111-1111-1111-1111-111111111111',
       externalTenantId: '22222222-2222-2222-2222-222222222222'
     },
-    billingService as any
+    billingService as any,
+    notificationsService as any
   );
 
 const buildTx = () => {
@@ -343,7 +357,8 @@ describe('DomainService billing gates', () => {
 
   it('allows studio billing:write capability to mark invoice paid', async () => {
     const billingService = createBillingServiceMock();
-    const service = createService(billingService);
+    const notificationsService = createNotificationsServiceMock();
+    const service = createService(billingService, notificationsService);
     const studioClaims = {
       ...webClaims,
       aud: 'studio' as const,
@@ -361,12 +376,20 @@ describe('DomainService billing gates', () => {
       notes: undefined,
       actor_user_id: webClaims.user_id
     });
+    expect(notificationsService.enqueueTemplate).toHaveBeenCalledWith(
+      {} as any,
+      expect.objectContaining({
+        templateKey: 'invoice_paid',
+        idempotencyKey: 'invoice_paid:invoice-1'
+      })
+    );
   });
 });
 
 describe('DomainService assignment spine', () => {
   it('create assignment writes created activity', async () => {
-    const service = createService();
+    const notificationsService = createNotificationsServiceMock();
+    const service = createService(createBillingServiceMock(), notificationsService);
     const { tx } = buildAssignmentGraphTx();
 
     const created = await service.createAssignment(tx, webClaims, {
@@ -383,6 +406,13 @@ describe('DomainService assignment spine', () => {
         data: expect.objectContaining({
           type: 'created'
         })
+      })
+    );
+    expect(notificationsService.enqueueTemplate).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        templateKey: 'assignment_created',
+        idempotencyKey: 'assignment_created:assignment-1'
       })
     );
   });

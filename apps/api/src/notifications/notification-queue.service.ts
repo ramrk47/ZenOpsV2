@@ -25,11 +25,11 @@ export class NotificationQueueService implements OnModuleDestroy {
               delay: 2000
             },
             removeOnComplete: {
-              count: 1000
+              count: 2000
             },
             removeOnFail: {
-              count: 1000,
-              age: 60 * 60 * 24 * 7
+              count: 5000,
+              age: 60 * 60 * 24
             }
           }
         });

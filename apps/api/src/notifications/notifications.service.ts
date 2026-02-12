@@ -11,6 +11,10 @@ export interface EnqueueTemplateInput {
   idempotencyKey: string;
   toValue?: string;
   toContactPointId?: string;
+  assignmentId?: string;
+  reportRequestId?: string;
+  invoiceId?: string;
+  documentId?: string;
   requestId?: string;
 }
 
@@ -72,7 +76,11 @@ export class NotificationsService {
           templateKey: input.templateKey,
           payloadJson: input.payload as unknown as Prisma.InputJsonObject,
           status: 'queued',
-          idempotencyKey: input.idempotencyKey
+          idempotencyKey: input.idempotencyKey,
+          assignmentId: input.assignmentId,
+          reportRequestId: input.reportRequestId,
+          invoiceId: input.invoiceId,
+          documentId: input.documentId
         }
       });
 
@@ -223,7 +231,7 @@ export class NotificationsService {
         providerMessageId: input.providerMessageId,
         status: input.status ?? 'delivered',
         errorCode: null,
-        errorJson: null
+        errorJson: undefined
       }
     });
 

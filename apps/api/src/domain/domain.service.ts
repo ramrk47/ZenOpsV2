@@ -32,6 +32,7 @@ import { Prisma, type TxClient } from '@zenops/db';
 import { buildStorageKey, type StorageProvider } from '@zenops/storage';
 import type { LaunchModeConfig } from '../common/launch-mode.js';
 import { BillingService } from '../billing/billing.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 export interface QueueResult {
   reportRequestId: string;
@@ -79,7 +80,8 @@ export class DomainService {
   constructor(
     @Inject('STORAGE_PROVIDER') private readonly storageProvider: StorageProvider,
     @Inject('LAUNCH_MODE_CONFIG') private readonly launchMode: LaunchModeConfig,
-    private readonly billingService: BillingService
+    private readonly billingService: BillingService,
+    private readonly notificationsService: NotificationsService
   ) {}
 
   async listTenants(tx: TxClient) {
@@ -258,6 +260,19 @@ export class DomainService {
           source: input.source,
           work_order_id: input.work_order_id ?? null
         }
+      });
+
+      await this.notificationsService.enqueueTemplate(tx, {
+        tenantId,
+        channel: 'email',
+        templateKey: 'assignment_created',
+        payload: {
+          assignment_id: created.id,
+          title: created.title,
+          status: created.status
+        },
+        idempotencyKey: `assignment_created:${created.id}`,
+        assignmentId: created.id
       });
 
       return this.getAssignmentDetail(tx, claims, created.id);
@@ -1027,12 +1042,27 @@ export class DomainService {
     }
 
     const tenantId = this.resolveTenantIdForMutation(claims);
-    return this.billingService.markInvoicePaid(tx, tenantId, invoiceId, {
+    const invoice = await this.billingService.markInvoicePaid(tx, tenantId, invoiceId, {
       amount_paise: input.amount_paise,
       reference: input.reference,
       notes: input.notes,
       actor_user_id: claims.user_id
     });
+
+    await this.notificationsService.enqueueTemplate(tx, {
+      tenantId,
+      channel: 'email',
+      templateKey: 'invoice_paid',
+      payload: {
+        invoice_id: invoice.id,
+        total_paise: invoice.total_paise,
+        paid_at: invoice.paid_at
+      },
+      idempotencyKey: `invoice_paid:${invoice.id}`,
+      invoiceId: invoice.id
+    });
+
+    return invoice;
   }
 
   async queueDraft(tx: TxClient, reportRequestId: string, actorUserId?: string | null): Promise<QueueResult> {
@@ -1169,6 +1199,20 @@ export class DomainService {
       reportRequestId,
       assignmentId: reportRequest.assignmentId ?? null,
       now: new Date()
+    });
+
+    await this.notificationsService.enqueueTemplate(tx, {
+      tenantId: reportRequest.tenantId,
+      channel: 'email',
+      templateKey: 'invoice_created',
+      payload: {
+        invoice_id: billing.invoice.id,
+        report_request_id: reportRequestId,
+        amount_paise: Number(billing.invoiceLine.amountPaise)
+      },
+      idempotencyKey: `invoice_created:${billing.invoice.id}`,
+      invoiceId: billing.invoice.id,
+      reportRequestId
     });
 
     const updated = await tx.reportRequest.update({
