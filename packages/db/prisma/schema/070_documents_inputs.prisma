@@ -1,0 +1,148 @@
+model Document {
+  id               String         @id @default(uuid()) @db.Uuid
+  tenantId         String         @map("tenant_id") @db.Uuid
+  ownerUserId      String?        @map("owner_user_id") @db.Uuid
+  source           DocumentSource
+  storageKey       String         @map("storage_key")
+  originalFilename String?        @map("original_filename")
+  contentType      String?        @map("content_type")
+  sizeBytes        BigInt?        @map("size_bytes") @db.BigInt
+  sha256           String?
+  status           DocumentStatus @default(pending)
+  metadataJson     Json           @default("{}") @db.JsonB @map("metadata_json")
+  deletedAt        DateTime?      @map("deleted_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  tenant           Tenant         @relation(fields: [tenantId], references: [id])
+  ownerUser        User?          @relation("DocumentOwner", fields: [ownerUserId], references: [id])
+  documentLinks    DocumentLink[]
+  documentTagMap   DocumentTagMap[]
+  extractionRuns   ExtractionRun[]
+
+  @@unique([storageKey])
+  @@index([tenantId])
+  @@index([ownerUserId])
+  @@index([status])
+  @@map("documents")
+}
+
+model DocumentLink {
+  id              String              @id @default(uuid()) @db.Uuid
+  tenantId        String              @map("tenant_id") @db.Uuid
+  documentId      String              @map("document_id") @db.Uuid
+  workOrderId     String?             @map("work_order_id") @db.Uuid
+  assignmentId    String?             @map("assignment_id") @db.Uuid
+  reportRequestId String?             @map("report_request_id") @db.Uuid
+  purpose         DocumentLinkPurpose @default(other)
+  createdAt       DateTime            @default(now()) @map("created_at")
+  tenant          Tenant              @relation(fields: [tenantId], references: [id])
+  document        Document            @relation(fields: [documentId], references: [id])
+  workOrder       WorkOrder?          @relation(fields: [workOrderId], references: [id])
+  assignment      Assignment?         @relation(fields: [assignmentId], references: [id])
+  reportRequest   ReportRequest?      @relation(fields: [reportRequestId], references: [id])
+
+  @@index([tenantId])
+  @@index([documentId])
+  @@index([workOrderId])
+  @@index([assignmentId])
+  @@index([reportRequestId])
+  @@map("document_links")
+}
+
+model DocumentTagKey {
+  id            String             @id @default(uuid()) @db.Uuid
+  tenantId      String             @map("tenant_id") @db.Uuid
+  key           String
+  description   String?
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+  tenant        Tenant             @relation(fields: [tenantId], references: [id])
+  values        DocumentTagValue[]
+  documentTags  DocumentTagMap[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+  @@map("document_tag_keys")
+}
+
+model DocumentTagValue {
+  id           String           @id @default(uuid()) @db.Uuid
+  tenantId     String           @map("tenant_id") @db.Uuid
+  keyId        String           @map("key_id") @db.Uuid
+  value        String?
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  tenant       Tenant           @relation(fields: [tenantId], references: [id])
+  key          DocumentTagKey   @relation(fields: [keyId], references: [id])
+  documentTags DocumentTagMap[]
+
+  @@unique([tenantId, keyId, value])
+  @@index([tenantId])
+  @@index([keyId])
+  @@map("document_tag_values")
+}
+
+model DocumentTagMap {
+  id         String           @id @default(uuid()) @db.Uuid
+  tenantId   String           @map("tenant_id") @db.Uuid
+  documentId String           @map("document_id") @db.Uuid
+  keyId      String           @map("key_id") @db.Uuid
+  valueId    String?          @map("value_id") @db.Uuid
+  createdAt  DateTime         @default(now()) @map("created_at")
+  tenant     Tenant           @relation(fields: [tenantId], references: [id])
+  document   Document         @relation(fields: [documentId], references: [id])
+  key        DocumentTagKey   @relation(fields: [keyId], references: [id])
+  value      DocumentTagValue? @relation(fields: [valueId], references: [id])
+
+  @@unique([documentId, keyId, valueId])
+  @@index([tenantId])
+  @@index([documentId])
+  @@index([keyId])
+  @@index([valueId])
+  @@map("document_tag_map")
+}
+
+model InputSchema {
+  id         String       @id @default(uuid()) @db.Uuid
+  name       String
+  version    Int
+  jsonSchema Json?        @db.JsonB @map("json_schema")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  reportInputs ReportInput[]
+
+  @@unique([name, version])
+  @@map("input_schemas")
+}
+
+model ReportInput {
+  id              String       @id @default(uuid()) @db.Uuid
+  tenantId        String       @map("tenant_id") @db.Uuid
+  reportRequestId String       @unique @map("report_request_id") @db.Uuid
+  schemaId        String?      @map("schema_id") @db.Uuid
+  payload         Json         @db.JsonB
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  tenant          Tenant       @relation(fields: [tenantId], references: [id])
+  reportRequest   ReportRequest @relation(fields: [reportRequestId], references: [id])
+  schema          InputSchema? @relation(fields: [schemaId], references: [id])
+
+  @@index([tenantId])
+  @@map("report_inputs")
+}
+
+model ExtractionRun {
+  id         String              @id @default(uuid()) @db.Uuid
+  tenantId   String              @map("tenant_id") @db.Uuid
+  documentId String              @map("document_id") @db.Uuid
+  status     ExtractionRunStatus @default(queued)
+  result     Json?               @db.JsonB
+  createdAt  DateTime            @default(now()) @map("created_at")
+  updatedAt  DateTime            @updatedAt @map("updated_at")
+  tenant     Tenant              @relation(fields: [tenantId], references: [id])
+  document   Document            @relation(fields: [documentId], references: [id])
+
+  @@index([tenantId])
+  @@index([documentId])
+  @@index([status])
+  @@map("extraction_runs")
+}
