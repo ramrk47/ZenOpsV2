@@ -7,6 +7,7 @@ export interface WebhookSecurityConfig {
   enabled: boolean;
   twilioValidate: boolean;
   sendgridValidate: boolean;
+  mailgunValidate: boolean;
 }
 
 type ValidationFailure =
@@ -125,13 +126,34 @@ const stringifyPayload = (payload: unknown): string => {
   return JSON.stringify(payload ?? {});
 };
 
+const parseMailgunSignature = (payload: unknown): { timestamp?: string; token?: string; signature?: string } => {
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
+    return {};
+  }
+
+  const body = payload as Record<string, unknown>;
+  const nested =
+    typeof body.signature === 'object' && body.signature !== null && !Array.isArray(body.signature)
+      ? (body.signature as Record<string, unknown>)
+      : {};
+
+  const asString = (value: unknown): string | undefined => (typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined);
+
+  return {
+    timestamp: asString(nested.timestamp ?? body.timestamp),
+    token: asString(nested.token ?? body.token),
+    signature: asString(nested.signature ?? body.signature)
+  };
+};
+
 export const resolveWebhookSecurityConfig = (env: NodeJS.ProcessEnv = process.env): WebhookSecurityConfig => {
   const enabled = parseBoolean(env.WEBHOOKS_ENABLED, false);
 
   return {
     enabled,
     twilioValidate: parseBoolean(env.TWILIO_WEBHOOK_VALIDATE, enabled),
-    sendgridValidate: parseBoolean(env.SENDGRID_WEBHOOK_VALIDATE, enabled)
+    sendgridValidate: parseBoolean(env.SENDGRID_WEBHOOK_VALIDATE, enabled),
+    mailgunValidate: parseBoolean(env.MAILGUN_WEBHOOK_VALIDATE, enabled)
   };
 };
 
@@ -169,6 +191,20 @@ export const verifySendgridSignature = (input: {
   }
 };
 
+export const buildMailgunSignature = (signingKey: string, timestamp: string, token: string): string => {
+  return createHmac('sha256', signingKey).update(`${timestamp}${token}`).digest('hex');
+};
+
+export const verifyMailgunSignature = (input: {
+  signingKey: string;
+  timestamp: string;
+  token: string;
+  signature: string;
+}): boolean => {
+  const expected = buildMailgunSignature(input.signingKey, input.timestamp, input.token);
+  return safeCompare(input.signature.toLowerCase(), expected.toLowerCase());
+};
+
 export const buildRequestUrl = (request: {
   headers: HeaderMap;
   protocol?: string;
@@ -182,7 +218,7 @@ export const buildRequestUrl = (request: {
 };
 
 export const validateWebhookRequest = (input: {
-  provider: 'twilio' | 'sendgrid';
+  provider: 'twilio' | 'sendgrid' | 'mailgun';
   headers: HeaderMap;
   payload: unknown;
   requestUrl: string;
@@ -244,6 +280,32 @@ export const validateWebhookRequest = (input: {
       timestamp,
       payload: input.payload
     })) {
+      return { ok: false, reason: 'invalid_signature' };
+    }
+
+    return { ok: true };
+  }
+
+  if (input.provider === 'mailgun') {
+    if (!config.mailgunValidate) {
+      return { ok: true };
+    }
+
+    const parsed = parseMailgunSignature(input.payload);
+    const timestamp = parsed.timestamp ?? getHeader(input.headers, 'x-mailgun-timestamp');
+    const token = parsed.token ?? getHeader(input.headers, 'x-mailgun-token');
+    const signature = parsed.signature ?? getHeader(input.headers, 'x-mailgun-signature');
+
+    if (!timestamp || !token || !signature) {
+      return { ok: false, reason: 'missing_signature' };
+    }
+
+    const signingKey = input.env?.MAILGUN_WEBHOOK_SIGNING_KEY ?? process.env.MAILGUN_WEBHOOK_SIGNING_KEY;
+    if (!signingKey) {
+      return { ok: false, reason: 'missing_secret' };
+    }
+
+    if (!verifyMailgunSignature({ signingKey, timestamp, token, signature })) {
       return { ok: false, reason: 'invalid_signature' };
     }
 

@@ -323,7 +323,7 @@ main() {
   web_token="$(json_eval "$API_LAST_BODY" "data.access_token")"
 
   echo "Logging in as studio user..."
-  api_call "POST" "/auth/login" "" "{\"aud\":\"studio\",\"tenant_id\":\"${ZENOPS_INTERNAL_TENANT_ID}\",\"user_id\":\"44444444-4444-4444-4444-444444444444\",\"sub\":\"44444444-4444-4444-4444-444444444444\",\"roles\":[],\"capabilities\":[]}"
+  api_call "POST" "/auth/login" "" "{\"aud\":\"studio\",\"tenant_id\":\"${ZENOPS_INTERNAL_TENANT_ID}\",\"user_id\":\"44444444-4444-4444-4444-444444444444\",\"sub\":\"44444444-4444-4444-4444-444444444444\",\"roles\":[\"super_admin\"],\"capabilities\":[\"notifications.send\"]}"
   require_http_ok
   local studio_token
   studio_token="$(json_eval "$API_LAST_BODY" "data.access_token")"

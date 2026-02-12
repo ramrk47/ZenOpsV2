@@ -13,7 +13,12 @@ VALUES
   (gen_random_uuid(), 'owner', NOW(), NOW()),
   (gen_random_uuid(), 'manager', NOW(), NOW()),
   (gen_random_uuid(), 'staff', NOW(), NOW()),
-  (gen_random_uuid(), 'portal_user', NOW(), NOW())
+  (gen_random_uuid(), 'portal_user', NOW(), NOW()),
+  (gen_random_uuid(), 'super_admin', NOW(), NOW()),
+  (gen_random_uuid(), 'ops_manager', NOW(), NOW()),
+  (gen_random_uuid(), 'valuer', NOW(), NOW()),
+  (gen_random_uuid(), 'accounts', NOW(), NOW()),
+  (gen_random_uuid(), 'hr', NOW(), NOW())
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO public.users (id, email, name, created_at, updated_at)

@@ -38,6 +38,7 @@ import { buildStorageKey, type StorageProvider } from '@zenops/storage';
 import type { LaunchModeConfig } from '../common/launch-mode.js';
 import { BillingService } from '../billing/billing.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { Capabilities } from '../auth/rbac.js';
 
 export interface QueueResult {
   reportRequestId: string;
@@ -110,6 +111,7 @@ export class DomainService {
   }
 
   async listEmployees(tx: TxClient, claims: JwtClaims) {
+    this.assertCapability(claims, Capabilities.employeesRead);
     const tenantId = this.resolvePeopleTenantId(claims);
     const rows = await tx.employee.findMany({
       where: {
@@ -123,6 +125,7 @@ export class DomainService {
   }
 
   async createEmployee(tx: TxClient, claims: JwtClaims, input: EmployeeCreate) {
+    this.assertCapability(claims, Capabilities.employeesWrite);
     const tenantId = this.resolvePeopleTenantId(claims);
 
     if (input.user_id) {
@@ -159,6 +162,7 @@ export class DomainService {
     kind: 'checkin' | 'checkout',
     input: AttendanceMark
   ) {
+    this.assertCapability(claims, Capabilities.attendanceWrite);
     const tenantId = this.resolvePeopleTenantId(claims);
 
     const employee = await tx.employee.findFirst({
@@ -228,6 +232,7 @@ export class DomainService {
   }
 
   async listPayrollPeriods(tx: TxClient, claims: JwtClaims) {
+    this.assertCapability(claims, Capabilities.payrollRead);
     const tenantId = this.resolvePeopleTenantId(claims);
     const rows = await tx.payrollPeriod.findMany({
       where: { tenantId },
@@ -254,6 +259,7 @@ export class DomainService {
   }
 
   async createPayrollPeriod(tx: TxClient, claims: JwtClaims, input: PayrollPeriodCreate) {
+    this.assertCapability(claims, Capabilities.payrollWrite);
     const tenantId = this.resolvePeopleTenantId(claims);
     const monthStart = parseDateOnly(input.month_start);
     const monthEnd = parseDateOnly(input.month_end);
@@ -306,6 +312,7 @@ export class DomainService {
   }
 
   async runPayrollPeriod(tx: TxClient, claims: JwtClaims, payrollPeriodId: string) {
+    this.assertCapability(claims, Capabilities.payrollRun);
     const tenantId = this.resolvePeopleTenantId(claims);
 
     const period = await tx.payrollPeriod.findFirst({
@@ -360,6 +367,7 @@ export class DomainService {
   }
 
   async listPayrollItems(tx: TxClient, claims: JwtClaims, payrollPeriodId: string) {
+    this.assertCapability(claims, Capabilities.payrollRead);
     const tenantId = this.resolvePeopleTenantId(claims);
 
     const period = await tx.payrollPeriod.findFirst({
@@ -398,6 +406,7 @@ export class DomainService {
   }
 
   async createPayrollItem(tx: TxClient, claims: JwtClaims, payrollPeriodId: string, input: PayrollItemCreate) {
+    this.assertCapability(claims, Capabilities.payrollWrite);
     const tenantId = this.resolvePeopleTenantId(claims);
 
     const period = await tx.payrollPeriod.findFirst({
@@ -446,6 +455,7 @@ export class DomainService {
   }
 
   async createNotificationRoute(tx: TxClient, claims: JwtClaims, input: NotificationRouteCreate) {
+    this.assertCapability(claims, Capabilities.notificationsRoutesWrite);
     const tenantId = this.resolvePeopleTenantId(claims);
     const groupKey = input.group_key.trim().toUpperCase();
 
@@ -525,6 +535,7 @@ export class DomainService {
   }
 
   async listNotificationRoutes(tx: TxClient, claims: JwtClaims) {
+    this.assertCapability(claims, Capabilities.notificationsRoutesRead);
     const tenantId = this.resolvePeopleTenantId(claims);
     const rows = await tx.notificationTarget.findMany({
       where: {
@@ -1464,6 +1475,7 @@ export class DomainService {
   }
 
   async getBillingMe(tx: TxClient, claims: JwtClaims) {
+    this.assertCapability(claims, Capabilities.invoicesRead);
     if (claims.aud === 'portal') {
       throw new ForbiddenException('PORTAL_BILLING_FORBIDDEN');
     }
@@ -1473,6 +1485,7 @@ export class DomainService {
   }
 
   async listBillingInvoices(tx: TxClient, claims: JwtClaims) {
+    this.assertCapability(claims, Capabilities.invoicesRead);
     if (claims.aud === 'portal') {
       throw new ForbiddenException('PORTAL_BILLING_FORBIDDEN');
     }
@@ -1482,6 +1495,7 @@ export class DomainService {
   }
 
   async getBillingInvoice(tx: TxClient, claims: JwtClaims, invoiceId: string) {
+    this.assertCapability(claims, Capabilities.invoicesRead);
     if (claims.aud === 'portal') {
       throw new ForbiddenException('PORTAL_BILLING_FORBIDDEN');
     }
@@ -1491,7 +1505,9 @@ export class DomainService {
   }
 
   async markBillingInvoicePaid(tx: TxClient, claims: JwtClaims, invoiceId: string, input: BillingInvoiceMarkPaid) {
-    if (claims.aud !== 'studio' || !claims.capabilities.includes('billing:write')) {
+    const canWriteInvoices =
+      claims.capabilities.includes(Capabilities.invoicesWrite) || claims.capabilities.includes('billing:write');
+    if (claims.aud !== 'studio' || (!canWriteInvoices && !claims.roles.includes('super_admin'))) {
       throw new ForbiddenException('BILLING_WRITE_FORBIDDEN');
     }
 
@@ -2169,6 +2185,15 @@ export class DomainService {
     });
 
     return this.getDataBundle(tx, reportRequestId);
+  }
+
+  private assertCapability(claims: JwtClaims, capability: string): void {
+    if (claims.roles.includes('super_admin') || claims.capabilities.includes('*')) {
+      return;
+    }
+    if (!claims.capabilities.includes(capability)) {
+      throw new ForbiddenException(`MISSING_CAPABILITY:${capability}`);
+    }
   }
 
   private resolvePeopleTenantId(claims: JwtClaims): string {

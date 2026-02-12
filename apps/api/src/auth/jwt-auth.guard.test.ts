@@ -4,7 +4,11 @@ import { signJwt } from '@zenops/auth';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 
 class ReflectorStub {
-  constructor(private readonly requiredAudience?: string, private readonly isPublic = false) {}
+  constructor(
+    private readonly requiredAudience?: string,
+    private readonly isPublic = false,
+    private readonly requiredCapabilities?: string[]
+  ) {}
 
   getAllAndOverride<T>(key: string): T | undefined {
     if (key === 'isPublic') {
@@ -12,6 +16,9 @@ class ReflectorStub {
     }
     if (key === 'requiredAudience') {
       return this.requiredAudience as T;
+    }
+    if (key === 'requiredCapabilities') {
+      return this.requiredCapabilities as T;
     }
     return undefined;
   }
@@ -88,6 +95,24 @@ describe('JwtAuthGuard audience gating', () => {
     });
 
     const guard = new JwtAuthGuard(new ReflectorStub('web') as any, secret, launchMode);
+    expect(() => guard.canActivate(makeExecutionContext(`Bearer ${token}`))).toThrowError(ForbiddenException);
+  });
+
+  it('denies token missing required capability', () => {
+    const secret = 'dev-secret';
+    const token = signJwt({
+      secret,
+      claims: {
+        sub: '33333333-3333-3333-3333-333333333333',
+        tenant_id: '11111111-1111-1111-1111-111111111111',
+        user_id: '33333333-3333-3333-3333-333333333333',
+        aud: 'web',
+        roles: [],
+        capabilities: ['employees.read']
+      }
+    });
+
+    const guard = new JwtAuthGuard(new ReflectorStub('web', false, ['payroll.write']) as any, secret, launchMode);
     expect(() => guard.canActivate(makeExecutionContext(`Bearer ${token}`))).toThrowError(ForbiddenException);
   });
 });

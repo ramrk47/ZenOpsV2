@@ -267,7 +267,7 @@ main() {
   start_api_if_needed
 
   echo "Logging in as internal web user..."
-  api_call "POST" "/auth/login" "" "{\"aud\":\"web\",\"tenant_id\":\"${ZENOPS_INTERNAL_TENANT_ID}\",\"user_id\":\"33333333-3333-3333-3333-333333333333\",\"sub\":\"33333333-3333-3333-3333-333333333333\",\"roles\":[],\"capabilities\":[]}"
+  api_call "POST" "/auth/login" "" "{\"aud\":\"web\",\"tenant_id\":\"${ZENOPS_INTERNAL_TENANT_ID}\",\"user_id\":\"33333333-3333-3333-3333-333333333333\",\"sub\":\"33333333-3333-3333-3333-333333333333\",\"roles\":[\"accounts\"],\"capabilities\":[\"invoices.read\"]}"
   require_http_ok
   local token
   token="$(json_eval "$API_LAST_BODY" "data.access_token")"

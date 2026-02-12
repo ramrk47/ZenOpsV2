@@ -578,9 +578,31 @@ describe('DomainService document/data-bundle guards', () => {
 });
 
 describe('DomainService people M4.2', () => {
+  it('blocks payroll list without payroll.read capability', async () => {
+    const service = createService();
+    await expect(service.listPayrollPeriods({} as any, webClaims)).rejects.toThrow('MISSING_CAPABILITY:payroll.read');
+  });
+
+  it('blocks notification route writes without notifications.routes.write capability', async () => {
+    const service = createService();
+    await expect(
+      service.createNotificationRoute({} as any, webClaims, {
+        group_key: 'FINANCE',
+        group_name: 'Finance Team',
+        channel: 'email',
+        to_contact_point_id: 'contact-1',
+        is_active: true
+      })
+    ).rejects.toThrow('MISSING_CAPABILITY:notifications.routes.write');
+  });
+
   it('does not duplicate attendance events for same request id', async () => {
     const service = createService();
     let stored: any = null;
+    const attendanceClaims = {
+      ...webClaims,
+      capabilities: ['attendance.write']
+    };
 
     const tx = {
       employee: {
@@ -617,11 +639,11 @@ describe('DomainService people M4.2', () => {
       }
     } as any;
 
-    const first = await service.markAttendance(tx, webClaims, 'req-att-1', 'checkin', {
+    const first = await service.markAttendance(tx, attendanceClaims, 'req-att-1', 'checkin', {
       employee_id: 'employee-1',
       source: 'web'
     });
-    const second = await service.markAttendance(tx, webClaims, 'req-att-1', 'checkin', {
+    const second = await service.markAttendance(tx, attendanceClaims, 'req-att-1', 'checkin', {
       employee_id: 'employee-1',
       source: 'web'
     });

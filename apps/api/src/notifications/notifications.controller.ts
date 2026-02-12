@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, ForbiddenException, Get, Post, Query, Req, UnauthorizedException } from '@nestjs/common';
-import { Public, RequireAudience } from '../auth/public.decorator.js';
+import { Public, RequireAudience, RequireCapabilities } from '../auth/public.decorator.js';
 import { Claims } from '../auth/claims.decorator.js';
 import type { JwtClaims } from '@zenops/auth';
 import { Prisma } from '@zenops/db';
@@ -8,6 +8,7 @@ import { NotificationsService } from './notifications.service.js';
 import { randomUUID } from 'node:crypto';
 import type { FastifyRequest } from 'fastify';
 import { buildRequestUrl, validateWebhookRequest } from './webhook-security.js';
+import { Capabilities } from '../auth/rbac.js';
 
 type OutboxStatus = 'queued' | 'sending' | 'sent' | 'failed' | 'dead';
 type AttemptStatus = 'sending' | 'sent' | 'failed' | 'delivered' | 'read';
@@ -111,6 +112,7 @@ export class NotificationsController {
 
   @Post('notify/test')
   @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.notificationsSend)
   async notifyTest(@Claims() claims: JwtClaims, @Body() body: unknown) {
     const input = parseNotifyTestBody(body);
     return this.requestContext.runWithClaims(claims, (tx) => this.notificationsService.enqueueTest(tx, claims, input));
@@ -118,6 +120,7 @@ export class NotificationsController {
 
   @Get('notifications/outbox')
   @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.notificationsSend)
   async listOutbox(@Claims() claims: JwtClaims, @Query() query: Record<string, string | undefined>) {
     const input = parseOutboxQuery(query);
     return this.requestContext.runWithClaims(claims, (tx) => this.notificationsService.listOutbox(tx, input));
@@ -129,10 +132,17 @@ export class NotificationsController {
     return this.handleWebhook('sendgrid', req, body);
   }
 
+  @Post('webhooks/mailgun')
+  @Public()
+  async mailgunWebhook(@Req() req: FastifyRequest, @Body() body: unknown) {
+    return this.handleWebhook('mailgun', req, body);
+  }
+
   @Post('webhooks/email')
   @Public()
   async emailWebhook(@Req() req: FastifyRequest, @Body() body: unknown) {
-    return this.handleWebhook('sendgrid', req, body);
+    const provider = (process.env.NOTIFY_PROVIDER_EMAIL ?? 'sendgrid').toLowerCase() === 'mailgun' ? 'mailgun' : 'sendgrid';
+    return this.handleWebhook(provider, req, body);
   }
 
   @Post('webhooks/twilio/whatsapp')
@@ -147,7 +157,7 @@ export class NotificationsController {
     return this.handleWebhook('twilio', req, body);
   }
 
-  private async handleWebhook(provider: 'sendgrid' | 'twilio', req: FastifyRequest, body: unknown) {
+  private async handleWebhook(provider: 'sendgrid' | 'mailgun' | 'twilio', req: FastifyRequest, body: unknown) {
     const normalizedBody = Array.isArray(body) ? body[0] ?? {} : body;
     const validation = validateWebhookRequest({
       provider,
@@ -169,6 +179,7 @@ export class NotificationsController {
     const providerEventId =
       parsed.provider_event_id ??
       (typeof payload.sg_event_id === 'string' ? payload.sg_event_id : undefined) ??
+      (typeof payload.token === 'string' ? payload.token : undefined) ??
       (typeof payload.event_id === 'string' ? payload.event_id : undefined) ??
       (typeof payload.MessageSid === 'string' ? payload.MessageSid : undefined) ??
       randomUUID();
@@ -176,6 +187,7 @@ export class NotificationsController {
     const providerMessageId =
       parsed.provider_message_id ??
       (typeof payload.sg_message_id === 'string' ? payload.sg_message_id : undefined) ??
+      (typeof payload['message-id'] === 'string' ? payload['message-id'] : undefined) ??
       (typeof payload.message_id === 'string' ? payload.message_id : undefined) ??
       (typeof payload.MessageSid === 'string' ? payload.MessageSid : undefined) ??
       null;

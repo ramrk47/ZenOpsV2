@@ -69,8 +69,9 @@ import type { JwtClaims } from '@zenops/auth';
 import { RequestContextService } from '../db/request-context.service.js';
 import { DomainService } from './domain.service.js';
 import { ReportQueueService } from '../queue/report-queue.service.js';
-import { RequireAudience } from '../auth/public.decorator.js';
+import { RequireAudience, RequireCapabilities } from '../auth/public.decorator.js';
 import type { LaunchModeConfig } from '../common/launch-mode.js';
+import { Capabilities } from '../auth/rbac.js';
 
 const parseOrThrow = <T>(parser: { safeParse: (input: unknown) => any }, body: unknown): T => {
   const parsed = parser.safeParse(body);
@@ -123,17 +124,20 @@ export class DomainController {
   }
 
   @Get('employees')
+  @RequireCapabilities(Capabilities.employeesRead)
   async listEmployees(@Claims() claims: JwtClaims) {
     return this.requestContext.runWithClaims(claims, (tx) => this.domainService.listEmployees(tx, claims));
   }
 
   @Post('employees')
+  @RequireCapabilities(Capabilities.employeesWrite)
   async createEmployee(@Claims() claims: JwtClaims, @Body() body: unknown) {
     const input = parseOrThrow<EmployeeCreate>(EmployeeCreateSchema, body);
     return this.requestContext.runWithClaims(claims, (tx) => this.domainService.createEmployee(tx, claims, input));
   }
 
   @Post('attendance/checkin')
+  @RequireCapabilities(Capabilities.attendanceWrite)
   async attendanceCheckin(@Claims() claims: JwtClaims, @Req() req: AuthenticatedRequest, @Body() body: unknown) {
     const input = parseOrThrow<AttendanceMark>(AttendanceMarkSchema, body);
     return this.requestContext.runWithClaims(claims, (tx) =>
@@ -142,6 +146,7 @@ export class DomainController {
   }
 
   @Post('attendance/checkout')
+  @RequireCapabilities(Capabilities.attendanceWrite)
   async attendanceCheckout(@Claims() claims: JwtClaims, @Req() req: AuthenticatedRequest, @Body() body: unknown) {
     const input = parseOrThrow<AttendanceMark>(AttendanceMarkSchema, body);
     return this.requestContext.runWithClaims(claims, (tx) =>
@@ -150,11 +155,13 @@ export class DomainController {
   }
 
   @Get('payroll/periods')
+  @RequireCapabilities(Capabilities.payrollRead)
   async listPayrollPeriods(@Claims() claims: JwtClaims) {
     return this.requestContext.runWithClaims(claims, (tx) => this.domainService.listPayrollPeriods(tx, claims));
   }
 
   @Post('payroll/periods')
+  @RequireCapabilities(Capabilities.payrollWrite)
   async createPayrollPeriod(@Claims() claims: JwtClaims, @Body() body: unknown) {
     const input = parseOrThrow<PayrollPeriodCreate>(PayrollPeriodCreateSchema, body);
     return this.requestContext.runWithClaims(claims, (tx) =>
@@ -163,16 +170,19 @@ export class DomainController {
   }
 
   @Post('payroll/periods/:id/run')
+  @RequireCapabilities(Capabilities.payrollRun)
   async runPayrollPeriod(@Claims() claims: JwtClaims, @Param('id') id: string) {
     return this.requestContext.runWithClaims(claims, (tx) => this.domainService.runPayrollPeriod(tx, claims, id));
   }
 
   @Get('payroll/periods/:id/items')
+  @RequireCapabilities(Capabilities.payrollRead)
   async listPayrollItems(@Claims() claims: JwtClaims, @Param('id') id: string) {
     return this.requestContext.runWithClaims(claims, (tx) => this.domainService.listPayrollItems(tx, claims, id));
   }
 
   @Post('payroll/periods/:id/items')
+  @RequireCapabilities(Capabilities.payrollWrite)
   async createPayrollItem(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
     const input = parseOrThrow<PayrollItemCreate>(PayrollItemCreateSchema, body);
     return this.requestContext.runWithClaims(claims, (tx) =>
@@ -181,6 +191,7 @@ export class DomainController {
   }
 
   @Post('notifications/routes')
+  @RequireCapabilities(Capabilities.notificationsRoutesWrite)
   async createNotificationRoute(@Claims() claims: JwtClaims, @Body() body: unknown) {
     const input = parseOrThrow<NotificationRouteCreate>(NotificationRouteCreateSchema, body);
     return this.requestContext.runWithClaims(claims, (tx) =>
@@ -189,6 +200,7 @@ export class DomainController {
   }
 
   @Get('notifications/routes')
+  @RequireCapabilities(Capabilities.notificationsRoutesRead)
   async listNotificationRoutes(@Claims() claims: JwtClaims) {
     return this.requestContext.runWithClaims(claims, (tx) =>
       this.domainService.listNotificationRoutes(tx, claims)
@@ -383,11 +395,13 @@ export class DomainController {
   }
 
   @Get('billing/me')
+  @RequireCapabilities(Capabilities.invoicesRead)
   async billingMe(@Claims() claims: JwtClaims) {
     return this.requestContext.runWithClaims(claims, (tx) => this.domainService.getBillingMe(tx, claims));
   }
 
   @Get('billing/invoices')
+  @RequireCapabilities(Capabilities.invoicesRead)
   async listBillingInvoices(@Claims() claims: JwtClaims) {
     return this.requestContext.runWithClaims(claims, (tx) =>
       this.domainService.listBillingInvoices(tx, claims)
@@ -395,6 +409,7 @@ export class DomainController {
   }
 
   @Get('billing/invoices/:id')
+  @RequireCapabilities(Capabilities.invoicesRead)
   async getBillingInvoice(@Claims() claims: JwtClaims, @Param('id') id: string) {
     return this.requestContext.runWithClaims(claims, (tx) =>
       this.domainService.getBillingInvoice(tx, claims, id)
@@ -403,6 +418,7 @@ export class DomainController {
 
   @Post('billing/invoices/:id/mark-paid')
   @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.invoicesWrite)
   async markBillingInvoicePaid(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
     const input = parseOrThrow<BillingInvoiceMarkPaid>(BillingInvoiceMarkPaidSchema, body);
     return this.requestContext.runWithClaims(claims, (tx) =>
