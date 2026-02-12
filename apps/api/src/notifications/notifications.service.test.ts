@@ -147,7 +147,7 @@ describe('NotificationsService', () => {
       sentAt: null
     });
 
-    await service.recordWebhookEvent(tx, {
+    const first = await service.recordWebhookEvent(tx, {
       tenantId: 'tenant-1',
       provider: 'sendgrid',
       eventType: 'delivered',
@@ -157,7 +157,7 @@ describe('NotificationsService', () => {
       payloadJson: { ok: true }
     });
 
-    await service.recordWebhookEvent(tx, {
+    const second = await service.recordWebhookEvent(tx, {
       tenantId: 'tenant-1',
       provider: 'sendgrid',
       eventType: 'delivered',
@@ -168,6 +168,8 @@ describe('NotificationsService', () => {
     });
 
     expect(state.webhookEvents).toHaveLength(1);
-    expect(state.attempts).toHaveLength(2);
+    expect(state.attempts).toHaveLength(1);
+    expect(first.duplicate).toBe(false);
+    expect(second.duplicate).toBe(true);
   });
 });

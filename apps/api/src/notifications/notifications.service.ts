@@ -175,6 +175,10 @@ export class NotificationsService {
       }
     });
 
+    if (event) {
+      return { event, outbox: null, duplicate: true };
+    }
+
     if (!event) {
       try {
         event = await tx.webhookEvent.create({
@@ -197,11 +201,15 @@ export class NotificationsService {
             providerEventId: input.providerEventId
           }
         });
+
+        if (event) {
+          return { event, outbox: null, duplicate: true };
+        }
       }
     }
 
     if (!input.providerMessageId) {
-      return { event, outbox: null };
+      return { event, outbox: null, duplicate: false };
     }
 
     const outbox = await tx.notificationOutbox.findFirst({
@@ -212,7 +220,7 @@ export class NotificationsService {
     });
 
     if (!outbox) {
-      return { event, outbox: null };
+      return { event, outbox: null, duplicate: false };
     }
 
     const nextAttemptNo =
@@ -238,6 +246,7 @@ export class NotificationsService {
     if (input.status === 'failed') {
       return {
         event,
+        duplicate: false,
         outbox: await tx.notificationOutbox.update({
           where: { id: outbox.id },
           data: { status: 'failed' }
@@ -248,6 +257,7 @@ export class NotificationsService {
     if (input.status === 'read' || input.status === 'delivered' || input.status === 'sent') {
       return {
         event,
+        duplicate: false,
         outbox: await tx.notificationOutbox.update({
           where: { id: outbox.id },
           data: {
@@ -258,7 +268,7 @@ export class NotificationsService {
       };
     }
 
-    return { event, outbox };
+    return { event, outbox, duplicate: false };
   }
 
   private async resolveContactPoint(tx: TxClient, tenantId: string, channel: 'email' | 'whatsapp', value?: string) {

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Post, Query, Req, UnauthorizedException } from '@nestjs/common';
 import { Public, RequireAudience } from '../auth/public.decorator.js';
 import { Claims } from '../auth/claims.decorator.js';
 import type { JwtClaims } from '@zenops/auth';
@@ -6,6 +6,8 @@ import { Prisma } from '@zenops/db';
 import { RequestContextService } from '../db/request-context.service.js';
 import { NotificationsService } from './notifications.service.js';
 import { randomUUID } from 'node:crypto';
+import type { FastifyRequest } from 'fastify';
+import { buildRequestUrl, validateWebhookRequest } from './webhook-security.js';
 
 type OutboxStatus = 'queued' | 'sending' | 'sent' | 'failed' | 'dead';
 type AttemptStatus = 'sending' | 'sent' | 'failed' | 'delivered' | 'read';
@@ -123,30 +125,44 @@ export class NotificationsController {
 
   @Post('webhooks/sendgrid')
   @Public()
-  async sendgridWebhook(@Body() body: unknown) {
-    return this.handleWebhook('sendgrid', body);
+  async sendgridWebhook(@Req() req: FastifyRequest, @Body() body: unknown) {
+    return this.handleWebhook('sendgrid', req, body);
   }
 
   @Post('webhooks/email')
   @Public()
-  async emailWebhook(@Body() body: unknown) {
-    return this.handleWebhook('sendgrid', body);
+  async emailWebhook(@Req() req: FastifyRequest, @Body() body: unknown) {
+    return this.handleWebhook('sendgrid', req, body);
   }
 
   @Post('webhooks/twilio/whatsapp')
   @Public()
-  async twilioWhatsappWebhook(@Body() body: unknown) {
-    return this.handleWebhook('twilio', body);
+  async twilioWhatsappWebhook(@Req() req: FastifyRequest, @Body() body: unknown) {
+    return this.handleWebhook('twilio', req, body);
   }
 
   @Post('webhooks/twilio')
   @Public()
-  async twilioWebhook(@Body() body: unknown) {
-    return this.handleWebhook('twilio', body);
+  async twilioWebhook(@Req() req: FastifyRequest, @Body() body: unknown) {
+    return this.handleWebhook('twilio', req, body);
   }
 
-  private async handleWebhook(provider: 'sendgrid' | 'twilio', body: unknown) {
+  private async handleWebhook(provider: 'sendgrid' | 'twilio', req: FastifyRequest, body: unknown) {
     const normalizedBody = Array.isArray(body) ? body[0] ?? {} : body;
+    const validation = validateWebhookRequest({
+      provider,
+      headers: req.headers as Record<string, string | string[] | undefined>,
+      payload: normalizedBody,
+      requestUrl: buildRequestUrl(req)
+    });
+
+    if (!validation.ok) {
+      if (validation.reason === 'disabled') {
+        throw new ForbiddenException('WEBHOOKS_DISABLED');
+      }
+      throw new UnauthorizedException('WEBHOOK_SIGNATURE_INVALID');
+    }
+
     const parsed = parseWebhookBody(normalizedBody);
     const payload = asRecord(normalizedBody);
 
@@ -186,6 +202,7 @@ export class NotificationsController {
 
     return {
       ok: true,
+      duplicate: result.duplicate ?? false,
       event_id: result.event?.id ?? null,
       outbox_id: result.outbox?.id ?? null
     };

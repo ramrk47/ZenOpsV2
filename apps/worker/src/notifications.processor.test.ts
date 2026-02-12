@@ -2,13 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { createJsonLogger } from '@zenops/common';
 import { processNotificationJob } from './notifications.processor.js';
 
-const makeTx = () => {
+const makeTx = (provider: 'noop' | 'sendgrid' = 'noop') => {
   const state = {
     outbox: {
       id: 'outbox-1',
       tenantId: 'tenant-1',
       channel: 'email',
-      provider: 'noop',
+      provider,
       templateKey: 'assignment_created',
       payloadJson: { assignment_id: 'assignment-1' },
       status: 'queued',
@@ -72,5 +72,28 @@ describe('processNotificationJob', () => {
     expect(state.outbox.providerMessageId).toContain('noop:outbox-1');
     expect(state.attempts).toHaveLength(1);
     expect(state.attempts[0]?.status).toBe('sent');
+  });
+
+  it('marks non-noop provider as failed when provider secrets are missing', async () => {
+    const { tx, state } = makeTx('sendgrid');
+    delete process.env.SENDGRID_API_KEY;
+
+    await expect(
+      processNotificationJob({
+        prisma: {} as any,
+        logger: createJsonLogger(),
+        payload: {
+          outboxId: 'outbox-1',
+          tenantId: 'tenant-1',
+          requestId: 'req-2'
+        },
+        fallbackTenantId: 'tenant-1',
+        runWithContext: async (_prisma, _ctx, fn) => fn(tx)
+      })
+    ).rejects.toThrow('SENDGRID_API_KEY is not configured');
+
+    expect(state.outbox.status).toBe('failed');
+    expect(state.attempts).toHaveLength(1);
+    expect(state.attempts[0]?.status).toBe('failed');
   });
 });
