@@ -245,6 +245,9 @@ start_worker_if_needed() {
 
   echo "Starting worker for notifications queue..."
   env \
+    JWT_SECRET="$JWT_SECRET" \
+    DATABASE_URL_API="$DATABASE_URL_API" \
+    DATABASE_URL_ROOT="$DATABASE_URL_ROOT" \
     DATABASE_URL_WORKER="$DATABASE_URL_WORKER" \
     REDIS_URL="$REDIS_URL" \
     ARTIFACTS_DIR="$ARTIFACTS_DIR" \
@@ -255,6 +258,9 @@ start_worker_if_needed() {
   (
     cd apps/worker
     env \
+      JWT_SECRET="$JWT_SECRET" \
+      DATABASE_URL_API="$DATABASE_URL_API" \
+      DATABASE_URL_ROOT="$DATABASE_URL_ROOT" \
       DATABASE_URL_WORKER="$DATABASE_URL_WORKER" \
       REDIS_URL="$REDIS_URL" \
       ARTIFACTS_DIR="$ARTIFACTS_DIR" \
@@ -265,6 +271,15 @@ start_worker_if_needed() {
   WORKER_PID="$!"
 
   sleep 2
+  if ! kill -0 "$WORKER_PID" >/dev/null 2>&1; then
+    echo "ERROR: worker exited during startup."
+    if [[ -f /tmp/zenops-demo-notify-worker.log ]]; then
+      echo "--- Worker log ---"
+      tail -n 100 /tmp/zenops-demo-notify-worker.log || true
+      echo "------------------"
+    fi
+    exit 1
+  fi
 }
 
 run_setup() {
