@@ -48,11 +48,20 @@ const buildTx = () => {
         return (
           state.outbox.find(
             (row) =>
+              (!where.id || row.id === where.id) &&
               (!where.tenantId || row.tenantId === where.tenantId) &&
+              (!where.status || row.status === where.status) &&
               (!where.idempotencyKey || row.idempotencyKey === where.idempotencyKey) &&
               (!where.providerMessageId || row.providerMessageId === where.providerMessageId)
           ) ?? null
         );
+      }),
+      count: vi.fn().mockImplementation(async ({ where }: any) => {
+        return state.outbox.filter(
+          (row) =>
+            (!where?.tenantId || row.tenantId === where.tenantId) &&
+            (!where?.status || row.status === where.status)
+        ).length;
       }),
       findMany: vi.fn().mockImplementation(async () => state.outbox),
       create: vi.fn().mockImplementation(async ({ data }: any) => {
@@ -107,6 +116,9 @@ const buildTx = () => {
         state.attempts.push(data);
         return data;
       })
+    },
+    reportRequest: {
+      count: vi.fn().mockResolvedValue(0)
     }
   } as any;
 
@@ -211,5 +223,33 @@ describe('NotificationsService', () => {
     expect(state.outbox).toHaveLength(1);
     expect(state.outbox[0]?.toContactPointId).toBe('cp-2');
     expect(state.outbox[0]?.channel).toBe('whatsapp');
+  });
+
+  it('supports manual whatsapp create + mark sent flow', async () => {
+    const queueService = {
+      enqueue: vi.fn().mockResolvedValue(undefined)
+    };
+    const service = new NotificationsService(queueService as any);
+    const { tx, state } = buildTx();
+
+    const created = await service.createManualWhatsappOutbox(
+      tx,
+      { aud: 'studio', tenant_id: 'tenant-1', user_id: 'user-1' } as any,
+      { to: '+919999000111', message: 'manual demo' }
+    );
+
+    expect(created.status).toBe('queued');
+    expect(queueService.enqueue).not.toHaveBeenCalled();
+
+    const updated = await service.markOutboxManualSent(
+      tx,
+      { aud: 'studio', tenant_id: 'tenant-1', user_id: 'user-1' } as any,
+      created.id,
+      { sent_by: 'operator' }
+    );
+
+    expect(updated.status).toBe('sent');
+    expect(state.attempts).toHaveLength(1);
+    expect(state.attempts[0]?.errorCode).toBe('manual_send');
   });
 });

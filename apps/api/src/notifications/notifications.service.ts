@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, type TxClient } from '@zenops/db';
 import type { JwtClaims } from '@zenops/auth';
+import type { ManualWhatsappOutboxCreate, ManualWhatsappOutboxMarkSent } from '@zenops/contracts';
 import { NotificationQueueService } from './notification-queue.service.js';
 
 export interface EnqueueTemplateInput {
@@ -244,6 +245,104 @@ export class NotificationsService {
     });
   }
 
+  async createManualWhatsappOutbox(tx: TxClient, claims: JwtClaims, input: ManualWhatsappOutboxCreate) {
+    const tenantId = input.tenant_id ?? claims.tenant_id;
+    if (!tenantId) {
+      throw new Error('tenant_id missing in claims/body');
+    }
+
+    const contactPoint = await this.resolveContactPoint(tx, tenantId, 'whatsapp', input.to);
+    if (!contactPoint) {
+      throw new Error('whatsapp contact point unavailable');
+    }
+
+    const idempotencyKey = `manual-whatsapp:${tenantId}:${contactPoint.id}:${Buffer.from(input.message).toString('base64url').slice(0, 32)}`;
+    const existing = await tx.notificationOutbox.findFirst({
+      where: {
+        tenantId,
+        idempotencyKey
+      }
+    });
+    if (existing) {
+      return existing;
+    }
+
+    return tx.notificationOutbox.create({
+      data: {
+        tenantId,
+        toContactPointId: contactPoint.id,
+        channel: 'whatsapp',
+        provider: 'noop',
+        templateKey: 'manual_whatsapp',
+        payloadJson: {
+          message: input.message,
+          mode: 'manual_whatsapp'
+        } as unknown as Prisma.InputJsonObject,
+        status: 'queued',
+        idempotencyKey,
+        assignmentId: input.assignment_id,
+        reportRequestId: input.report_request_id
+      }
+    });
+  }
+
+  async markOutboxManualSent(
+    tx: TxClient,
+    claims: JwtClaims,
+    outboxId: string,
+    input: ManualWhatsappOutboxMarkSent
+  ) {
+    const tenantId = claims.tenant_id;
+    if (!tenantId) {
+      throw new Error('tenant_id missing in claims');
+    }
+
+    const outbox = await tx.notificationOutbox.findFirst({
+      where: {
+        id: outboxId,
+        tenantId
+      }
+    });
+    if (!outbox) {
+      throw new Error(`notification_outbox ${outboxId} not found`);
+    }
+
+    if (outbox.status === 'sent') {
+      return outbox;
+    }
+
+    const nextAttemptNo =
+      (await tx.notificationAttempt.count({
+        where: {
+          outboxId: outbox.id
+        }
+      })) + 1;
+
+    await tx.notificationAttempt.create({
+      data: {
+        tenantId,
+        outboxId: outbox.id,
+        attemptNo: nextAttemptNo,
+        provider: 'noop',
+        providerMessageId: null,
+        status: 'sent',
+        errorCode: 'manual_send',
+        errorJson: {
+          sent_by: input.sent_by,
+          sent_at: new Date().toISOString()
+        } as unknown as Prisma.InputJsonObject
+      }
+    });
+
+    return tx.notificationOutbox.update({
+      where: { id: outbox.id },
+      data: {
+        status: 'sent',
+        sentAt: new Date()
+      }
+    });
+  }
+
   async listOutbox(
     tx: TxClient,
     input: { status?: 'queued' | 'sending' | 'sent' | 'failed' | 'dead'; limit?: number }
@@ -267,6 +366,7 @@ export class NotificationsService {
       channel: row.channel,
       provider: row.provider,
       template_key: row.templateKey,
+      payload_json: row.payloadJson,
       status: row.status,
       idempotency_key: row.idempotencyKey,
       to: {
@@ -284,6 +384,51 @@ export class NotificationsService {
           }
         : null
     }));
+  }
+
+  async getOpsMonitor(tx: TxClient, claims: JwtClaims) {
+    const tenantId = claims.tenant_id;
+    if (!tenantId) {
+      throw new Error('tenant_id missing in claims');
+    }
+
+    const [queued, failed, dead, oldestQueued, webhookFailures, billingFinalizeErrors] = await Promise.all([
+      tx.notificationOutbox.count({ where: { tenantId, status: 'queued' } }),
+      tx.notificationOutbox.count({ where: { tenantId, status: 'failed' } }),
+      tx.notificationOutbox.count({ where: { tenantId, status: 'dead' } }),
+      tx.notificationOutbox.findFirst({
+        where: { tenantId, status: 'queued' },
+        orderBy: { queuedAt: 'asc' },
+        select: { queuedAt: true }
+      }),
+      tx.notificationAttempt.count({
+        where: {
+          tenantId,
+          status: 'failed'
+        }
+      }),
+      tx.reportRequest.count({
+        where: {
+          tenantId,
+          status: 'failed',
+          deletedAt: null
+        }
+      })
+    ]);
+
+    const queueLagSeconds = oldestQueued ? Math.max(0, Math.floor((Date.now() - oldestQueued.queuedAt.getTime()) / 1000)) : 0;
+
+    return {
+      tenant_id: tenantId,
+      outbox: {
+        queued,
+        failed,
+        dead
+      },
+      webhook_rejects_estimate: webhookFailures,
+      billing_finalize_errors: billingFinalizeErrors,
+      queue_lag_seconds: queueLagSeconds
+    };
   }
 
   async recordWebhookEvent(tx: TxClient, input: WebhookEventInput) {

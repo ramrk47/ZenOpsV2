@@ -501,7 +501,9 @@ describe('DomainService document/data-bundle guards', () => {
           purpose: 'reference',
           filename: 'sample.pdf',
           content_type: 'application/pdf',
-          size_bytes: 1024
+          size_bytes: 1024,
+          classification: 'other',
+          sensitivity: 'internal'
         }
       )
     ).rejects.toThrow('TENANT_NOT_ENABLED');
@@ -544,7 +546,9 @@ describe('DomainService document/data-bundle guards', () => {
           assignment_id: 'assignment-1',
           filename: 'sample.pdf',
           content_type: 'application/pdf',
-          size_bytes: 1024
+          size_bytes: 1024,
+          classification: 'other',
+          sensitivity: 'internal'
         }
       )
     ).rejects.toThrow('assignment does not belong to work_order');

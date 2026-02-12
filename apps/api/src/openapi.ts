@@ -26,6 +26,15 @@ const document = {
       get: { summary: 'List employees', responses: { '200': { description: 'OK' } } },
       post: { summary: 'Create employee', responses: { '201': { description: 'Created' } } }
     },
+    '/v1/employees/{id}/role': {
+      post: { summary: 'Assign employee role', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/roles/templates': {
+      get: { summary: 'List role templates/capability bundles', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/roles/contact-points': {
+      post: { summary: 'Upsert role contact point routing', responses: { '200': { description: 'OK' } } }
+    },
     '/v1/attendance/checkin': {
       post: { summary: 'Record employee check-in', responses: { '200': { description: 'OK' } } }
     },
@@ -113,6 +122,15 @@ const document = {
     },
     '/v1/notifications/outbox': {
       get: { summary: 'Studio-only: list notification outbox rows', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/notifications/manual-whatsapp': {
+      post: { summary: 'Studio-only: create manual WhatsApp outbox item', responses: { '200': { description: 'Queued' } } }
+    },
+    '/v1/notifications/outbox/{id}/mark-manual-sent': {
+      post: { summary: 'Studio-only: mark manual outbox item as sent', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/notifications/ops-monitor': {
+      get: { summary: 'Studio-only: outbox/webhook/billing monitor summary', responses: { '200': { description: 'OK' } } }
     },
     '/v1/webhooks/email': {
       post: { summary: 'Email provider webhook ingestion', responses: { '200': { description: 'Accepted' } } }

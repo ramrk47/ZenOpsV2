@@ -20,11 +20,13 @@ import type {
   DocumentListQuery,
   DocumentMetadataPatch,
   DocumentTagsUpsert,
+  EmployeeRoleAssign,
   BillingInvoiceMarkPaid,
   EmployeeCreate,
   FileConfirmUploadRequest,
   FilePresignUploadRequest,
   NotificationRouteCreate,
+  RoleContactPointUpsert,
   PayrollItemCreate,
   PayrollPeriodCreate,
   ReportDataBundlePatch,
@@ -52,6 +54,7 @@ interface PendingUploadContext {
   work_order_id?: string;
   assignment_id?: string;
   report_request_id?: string;
+  employee_id?: string;
 }
 
 const PENDING_UPLOAD_CONTEXT_KEY = '_pending_upload_context';
@@ -153,6 +156,129 @@ export class DomainService {
     });
 
     return this.serializeEmployee(created);
+  }
+
+  async listRoleTemplates(claims: JwtClaims) {
+    this.assertCapability(claims, Capabilities.employeesRead);
+    return [
+      {
+        key: 'admin',
+        label: 'Admin',
+        employee_role: 'admin',
+        capabilities: Object.values(Capabilities)
+      },
+      {
+        key: 'ops_manager',
+        label: 'Ops Manager',
+        employee_role: 'manager',
+        capabilities: [
+          Capabilities.employeesRead,
+          Capabilities.attendanceRead,
+          Capabilities.attendanceWrite,
+          Capabilities.notificationsRoutesRead,
+          Capabilities.notificationsSend,
+          Capabilities.invoicesRead
+        ]
+      },
+      {
+        key: 'finance',
+        label: 'Finance',
+        employee_role: 'finance',
+        capabilities: [
+          Capabilities.payrollRead,
+          Capabilities.payrollWrite,
+          Capabilities.payrollRun,
+          Capabilities.invoicesRead,
+          Capabilities.invoicesWrite
+        ]
+      },
+      {
+        key: 'hr',
+        label: 'HR',
+        employee_role: 'hr',
+        capabilities: [
+          Capabilities.employeesRead,
+          Capabilities.employeesWrite,
+          Capabilities.attendanceRead,
+          Capabilities.attendanceWrite,
+          Capabilities.payrollRead
+        ]
+      },
+      {
+        key: 'assistant_valuer',
+        label: 'Assistant Valuer',
+        employee_role: 'assistant_valuer',
+        capabilities: [Capabilities.attendanceWrite]
+      },
+      {
+        key: 'field_valuer',
+        label: 'Field Valuer',
+        employee_role: 'field_valuer',
+        capabilities: [Capabilities.attendanceWrite]
+      },
+      {
+        key: 'external_partner',
+        label: 'External Partner',
+        employee_role: 'operations',
+        capabilities: []
+      }
+    ];
+  }
+
+  async assignEmployeeRole(tx: TxClient, claims: JwtClaims, employeeId: string, input: EmployeeRoleAssign) {
+    this.assertCapability(claims, Capabilities.employeesWrite);
+    const tenantId = this.resolvePeopleTenantId(claims);
+
+    const employee = await tx.employee.findFirst({
+      where: {
+        id: employeeId,
+        tenantId,
+        deletedAt: null
+      }
+    });
+    if (!employee) {
+      throw new NotFoundException(`employee ${employeeId} not found`);
+    }
+
+    const updated = await tx.employee.update({
+      where: { id: employeeId },
+      data: { role: input.role }
+    });
+
+    return this.serializeEmployee(updated);
+  }
+
+  async upsertRoleContactPoint(tx: TxClient, claims: JwtClaims, input: RoleContactPointUpsert) {
+    this.assertCapability(claims, Capabilities.notificationsRoutesWrite);
+    const tenantId = this.resolvePeopleTenantId(claims);
+    const groupKey = input.role.toUpperCase();
+
+    const contactPoint = await tx.contactPoint.upsert({
+      where: {
+        tenantId_kind_value: {
+          tenantId,
+          kind: input.channel === 'email' ? 'email' : 'whatsapp',
+          value: input.value
+        }
+      },
+      update: {
+        isPrimary: input.is_primary
+      },
+      create: {
+        tenantId,
+        kind: input.channel === 'email' ? 'email' : 'whatsapp',
+        value: input.value,
+        isPrimary: input.is_primary
+      }
+    });
+
+    return this.createNotificationRoute(tx, claims, {
+      group_key: groupKey,
+      group_name: `${input.role.replaceAll('_', ' ')} contacts`,
+      channel: input.channel,
+      to_contact_point_id: contactPoint.id,
+      is_active: input.is_active
+    });
   }
 
   async markAttendance(
@@ -1737,7 +1863,8 @@ export class DomainService {
     await this.assertLinkTargets(tx, claims, tenantId, {
       workOrderId: input.work_order_id,
       assignmentId: input.assignment_id,
-      reportRequestId: input.report_request_id
+      reportRequestId: input.report_request_id,
+      employeeId: input.employee_id ?? input.captured_by_employee_id
     });
 
     const storageKey = buildStorageKey(tenantId, 'documents', input.filename);
@@ -1745,18 +1872,25 @@ export class DomainService {
       purpose: input.purpose,
       ...(input.work_order_id ? { work_order_id: input.work_order_id } : {}),
       ...(input.assignment_id ? { assignment_id: input.assignment_id } : {}),
-      ...(input.report_request_id ? { report_request_id: input.report_request_id } : {})
+      ...(input.report_request_id ? { report_request_id: input.report_request_id } : {}),
+      ...(input.employee_id ? { employee_id: input.employee_id } : {})
     };
 
     const metadataJson: Prisma.InputJsonObject = {
-      [PENDING_UPLOAD_CONTEXT_KEY]: pendingContext as unknown as Prisma.InputJsonValue
+      [PENDING_UPLOAD_CONTEXT_KEY]: pendingContext as unknown as Prisma.InputJsonValue,
+      ...(input.remarks ? { remarks: input.remarks } : {}),
+      ...(input.taken_on_site !== undefined ? { taken_on_site: input.taken_on_site } : {})
     };
 
     const document = await tx.document.create({
       data: {
         tenantId,
         ownerUserId: claims.user_id ?? null,
-        source: this.sourceForAudience(claims),
+        source: input.source ?? this.sourceForAudience(claims),
+        classification: input.classification,
+        sensitivity: input.sensitivity,
+        capturedAt: input.captured_at ? new Date(input.captured_at) : null,
+        capturedByEmployeeId: input.captured_by_employee_id ?? null,
         storageKey,
         originalFilename: input.filename,
         contentType: input.content_type,
@@ -1803,6 +1937,7 @@ export class DomainService {
       typeof pendingContext.assignment_id === 'string' ? pendingContext.assignment_id : undefined;
     const reportRequestId =
       typeof pendingContext.report_request_id === 'string' ? pendingContext.report_request_id : undefined;
+    const employeeId = typeof pendingContext.employee_id === 'string' ? pendingContext.employee_id : undefined;
     const purpose =
       pendingContext.purpose === 'evidence' ||
       pendingContext.purpose === 'reference' ||
@@ -1811,11 +1946,12 @@ export class DomainService {
         ? pendingContext.purpose
         : 'other';
 
-    if (workOrderId || assignmentId || reportRequestId) {
+    if (workOrderId || assignmentId || reportRequestId || employeeId) {
       await this.assertLinkTargets(tx, claims, document.tenantId, {
         workOrderId,
         assignmentId,
-        reportRequestId
+        reportRequestId,
+        employeeId
       });
 
       const existingLink = await tx.documentLink.findFirst({
@@ -1825,6 +1961,7 @@ export class DomainService {
           workOrderId: workOrderId ?? null,
           assignmentId: assignmentId ?? null,
           reportRequestId: reportRequestId ?? null,
+          employeeId: employeeId ?? null,
           purpose
         }
       });
@@ -1837,6 +1974,7 @@ export class DomainService {
             workOrderId,
             assignmentId,
             reportRequestId,
+            employeeId,
             purpose
           }
         });
@@ -2000,13 +2138,24 @@ export class DomainService {
       };
     }
 
-    if (query.purpose || query.work_order_id || query.assignment_id || query.report_request_id) {
+    if (query.source) {
+      where.source = query.source;
+    }
+    if (query.classification) {
+      where.classification = query.classification;
+    }
+    if (query.sensitivity) {
+      where.sensitivity = query.sensitivity;
+    }
+
+    if (query.purpose || query.work_order_id || query.assignment_id || query.report_request_id || query.employee_id) {
       where.documentLinks = {
         some: {
           ...(query.purpose ? { purpose: query.purpose } : {}),
           ...(query.work_order_id ? { workOrderId: query.work_order_id } : {}),
           ...(query.assignment_id ? { assignmentId: query.assignment_id } : {}),
-          ...(query.report_request_id ? { reportRequestId: query.report_request_id } : {})
+          ...(query.report_request_id ? { reportRequestId: query.report_request_id } : {}),
+          ...(query.employee_id ? { employeeId: query.employee_id } : {})
         }
       };
     }
@@ -2041,7 +2190,8 @@ export class DomainService {
         purpose: link.purpose,
         work_order_id: link.workOrderId,
         assignment_id: link.assignmentId,
-        report_request_id: link.reportRequestId
+        report_request_id: link.reportRequestId,
+        employee_id: link.employeeId
       })),
       tags: row.documentTagMap.map((tag) => ({
         key: tag.key.key,
@@ -2107,7 +2257,8 @@ export class DomainService {
           linked_by: {
             work_order_id: row.workOrderId,
             assignment_id: row.assignmentId,
-            report_request_id: row.reportRequestId
+            report_request_id: row.reportRequestId,
+            employee_id: row.employeeId
           },
           presign_download_endpoint: `/v1/files/${row.documentId}/presign-download`
         }))
@@ -2414,7 +2565,9 @@ export class DomainService {
     };
   }
 
-  private sourceForAudience(claims: JwtClaims): 'portal' | 'tenant' | 'internal' {
+  private sourceForAudience(
+    claims: JwtClaims
+  ): 'portal' | 'tenant' | 'internal' | 'mobile_camera' | 'mobile_gallery' | 'desktop_upload' | 'email_ingest' | 'portal_upload' {
     if (claims.aud === 'portal') {
       return 'portal';
     }
@@ -2459,6 +2612,7 @@ export class DomainService {
       workOrderId?: string;
       assignmentId?: string;
       reportRequestId?: string;
+      employeeId?: string;
     }
   ): Promise<void> {
     let workOrder: { id: string; portalUserId: string | null } | null = null;
@@ -2519,6 +2673,20 @@ export class DomainService {
       }
     }
 
+    if (input.employeeId) {
+      const employee = await tx.employee.findFirst({
+        where: {
+          id: input.employeeId,
+          tenantId,
+          deletedAt: null
+        },
+        select: { id: true }
+      });
+      if (!employee) {
+        throw new NotFoundException(`employee ${input.employeeId} not found`);
+      }
+    }
+
     if (input.workOrderId && assignment && assignment.workOrderId !== input.workOrderId) {
       throw new BadRequestException('assignment does not belong to work_order');
     }
@@ -2532,6 +2700,9 @@ export class DomainService {
     }
 
     if (claims.aud === 'portal') {
+      if (input.employeeId) {
+        throw new ForbiddenException('PORTAL_LINK_FORBIDDEN');
+      }
       const expectedPortalUserId = claims.user_id;
       if (!expectedPortalUserId) {
         throw new ForbiddenException('PORTAL_USER_REQUIRED');
@@ -2561,6 +2732,10 @@ export class DomainService {
     tenantId: string;
     ownerUserId: string | null;
     source: string;
+    classification: string;
+    sensitivity: string;
+    capturedAt: Date | null;
+    capturedByEmployeeId: string | null;
     storageKey: string;
     originalFilename: string | null;
     contentType: string | null;
@@ -2576,6 +2751,10 @@ export class DomainService {
       tenant_id: document.tenantId,
       owner_user_id: document.ownerUserId,
       source: document.source,
+      classification: document.classification,
+      sensitivity: document.sensitivity,
+      captured_at: document.capturedAt?.toISOString() ?? null,
+      captured_by_employee_id: document.capturedByEmployeeId,
       storage_key: document.storageKey,
       original_filename: document.originalFilename,
       content_type: document.contentType,

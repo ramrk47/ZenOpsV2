@@ -39,10 +39,14 @@ import {
   type DocumentMetadataPatch,
   DocumentTagsUpsertSchema,
   type DocumentTagsUpsert,
+  EmployeeRoleAssignSchema,
+  type EmployeeRoleAssign,
   FileConfirmUploadRequestSchema,
   type FileConfirmUploadRequest,
   FilePresignUploadRequestSchema,
   type FilePresignUploadRequest,
+  RoleContactPointUpsertSchema,
+  type RoleContactPointUpsert,
   NotificationRouteCreateSchema,
   type NotificationRouteCreate,
   PayrollItemCreateSchema,
@@ -134,6 +138,30 @@ export class DomainController {
   async createEmployee(@Claims() claims: JwtClaims, @Body() body: unknown) {
     const input = parseOrThrow<EmployeeCreate>(EmployeeCreateSchema, body);
     return this.requestContext.runWithClaims(claims, (tx) => this.domainService.createEmployee(tx, claims, input));
+  }
+
+  @Get('roles/templates')
+  @RequireCapabilities(Capabilities.employeesRead)
+  async listRoleTemplates(@Claims() claims: JwtClaims) {
+    return this.requestContext.runWithClaims(claims, () => this.domainService.listRoleTemplates(claims));
+  }
+
+  @Post('employees/:id/role')
+  @RequireCapabilities(Capabilities.employeesWrite)
+  async assignEmployeeRole(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
+    const input = parseOrThrow<EmployeeRoleAssign>(EmployeeRoleAssignSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.assignEmployeeRole(tx, claims, id, input)
+    );
+  }
+
+  @Post('roles/contact-points')
+  @RequireCapabilities(Capabilities.notificationsRoutesWrite)
+  async upsertRoleContactPoint(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<RoleContactPointUpsert>(RoleContactPointUpsertSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.upsertRoleContactPoint(tx, claims, input)
+    );
   }
 
   @Post('attendance/checkin')
