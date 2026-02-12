@@ -19,12 +19,18 @@ const statusOptions = [
 const priorityOptions = ['low', 'normal', 'high', 'urgent'] as const;
 const taskStatusOptions = ['todo', 'doing', 'done', 'blocked'] as const;
 const documentPurposeOptions = ['evidence', 'reference', 'photo', 'annexure', 'other'] as const;
+const documentSourceOptions = ['mobile_camera', 'mobile_gallery', 'desktop_upload', 'portal_upload', 'tenant', 'internal'] as const;
+const documentClassificationOptions = ['bank_kyc', 'site_photo', 'approval_plan', 'tax_receipt', 'legal', 'invoice', 'other'] as const;
+const documentSensitivityOptions = ['public', 'internal', 'pii', 'confidential'] as const;
 const employeeRoleOptions = ['admin', 'manager', 'assistant_valuer', 'field_valuer', 'hr', 'finance', 'operations'] as const;
 
 type AssignmentStatus = (typeof statusOptions)[number];
 type AssignmentPriority = (typeof priorityOptions)[number];
 type TaskStatus = (typeof taskStatusOptions)[number];
 type EmployeeRole = (typeof employeeRoleOptions)[number];
+type DocumentSource = (typeof documentSourceOptions)[number];
+type DocumentClassification = (typeof documentClassificationOptions)[number];
+type DocumentSensitivity = (typeof documentSensitivityOptions)[number];
 
 interface EmployeeRow {
   id: string;
@@ -354,6 +360,16 @@ function AssignmentDetailPage({ token }: { token: string }) {
   const [messageBody, setMessageBody] = useState('');
   const [attachDocumentId, setAttachDocumentId] = useState('');
   const [attachPurpose, setAttachPurpose] = useState<(typeof documentPurposeOptions)[number]>('reference');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadPurpose, setUploadPurpose] = useState<(typeof documentPurposeOptions)[number]>('photo');
+  const [uploadSource, setUploadSource] = useState<DocumentSource>('mobile_camera');
+  const [uploadClassification, setUploadClassification] = useState<DocumentClassification>('site_photo');
+  const [uploadSensitivity, setUploadSensitivity] = useState<DocumentSensitivity>('internal');
+  const [uploadRemarks, setUploadRemarks] = useState('');
+  const [uploadTakenOnSite, setUploadTakenOnSite] = useState(true);
+  const [uploadTagValue, setUploadTagValue] = useState('');
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   const load = async () => {
     if (!token || !id) {
@@ -458,6 +474,71 @@ function AssignmentDetailPage({ token }: { token: string }) {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to attach document.');
+    }
+  };
+
+  const uploadAndAttachDocument = async () => {
+    if (!uploadFile || !token || !id) return;
+    setUploading(true);
+    setUploadStatus('Preparing upload...');
+    try {
+      const presign = await apiRequest<{
+        document_id: string;
+        upload: { url: string; method: 'PUT'; headers: Record<string, string> };
+      }>(token, '/files/presign-upload', {
+        method: 'POST',
+        body: JSON.stringify({
+          purpose: uploadPurpose,
+          assignment_id: id,
+          filename: uploadFile.name,
+          content_type: uploadFile.type || 'application/octet-stream',
+          size_bytes: uploadFile.size,
+          source: uploadSource,
+          classification: uploadClassification,
+          sensitivity: uploadSensitivity,
+          captured_at: new Date().toISOString(),
+          remarks: uploadRemarks || undefined,
+          taken_on_site: uploadTakenOnSite
+        })
+      });
+
+      setUploadStatus('Uploading...');
+      const uploadResponse = await fetch(presign.upload.url, {
+        method: presign.upload.method,
+        headers: presign.upload.headers,
+        body: uploadFile
+      });
+      if (!uploadResponse.ok) {
+        throw new Error(`Object upload failed (${uploadResponse.status})`);
+      }
+
+      setUploadStatus('Confirming upload...');
+      await apiRequest(token, '/files/confirm-upload', {
+        method: 'POST',
+        body: JSON.stringify({ document_id: presign.document_id })
+      });
+
+      await apiRequest(token, `/documents/${presign.document_id}/tags`, {
+        method: 'POST',
+        body: JSON.stringify({
+          tags: [
+            { key: 'classification', value: uploadClassification },
+            { key: 'source', value: uploadSource },
+            ...(uploadTagValue ? [{ key: 'note', value: uploadTagValue }] : [])
+          ]
+        })
+      });
+
+      setUploadStatus('Upload completed');
+      setUploadFile(null);
+      setUploadRemarks('');
+      setUploadTagValue('');
+      await load();
+    } catch (err) {
+      setUploadStatus(err instanceof Error ? err.message : 'Upload failed');
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -581,6 +662,57 @@ function AssignmentDetailPage({ token }: { token: string }) {
       {assignment && tab === 'documents' ? (
         <section className="card space-y-3">
           <h2 className="mt-0 text-lg">Documents</h2>
+          <article className="rounded-lg border border-[var(--zen-border)] bg-white p-3">
+            <h3 className="m-0 text-base">Mobile Upload</h3>
+            <p className="m-0 text-xs text-[var(--zen-muted)]">Capture from camera, gallery, or file manager and tag at upload time.</p>
+            <div className="mt-2 grid gap-2 md:grid-cols-2">
+              <input
+                className="rounded-lg border border-[var(--zen-border)] px-3 py-2"
+                type="file"
+                accept="image/*,.pdf,.doc,.docx"
+                capture="environment"
+                onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)}
+              />
+              <input
+                className="rounded-lg border border-[var(--zen-border)] px-3 py-2"
+                type="file"
+                onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)}
+              />
+              <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={uploadPurpose} onChange={(event) => setUploadPurpose(event.target.value as (typeof documentPurposeOptions)[number])}>
+                {documentPurposeOptions.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+              <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={uploadSource} onChange={(event) => setUploadSource(event.target.value as DocumentSource)}>
+                {documentSourceOptions.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+              <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={uploadClassification} onChange={(event) => setUploadClassification(event.target.value as DocumentClassification)}>
+                {documentClassificationOptions.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+              <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={uploadSensitivity} onChange={(event) => setUploadSensitivity(event.target.value as DocumentSensitivity)}>
+                {documentSensitivityOptions.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+              <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2 md:col-span-2" placeholder="Remarks (optional)" value={uploadRemarks} onChange={(event) => setUploadRemarks(event.target.value)} />
+              <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2 md:col-span-2" placeholder="Tag note (optional)" value={uploadTagValue} onChange={(event) => setUploadTagValue(event.target.value)} />
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={uploadTakenOnSite} onChange={(event) => setUploadTakenOnSite(event.target.checked)} />
+                Taken on site
+              </label>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Button onClick={() => void uploadAndAttachDocument()} disabled={!uploadFile || uploading}>
+                {uploading ? 'Uploading...' : 'Upload + Tag'}
+              </Button>
+              {uploadStatus ? <span className="text-xs text-[var(--zen-muted)]">{uploadStatus}</span> : null}
+            </div>
+          </article>
+
           <div className="grid gap-2 md:grid-cols-[1fr_auto_auto]">
             <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Document id" value={attachDocumentId} onChange={(event) => setAttachDocumentId(event.target.value)} />
             <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={attachPurpose} onChange={(event) => setAttachPurpose(event.target.value as (typeof documentPurposeOptions)[number])}>

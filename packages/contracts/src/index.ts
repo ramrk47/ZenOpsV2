@@ -134,16 +134,44 @@ export const ReportRequestCreateSchema = z.object({
 });
 
 export const DocumentPurposeSchema = z.enum(['evidence', 'reference', 'photo', 'annexure', 'other']);
+export const DocumentSourceSchema = z.enum([
+  'portal',
+  'tenant',
+  'internal',
+  'mobile_camera',
+  'mobile_gallery',
+  'desktop_upload',
+  'email_ingest',
+  'portal_upload'
+]);
+export const DocumentClassificationSchema = z.enum([
+  'bank_kyc',
+  'site_photo',
+  'approval_plan',
+  'tax_receipt',
+  'legal',
+  'invoice',
+  'other'
+]);
+export const DocumentSensitivitySchema = z.enum(['public', 'internal', 'pii', 'confidential']);
 
 export const FilePresignUploadRequestSchema = z.object({
   purpose: DocumentPurposeSchema.default('other'),
   work_order_id: UuidSchema.optional(),
   assignment_id: UuidSchema.optional(),
   report_request_id: UuidSchema.optional(),
+  employee_id: UuidSchema.optional(),
   filename: z.string().min(1),
   content_type: z.string().min(1),
   size_bytes: z.number().int().positive(),
-  sha256: z.string().min(1).optional()
+  sha256: z.string().min(1).optional(),
+  source: DocumentSourceSchema.optional(),
+  classification: DocumentClassificationSchema.default('other'),
+  sensitivity: DocumentSensitivitySchema.default('internal'),
+  captured_at: z.string().datetime().optional(),
+  captured_by_employee_id: UuidSchema.optional(),
+  remarks: z.string().min(1).optional(),
+  taken_on_site: z.boolean().optional()
 });
 
 export const FilePresignUploadResponseSchema = z.object({
@@ -191,7 +219,50 @@ export const DocumentListQuerySchema = z.object({
   work_order_id: UuidSchema.optional(),
   assignment_id: UuidSchema.optional(),
   report_request_id: UuidSchema.optional(),
+  employee_id: UuidSchema.optional(),
+  source: DocumentSourceSchema.optional(),
+  classification: DocumentClassificationSchema.optional(),
+  sensitivity: DocumentSensitivitySchema.optional(),
   filename: z.string().min(1).optional()
+});
+
+export const EmployeeRoleTemplateSchema = z.object({
+  key: z.string().min(1),
+  label: z.string().min(1),
+  employee_role: z.enum([
+    'admin',
+    'manager',
+    'assistant_valuer',
+    'field_valuer',
+    'hr',
+    'finance',
+    'operations'
+  ]),
+  capabilities: z.array(z.string())
+});
+
+export const EmployeeRoleAssignSchema = z.object({
+  role: z.enum(['admin', 'manager', 'assistant_valuer', 'field_valuer', 'hr', 'finance', 'operations'])
+});
+
+export const RoleContactPointUpsertSchema = z.object({
+  role: z.enum(['admin', 'manager', 'assistant_valuer', 'field_valuer', 'hr', 'finance', 'operations']),
+  channel: z.enum(['email', 'whatsapp']),
+  value: z.string().min(3),
+  is_primary: z.boolean().default(true),
+  is_active: z.boolean().default(true)
+});
+
+export const ManualWhatsappOutboxCreateSchema = z.object({
+  tenant_id: UuidSchema.optional(),
+  to: z.string().min(3),
+  message: z.string().min(1),
+  assignment_id: UuidSchema.optional(),
+  report_request_id: UuidSchema.optional()
+});
+
+export const ManualWhatsappOutboxMarkSentSchema = z.object({
+  sent_by: z.string().min(1)
 });
 
 export const ReportDataBundlePatchSchema = z.object({
@@ -286,6 +357,11 @@ export type AssignmentAttachDocument = z.infer<typeof AssignmentAttachDocumentSc
 export type DocumentMetadataPatch = z.infer<typeof DocumentMetadataPatchSchema>;
 export type DocumentTagsUpsert = z.infer<typeof DocumentTagsUpsertSchema>;
 export type DocumentListQuery = z.infer<typeof DocumentListQuerySchema>;
+export type EmployeeRoleTemplate = z.infer<typeof EmployeeRoleTemplateSchema>;
+export type EmployeeRoleAssign = z.infer<typeof EmployeeRoleAssignSchema>;
+export type RoleContactPointUpsert = z.infer<typeof RoleContactPointUpsertSchema>;
+export type ManualWhatsappOutboxCreate = z.infer<typeof ManualWhatsappOutboxCreateSchema>;
+export type ManualWhatsappOutboxMarkSent = z.infer<typeof ManualWhatsappOutboxMarkSentSchema>;
 export type ReportDataBundlePatch = z.infer<typeof ReportDataBundlePatchSchema>;
 export type BillingInvoiceMarkPaid = z.infer<typeof BillingInvoiceMarkPaidSchema>;
 export type EmployeeCreate = z.infer<typeof EmployeeCreateSchema>;

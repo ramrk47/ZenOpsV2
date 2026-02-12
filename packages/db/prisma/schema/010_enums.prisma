@@ -97,12 +97,34 @@ enum DocumentSource {
   portal
   tenant
   internal
+  mobile_camera
+  mobile_gallery
+  desktop_upload
+  email_ingest
+  portal_upload
 }
 
 enum DocumentStatus {
   pending
   uploaded
   deleted
+}
+
+enum DocumentClassification {
+  bank_kyc
+  site_photo
+  approval_plan
+  tax_receipt
+  legal
+  invoice
+  other
+}
+
+enum DocumentSensitivity {
+  public
+  internal
+  pii
+  confidential
 }
 
 enum DocumentLinkPurpose {

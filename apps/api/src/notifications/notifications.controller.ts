@@ -1,8 +1,14 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, Post, Query, Req, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Post, Query, Req, UnauthorizedException } from '@nestjs/common';
 import { Public, RequireAudience, RequireCapabilities } from '../auth/public.decorator.js';
 import { Claims } from '../auth/claims.decorator.js';
 import type { JwtClaims } from '@zenops/auth';
 import { Prisma } from '@zenops/db';
+import {
+  ManualWhatsappOutboxCreateSchema,
+  type ManualWhatsappOutboxCreate,
+  ManualWhatsappOutboxMarkSentSchema,
+  type ManualWhatsappOutboxMarkSent
+} from '@zenops/contracts';
 import { RequestContextService } from '../db/request-context.service.js';
 import { NotificationsService } from './notifications.service.js';
 import { randomUUID } from 'node:crypto';
@@ -103,6 +109,14 @@ const parseWebhookBody = (body: unknown): {
   };
 };
 
+const parseOrThrow = <T>(parser: { safeParse: (input: unknown) => any }, body: unknown): T => {
+  const parsed = parser.safeParse(body);
+  if (!parsed.success) {
+    throw new BadRequestException(parsed.error);
+  }
+  return parsed.data as T;
+};
+
 @Controller()
 export class NotificationsController {
   constructor(
@@ -124,6 +138,33 @@ export class NotificationsController {
   async listOutbox(@Claims() claims: JwtClaims, @Query() query: Record<string, string | undefined>) {
     const input = parseOutboxQuery(query);
     return this.requestContext.runWithClaims(claims, (tx) => this.notificationsService.listOutbox(tx, input));
+  }
+
+  @Post('notifications/manual-whatsapp')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.notificationsSend)
+  async createManualWhatsapp(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<ManualWhatsappOutboxCreate>(ManualWhatsappOutboxCreateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.notificationsService.createManualWhatsappOutbox(tx, claims, input)
+    );
+  }
+
+  @Post('notifications/outbox/:id/mark-manual-sent')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.notificationsSend)
+  async markOutboxManualSent(@Claims() claims: JwtClaims, @Param('id') outboxId: string, @Body() body: unknown) {
+    const input = parseOrThrow<ManualWhatsappOutboxMarkSent>(ManualWhatsappOutboxMarkSentSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.notificationsService.markOutboxManualSent(tx, claims, outboxId, input)
+    );
+  }
+
+  @Get('notifications/ops-monitor')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.notificationsSend)
+  async getOpsMonitor(@Claims() claims: JwtClaims) {
+    return this.requestContext.runWithClaims(claims, (tx) => this.notificationsService.getOpsMonitor(tx, claims));
   }
 
   @Post('webhooks/sendgrid')

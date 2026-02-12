@@ -3,6 +3,10 @@ model Document {
   tenantId         String         @map("tenant_id") @db.Uuid
   ownerUserId      String?        @map("owner_user_id") @db.Uuid
   source           DocumentSource
+  classification   DocumentClassification @default(other)
+  sensitivity      DocumentSensitivity @default(internal)
+  capturedAt       DateTime?      @map("captured_at")
+  capturedByEmployeeId String?    @map("captured_by_employee_id") @db.Uuid
   storageKey       String         @map("storage_key")
   originalFilename String?        @map("original_filename")
   contentType      String?        @map("content_type")
@@ -15,6 +19,7 @@ model Document {
   updatedAt        DateTime       @updatedAt @map("updated_at")
   tenant           Tenant         @relation(fields: [tenantId], references: [id])
   ownerUser        User?          @relation("DocumentOwner", fields: [ownerUserId], references: [id])
+  capturedByEmployee Employee?    @relation("DocumentCapturedByEmployee", fields: [capturedByEmployeeId], references: [id])
   documentLinks    DocumentLink[]
   documentTagMap   DocumentTagMap[]
   extractionRuns   ExtractionRun[]
@@ -22,6 +27,8 @@ model Document {
   @@unique([storageKey])
   @@index([tenantId])
   @@index([ownerUserId])
+  @@index([tenantId, classification, createdAt])
+  @@index([capturedByEmployeeId])
   @@index([status])
   @@map("documents")
 }
@@ -33,6 +40,7 @@ model DocumentLink {
   workOrderId     String?             @map("work_order_id") @db.Uuid
   assignmentId    String?             @map("assignment_id") @db.Uuid
   reportRequestId String?             @map("report_request_id") @db.Uuid
+  employeeId      String?             @map("employee_id") @db.Uuid
   purpose         DocumentLinkPurpose @default(other)
   createdAt       DateTime            @default(now()) @map("created_at")
   tenant          Tenant              @relation(fields: [tenantId], references: [id])
@@ -40,12 +48,14 @@ model DocumentLink {
   workOrder       WorkOrder?          @relation(fields: [workOrderId], references: [id])
   assignment      Assignment?         @relation(fields: [assignmentId], references: [id])
   reportRequest   ReportRequest?      @relation(fields: [reportRequestId], references: [id])
+  employee        Employee?           @relation(fields: [employeeId], references: [id])
 
   @@index([tenantId])
   @@index([documentId])
   @@index([workOrderId])
   @@index([assignmentId])
   @@index([reportRequestId])
+  @@index([employeeId])
   @@map("document_links")
 }
 

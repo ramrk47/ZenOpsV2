@@ -31,6 +31,18 @@ interface NotificationRouteRow {
   };
 }
 
+interface OpsMonitor {
+  tenant_id: string;
+  outbox: {
+    queued: number;
+    failed: number;
+    dead: number;
+  };
+  webhook_rejects_estimate: number;
+  billing_finalize_errors: number;
+  queue_lag_seconds: number;
+}
+
 export default function App() {
   const [token, setToken] = useState('');
   const [jobs, setJobs] = useState<ReportJob[]>([]);
@@ -41,13 +53,19 @@ export default function App() {
   const [channel, setChannel] = useState<'email' | 'whatsapp'>('email');
   const [contactPointId, setContactPointId] = useState('');
   const [routeMessage, setRouteMessage] = useState('');
+  const [ops, setOps] = useState<OpsMonitor | null>(null);
+  const [manualTo, setManualTo] = useState('');
+  const [manualMessage, setManualMessage] = useState('');
+  const [manualOutboxId, setManualOutboxId] = useState('');
+  const [manualStatus, setManualStatus] = useState('');
 
   const load = async () => {
     const headers = { Authorization: `Bearer ${token}` };
-    const [jobsRes, reqRes, routesRes] = await Promise.all([
+    const [jobsRes, reqRes, routesRes, opsRes] = await Promise.all([
       fetch(`${API}/studio/report-jobs`, { headers }),
       fetch(`${API}/report-requests`, { headers }),
-      fetch(`${API}/notifications/routes`, { headers })
+      fetch(`${API}/notifications/routes`, { headers }),
+      fetch(`${API}/notifications/ops-monitor`, { headers })
     ]);
 
     if (jobsRes.ok) {
@@ -66,6 +84,12 @@ export default function App() {
       setRoutes(await routesRes.json());
     } else {
       setRoutes([]);
+    }
+
+    if (opsRes.ok) {
+      setOps(await opsRes.json());
+    } else {
+      setOps(null);
     }
   };
 
@@ -92,6 +116,52 @@ export default function App() {
     }
 
     setRouteMessage('Route saved');
+    await load();
+  };
+
+  const createManualWhatsapp = async () => {
+    setManualStatus('');
+    const response = await fetch(`${API}/notifications/manual-whatsapp`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        to: manualTo,
+        message: manualMessage
+      })
+    });
+    if (!response.ok) {
+      setManualStatus(`Manual item failed (${response.status})`);
+      return;
+    }
+    const row = await response.json();
+    setManualOutboxId(row.id);
+    setManualStatus('Manual WhatsApp item created');
+    await load();
+  };
+
+  const markManualSent = async () => {
+    if (!manualOutboxId) {
+      setManualStatus('Set an outbox id first');
+      return;
+    }
+    const response = await fetch(`${API}/notifications/outbox/${manualOutboxId}/mark-manual-sent`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        sent_by: 'studio_operator'
+      })
+    });
+    if (!response.ok) {
+      setManualStatus(`Mark sent failed (${response.status})`);
+      return;
+    }
+    setManualStatus('Manual outbox marked sent');
     await load();
   };
 
@@ -141,6 +211,31 @@ export default function App() {
           </ul>
           {requests.length === 0 && <p className="text-sm text-[var(--zen-muted)]">No requests visible.</p>}
         </article>
+      </section>
+
+      <section className="panel mb-6 p-4">
+        <h2 className="mt-0 text-lg">Ops Monitor (Mobile Read-Only)</h2>
+        {!ops ? (
+          <p className="text-sm text-[var(--zen-muted)]">No ops monitor data yet.</p>
+        ) : (
+          <div className="grid gap-2 md:grid-cols-3">
+            <article className="rounded-md border border-[var(--zen-border)] p-3 text-sm">
+              <strong>Outbox</strong>
+              <p className="m-0">queued: {ops.outbox.queued}</p>
+              <p className="m-0">failed: {ops.outbox.failed}</p>
+              <p className="m-0">dead: {ops.outbox.dead}</p>
+            </article>
+            <article className="rounded-md border border-[var(--zen-border)] p-3 text-sm">
+              <strong>Webhook Rejects</strong>
+              <p className="m-0">estimated failures: {ops.webhook_rejects_estimate}</p>
+            </article>
+            <article className="rounded-md border border-[var(--zen-border)] p-3 text-sm">
+              <strong>Queue/Billing</strong>
+              <p className="m-0">queue lag sec: {ops.queue_lag_seconds}</p>
+              <p className="m-0">billing finalize errors: {ops.billing_finalize_errors}</p>
+            </article>
+          </div>
+        )}
       </section>
 
       <section className="panel p-4">
@@ -206,6 +301,36 @@ export default function App() {
           ))}
         </ul>
         {routes.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No route targets configured.</p> : null}
+      </section>
+
+      <section className="panel mt-6 p-4">
+        <h2 className="mt-0 text-lg">Manual WhatsApp (Month-1)</h2>
+        <p className="text-sm text-[var(--zen-muted)]">Create a manual outbox item, copy/send in WhatsApp Business app, then mark sent.</p>
+        <div className="grid gap-2 md:grid-cols-3">
+          <input
+            className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2"
+            value={manualTo}
+            onChange={(event) => setManualTo(event.target.value)}
+            placeholder="whatsapp:+91..."
+          />
+          <input
+            className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2"
+            value={manualMessage}
+            onChange={(event) => setManualMessage(event.target.value)}
+            placeholder="Message text"
+          />
+          <input
+            className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2"
+            value={manualOutboxId}
+            onChange={(event) => setManualOutboxId(event.target.value)}
+            placeholder="Outbox id"
+          />
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <Button onClick={() => void createManualWhatsapp()}>Create Manual Item</Button>
+          <Button onClick={() => void markManualSent()}>Mark Sent</Button>
+          {manualStatus ? <span className="text-sm text-[var(--zen-muted)]">{manualStatus}</span> : null}
+        </div>
       </section>
     </main>
   );
