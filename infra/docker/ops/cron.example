@@ -1,0 +1,6 @@
+# Nightly backup retention job
+30 1 * * * cd /opt/zenops && COMPOSE_PROJECT_NAME=zenops-prod ./scripts/prod-backup-db.sh >> /var/log/zenops-backup.log 2>&1
+
+# Off-hours worker downshift/upshift
+0 23 * * * cd /opt/zenops && COMPOSE_PROJECT_NAME=zenops-prod ./scripts/prod-offhours.sh downshift
+0 9 * * * cd /opt/zenops && COMPOSE_PROJECT_NAME=zenops-prod ./scripts/prod-offhours.sh upshift
