@@ -7,6 +7,14 @@
 
 :root {
   font-family: 'Sora', sans-serif;
+  --zen-bg: #fff7f1;
+  --zen-surface: #fffdfa;
+  --zen-text: #2b1b16;
+  --zen-muted: #7f6157;
+  --zen-primary: #dd6b4d;
+  --zen-primary-strong: #b65237;
+  --zen-highlight: #1f3f6b;
+  --zen-border: #ecd6cc;
 }
 
 body {
@@ -14,14 +22,14 @@ body {
   min-height: 100vh;
   color: var(--zen-text);
   background:
-    linear-gradient(160deg, rgba(15, 118, 110, 0.08), transparent 45%),
-    linear-gradient(20deg, rgba(245, 158, 11, 0.12), transparent 40%),
-    #f4f8f1;
+    linear-gradient(140deg, rgba(221, 107, 77, 0.14), transparent 48%),
+    radial-gradient(circle at 88% 12%, rgba(31, 63, 107, 0.16), transparent 42%),
+    #fff7f1;
 }
 
 .panel {
   border: 1px solid var(--zen-border);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 10px 24px rgba(18, 35, 29, 0.08);
+  background: rgba(255, 253, 250, 0.92);
+  box-shadow: 0 12px 30px rgba(58, 34, 24, 0.12);
 }

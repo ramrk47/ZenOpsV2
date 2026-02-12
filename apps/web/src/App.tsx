@@ -19,10 +19,21 @@ const statusOptions = [
 const priorityOptions = ['low', 'normal', 'high', 'urgent'] as const;
 const taskStatusOptions = ['todo', 'doing', 'done', 'blocked'] as const;
 const documentPurposeOptions = ['evidence', 'reference', 'photo', 'annexure', 'other'] as const;
+const employeeRoleOptions = ['admin', 'manager', 'assistant_valuer', 'field_valuer', 'hr', 'finance', 'operations'] as const;
 
 type AssignmentStatus = (typeof statusOptions)[number];
 type AssignmentPriority = (typeof priorityOptions)[number];
 type TaskStatus = (typeof taskStatusOptions)[number];
+type EmployeeRole = (typeof employeeRoleOptions)[number];
+
+interface EmployeeRow {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  role: EmployeeRole;
+  status: 'active' | 'inactive';
+}
 
 interface AssignmentSummary {
   id: string;
@@ -616,6 +627,128 @@ function AssignmentDetailPage({ token }: { token: string }) {
   );
 }
 
+function EmployeesPage({ token }: { token: string }) {
+  const [rows, setRows] = useState<EmployeeRow[]>([]);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [role, setRole] = useState<EmployeeRole>('operations');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    if (!token) {
+      setRows([]);
+      setError('Paste a bearer token to load employees.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const data = await apiRequest<EmployeeRow[]>(token, '/employees');
+      setRows(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load employees');
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, [token]);
+
+  const createEmployee = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!token) {
+      setError('Paste a bearer token first.');
+      return;
+    }
+
+    setError('');
+    try {
+      await apiRequest<EmployeeRow>(token, '/employees', {
+        method: 'POST',
+        body: JSON.stringify({
+          name,
+          email: email || undefined,
+          phone: phone || undefined,
+          role
+        })
+      });
+      setName('');
+      setEmail('');
+      setPhone('');
+      setRole('operations');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create employee');
+    }
+  };
+
+  return (
+    <section className="space-y-4">
+      <header className="card">
+        <p className="m-0 text-xs uppercase tracking-[0.2em] text-[var(--zen-muted)]">People Directory</p>
+        <h1 className="m-0 text-3xl font-bold">Employees</h1>
+        <p className="text-sm text-[var(--zen-muted)]">Internal tenant directory and role foundation for attendance/payroll routing.</p>
+      </header>
+
+      <section className="card">
+        <h2 className="mt-0 text-lg">Add Employee</h2>
+        <form className="grid gap-2 md:grid-cols-4" onSubmit={createEmployee}>
+          <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Name" value={name} onChange={(event) => setName(event.target.value)} required />
+          <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Email (optional)" value={email} onChange={(event) => setEmail(event.target.value)} />
+          <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Phone (optional)" value={phone} onChange={(event) => setPhone(event.target.value)} />
+          <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={role} onChange={(event) => setRole(event.target.value as EmployeeRole)}>
+            {employeeRoleOptions.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+          <div className="md:col-span-4">
+            <Button type="submit">Create Employee</Button>
+          </div>
+        </form>
+      </section>
+
+      <section className="card">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="m-0 text-lg">Directory</h2>
+          <Button onClick={() => void load()} disabled={loading}>{loading ? 'Loading...' : 'Refresh'}</Button>
+        </div>
+        {error ? <p className="text-sm text-red-700">{error}</p> : null}
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr>
+                <th className="border-b border-[var(--zen-border)] p-2 text-left">Name</th>
+                <th className="border-b border-[var(--zen-border)] p-2 text-left">Role</th>
+                <th className="border-b border-[var(--zen-border)] p-2 text-left">Email</th>
+                <th className="border-b border-[var(--zen-border)] p-2 text-left">Phone</th>
+                <th className="border-b border-[var(--zen-border)] p-2 text-left">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id}>
+                  <td className="border-b border-[var(--zen-border)] p-2">{row.name}</td>
+                  <td className="border-b border-[var(--zen-border)] p-2">{row.role}</td>
+                  <td className="border-b border-[var(--zen-border)] p-2">{row.email ?? '-'}</td>
+                  <td className="border-b border-[var(--zen-border)] p-2">{row.phone ?? '-'}</td>
+                  <td className="border-b border-[var(--zen-border)] p-2">{row.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {rows.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No employees yet.</p> : null}
+      </section>
+    </section>
+  );
+}
+
 function AppShell({ token, setToken }: { token: string; setToken: (token: string) => void }) {
   useEffect(() => {
     localStorage.setItem('zenops_web_token', token);
@@ -637,12 +770,14 @@ function AppShell({ token, setToken }: { token: string; setToken: (token: string
       <nav className="mb-4 flex flex-wrap gap-2">
         <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/assignments">Assignments</NavLink>
         <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/assignments/new">New</NavLink>
+        <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/employees">Employees</NavLink>
       </nav>
 
       <Routes>
         <Route path="/assignments" element={<AssignmentListPage token={token} />} />
         <Route path="/assignments/new" element={<NewAssignmentPage token={token} />} />
         <Route path="/assignments/:id" element={<AssignmentDetailPage token={token} />} />
+        <Route path="/employees" element={<EmployeesPage token={token} />} />
         <Route path="*" element={<Navigate to="/assignments" replace />} />
       </Routes>
     </main>
