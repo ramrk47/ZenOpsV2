@@ -120,6 +120,9 @@ const document = {
     '/v1/webhooks/sendgrid': {
       post: { summary: 'SendGrid webhook ingestion', responses: { '200': { description: 'Accepted' } } }
     },
+    '/v1/webhooks/mailgun': {
+      post: { summary: 'Mailgun webhook ingestion', responses: { '200': { description: 'Accepted' } } }
+    },
     '/v1/webhooks/twilio': {
       post: { summary: 'Twilio webhook ingestion', responses: { '200': { description: 'Accepted' } } }
     },

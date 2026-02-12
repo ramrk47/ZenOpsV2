@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { parseBearerToken, verifyJwt } from '@zenops/auth';
-import { IS_PUBLIC_KEY, REQUIRED_AUDIENCE_KEY } from './public.decorator.js';
+import { IS_PUBLIC_KEY, REQUIRED_AUDIENCE_KEY, REQUIRED_CAPABILITIES_KEY } from './public.decorator.js';
 import type { AuthenticatedRequest } from '../types.js';
 import type { LaunchModeConfig } from '../common/launch-mode.js';
 
@@ -54,6 +54,23 @@ export class JwtAuthGuard implements CanActivate {
 
     if (requiredAudience && claims.aud !== requiredAudience) {
       throw new UnauthorizedException('audience mismatch');
+    }
+
+    const requiredCapabilities = this.reflector.getAllAndOverride<string[] | undefined>(REQUIRED_CAPABILITIES_KEY, [
+      context.getHandler(),
+      context.getClass()
+    ]);
+
+    if (requiredCapabilities && requiredCapabilities.length > 0) {
+      const capabilitySet = new Set(claims.capabilities);
+      const isSuperAdmin = claims.roles.includes('super_admin') || capabilitySet.has('*');
+
+      if (!isSuperAdmin) {
+        const missing = requiredCapabilities.filter((capability) => !capabilitySet.has(capability));
+        if (missing.length > 0) {
+          throw new ForbiddenException(`missing capabilities: ${missing.join(', ')}`);
+        }
+      }
     }
 
     request.claims = claims;

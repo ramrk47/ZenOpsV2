@@ -3,6 +3,7 @@ import { LoginRequestSchema, LoginResponseSchema } from '@zenops/contracts';
 import { signJwt } from '@zenops/auth';
 import { Public } from './public.decorator.js';
 import type { LaunchModeConfig } from '../common/launch-mode.js';
+import { expandCapabilitiesFromRoles } from './rbac.js';
 
 @Controller('auth')
 export class AuthController {
@@ -20,6 +21,8 @@ export class AuthController {
     }
 
     const payload = parsed.data;
+    const derivedCapabilities = expandCapabilitiesFromRoles(payload.roles);
+    const mergedCapabilities = [...new Set([...derivedCapabilities, ...payload.capabilities])];
     const tenantId =
       payload.aud === 'portal'
         ? this.launchMode.externalTenantId
@@ -43,7 +46,7 @@ export class AuthController {
         user_id: payload.user_id,
         aud: payload.aud,
         roles: payload.roles,
-        capabilities: payload.capabilities
+        capabilities: mergedCapabilities
       }
     });
 
