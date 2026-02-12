@@ -27,6 +27,10 @@ const setupFixtures = async () => {
   const externalAssignmentId = randomUUID();
   const internalInvoiceId = randomUUID();
   const externalInvoiceId = randomUUID();
+  const internalContactId = randomUUID();
+  const externalContactId = randomUUID();
+  const internalOutboxId = randomUUID();
+  const externalOutboxId = randomUUID();
   const internalDocId = randomUUID();
   const portalDocA = randomUUID();
   const portalDocB = randomUUID();
@@ -99,6 +103,24 @@ const setupFixtures = async () => {
   );
 
   await rootClient.query(
+    `INSERT INTO contact_points (id, tenant_id, user_id, kind, value, is_primary, is_verified, created_at, updated_at)
+     VALUES
+      ($1, $3, NULL, 'email', $5, true, true, NOW(), NOW()),
+      ($2, $4, NULL, 'email', $6, true, true, NOW(), NOW())
+     ON CONFLICT (id) DO NOTHING`,
+    [internalContactId, externalContactId, cfg.tenantInternal, cfg.tenantExternal, 'rls-internal@zenops.local', 'rls-external@zenops.local']
+  );
+
+  await rootClient.query(
+    `INSERT INTO notification_outbox (id, tenant_id, to_contact_point_id, channel, provider, template_key, payload_json, status, idempotency_key, queued_at, created_at, updated_at)
+     VALUES
+      ($1, $3, $5, 'email', 'noop', 'assignment_created', '{}'::jsonb, 'queued', 'rls:internal', NOW(), NOW(), NOW()),
+      ($2, $4, $6, 'email', 'noop', 'assignment_created', '{}'::jsonb, 'queued', 'rls:external', NOW(), NOW(), NOW())
+     ON CONFLICT (id) DO NOTHING`,
+    [internalOutboxId, externalOutboxId, cfg.tenantInternal, cfg.tenantExternal, internalContactId, externalContactId]
+  );
+
+  await rootClient.query(
     `INSERT INTO document_links (id, tenant_id, document_id, work_order_id, purpose, created_at)
      VALUES
       ($1, $2, $3, $4, 'reference', NOW()),
@@ -117,6 +139,8 @@ const setupFixtures = async () => {
   process.env.TEST_EXTERNAL_ASSIGNMENT = externalAssignmentId;
   process.env.TEST_INTERNAL_INVOICE = internalInvoiceId;
   process.env.TEST_EXTERNAL_INVOICE = externalInvoiceId;
+  process.env.TEST_INTERNAL_OUTBOX = internalOutboxId;
+  process.env.TEST_EXTERNAL_OUTBOX = externalOutboxId;
 };
 
 describe('RLS integration', () => {
@@ -155,11 +179,13 @@ describe('RLS integration', () => {
     const noContext = await webClient.query('SELECT id FROM work_orders');
     const noContextAssignments = await webClient.query('SELECT id FROM assignments');
     const noContextInvoices = await webClient.query('SELECT id FROM invoices');
+    const noContextOutbox = await webClient.query('SELECT id FROM notification_outbox');
     await webClient.end();
 
     expect(noContext.rows.length).toBe(0);
     expect(noContextAssignments.rows.length).toBe(0);
     expect(noContextInvoices.rows.length).toBe(0);
+    expect(noContextOutbox.rows.length).toBe(0);
   });
 
   it.skipIf(!ready)('enforces portal user isolation', async () => {
@@ -265,6 +291,32 @@ describe('RLS integration', () => {
     await webClient.query(`SELECT set_config('app.user_id', '', true)`);
     await webClient.query(`SELECT set_config('app.aud', 'web', true)`);
     const external = await webClient.query('SELECT tenant_id FROM invoices');
+    await webClient.query('COMMIT');
+
+    await webClient.end();
+
+    expect(internal.rows.length).toBeGreaterThan(0);
+    expect(external.rows.length).toBeGreaterThan(0);
+    expect(internal.rows.every((row) => row.tenant_id === cfg.tenantInternal)).toBe(true);
+    expect(external.rows.every((row) => row.tenant_id === cfg.tenantExternal)).toBe(true);
+  });
+
+  it.skipIf(!ready)('enforces tenant isolation for notification_outbox on zen_web', async () => {
+    const webClient = new Client({ connectionString: cfg.web });
+    await webClient.connect();
+
+    await webClient.query('BEGIN');
+    await webClient.query(`SELECT set_config('app.tenant_id', $1, true)`, [cfg.tenantInternal]);
+    await webClient.query(`SELECT set_config('app.user_id', '', true)`);
+    await webClient.query(`SELECT set_config('app.aud', 'web', true)`);
+    const internal = await webClient.query('SELECT tenant_id FROM notification_outbox');
+    await webClient.query('COMMIT');
+
+    await webClient.query('BEGIN');
+    await webClient.query(`SELECT set_config('app.tenant_id', $1, true)`, [cfg.tenantExternal]);
+    await webClient.query(`SELECT set_config('app.user_id', '', true)`);
+    await webClient.query(`SELECT set_config('app.aud', 'web', true)`);
+    const external = await webClient.query('SELECT tenant_id FROM notification_outbox');
     await webClient.query('COMMIT');
 
     await webClient.end();
