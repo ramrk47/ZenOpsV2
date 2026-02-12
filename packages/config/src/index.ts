@@ -18,7 +18,28 @@ export const EnvSchema = z.object({
   DATABASE_URL_WORKER: z.string().min(1),
   DATABASE_URL_ROOT: z.string().min(1),
   REDIS_URL: z.string().min(1),
-  ARTIFACTS_DIR: z.string().min(1)
+  WEBHOOKS_ENABLED: z.string().default('false'),
+  TWILIO_WEBHOOK_VALIDATE: z.string().optional(),
+  SENDGRID_WEBHOOK_VALIDATE: z.string().optional(),
+  MAILGUN_WEBHOOK_VALIDATE: z.string().optional(),
+  ARTIFACTS_DIR: z.string().min(1),
+  NOTIFY_PROVIDER_EMAIL: z.enum(['noop', 'mailgun', 'sendgrid']).default('noop'),
+  NOTIFY_PROVIDER_WHATSAPP: z.enum(['noop', 'twilio']).default('noop'),
+  MAILGUN_API_KEY: z.string().optional(),
+  MAILGUN_DOMAIN: z.string().optional(),
+  MAILGUN_FROM: z.string().optional(),
+  MAILGUN_WEBHOOK_SIGNING_KEY: z.string().optional(),
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_WHATSAPP_FROM: z.string().optional(),
+  STORAGE_DRIVER: z.enum(['s3', 'local']).default('local'),
+  S3_ENDPOINT: z.string().optional(),
+  S3_REGION: z.string().default('auto'),
+  S3_BUCKET: z.string().default('zenops-dev'),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  S3_FORCE_PATH_STYLE: z.string().default('false'),
+  S3_PUBLIC_BASE_URL: z.string().optional()
 });
 
 export type AppEnv = z.infer<typeof EnvSchema>;
