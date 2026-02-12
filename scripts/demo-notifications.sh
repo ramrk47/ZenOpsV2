@@ -20,6 +20,7 @@ ZENOPS_INTERNAL_TENANT_ID="${ZENOPS_INTERNAL_TENANT_ID:-11111111-1111-1111-1111-
 ZENOPS_EXTERNAL_TENANT_ID="${ZENOPS_EXTERNAL_TENANT_ID:-22222222-2222-2222-2222-222222222222}"
 ARTIFACTS_DIR="${ARTIFACTS_DIR:-/tmp/zenops-artifacts}"
 STORAGE_DRIVER="${STORAGE_DRIVER:-local}"
+DISABLE_QUEUE="${DISABLE_QUEUE:-false}"
 
 DATABASE_URL_ROOT="${DATABASE_URL_ROOT:-postgresql://postgres:postgres@localhost:${POSTGRES_BIND_PORT}/zenops}"
 DATABASE_URL="${DATABASE_URL:-postgresql://zen_api:zen_api@localhost:${POSTGRES_BIND_PORT}/zenops}"
@@ -175,11 +176,6 @@ start_api_if_needed() {
     return
   fi
 
-  if curl -fsS "${API_BASE_URL}/health" >/dev/null 2>&1; then
-    echo "API is already running at ${API_BASE_URL}"
-    return
-  fi
-
   if [[ "$API_BASE_URL_WAS_DEFAULT" == "1" ]] && is_port_in_use "$API_PORT"; then
     local original_port="$API_PORT"
     local next_port
@@ -208,6 +204,7 @@ start_api_if_needed() {
     JWT_SECRET="$JWT_SECRET" \
     ARTIFACTS_DIR="$ARTIFACTS_DIR" \
     STORAGE_DRIVER="$STORAGE_DRIVER" \
+    DISABLE_QUEUE="$DISABLE_QUEUE" \
     pnpm --filter @zenops/api build >/tmp/zenops-demo-notify-api-build.log 2>&1
 
   (
@@ -225,6 +222,7 @@ start_api_if_needed() {
       JWT_SECRET="$JWT_SECRET" \
       ARTIFACTS_DIR="$ARTIFACTS_DIR" \
       STORAGE_DRIVER="$STORAGE_DRIVER" \
+      DISABLE_QUEUE="$DISABLE_QUEUE" \
       node dist/main.js
   ) >/tmp/zenops-demo-notify-api.log 2>&1 &
   API_PID="$!"
