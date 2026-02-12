@@ -562,8 +562,23 @@ CREATE UNIQUE INDEX IF NOT EXISTS document_tag_map_one_flag_value_idx
   ON public.document_tag_map (document_id, key_id)
   WHERE value_id IS NULL;
 
+CREATE INDEX IF NOT EXISTS documents_tenant_classification_created_idx
+  ON public.documents (tenant_id, classification, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS document_links_employee_id_idx
+  ON public.document_links (employee_id);
+
 DO $$
 BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'document_links_one_target_check'
+      AND conrelid = 'public.document_links'::regclass
+  ) THEN
+    ALTER TABLE public.document_links DROP CONSTRAINT document_links_one_target_check;
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1
     FROM pg_constraint
@@ -571,6 +586,6 @@ BEGIN
   ) THEN
     ALTER TABLE public.document_links
       ADD CONSTRAINT document_links_one_target_check
-      CHECK (num_nonnulls(work_order_id, assignment_id, report_request_id) >= 1);
+      CHECK (num_nonnulls(work_order_id, assignment_id, report_request_id, employee_id) >= 1);
   END IF;
 END $$;

@@ -15,6 +15,8 @@ model Employee {
   attendanceEvents        AttendanceEvent[]
   payrollItems            PayrollItem[]
   notificationSubscriptions NotificationSubscription[]
+  capturedDocuments       Document[]                @relation("DocumentCapturedByEmployee")
+  documentLinks           DocumentLink[]
 
   @@unique([tenantId, userId])
   @@unique([tenantId, email])
