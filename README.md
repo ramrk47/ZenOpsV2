@@ -86,6 +86,18 @@ ZenOps v2 foundation scaffold as a Turborepo + pnpm monorepo.
 ## Notes
 This is a foundation scaffold with minimal business logic and clear extension points.
 
+## M4.5 Deploy/Ops Hardening
+- VPS production-like compose: `/Users/dr.156/ZenOpsV2/infra/docker/compose.vps.yml`
+- Production env template: `/Users/dr.156/ZenOpsV2/.env.prod.example`
+- Backup scripts:
+  - `/Users/dr.156/ZenOpsV2/scripts/prod-backup-db.sh`
+  - `/Users/dr.156/ZenOpsV2/scripts/prod-restore-db.sh`
+  - `/Users/dr.156/ZenOpsV2/scripts/prod-pre-migrate-backup.sh`
+- Off-hours worker downshift helper:
+  - `/Users/dr.156/ZenOpsV2/scripts/prod-offhours.sh`
+- Full runbook:
+  - `/Users/dr.156/ZenOpsV2/docs/deploy-runbook-m4.5.md`
+
 ## Staging Deploy Notes (Hostinger VPS + Traefik)
 - DNS/subdomains:
   - `v2.<your-domain>` -> web
