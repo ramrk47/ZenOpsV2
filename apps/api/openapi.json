@@ -61,6 +61,108 @@
         }
       }
     },
+    "/v1/employees": {
+      "get": {
+        "summary": "List employees",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create employee",
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
+    },
+    "/v1/attendance/checkin": {
+      "post": {
+        "summary": "Record employee check-in",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/attendance/checkout": {
+      "post": {
+        "summary": "Record employee check-out",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/payroll/periods": {
+      "get": {
+        "summary": "List payroll periods",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create payroll period",
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
+    },
+    "/v1/payroll/periods/{id}/run": {
+      "post": {
+        "summary": "Run payroll period (placeholder)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/payroll/periods/{id}/items": {
+      "get": {
+        "summary": "List payroll items",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create payroll item",
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
+    },
+    "/v1/notifications/routes": {
+      "get": {
+        "summary": "List notification route targets",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create or update notification route target",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/v1/work-orders": {
       "get": {
         "summary": "List work orders",

@@ -46,7 +46,10 @@ const createBillingServiceMock = () => ({
 const createNotificationsServiceMock = () => ({
   enqueueTemplate: vi.fn().mockResolvedValue({
     id: 'outbox-1'
-  })
+  }),
+  enqueueEvent: vi.fn().mockResolvedValue([{
+    id: 'outbox-1'
+  }])
 });
 
 const createService = (
@@ -376,10 +379,10 @@ describe('DomainService billing gates', () => {
       notes: undefined,
       actor_user_id: webClaims.user_id
     });
-    expect(notificationsService.enqueueTemplate).toHaveBeenCalledWith(
+    expect(notificationsService.enqueueEvent).toHaveBeenCalledWith(
       {} as any,
       expect.objectContaining({
-        templateKey: 'invoice_paid',
+        eventType: 'invoice_paid',
         idempotencyKey: 'invoice_paid:invoice-1'
       })
     );
@@ -408,10 +411,10 @@ describe('DomainService assignment spine', () => {
         })
       })
     );
-    expect(notificationsService.enqueueTemplate).toHaveBeenCalledWith(
+    expect(notificationsService.enqueueEvent).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
-        templateKey: 'assignment_created',
+        eventType: 'assignment_created',
         idempotencyKey: 'assignment_created:assignment-1'
       })
     );
@@ -571,5 +574,60 @@ describe('DomainService document/data-bundle guards', () => {
         expected_schema_version: 1
       })
     ).rejects.toThrow('SCHEMA_VERSION_MISMATCH');
+  });
+});
+
+describe('DomainService people M4.2', () => {
+  it('does not duplicate attendance events for same request id', async () => {
+    const service = createService();
+    let stored: any = null;
+
+    const tx = {
+      employee: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'employee-1',
+          tenantId: '11111111-1111-1111-1111-111111111111',
+          status: 'active',
+          deletedAt: null
+        })
+      },
+      attendanceEvent: {
+        findFirst: vi.fn().mockImplementation(async ({ where }: any) => {
+          if (stored && where?.requestId === stored.requestId) {
+            return stored;
+          }
+          return null;
+        }),
+        create: vi.fn().mockImplementation(async ({ data }: any) => {
+          stored = {
+            id: 'attendance-1',
+            tenantId: data.tenantId,
+            employeeId: data.employeeId,
+            kind: data.kind,
+            source: data.source,
+            happenedAt: data.happenedAt,
+            metaJson: data.metaJson,
+            requestId: data.requestId,
+            createdByUserId: data.createdByUserId,
+            createdAt: new Date('2026-02-12T09:00:00.000Z'),
+            updatedAt: new Date('2026-02-12T09:00:00.000Z')
+          };
+          return stored;
+        })
+      }
+    } as any;
+
+    const first = await service.markAttendance(tx, webClaims, 'req-att-1', 'checkin', {
+      employee_id: 'employee-1',
+      source: 'web'
+    });
+    const second = await service.markAttendance(tx, webClaims, 'req-att-1', 'checkin', {
+      employee_id: 'employee-1',
+      source: 'web'
+    });
+
+    expect(first.duplicate).toBe(false);
+    expect(second.duplicate).toBe(true);
+    expect(tx.attendanceEvent.create).toHaveBeenCalledTimes(1);
   });
 });

@@ -227,6 +227,21 @@ describe('RLS integration', () => {
     expect(canReadOther.rows.length).toBe(0);
   });
 
+  it.skipIf(!ready)('returns zero employee rows for zen_portal', async () => {
+    const portalClient = new Client({ connectionString: cfg.portal });
+    await portalClient.connect();
+
+    await portalClient.query('BEGIN');
+    await portalClient.query(`SELECT set_config('app.aud', 'portal', true)`);
+    await portalClient.query(`SELECT set_config('app.user_id', $1, true)`, [process.env.TEST_PORTAL_USER_A]);
+    const rows = await portalClient.query('SELECT id FROM employees');
+    await portalClient.query('COMMIT');
+
+    await portalClient.end();
+
+    expect(rows.rows.length).toBe(0);
+  });
+
   it.skipIf(!ready)('enforces tenant isolation for documents on zen_web', async () => {
     const webClient = new Client({ connectionString: cfg.web });
     await webClient.connect();
