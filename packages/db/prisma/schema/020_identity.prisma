@@ -37,6 +37,11 @@ model Tenant {
   documentTagMap DocumentTagMap[]
   reportInputs ReportInput[]
   extractionRuns ExtractionRun[]
+  contactPoints ContactPoint[]
+  notificationTemplates NotificationTemplate[]
+  notificationOutbox NotificationOutbox[]
+  notificationAttempts NotificationAttempt[]
+  webhookEvents WebhookEvent[]
 
   @@map("tenants")
 }
@@ -59,6 +64,7 @@ model User {
   artifactVersions ArtifactVersion[]
   auditEvents AuditEvent[]
   ownedDocuments Document[] @relation("DocumentOwner")
+  contactPoints ContactPoint[]
 
   @@map("users")
 }

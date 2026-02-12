@@ -83,6 +83,24 @@ const document = {
     '/v1/billing/invoices/{id}/mark-paid': {
       post: { summary: 'Studio-only: mark invoice paid with manual payment record', responses: { '200': { description: 'OK' } } }
     },
+    '/v1/notify/test': {
+      post: { summary: 'Studio-only: enqueue a test notification', responses: { '200': { description: 'Queued' } } }
+    },
+    '/v1/notifications/outbox': {
+      get: { summary: 'Studio-only: list notification outbox rows', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/webhooks/email': {
+      post: { summary: 'Email provider webhook ingestion', responses: { '200': { description: 'Accepted' } } }
+    },
+    '/v1/webhooks/sendgrid': {
+      post: { summary: 'SendGrid webhook ingestion', responses: { '200': { description: 'Accepted' } } }
+    },
+    '/v1/webhooks/twilio': {
+      post: { summary: 'Twilio webhook ingestion', responses: { '200': { description: 'Accepted' } } }
+    },
+    '/v1/webhooks/twilio/whatsapp': {
+      post: { summary: 'Twilio WhatsApp webhook ingestion', responses: { '200': { description: 'Accepted' } } }
+    },
     '/v1/files/presign-upload': {
       post: { summary: 'Create document record and presign upload', responses: { '200': { description: 'OK' } } }
     },

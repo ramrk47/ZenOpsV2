@@ -13,9 +13,12 @@ import { loadLaunchModeConfig } from './common/launch-mode.js';
 import { loadEnv } from '@zenops/config';
 import { LocalDiskProvider, S3CompatibleProvider } from '@zenops/storage';
 import { BillingService } from './billing/billing.service.js';
+import { NotificationsController } from './notifications/notifications.controller.js';
+import { NotificationQueueService } from './notifications/notification-queue.service.js';
+import { NotificationsService } from './notifications/notifications.service.js';
 
 @Module({
-  controllers: [HealthController, AuthController, DomainController],
+  controllers: [HealthController, AuthController, DomainController, NotificationsController],
   providers: [
     {
       provide: PrismaService,
@@ -62,8 +65,17 @@ import { BillingService } from './billing/billing.service.js';
         });
       }
     },
+    {
+      provide: NotificationQueueService,
+      useFactory: () =>
+        new NotificationQueueService(
+          process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
+          process.env.DISABLE_QUEUE === 'true'
+        )
+    },
     RequestContextService,
     BillingService,
+    NotificationsService,
     DomainService,
     {
       provide: APP_GUARD,

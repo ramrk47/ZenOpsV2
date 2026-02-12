@@ -29,16 +29,13 @@ REDIS_URL="${REDIS_URL:-redis://localhost:${REDIS_BIND_PORT}}"
 
 DEMO_ASSUME_INFRA_RUNNING="${DEMO_ASSUME_INFRA_RUNNING:-0}"
 DEMO_ASSUME_API_RUNNING="${DEMO_ASSUME_API_RUNNING:-0}"
+DEMO_FORCE_RESET="${DEMO_FORCE_RESET:-1}"
 
 API_PID=""
-TMP_DOC=""
 API_LAST_STATUS=""
 API_LAST_BODY=""
 
 cleanup() {
-  if [[ -n "$TMP_DOC" && -f "$TMP_DOC" ]]; then
-    rm -f "$TMP_DOC"
-  fi
   if [[ -n "$API_PID" ]]; then
     if kill -0 "$API_PID" >/dev/null 2>&1; then
       kill "$API_PID" >/dev/null 2>&1 || true
@@ -76,14 +73,6 @@ if (typeof out === "object") {
   process.stdout.write(String(out));
 }
 ' "$expr"
-}
-
-json_eval_optional() {
-  local json="$1"
-  local expr="$2"
-  if ! json_eval "$json" "$expr" 2>/dev/null; then
-    true
-  fi
 }
 
 api_call() {
@@ -202,7 +191,7 @@ start_api_if_needed() {
     JWT_SECRET="$JWT_SECRET" \
     ARTIFACTS_DIR="$ARTIFACTS_DIR" \
     STORAGE_DRIVER="$STORAGE_DRIVER" \
-    pnpm --filter @zenops/api build >/tmp/zenops-demo-api-build.log 2>&1
+    pnpm --filter @zenops/api build >/tmp/zenops-demo-billing-api-build.log 2>&1
 
   (
     cd apps/api
@@ -220,14 +209,14 @@ start_api_if_needed() {
       ARTIFACTS_DIR="$ARTIFACTS_DIR" \
       STORAGE_DRIVER="$STORAGE_DRIVER" \
       node dist/main.js
-  ) >/tmp/zenops-demo-api.log 2>&1 &
+  ) >/tmp/zenops-demo-billing-api.log 2>&1 &
   API_PID="$!"
 
   if ! wait_for_api; then
     echo "ERROR: API did not become healthy in time."
-    if [[ -f /tmp/zenops-demo-api.log ]]; then
+    if [[ -f /tmp/zenops-demo-billing-api.log ]]; then
       echo "--- API log ---"
-      tail -n 100 /tmp/zenops-demo-api.log || true
+      tail -n 100 /tmp/zenops-demo-billing-api.log || true
       echo "---------------"
     fi
     exit 1
@@ -235,9 +224,20 @@ start_api_if_needed() {
 }
 
 run_setup() {
+  if [[ "$DEMO_FORCE_RESET" == "1" ]]; then
+    echo "Resetting demo state first (deterministic mode)..."
+    env \
+      POSTGRES_BIND_PORT="$POSTGRES_BIND_PORT" \
+      DATABASE_URL_ROOT="$DATABASE_URL_ROOT" \
+      DATABASE_URL="$DATABASE_URL" \
+      ARTIFACTS_DIR="$ARTIFACTS_DIR" \
+      ./scripts/reset-demo.sh >/tmp/zenops-demo-billing-reset.log 2>&1
+    return
+  fi
+
   if [[ "$DEMO_ASSUME_INFRA_RUNNING" != "1" ]]; then
     echo "Bringing up infra services..."
-    pnpm infra:up >/tmp/zenops-demo-infra.log 2>&1
+    pnpm infra:up >/tmp/zenops-demo-billing-infra.log 2>&1
   fi
 
   echo "Bootstrapping database..."
@@ -245,7 +245,17 @@ run_setup() {
     DATABASE_URL_ROOT="$DATABASE_URL_ROOT" \
     DATABASE_URL="$DATABASE_URL" \
     POSTGRES_BIND_PORT="$POSTGRES_BIND_PORT" \
-    pnpm bootstrap:db >/tmp/zenops-demo-bootstrap.log 2>&1
+    pnpm bootstrap:db >/tmp/zenops-demo-billing-bootstrap.log 2>&1
+}
+
+assert_equals() {
+  local actual="$1"
+  local expected="$2"
+  local label="$3"
+  if [[ "$actual" != "$expected" ]]; then
+    echo "FAIL: ${label} expected=${expected} actual=${actual}"
+    exit 1
+  fi
 }
 
 main() {
@@ -266,86 +276,92 @@ main() {
   due_date="$(date -u +%F)"
 
   echo "Creating assignment..."
-  api_call "POST" "/assignments" "$token" "{\"source\":\"tenant\",\"title\":\"Demo Assignment $(date -u +%Y%m%d-%H%M%S)\",\"summary\":\"Assignment flow demo\",\"priority\":\"normal\",\"status\":\"requested\",\"due_date\":\"${due_date}\"}"
+  api_call "POST" "/assignments" "$token" "{\"source\":\"tenant\",\"title\":\"Billing Demo Assignment $(date -u +%Y%m%d-%H%M%S)\",\"summary\":\"Finalize billing demo\",\"priority\":\"normal\",\"status\":\"requested\",\"due_date\":\"${due_date}\"}"
   require_http_ok
   local assignment_id
   assignment_id="$(json_eval "$API_LAST_BODY" "data.id")"
 
-  echo "Adding one task..."
-  api_call "POST" "/assignments/${assignment_id}/tasks" "$token" '{"title":"Capture measurements","status":"todo"}'
+  echo "Creating report request..."
+  api_call "POST" "/report-requests" "$token" "{\"tenant_id\":\"${ZENOPS_INTERNAL_TENANT_ID}\",\"assignment_id\":\"${assignment_id}\",\"title\":\"Billing Demo Report\"}"
+  require_http_ok
+  local report_request_id
+  report_request_id="$(json_eval "$API_LAST_BODY" "data.id")"
+
+  echo "Queueing draft..."
+  api_call "POST" "/report-requests/${report_request_id}/queue-draft" "$token"
   require_http_ok
 
-  echo "Posting one message..."
-  api_call "POST" "/assignments/${assignment_id}/messages" "$token" '{"body":"Field team notified for demo run."}'
+  echo "Finalizing report request (first call)..."
+  api_call "POST" "/report-requests/${report_request_id}/finalize" "$token"
   require_http_ok
 
-  TMP_DOC="$(mktemp /tmp/zenops-demo-doc-XXXXXX.txt)"
-  cat >"$TMP_DOC" <<'EOF'
-ZenOps demo attachment.
-This file is created by scripts/demo.sh.
-EOF
-  local size_bytes
-  size_bytes="$(wc -c <"$TMP_DOC" | tr -d ' ')"
-
-  echo "Presigning document upload..."
-  api_call "POST" "/files/presign-upload" "$token" "{\"purpose\":\"reference\",\"filename\":\"demo-note.txt\",\"content_type\":\"text/plain\",\"size_bytes\":${size_bytes}}"
+  echo "Fetching billing summary..."
+  api_call "GET" "/billing/me" "$token"
   require_http_ok
-  local document_id upload_url upload_content_type upload_local_path
-  document_id="$(json_eval "$API_LAST_BODY" "data.document_id")"
-  upload_url="$(json_eval "$API_LAST_BODY" "data.upload.url")"
-  upload_content_type="$(json_eval_optional "$API_LAST_BODY" "data.upload.headers['content-type']")"
-  upload_local_path="$(json_eval_optional "$API_LAST_BODY" "data.upload.headers['x-local-file-path']")"
+  local usage_events_1 invoice_id_1 invoice_total_1
+  usage_events_1="$(json_eval "$API_LAST_BODY" "data.current_period.usage_events")"
+  invoice_id_1="$(json_eval "$API_LAST_BODY" "data.current_period.invoice.id")"
+  invoice_total_1="$(json_eval "$API_LAST_BODY" "data.current_period.invoice.total_paise")"
 
-  echo "Uploading demo document payload (best effort)..."
-  local upload_cmd=(curl -sS -o /dev/null -X PUT "$upload_url" --data-binary "@${TMP_DOC}")
-  if [[ -n "$upload_content_type" ]]; then
-    upload_cmd+=(-H "content-type: ${upload_content_type}")
-  fi
-  if [[ -n "$upload_local_path" ]]; then
-    upload_cmd+=(-H "x-local-file-path: ${upload_local_path}")
-  fi
-  if ! "${upload_cmd[@]}"; then
-    echo "WARN: direct upload request failed; continuing because confirm endpoint does not require object verification in local demo mode."
-  fi
-
-  echo "Confirming upload..."
-  api_call "POST" "/files/confirm-upload" "$token" "{\"document_id\":\"${document_id}\"}"
+  echo "Fetching invoice detail..."
+  api_call "GET" "/billing/invoices/${invoice_id_1}" "$token"
   require_http_ok
+  local line_count_1 invoice_detail_total_1
+  line_count_1="$(json_eval "$API_LAST_BODY" "Array.isArray(data.lines) ? data.lines.length : -1")"
+  invoice_detail_total_1="$(json_eval "$API_LAST_BODY" "data.total_paise")"
 
-  echo "Attaching document to assignment..."
-  api_call "POST" "/assignments/${assignment_id}/attach-document" "$token" "{\"document_id\":\"${document_id}\",\"purpose\":\"reference\"}"
-  require_http_ok
-
-  echo "Fetching assignment detail..."
+  echo "Checking assignment activity for report_finalized..."
   api_call "GET" "/assignments/${assignment_id}" "$token"
   require_http_ok
+  local finalized_activity_count_1
+  finalized_activity_count_1="$(json_eval "$API_LAST_BODY" "Array.isArray(data.activities) ? data.activities.filter((a) => a.type === 'report_finalized').length : 0")"
 
-  local task_count message_count document_count activity_count
-  task_count="$(json_eval "$API_LAST_BODY" "Array.isArray(data.tasks) ? data.tasks.length : -1")"
-  message_count="$(json_eval "$API_LAST_BODY" "Array.isArray(data.messages) ? data.messages.length : -1")"
-  document_count="$(json_eval "$API_LAST_BODY" "Array.isArray(data.documents) ? data.documents.length : -1")"
-  activity_count="$(json_eval "$API_LAST_BODY" "Array.isArray(data.activities) ? data.activities.length : -1")"
-
-  local pass=true
-  [[ "$task_count" == "1" ]] || pass=false
-  [[ "$message_count" == "1" ]] || pass=false
-  [[ "$document_count" == "1" ]] || pass=false
-  [[ "$activity_count" -ge 4 ]] || pass=false
-
-  echo
-  echo "Demo Summary"
-  echo "  assignment_id: ${assignment_id}"
-  echo "  tasks: ${task_count} (expected 1)"
-  echo "  messages: ${message_count} (expected 1)"
-  echo "  documents: ${document_count} (expected 1)"
-  echo "  activities: ${activity_count} (expected >= 4)"
-
-  if [[ "$pass" == "true" ]]; then
-    echo "PASS: assignment demo flow completed successfully."
-  else
-    echo "FAIL: assignment demo flow did not meet expected counts."
+  assert_equals "$usage_events_1" "1" "usage events after first finalize"
+  assert_equals "$line_count_1" "1" "invoice lines after first finalize"
+  assert_equals "$invoice_detail_total_1" "$invoice_total_1" "invoice totals match"
+  if [[ "$finalized_activity_count_1" -lt 1 ]]; then
+    echo "FAIL: expected at least one report_finalized activity"
     exit 1
   fi
+
+  echo "Finalizing report request (second call, idempotency check)..."
+  api_call "POST" "/report-requests/${report_request_id}/finalize" "$token"
+  require_http_ok
+
+  echo "Re-fetching billing summary..."
+  api_call "GET" "/billing/me" "$token"
+  require_http_ok
+  local usage_events_2 invoice_id_2 invoice_total_2
+  usage_events_2="$(json_eval "$API_LAST_BODY" "data.current_period.usage_events")"
+  invoice_id_2="$(json_eval "$API_LAST_BODY" "data.current_period.invoice.id")"
+  invoice_total_2="$(json_eval "$API_LAST_BODY" "data.current_period.invoice.total_paise")"
+
+  echo "Re-fetching invoice detail..."
+  api_call "GET" "/billing/invoices/${invoice_id_2}" "$token"
+  require_http_ok
+  local line_count_2
+  line_count_2="$(json_eval "$API_LAST_BODY" "Array.isArray(data.lines) ? data.lines.length : -1")"
+
+  api_call "GET" "/assignments/${assignment_id}" "$token"
+  require_http_ok
+  local finalized_activity_count_2
+  finalized_activity_count_2="$(json_eval "$API_LAST_BODY" "Array.isArray(data.activities) ? data.activities.filter((a) => a.type === 'report_finalized').length : 0")"
+
+  assert_equals "$usage_events_2" "1" "usage events after second finalize"
+  assert_equals "$line_count_2" "1" "invoice lines after second finalize"
+  assert_equals "$invoice_id_2" "$invoice_id_1" "invoice id stable across retries"
+  assert_equals "$invoice_total_2" "$invoice_total_1" "invoice total unchanged on retry"
+  assert_equals "$finalized_activity_count_2" "$finalized_activity_count_1" "report_finalized activity not duplicated"
+
+  echo
+  echo "Billing Demo Summary"
+  echo "  assignment_id: ${assignment_id}"
+  echo "  report_request_id: ${report_request_id}"
+  echo "  invoice_id: ${invoice_id_1}"
+  echo "  usage_events: ${usage_events_2}"
+  echo "  invoice_lines: ${line_count_2}"
+  echo "  invoice_total_paise: ${invoice_total_2}"
+  echo "PASS: finalize billing flow is idempotent and invoice state is stable."
 }
 
 main "$@"

@@ -10,12 +10,20 @@ export interface QueueDraftPayload {
   requestId: string;
 }
 
+export interface NotificationEnqueuePayload {
+  outboxId: string;
+  tenantId: string;
+  requestId: string;
+}
+
 export interface ProcessDraftParams {
   prisma: PrismaClient;
   logger: Logger;
   payload: QueueDraftPayload;
   artifactsRoot: string;
   fallbackTenantId: string;
+  notifyInternalEmail?: string;
+  enqueueNotification?: (payload: NotificationEnqueuePayload) => Promise<void>;
   runWithContext?: <T>(
     prisma: PrismaClient,
     context: { tenantId: string; userId: string | null; aud: 'worker' },
@@ -29,9 +37,12 @@ export const processDraftJob = async ({
   payload,
   artifactsRoot,
   fallbackTenantId,
+  notifyInternalEmail,
+  enqueueNotification,
   runWithContext = withTxContext
 }: ProcessDraftParams): Promise<void> => {
   const tenantId = payload.tenantId || fallbackTenantId;
+  let draftReadyOutboxId: string | null = null;
 
   logger.info('worker_job_start', {
     request_id: payload.requestId,
@@ -49,6 +60,69 @@ export const processDraftJob = async ({
           startedAt: new Date(),
           attempts: { increment: 1 }
         }
+      });
+
+      const reportRequest = await tx.reportRequest.findFirst({
+        where: {
+          id: payload.reportRequestId,
+          deletedAt: null
+        },
+        select: {
+          id: true,
+          assignmentId: true,
+          workOrderId: true
+        }
+      });
+
+      if (!reportRequest) {
+        throw new Error(`report_request ${payload.reportRequestId} not found`);
+      }
+
+      const reportInput = await tx.reportInput.findUnique({
+        where: {
+          reportRequestId: payload.reportRequestId
+        },
+        select: {
+          schemaId: true,
+          payload: true
+        }
+      });
+
+      const linkScope: Array<{ reportRequestId?: string; assignmentId?: string; workOrderId?: string }> = [
+        { reportRequestId: payload.reportRequestId }
+      ];
+      if (reportRequest.assignmentId) {
+        linkScope.push({ assignmentId: reportRequest.assignmentId });
+      }
+      if (reportRequest.workOrderId) {
+        linkScope.push({ workOrderId: reportRequest.workOrderId });
+      }
+
+      const linkedDocuments = await tx.documentLink.findMany({
+        where: {
+          tenantId,
+          OR: linkScope
+        },
+        include: {
+          document: {
+            select: {
+              id: true,
+              storageKey: true,
+              originalFilename: true,
+              contentType: true,
+              sizeBytes: true,
+              status: true
+            }
+          }
+        }
+      });
+
+      logger.info('worker_data_bundle_loaded', {
+        request_id: payload.requestId,
+        report_request_id: payload.reportRequestId,
+        report_job_id: payload.reportJobId,
+        has_report_input: Boolean(reportInput),
+        linked_documents: linkedDocuments.length
       });
 
       let artifact = await tx.reportArtifact.findFirst({
@@ -107,7 +181,93 @@ export const processDraftJob = async ({
           status: 'draft_ready'
         }
       });
+
+      const outboxIdempotencyKey = `draft_ready:${payload.reportRequestId}`;
+      const existingOutbox = await tx.notificationOutbox.findFirst({
+        where: {
+          tenantId,
+          idempotencyKey: outboxIdempotencyKey
+        },
+        select: { id: true }
+      });
+
+      if (existingOutbox) {
+        draftReadyOutboxId = existingOutbox.id;
+        return;
+      }
+
+      const fallbackEmail = notifyInternalEmail ?? process.env.NOTIFY_INTERNAL_EMAIL ?? 'internal-admin@zenops.local';
+      let contactPoint = await tx.contactPoint.findFirst({
+        where: {
+          tenantId,
+          kind: 'email',
+          value: fallbackEmail
+        },
+        select: { id: true }
+      });
+
+      if (!contactPoint) {
+        contactPoint = await tx.contactPoint.create({
+          data: {
+            tenantId,
+            kind: 'email',
+            value: fallbackEmail,
+            isPrimary: true,
+            isVerified: false
+          },
+          select: { id: true }
+        });
+      }
+
+      const template = await tx.notificationTemplate.findFirst({
+        where: {
+          tenantId,
+          channel: 'email',
+          templateKey: 'report_draft_ready',
+          isActive: true
+        },
+        select: { provider: true }
+      });
+
+      const outbox = await tx.notificationOutbox.create({
+        data: {
+          tenantId,
+          toContactPointId: contactPoint.id,
+          channel: 'email',
+          provider: template?.provider ?? 'noop',
+          templateKey: 'report_draft_ready',
+          payloadJson: {
+            report_request_id: payload.reportRequestId,
+            report_job_id: payload.reportJobId
+          },
+          status: 'queued',
+          idempotencyKey: outboxIdempotencyKey,
+          assignmentId: reportRequest.assignmentId,
+          reportRequestId: payload.reportRequestId
+        },
+        select: { id: true }
+      });
+
+      draftReadyOutboxId = outbox.id;
     });
+
+    if (draftReadyOutboxId && enqueueNotification) {
+      try {
+        await enqueueNotification({
+          outboxId: draftReadyOutboxId,
+          tenantId,
+          requestId: payload.requestId
+        });
+      } catch (queueError) {
+        logger.error('worker_notification_enqueue_failed', {
+          request_id: payload.requestId,
+          report_request_id: payload.reportRequestId,
+          report_job_id: payload.reportJobId,
+          outbox_id: draftReadyOutboxId,
+          error: queueError instanceof Error ? queueError.message : 'unknown'
+        });
+      }
+    }
 
     logger.info('worker_job_succeeded', {
       request_id: payload.requestId,

@@ -33,7 +33,12 @@ DECLARE
     'assignment_messages',
     'assignment_activities',
     'report_inputs',
-    'extraction_runs'
+    'extraction_runs',
+    'contact_points',
+    'notification_templates',
+    'notification_outbox',
+    'notification_attempts',
+    'webhook_events'
   ];
 BEGIN
   FOREACH t IN ARRAY tables_with_deleted_at
@@ -89,7 +94,12 @@ DECLARE
     'assignment_messages',
     'assignment_activities',
     'report_inputs',
-    'extraction_runs'
+    'extraction_runs',
+    'contact_points',
+    'notification_templates',
+    'notification_outbox',
+    'notification_attempts',
+    'webhook_events'
   ];
 BEGIN
   FOREACH t IN ARRAY targets_with_deleted_at
@@ -348,7 +358,12 @@ DECLARE
     'assignment_messages',
     'assignment_activities',
     'report_inputs',
-    'extraction_runs'
+    'extraction_runs',
+    'contact_points',
+    'notification_templates',
+    'notification_outbox',
+    'notification_attempts',
+    'webhook_events'
   ];
 BEGIN
   FOREACH t IN ARRAY targets_with_deleted_at
@@ -383,6 +398,36 @@ CREATE POLICY studio_billing_write_invoices ON public.invoices
 
 DROP POLICY IF EXISTS studio_billing_write_payments ON public.payments;
 CREATE POLICY studio_billing_write_payments ON public.payments
+  FOR ALL TO zen_studio
+  USING (current_setting('app.aud', true) = 'studio')
+  WITH CHECK (current_setting('app.aud', true) = 'studio');
+
+DROP POLICY IF EXISTS studio_notifications_write_contact_points ON public.contact_points;
+CREATE POLICY studio_notifications_write_contact_points ON public.contact_points
+  FOR ALL TO zen_studio
+  USING (current_setting('app.aud', true) = 'studio')
+  WITH CHECK (current_setting('app.aud', true) = 'studio');
+
+DROP POLICY IF EXISTS studio_notifications_write_templates ON public.notification_templates;
+CREATE POLICY studio_notifications_write_templates ON public.notification_templates
+  FOR ALL TO zen_studio
+  USING (current_setting('app.aud', true) = 'studio')
+  WITH CHECK (current_setting('app.aud', true) = 'studio');
+
+DROP POLICY IF EXISTS studio_notifications_write_outbox ON public.notification_outbox;
+CREATE POLICY studio_notifications_write_outbox ON public.notification_outbox
+  FOR ALL TO zen_studio
+  USING (current_setting('app.aud', true) = 'studio')
+  WITH CHECK (current_setting('app.aud', true) = 'studio');
+
+DROP POLICY IF EXISTS studio_notifications_write_attempts ON public.notification_attempts;
+CREATE POLICY studio_notifications_write_attempts ON public.notification_attempts
+  FOR ALL TO zen_studio
+  USING (current_setting('app.aud', true) = 'studio')
+  WITH CHECK (current_setting('app.aud', true) = 'studio');
+
+DROP POLICY IF EXISTS studio_notifications_write_webhooks ON public.webhook_events;
+CREATE POLICY studio_notifications_write_webhooks ON public.webhook_events
   FOR ALL TO zen_studio
   USING (current_setting('app.aud', true) = 'studio')
   WITH CHECK (current_setting('app.aud', true) = 'studio');
@@ -422,7 +467,12 @@ DECLARE
     'assignment_messages',
     'assignment_activities',
     'report_inputs',
-    'extraction_runs'
+    'extraction_runs',
+    'contact_points',
+    'notification_templates',
+    'notification_outbox',
+    'notification_attempts',
+    'webhook_events'
   ];
 BEGIN
   FOREACH t IN ARRAY targets_with_deleted_at
@@ -471,6 +521,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS usage_events_finalize_once_idx
 CREATE UNIQUE INDEX IF NOT EXISTS invoice_lines_usage_once_idx
   ON public.invoice_lines (invoice_id, usage_event_id)
   WHERE usage_event_id IS NOT NULL;
+
+-- Enforce notifications idempotency surfaces
+CREATE UNIQUE INDEX IF NOT EXISTS notification_outbox_tenant_idempotency_idx
+  ON public.notification_outbox (tenant_id, idempotency_key);
+
+CREATE UNIQUE INDEX IF NOT EXISTS webhook_events_provider_event_idx
+  ON public.webhook_events (provider, provider_event_id);
 
 -- Enforce one flag-style tag entry per (document,key) when value is null
 CREATE UNIQUE INDEX IF NOT EXISTS document_tag_map_one_flag_value_idx

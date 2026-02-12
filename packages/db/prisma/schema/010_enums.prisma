@@ -143,3 +143,36 @@ enum PaymentStatus {
 enum InvoiceLineType {
   usage_report_finalized
 }
+
+enum ContactPointKind {
+  email
+  whatsapp
+}
+
+enum NotificationChannel {
+  email
+  whatsapp
+}
+
+enum NotificationProvider {
+  noop
+  sendgrid
+  mailgun
+  twilio
+}
+
+enum NotificationOutboxStatus {
+  queued
+  sending
+  sent
+  failed
+  dead
+}
+
+enum NotificationAttemptStatus {
+  sending
+  sent
+  failed
+  delivered
+  read
+}

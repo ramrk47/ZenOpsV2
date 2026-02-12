@@ -20,6 +20,7 @@ ZENOPS_INTERNAL_TENANT_ID="${ZENOPS_INTERNAL_TENANT_ID:-11111111-1111-1111-1111-
 ZENOPS_EXTERNAL_TENANT_ID="${ZENOPS_EXTERNAL_TENANT_ID:-22222222-2222-2222-2222-222222222222}"
 ARTIFACTS_DIR="${ARTIFACTS_DIR:-/tmp/zenops-artifacts}"
 STORAGE_DRIVER="${STORAGE_DRIVER:-local}"
+DISABLE_QUEUE="${DISABLE_QUEUE:-false}"
 
 DATABASE_URL_ROOT="${DATABASE_URL_ROOT:-postgresql://postgres:postgres@localhost:${POSTGRES_BIND_PORT}/zenops}"
 DATABASE_URL="${DATABASE_URL:-postgresql://zen_api:zen_api@localhost:${POSTGRES_BIND_PORT}/zenops}"
@@ -29,16 +30,22 @@ REDIS_URL="${REDIS_URL:-redis://localhost:${REDIS_BIND_PORT}}"
 
 DEMO_ASSUME_INFRA_RUNNING="${DEMO_ASSUME_INFRA_RUNNING:-0}"
 DEMO_ASSUME_API_RUNNING="${DEMO_ASSUME_API_RUNNING:-0}"
+DEMO_ASSUME_WORKER_RUNNING="${DEMO_ASSUME_WORKER_RUNNING:-0}"
+DEMO_FORCE_RESET="${DEMO_FORCE_RESET:-1}"
 
 API_PID=""
-TMP_DOC=""
+WORKER_PID=""
 API_LAST_STATUS=""
 API_LAST_BODY=""
 
 cleanup() {
-  if [[ -n "$TMP_DOC" && -f "$TMP_DOC" ]]; then
-    rm -f "$TMP_DOC"
+  if [[ -n "$WORKER_PID" ]]; then
+    if kill -0 "$WORKER_PID" >/dev/null 2>&1; then
+      kill "$WORKER_PID" >/dev/null 2>&1 || true
+      wait "$WORKER_PID" >/dev/null 2>&1 || true
+    fi
   fi
+
   if [[ -n "$API_PID" ]]; then
     if kill -0 "$API_PID" >/dev/null 2>&1; then
       kill "$API_PID" >/dev/null 2>&1 || true
@@ -169,11 +176,6 @@ start_api_if_needed() {
     return
   fi
 
-  if curl -fsS "${API_BASE_URL}/health" >/dev/null 2>&1; then
-    echo "API is already running at ${API_BASE_URL}"
-    return
-  fi
-
   if [[ "$API_BASE_URL_WAS_DEFAULT" == "1" ]] && is_port_in_use "$API_PORT"; then
     local original_port="$API_PORT"
     local next_port
@@ -202,7 +204,8 @@ start_api_if_needed() {
     JWT_SECRET="$JWT_SECRET" \
     ARTIFACTS_DIR="$ARTIFACTS_DIR" \
     STORAGE_DRIVER="$STORAGE_DRIVER" \
-    pnpm --filter @zenops/api build >/tmp/zenops-demo-api-build.log 2>&1
+    DISABLE_QUEUE="$DISABLE_QUEUE" \
+    pnpm --filter @zenops/api build >/tmp/zenops-demo-notify-api-build.log 2>&1
 
   (
     cd apps/api
@@ -219,25 +222,81 @@ start_api_if_needed() {
       JWT_SECRET="$JWT_SECRET" \
       ARTIFACTS_DIR="$ARTIFACTS_DIR" \
       STORAGE_DRIVER="$STORAGE_DRIVER" \
+      DISABLE_QUEUE="$DISABLE_QUEUE" \
       node dist/main.js
-  ) >/tmp/zenops-demo-api.log 2>&1 &
+  ) >/tmp/zenops-demo-notify-api.log 2>&1 &
   API_PID="$!"
 
   if ! wait_for_api; then
     echo "ERROR: API did not become healthy in time."
-    if [[ -f /tmp/zenops-demo-api.log ]]; then
+    if [[ -f /tmp/zenops-demo-notify-api.log ]]; then
       echo "--- API log ---"
-      tail -n 100 /tmp/zenops-demo-api.log || true
+      tail -n 100 /tmp/zenops-demo-notify-api.log || true
       echo "---------------"
     fi
     exit 1
   fi
 }
 
+start_worker_if_needed() {
+  if [[ "$DEMO_ASSUME_WORKER_RUNNING" == "1" ]]; then
+    return
+  fi
+
+  echo "Starting worker for notifications queue..."
+  env \
+    JWT_SECRET="$JWT_SECRET" \
+    DATABASE_URL_API="$DATABASE_URL_API" \
+    DATABASE_URL_ROOT="$DATABASE_URL_ROOT" \
+    DATABASE_URL_WORKER="$DATABASE_URL_WORKER" \
+    REDIS_URL="$REDIS_URL" \
+    ARTIFACTS_DIR="$ARTIFACTS_DIR" \
+    ZENOPS_INTERNAL_TENANT_ID="$ZENOPS_INTERNAL_TENANT_ID" \
+    ZENOPS_EXTERNAL_TENANT_ID="$ZENOPS_EXTERNAL_TENANT_ID" \
+    pnpm --filter @zenops/worker build >/tmp/zenops-demo-notify-worker-build.log 2>&1
+
+  (
+    cd apps/worker
+    env \
+      JWT_SECRET="$JWT_SECRET" \
+      DATABASE_URL_API="$DATABASE_URL_API" \
+      DATABASE_URL_ROOT="$DATABASE_URL_ROOT" \
+      DATABASE_URL_WORKER="$DATABASE_URL_WORKER" \
+      REDIS_URL="$REDIS_URL" \
+      ARTIFACTS_DIR="$ARTIFACTS_DIR" \
+      ZENOPS_INTERNAL_TENANT_ID="$ZENOPS_INTERNAL_TENANT_ID" \
+      ZENOPS_EXTERNAL_TENANT_ID="$ZENOPS_EXTERNAL_TENANT_ID" \
+      node dist/index.js
+  ) >/tmp/zenops-demo-notify-worker.log 2>&1 &
+  WORKER_PID="$!"
+
+  sleep 2
+  if ! kill -0 "$WORKER_PID" >/dev/null 2>&1; then
+    echo "ERROR: worker exited during startup."
+    if [[ -f /tmp/zenops-demo-notify-worker.log ]]; then
+      echo "--- Worker log ---"
+      tail -n 100 /tmp/zenops-demo-notify-worker.log || true
+      echo "------------------"
+    fi
+    exit 1
+  fi
+}
+
 run_setup() {
+  if [[ "$DEMO_FORCE_RESET" == "1" ]]; then
+    echo "Resetting demo state first (deterministic mode)..."
+    env \
+      POSTGRES_BIND_PORT="$POSTGRES_BIND_PORT" \
+      DATABASE_URL_ROOT="$DATABASE_URL_ROOT" \
+      DATABASE_URL="$DATABASE_URL" \
+      ARTIFACTS_DIR="$ARTIFACTS_DIR" \
+      ./scripts/reset-demo.sh >/tmp/zenops-demo-notify-reset.log 2>&1
+    return
+  fi
+
   if [[ "$DEMO_ASSUME_INFRA_RUNNING" != "1" ]]; then
     echo "Bringing up infra services..."
-    pnpm infra:up >/tmp/zenops-demo-infra.log 2>&1
+    pnpm infra:up >/tmp/zenops-demo-notify-infra.log 2>&1
   fi
 
   echo "Bootstrapping database..."
@@ -245,7 +304,7 @@ run_setup() {
     DATABASE_URL_ROOT="$DATABASE_URL_ROOT" \
     DATABASE_URL="$DATABASE_URL" \
     POSTGRES_BIND_PORT="$POSTGRES_BIND_PORT" \
-    pnpm bootstrap:db >/tmp/zenops-demo-bootstrap.log 2>&1
+    pnpm bootstrap:db >/tmp/zenops-demo-notify-bootstrap.log 2>&1
 }
 
 main() {
@@ -255,97 +314,73 @@ main() {
 
   run_setup
   start_api_if_needed
+  start_worker_if_needed
 
   echo "Logging in as internal web user..."
   api_call "POST" "/auth/login" "" "{\"aud\":\"web\",\"tenant_id\":\"${ZENOPS_INTERNAL_TENANT_ID}\",\"user_id\":\"33333333-3333-3333-3333-333333333333\",\"sub\":\"33333333-3333-3333-3333-333333333333\",\"roles\":[],\"capabilities\":[]}"
   require_http_ok
-  local token
-  token="$(json_eval "$API_LAST_BODY" "data.access_token")"
+  local web_token
+  web_token="$(json_eval "$API_LAST_BODY" "data.access_token")"
+
+  echo "Logging in as studio user..."
+  api_call "POST" "/auth/login" "" "{\"aud\":\"studio\",\"tenant_id\":\"${ZENOPS_INTERNAL_TENANT_ID}\",\"user_id\":\"44444444-4444-4444-4444-444444444444\",\"sub\":\"44444444-4444-4444-4444-444444444444\",\"roles\":[],\"capabilities\":[]}"
+  require_http_ok
+  local studio_token
+  studio_token="$(json_eval "$API_LAST_BODY" "data.access_token")"
 
   local due_date
   due_date="$(date -u +%F)"
 
-  echo "Creating assignment..."
-  api_call "POST" "/assignments" "$token" "{\"source\":\"tenant\",\"title\":\"Demo Assignment $(date -u +%Y%m%d-%H%M%S)\",\"summary\":\"Assignment flow demo\",\"priority\":\"normal\",\"status\":\"requested\",\"due_date\":\"${due_date}\"}"
+  echo "Creating assignment (should enqueue assignment_created notification)..."
+  api_call "POST" "/assignments" "$web_token" "{\"source\":\"tenant\",\"title\":\"Notify Demo Assignment $(date -u +%Y%m%d-%H%M%S)\",\"summary\":\"M4 notifications demo\",\"priority\":\"normal\",\"status\":\"requested\",\"due_date\":\"${due_date}\"}"
   require_http_ok
   local assignment_id
   assignment_id="$(json_eval "$API_LAST_BODY" "data.id")"
+  local idempotency_key
+  idempotency_key="assignment_created:${assignment_id}"
 
-  echo "Adding one task..."
-  api_call "POST" "/assignments/${assignment_id}/tasks" "$token" '{"title":"Capture measurements","status":"todo"}'
-  require_http_ok
+  local outbox_row status outbox_id attempt_no
+  local poll
+  for ((poll = 1; poll <= 30; poll++)); do
+    api_call "GET" "/notifications/outbox?limit=100" "$studio_token"
+    require_http_ok
 
-  echo "Posting one message..."
-  api_call "POST" "/assignments/${assignment_id}/messages" "$token" '{"body":"Field team notified for demo run."}'
-  require_http_ok
+    outbox_row="$(json_eval_optional "$API_LAST_BODY" "Array.isArray(data) ? (data.find((row) => row.idempotency_key === '${idempotency_key}') ?? null) : null")"
 
-  TMP_DOC="$(mktemp /tmp/zenops-demo-doc-XXXXXX.txt)"
-  cat >"$TMP_DOC" <<'EOF'
-ZenOps demo attachment.
-This file is created by scripts/demo.sh.
-EOF
-  local size_bytes
-  size_bytes="$(wc -c <"$TMP_DOC" | tr -d ' ')"
+    if [[ -n "$outbox_row" ]]; then
+      status="$(json_eval "$outbox_row" "data.status")"
+      outbox_id="$(json_eval "$outbox_row" "data.id")"
+      attempt_no="$(json_eval_optional "$outbox_row" "data.latest_attempt ? data.latest_attempt.attempt_no : null")"
 
-  echo "Presigning document upload..."
-  api_call "POST" "/files/presign-upload" "$token" "{\"purpose\":\"reference\",\"filename\":\"demo-note.txt\",\"content_type\":\"text/plain\",\"size_bytes\":${size_bytes}}"
-  require_http_ok
-  local document_id upload_url upload_content_type upload_local_path
-  document_id="$(json_eval "$API_LAST_BODY" "data.document_id")"
-  upload_url="$(json_eval "$API_LAST_BODY" "data.upload.url")"
-  upload_content_type="$(json_eval_optional "$API_LAST_BODY" "data.upload.headers['content-type']")"
-  upload_local_path="$(json_eval_optional "$API_LAST_BODY" "data.upload.headers['x-local-file-path']")"
+      if [[ "$status" == "sent" && "$attempt_no" == "1" ]]; then
+        break
+      fi
+    fi
 
-  echo "Uploading demo document payload (best effort)..."
-  local upload_cmd=(curl -sS -o /dev/null -X PUT "$upload_url" --data-binary "@${TMP_DOC}")
-  if [[ -n "$upload_content_type" ]]; then
-    upload_cmd+=(-H "content-type: ${upload_content_type}")
-  fi
-  if [[ -n "$upload_local_path" ]]; then
-    upload_cmd+=(-H "x-local-file-path: ${upload_local_path}")
-  fi
-  if ! "${upload_cmd[@]}"; then
-    echo "WARN: direct upload request failed; continuing because confirm endpoint does not require object verification in local demo mode."
-  fi
+    sleep 1
+  done
 
-  echo "Confirming upload..."
-  api_call "POST" "/files/confirm-upload" "$token" "{\"document_id\":\"${document_id}\"}"
-  require_http_ok
-
-  echo "Attaching document to assignment..."
-  api_call "POST" "/assignments/${assignment_id}/attach-document" "$token" "{\"document_id\":\"${document_id}\",\"purpose\":\"reference\"}"
-  require_http_ok
-
-  echo "Fetching assignment detail..."
-  api_call "GET" "/assignments/${assignment_id}" "$token"
-  require_http_ok
-
-  local task_count message_count document_count activity_count
-  task_count="$(json_eval "$API_LAST_BODY" "Array.isArray(data.tasks) ? data.tasks.length : -1")"
-  message_count="$(json_eval "$API_LAST_BODY" "Array.isArray(data.messages) ? data.messages.length : -1")"
-  document_count="$(json_eval "$API_LAST_BODY" "Array.isArray(data.documents) ? data.documents.length : -1")"
-  activity_count="$(json_eval "$API_LAST_BODY" "Array.isArray(data.activities) ? data.activities.length : -1")"
-
-  local pass=true
-  [[ "$task_count" == "1" ]] || pass=false
-  [[ "$message_count" == "1" ]] || pass=false
-  [[ "$document_count" == "1" ]] || pass=false
-  [[ "$activity_count" -ge 4 ]] || pass=false
-
-  echo
-  echo "Demo Summary"
-  echo "  assignment_id: ${assignment_id}"
-  echo "  tasks: ${task_count} (expected 1)"
-  echo "  messages: ${message_count} (expected 1)"
-  echo "  documents: ${document_count} (expected 1)"
-  echo "  activities: ${activity_count} (expected >= 4)"
-
-  if [[ "$pass" == "true" ]]; then
-    echo "PASS: assignment demo flow completed successfully."
-  else
-    echo "FAIL: assignment demo flow did not meet expected counts."
+  if [[ -z "$outbox_row" ]]; then
+    echo "FAIL: assignment notification outbox row was not created"
     exit 1
   fi
+
+  if [[ "${status:-}" != "sent" ]]; then
+    echo "FAIL: outbox row did not reach sent state"
+    echo "status=${status:-unknown} outbox_id=${outbox_id:-unknown}"
+    exit 1
+  fi
+
+  if [[ "${attempt_no:-}" != "1" ]]; then
+    echo "FAIL: expected exactly one attempt, got ${attempt_no:-none}"
+    exit 1
+  fi
+
+  echo
+  echo "PASS notifications demo"
+  echo "assignment_id=${assignment_id}"
+  echo "outbox_id=${outbox_id}"
+  echo "status=${status} attempts=${attempt_no}"
 }
 
 main "$@"
