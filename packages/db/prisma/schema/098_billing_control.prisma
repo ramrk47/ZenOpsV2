@@ -12,6 +12,7 @@ model BillingAccount {
   subscriptions           BillingSubscription[]
   creditReservations      BillingCreditReservation[]
   creditLedger            BillingCreditLedger[]
+  creditBalance           BillingCreditBalance?
   usageEvents             BillingUsageEvent[]
   serviceInvoices         ServiceInvoice[]
   serviceInvoiceSequences ServiceInvoiceSequence[]
@@ -20,6 +21,21 @@ model BillingAccount {
   @@unique([externalKey])
   @@index([tenantId, accountType, status])
   @@map("billing_accounts")
+}
+
+model BillingCreditBalance {
+  id               String         @id @default(uuid()) @db.Uuid
+  tenantId         String         @map("tenant_id") @db.Uuid
+  accountId        String         @unique @map("account_id") @db.Uuid
+  walletBalance    Int            @default(0) @map("wallet_balance")
+  reservedBalance  Int            @default(0) @map("reserved_balance")
+  availableBalance Int            @default(0) @map("available_balance")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  account          BillingAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, accountId])
+  @@map("billing_credit_balances")
 }
 
 model BillingPolicy {
