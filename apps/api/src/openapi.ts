@@ -31,10 +31,17 @@ const document = {
       post: { summary: 'Grant/topup/adjust credits for account', responses: { '200': { description: 'OK' } } }
     },
     '/v1/control/subscriptions': {
-      get: { summary: 'Control-plane subscriptions list', responses: { '200': { description: 'OK' } } }
+      get: { summary: 'Control-plane subscriptions list', responses: { '200': { description: 'OK' } } },
+      post: { summary: 'Create tenant subscription', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/control/subscriptions/{id}': {
+      patch: { summary: 'Update subscription status/provider fields', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/control/subscriptions/{id}/refill': {
+      post: { summary: 'Trigger manual subscription refill', responses: { '200': { description: 'OK' } } }
     },
     '/v1/control/subscriptions/assign': {
-      post: { summary: 'Assign plan subscription to account', responses: { '200': { description: 'OK' } } }
+      post: { summary: 'Backward-compatible subscription assign route', responses: { '200': { description: 'OK' } } }
     },
     '/v1/control/credits': {
       get: { summary: 'Control-plane credits ledger', responses: { '200': { description: 'OK' } } }
@@ -59,6 +66,9 @@ const document = {
     },
     '/v1/control/credits/reconcile': {
       post: { summary: 'Reconcile stuck credit reservations (cron-safe)', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/control/onboard': {
+      post: { summary: 'Studio onboarding: tenant + owner + default postpaid billing account', responses: { '200': { description: 'OK' } } }
     },
     '/v1/auth/login': {
       post: { summary: 'Issue local JWT', responses: { '200': { description: 'Token issued' } } }
@@ -227,6 +237,15 @@ const document = {
     '/v1/billing/me': {
       get: { summary: 'Get tenant billing summary for current period', responses: { '200': { description: 'OK' } } }
     },
+    '/v1/billing/subscription': {
+      get: { summary: 'Get active tenant subscription', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/billing/credits/summary': {
+      get: { summary: 'Get tenant credit summary', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/billing/subscriptions/refill-due': {
+      post: { summary: 'Service-trigger due subscription refill processing', responses: { '200': { description: 'OK' } } }
+    },
     '/v1/billing/invoices': {
       get: { summary: 'List tenant invoices', responses: { '200': { description: 'OK' } } }
     },
@@ -282,6 +301,12 @@ const document = {
     },
     '/v1/webhooks/twilio/whatsapp': {
       post: { summary: 'Twilio WhatsApp webhook ingestion', responses: { '200': { description: 'Accepted' } } }
+    },
+    '/v1/webhooks/stripe': {
+      post: { summary: 'Stripe subscription webhook ingestion', responses: { '200': { description: 'Accepted' } } }
+    },
+    '/v1/webhooks/razorpay': {
+      post: { summary: 'Razorpay subscription webhook ingestion', responses: { '200': { description: 'Accepted' } } }
     },
     '/v1/files/presign-upload': {
       post: { summary: 'Create document record and presign upload', responses: { '200': { description: 'OK' } } }
