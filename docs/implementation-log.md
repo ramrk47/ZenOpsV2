@@ -21,6 +21,21 @@ Last updated: 2026-02-15
   - `docs/m4.7-dual-vps-launch-readiness.md`
   - `docs/m4.7-smoke-checklist.md`
 
+### 0.1) M4.8 Billing Operator Surfaces (Follow-up)
+- Added Studio-operator APIs for credit operations and observability:
+  - account-level status read
+  - tenant credit aggregate read
+  - reservations listing
+  - combined billing timeline feed
+  - studio-triggered reserve/consume/release actions
+- Reworked `apps/studio` into a billing control screen:
+  - account selector
+  - policy switcher (POSTPAID/CREDIT)
+  - wallet/reserved/available cards
+  - credit grant and manual reserve actions
+  - reservations table with consume/release actions
+  - merged billing timeline list
+
 ### 1) Foundation Scaffold (Monorepo + Apps + Packages)
 - Built Turborepo + pnpm monorepo structure.
 - Apps created:

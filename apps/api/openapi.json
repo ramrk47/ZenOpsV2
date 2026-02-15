@@ -27,30 +27,148 @@
     },
     "/v1/control/tenant": {
       "get": {
-        "summary": "Control-plane tenant registry (reserved)",
+        "summary": "Control-plane billing accounts list",
         "responses": {
-          "501": {
-            "description": "Not implemented"
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/control/accounts": {
+      "post": {
+        "summary": "Create or upsert billing account",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/control/accounts/{id}/status": {
+      "get": {
+        "summary": "Get control-plane billing account status",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Set account status ACTIVE or SUSPENDED",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/control/accounts/{id}/policy": {
+      "patch": {
+        "summary": "Set account billing policy (POSTPAID or CREDIT)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/control/accounts/{id}/credits/grant": {
+      "post": {
+        "summary": "Grant/topup/adjust credits for account",
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
     },
     "/v1/control/subscriptions": {
       "get": {
-        "summary": "Control-plane subscriptions (reserved)",
+        "summary": "Control-plane subscriptions list",
         "responses": {
-          "501": {
-            "description": "Not implemented"
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/control/subscriptions/assign": {
+      "post": {
+        "summary": "Assign plan subscription to account",
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
     },
     "/v1/control/credits": {
       "get": {
-        "summary": "Control-plane credits ledger (reserved)",
+        "summary": "Control-plane credits ledger",
         "responses": {
-          "501": {
-            "description": "Not implemented"
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/control/credits/tenant/{tenantId}": {
+      "get": {
+        "summary": "Tenant-level credit aggregate and account rollup",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/control/credits/reservations": {
+      "get": {
+        "summary": "List credit reservations for account/tenant",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/control/credits/timeline": {
+      "get": {
+        "summary": "Combined billing timeline feed",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/control/credits/reserve": {
+      "post": {
+        "summary": "Studio reserve credits",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/control/credits/consume": {
+      "post": {
+        "summary": "Studio consume reserved credits",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/control/credits/release": {
+      "post": {
+        "summary": "Studio release reserved credits",
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }

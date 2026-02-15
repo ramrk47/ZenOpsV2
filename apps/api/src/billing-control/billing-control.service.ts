@@ -300,6 +300,62 @@ export class BillingControlService {
     return this.getAccountStatus(tx, account.id);
   }
 
+  async getTenantCreditStatus(tx: TxClient, tenantId: string) {
+    const accounts = await tx.billingAccount.findMany({
+      where: {
+        tenantId
+      },
+      include: {
+        policy: true
+      },
+      orderBy: [{ createdAt: 'desc' }]
+    });
+
+    const summaries = await Promise.all(
+      accounts.map(async (account) => {
+        const policy =
+          account.policy ??
+          (await this.ensureBillingPolicy(tx, account.id, {
+            billing_mode: 'postpaid',
+            payment_terms_days: account.defaultPaymentTermsDays,
+            currency: 'INR',
+            is_enabled: true
+          }));
+        const credit = await this.computeCreditBalances(tx, account.id);
+        return {
+          account_id: account.id,
+          external_key: account.externalKey,
+          display_name: account.displayName,
+          account_type: account.accountType.toUpperCase(),
+          account_status: account.status.toUpperCase(),
+          billing_mode: policy.billingMode.toUpperCase(),
+          payment_terms_days: policy.paymentTermsDays,
+          credit
+        };
+      })
+    );
+
+    const totals = summaries.reduce(
+      (acc, row) => ({
+        balance_total: acc.balance_total + row.credit.wallet,
+        reserved_total: acc.reserved_total + row.credit.reserved,
+        available_total: acc.available_total + row.credit.available
+      }),
+      {
+        balance_total: 0,
+        reserved_total: 0,
+        available_total: 0
+      }
+    );
+
+    return {
+      tenant_id: tenantId,
+      account_count: summaries.length,
+      ...totals,
+      accounts: summaries
+    };
+  }
+
   async setBillingPolicy(tx: TxClient, accountId: string, input: BillingPolicyUpdateInput) {
     const account = await this.getAccountOr404(tx, { accountId });
     const policy = await this.ensureBillingPolicy(tx, account.id, input);
@@ -334,6 +390,114 @@ export class BillingControlService {
       metadata_json: row.metadataJson,
       created_at: row.createdAt.toISOString()
     }));
+  }
+
+  async listCreditReservations(
+    tx: TxClient,
+    input: {
+      account_id?: string;
+      tenant_id?: string;
+      status?: ReservationStatus;
+      limit?: number;
+    }
+  ) {
+    const rows = await tx.billingCreditReservation.findMany({
+      where: {
+        ...(input.account_id ? { accountId: input.account_id } : {}),
+        ...(input.tenant_id ? { tenantId: input.tenant_id } : {}),
+        ...(input.status ? { status: input.status } : {})
+      },
+      orderBy: [{ createdAt: 'desc' }],
+      take: Math.min(Math.max(input.limit ?? 200, 1), 500)
+    });
+    return rows.map((row) => this.serializeReservation(row));
+  }
+
+  async listBillingTimeline(
+    tx: TxClient,
+    input: {
+      account_id?: string;
+      tenant_id?: string;
+      limit?: number;
+    }
+  ) {
+    if (!input.account_id && !input.tenant_id) {
+      throw new BadRequestException('account_id or tenant_id is required');
+    }
+
+    const take = Math.min(Math.max(input.limit ?? 120, 1), 500);
+    const where = {
+      ...(input.account_id ? { accountId: input.account_id } : {}),
+      ...(input.tenant_id ? { tenantId: input.tenant_id } : {})
+    };
+
+    const [ledgerRows, usageRows, invoiceRows] = await Promise.all([
+      tx.billingCreditLedger.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }],
+        take
+      }),
+      tx.billingUsageEvent.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }],
+        take
+      }),
+      tx.serviceInvoice.findMany({
+        where,
+        orderBy: [{ updatedAt: 'desc' }],
+        take
+      })
+    ]);
+
+    const ledgerEvents = ledgerRows.map((row) => ({
+      timestamp: row.createdAt.toISOString(),
+      source: 'CREDITS_LEDGER',
+      account_id: row.accountId,
+      tenant_id: row.tenantId,
+      event_type: row.reason.toUpperCase(),
+      ref_type: row.refType,
+      ref_id: row.refId,
+      amount: row.delta,
+      idempotency_key: row.idempotencyKey,
+      payload_json: row.metadataJson
+    }));
+
+    const usageEvents = usageRows.map((row) => ({
+      timestamp: row.createdAt.toISOString(),
+      source: `USAGE_${row.sourceSystem.toUpperCase()}`,
+      account_id: row.accountId,
+      tenant_id: row.tenantId,
+      event_type: row.eventType,
+      ref_type: null as string | null,
+      ref_id: null as string | null,
+      amount: null as number | null,
+      idempotency_key: row.idempotencyKey,
+      payload_json: row.payloadJson
+    }));
+
+    const invoiceEvents = invoiceRows.map((row) => ({
+      timestamp: row.updatedAt.toISOString(),
+      source: 'SERVICE_INVOICE',
+      account_id: row.accountId,
+      tenant_id: row.tenantId,
+      event_type: `INVOICE_${invoiceStatusOut(row.status)}`,
+      ref_type: 'service_invoice',
+      ref_id: row.id,
+      amount: decimalToNumber(row.totalAmount),
+      idempotency_key: null as string | null,
+      payload_json: {
+        invoice_id: row.id,
+        invoice_number: row.invoiceNumber,
+        status: invoiceStatusOut(row.status),
+        amount_due: decimalToNumber(row.amountDue),
+        amount_paid: decimalToNumber(row.amountPaid),
+        is_paid: row.isPaid
+      } as Prisma.JsonValue
+    }));
+
+    return [...ledgerEvents, ...usageEvents, ...invoiceEvents]
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+      .slice(0, take);
   }
 
   async grantCredits(tx: TxClient, accountId: string, input: BillingCreditGrantInput) {
@@ -1337,6 +1501,7 @@ export class BillingControlService {
 
   private serializeReservation(row: {
     id: string;
+    tenantId: string;
     accountId: string;
     amount: number;
     status: ReservationStatus;
@@ -1349,6 +1514,7 @@ export class BillingControlService {
   }) {
     return {
       id: row.id,
+      tenant_id: row.tenantId,
       account_id: row.accountId,
       amount: row.amount,
       status: row.status.toUpperCase(),

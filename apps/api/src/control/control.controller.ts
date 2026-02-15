@@ -5,7 +5,15 @@ import type { JwtClaims } from '@zenops/auth';
 import { RequireAudience, RequireCapabilities } from '../auth/public.decorator.js';
 import { Capabilities } from '../auth/rbac.js';
 import { RequestContextService } from '../db/request-context.service.js';
-import { BillingControlService, type BillingAccountCreateInput, type BillingCreditGrantInput, type BillingPolicyUpdateInput } from '../billing-control/billing-control.service.js';
+import {
+  BillingControlService,
+  type BillingAccountCreateInput,
+  type BillingCreditConsumeInput,
+  type BillingCreditGrantInput,
+  type BillingCreditReleaseInput,
+  type BillingCreditReserveInput,
+  type BillingPolicyUpdateInput
+} from '../billing-control/billing-control.service.js';
 
 const AccountCreateSchema = z.object({
   tenant_id: z.string().uuid(),
@@ -33,6 +41,24 @@ const CreditGrantSchema = z.object({
   ref_id: z.string().optional(),
   idempotency_key: z.string().min(1),
   metadata_json: z.record(z.any()).optional()
+});
+
+const CreditReserveSchema = z.object({
+  account_id: z.string().uuid().optional(),
+  external_key: z.string().min(1).optional(),
+  amount: z.number().int().positive().optional(),
+  ref_type: z.string().min(1),
+  ref_id: z.string().min(1),
+  idempotency_key: z.string().min(1)
+});
+
+const CreditSettleSchema = z.object({
+  account_id: z.string().uuid().optional(),
+  external_key: z.string().min(1).optional(),
+  reservation_id: z.string().uuid().optional(),
+  ref_type: z.string().min(1).optional(),
+  ref_id: z.string().min(1).optional(),
+  idempotency_key: z.string().min(1)
 });
 
 const SubscriptionAssignSchema = z.object({
@@ -70,6 +96,13 @@ export class ControlController {
   createAccount(@Claims() claims: JwtClaims, @Body() body: unknown) {
     const input = parseOrThrow<BillingAccountCreateInput>(AccountCreateSchema, body);
     return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.createAccount(tx, input));
+  }
+
+  @Get('accounts/:id/status')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.masterDataRead)
+  getAccountStatus(@Claims() claims: JwtClaims, @Param('id') id: string) {
+    return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.getAccountStatus(tx, id));
   }
 
   @Patch('accounts/:id/policy')
@@ -121,5 +154,76 @@ export class ControlController {
   @RequireCapabilities(Capabilities.masterDataRead)
   listCredits(@Claims() claims: JwtClaims, @Query('account_id') accountId?: string) {
     return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.listCreditLedger(tx, accountId));
+  }
+
+  @Get('credits/tenant/:tenantId')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.masterDataRead)
+  getTenantCredits(@Claims() claims: JwtClaims, @Param('tenantId') tenantId: string) {
+    return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.getTenantCreditStatus(tx, tenantId));
+  }
+
+  @Get('credits/reservations')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.masterDataRead)
+  listCreditReservations(
+    @Claims() claims: JwtClaims,
+    @Query('account_id') accountId?: string,
+    @Query('tenant_id') tenantId?: string,
+    @Query('status') status?: 'active' | 'consumed' | 'released',
+    @Query('limit') limit?: string
+  ) {
+    const parsedLimit = limit ? Number.parseInt(limit, 10) : undefined;
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.billingControlService.listCreditReservations(tx, {
+        account_id: accountId,
+        tenant_id: tenantId,
+        status,
+        limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined
+      })
+    );
+  }
+
+  @Get('credits/timeline')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.masterDataRead)
+  listCreditTimeline(
+    @Claims() claims: JwtClaims,
+    @Query('account_id') accountId?: string,
+    @Query('tenant_id') tenantId?: string,
+    @Query('limit') limit?: string
+  ) {
+    const parsedLimit = limit ? Number.parseInt(limit, 10) : undefined;
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.billingControlService.listBillingTimeline(tx, {
+        account_id: accountId,
+        tenant_id: tenantId,
+        limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined
+      })
+    );
+  }
+
+  @Post('credits/reserve')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.invoicesWrite)
+  reserveCredits(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<BillingCreditReserveInput>(CreditReserveSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.reserveCredits(tx, input));
+  }
+
+  @Post('credits/consume')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.invoicesWrite)
+  consumeCredits(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<BillingCreditConsumeInput>(CreditSettleSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.consumeCredits(tx, input));
+  }
+
+  @Post('credits/release')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.invoicesWrite)
+  releaseCredits(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<BillingCreditReleaseInput>(CreditSettleSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.releaseCredits(tx, input));
   }
 }

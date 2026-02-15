@@ -2,6 +2,22 @@
 
 ## 2026-02-15
 
+### Added (M4.8 Billing Operator Surfaces)
+- V2 control-plane credit operations expanded for Studio operator usage:
+  - `GET /v1/control/accounts/:id/status`
+  - `GET /v1/control/credits/tenant/:tenantId`
+  - `GET /v1/control/credits/reservations`
+  - `GET /v1/control/credits/timeline`
+  - `POST /v1/control/credits/reserve`
+  - `POST /v1/control/credits/consume`
+  - `POST /v1/control/credits/release`
+- Studio app moved from diagnostics-only to billing-first control surface:
+  - account picker + policy toggle
+  - credit wallet/reserved/available cards
+  - grant credits and manual reserve controls
+  - reservations action table (consume/release)
+  - merged billing timeline (ledger + usage + service invoices)
+
 ### Added (M4.7 Billing Spine + V1 Handshake Enablement)
 - Billing control-plane and service invoicing foundations in V2:
   - new Prisma billing models and enums
