@@ -11,6 +11,18 @@ const document = {
     '/v1/health': {
       get: { summary: 'Health check', responses: { '200': { description: 'OK' } } }
     },
+    '/v1/meta': {
+      get: { summary: 'Service identity metadata', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/control/tenant': {
+      get: { summary: 'Control-plane tenant registry (reserved)', responses: { '501': { description: 'Not implemented' } } }
+    },
+    '/v1/control/subscriptions': {
+      get: { summary: 'Control-plane subscriptions (reserved)', responses: { '501': { description: 'Not implemented' } } }
+    },
+    '/v1/control/credits': {
+      get: { summary: 'Control-plane credits ledger (reserved)', responses: { '501': { description: 'Not implemented' } } }
+    },
     '/v1/auth/login': {
       post: { summary: 'Issue local JWT', responses: { '200': { description: 'Token issued' } } }
     },

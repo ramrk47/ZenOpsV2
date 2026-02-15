@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { HealthController } from './common/health.controller.js';
+import { MetaController } from './common/meta.controller.js';
 import { AuthController } from './auth/auth.controller.js';
 import { DomainController } from './domain/domain.controller.js';
 import { JwtAuthGuard } from './auth/jwt-auth.guard.js';
@@ -17,9 +18,10 @@ import { BillingService } from './billing/billing.service.js';
 import { NotificationsController } from './notifications/notifications.controller.js';
 import { NotificationQueueService } from './notifications/notification-queue.service.js';
 import { NotificationsService } from './notifications/notifications.service.js';
+import { ControlController } from './control/control.controller.js';
 
 @Module({
-  controllers: [HealthController, AuthController, DomainController, NotificationsController],
+  controllers: [HealthController, MetaController, AuthController, DomainController, NotificationsController, ControlController],
   providers: [
     {
       provide: PrismaService,
