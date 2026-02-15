@@ -22,6 +22,53 @@ const document = {
       get: { summary: 'List users', responses: { '200': { description: 'OK' } } },
       post: { summary: 'Create user', responses: { '201': { description: 'Created' } } }
     },
+    '/v1/banks': {
+      get: { summary: 'List banks', responses: { '200': { description: 'OK' } } },
+      post: { summary: 'Create bank', responses: { '201': { description: 'Created' } } }
+    },
+    '/v1/banks/{id}/approve': {
+      post: { summary: 'Approve bank', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/bank-branches': {
+      get: { summary: 'List bank branches', responses: { '200': { description: 'OK' } } },
+      post: { summary: 'Create bank branch', responses: { '201': { description: 'Created' } } }
+    },
+    '/v1/bank-branches/{id}/approve': {
+      post: { summary: 'Approve bank branch', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/client-orgs': {
+      get: { summary: 'List client orgs', responses: { '200': { description: 'OK' } } },
+      post: { summary: 'Create client org', responses: { '201': { description: 'Created' } } }
+    },
+    '/v1/client-orgs/{id}/approve': {
+      post: { summary: 'Approve client org', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/contacts': {
+      get: { summary: 'List contacts', responses: { '200': { description: 'OK' } } },
+      post: { summary: 'Create contact', responses: { '201': { description: 'Created' } } }
+    },
+    '/v1/branch-contacts': {
+      get: { summary: 'List branch contacts', responses: { '200': { description: 'OK' } } },
+      post: { summary: 'Create branch contact', responses: { '201': { description: 'Created' } } }
+    },
+    '/v1/properties': {
+      get: { summary: 'List properties', responses: { '200': { description: 'OK' } } },
+      post: { summary: 'Create property', responses: { '201': { description: 'Created' } } }
+    },
+    '/v1/channels': {
+      get: { summary: 'List channels', responses: { '200': { description: 'OK' } } },
+      post: { summary: 'Create channel', responses: { '201': { description: 'Created' } } }
+    },
+    '/v1/channels/{id}/approve': {
+      post: { summary: 'Approve channel', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/channel-requests': {
+      get: { summary: 'List channel requests', responses: { '200': { description: 'OK' } } },
+      post: { summary: 'Create channel request', responses: { '201': { description: 'Created' } } }
+    },
+    '/v1/channel-requests/{id}/status': {
+      post: { summary: 'Review channel request status', responses: { '200': { description: 'OK' } } }
+    },
     '/v1/employees': {
       get: { summary: 'List employees', responses: { '200': { description: 'OK' } } },
       post: { summary: 'Create employee', responses: { '201': { description: 'Created' } } }
@@ -64,10 +111,22 @@ const document = {
       get: { summary: 'List assignments with filters', responses: { '200': { description: 'OK' } } },
       post: { summary: 'Create assignment', responses: { '201': { description: 'Created' } } }
     },
+    '/v1/analytics/overview': {
+      get: { summary: 'Get assignment/task/channel analytics overview', responses: { '200': { description: 'OK' } } }
+    },
     '/v1/assignments/{id}': {
       get: { summary: 'Get assignment detail graph', responses: { '200': { description: 'OK' } } },
       patch: { summary: 'Update assignment fields/status', responses: { '200': { description: 'OK' } } },
       delete: { summary: 'Soft-delete assignment', responses: { '200': { description: 'Deleted' } } }
+    },
+    '/v1/assignments/{id}/status': {
+      post: { summary: 'Update assignment lifecycle status', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/assignments/{id}/status-history': {
+      get: { summary: 'List assignment lifecycle status history', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/assignments/{id}/transition': {
+      post: { summary: 'Transition assignment stage', responses: { '200': { description: 'OK' } } }
     },
     '/v1/assignments/{id}/assignees': {
       post: { summary: 'Add assignment assignee', responses: { '200': { description: 'OK' } } }
@@ -82,6 +141,17 @@ const document = {
     '/v1/assignments/{id}/tasks/{task_id}': {
       patch: { summary: 'Update assignment task', responses: { '200': { description: 'OK' } } },
       delete: { summary: 'Delete assignment task', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/tasks': {
+      get: { summary: 'List tasks', responses: { '200': { description: 'OK' } } },
+      post: { summary: 'Create task', responses: { '201': { description: 'Created' } } }
+    },
+    '/v1/tasks/{id}': {
+      patch: { summary: 'Update task', responses: { '200': { description: 'OK' } } },
+      delete: { summary: 'Delete task', responses: { '200': { description: 'Deleted' } } }
+    },
+    '/v1/tasks/{id}/mark-done': {
+      post: { summary: 'Mark task done', responses: { '200': { description: 'OK' } } }
     },
     '/v1/assignments/{id}/messages': {
       post: { summary: 'Post assignment message', responses: { '200': { description: 'OK' } } }

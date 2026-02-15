@@ -13,6 +13,7 @@ import {
   Req
 } from '@nestjs/common';
 import {
+  UuidSchema,
   AssignmentAssigneeAddSchema,
   type AssignmentAssigneeAdd,
   AssignmentAttachDocumentSchema,
@@ -23,6 +24,10 @@ import {
   type AssignmentListQuery,
   AssignmentMessageCreateSchema,
   type AssignmentMessageCreate,
+  AssignmentTransitionSchema,
+  type AssignmentTransition,
+  AssignmentStatusChangeSchema,
+  type AssignmentStatusChange,
   AssignmentTaskCreateSchema,
   type AssignmentTaskCreate,
   AssignmentTaskUpdateSchema,
@@ -45,6 +50,32 @@ import {
   type FileConfirmUploadRequest,
   FilePresignUploadRequestSchema,
   type FilePresignUploadRequest,
+  MasterDataSearchQuerySchema,
+  type MasterDataSearchQuery,
+  BankCreateSchema,
+  type BankCreate,
+  BankBranchCreateSchema,
+  type BankBranchCreate,
+  ClientOrgCreateSchema,
+  type ClientOrgCreate,
+  ContactCreateSchema,
+  type ContactCreate,
+  PropertyCreateSchema,
+  type PropertyCreate,
+  ChannelCreateSchema,
+  type ChannelCreate,
+  BranchContactCreateSchema,
+  type BranchContactCreate,
+  TaskCreateSchema,
+  type TaskCreate,
+  TaskUpdateSchema,
+  type TaskUpdate,
+  TaskListQuerySchema,
+  type TaskListQuery,
+  ChannelRequestCreateSchema,
+  type ChannelRequestCreate,
+  ChannelRequestUpdateSchema,
+  type ChannelRequestUpdate,
   RoleContactPointUpsertSchema,
   type RoleContactPointUpsert,
   NotificationRouteCreateSchema,
@@ -125,6 +156,192 @@ export class DomainController {
   async createUser(@Claims() claims: JwtClaims, @Body() body: unknown) {
     const input = parseOrThrow<UserCreate>(UserCreateSchema, body);
     return this.requestContext.runWithClaims(claims, (tx) => this.domainService.createUser(tx, input));
+  }
+
+  @Get('banks')
+  @RequireCapabilities(Capabilities.masterDataRead)
+  async listBanks(@Claims() claims: JwtClaims, @Query() query: Record<string, string | undefined>) {
+    const parsed = MasterDataSearchQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error);
+    }
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.listBanks(tx, claims, parsed.data as MasterDataSearchQuery)
+    );
+  }
+
+  @Post('banks')
+  @RequireCapabilities(Capabilities.masterDataWrite)
+  async createBank(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<BankCreate>(BankCreateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.createBank(tx, claims, input));
+  }
+
+  @Post('banks/:id/approve')
+  @RequireCapabilities(Capabilities.masterDataApprove)
+  async approveBank(@Claims() claims: JwtClaims, @Param('id') id: string) {
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.approveBank(tx, claims, id));
+  }
+
+  @Get('bank-branches')
+  @RequireCapabilities(Capabilities.masterDataRead)
+  async listBankBranches(@Claims() claims: JwtClaims, @Query() query: Record<string, string | undefined>) {
+    const parsed = MasterDataSearchQuerySchema.extend({
+      bank_id: UuidSchema.optional()
+    }).safeParse(query);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error);
+    }
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.listBankBranches(tx, claims, parsed.data as MasterDataSearchQuery & { bank_id?: string })
+    );
+  }
+
+  @Post('bank-branches')
+  @RequireCapabilities(Capabilities.masterDataWrite)
+  async createBankBranch(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<BankBranchCreate>(BankBranchCreateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.createBankBranch(tx, claims, input));
+  }
+
+  @Post('bank-branches/:id/approve')
+  @RequireCapabilities(Capabilities.masterDataApprove)
+  async approveBankBranch(@Claims() claims: JwtClaims, @Param('id') id: string) {
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.approveBankBranch(tx, claims, id));
+  }
+
+  @Get('client-orgs')
+  @RequireCapabilities(Capabilities.masterDataRead)
+  async listClientOrgs(@Claims() claims: JwtClaims, @Query() query: Record<string, string | undefined>) {
+    const parsed = MasterDataSearchQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error);
+    }
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.listClientOrgs(tx, claims, parsed.data as MasterDataSearchQuery)
+    );
+  }
+
+  @Post('client-orgs')
+  @RequireCapabilities(Capabilities.masterDataWrite)
+  async createClientOrg(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<ClientOrgCreate>(ClientOrgCreateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.createClientOrg(tx, claims, input));
+  }
+
+  @Post('client-orgs/:id/approve')
+  @RequireCapabilities(Capabilities.masterDataApprove)
+  async approveClientOrg(@Claims() claims: JwtClaims, @Param('id') id: string) {
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.approveClientOrg(tx, claims, id));
+  }
+
+  @Get('contacts')
+  @RequireCapabilities(Capabilities.masterDataRead)
+  async listContacts(@Claims() claims: JwtClaims, @Query() query: Record<string, string | undefined>) {
+    const parsed = MasterDataSearchQuerySchema.extend({
+      client_org_id: UuidSchema.optional()
+    }).safeParse(query);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error);
+    }
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.listContacts(tx, claims, parsed.data as MasterDataSearchQuery & { client_org_id?: string })
+    );
+  }
+
+  @Post('contacts')
+  @RequireCapabilities(Capabilities.masterDataWrite)
+  async createContact(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<ContactCreate>(ContactCreateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.createContact(tx, claims, input));
+  }
+
+  @Get('branch-contacts')
+  @RequireCapabilities(Capabilities.masterDataRead)
+  async listBranchContacts(@Claims() claims: JwtClaims, @Query() query: Record<string, string | undefined>) {
+    const parsed = MasterDataSearchQuerySchema.extend({
+      branch_id: UuidSchema.optional()
+    }).safeParse(query);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error);
+    }
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.listBranchContacts(tx, claims, parsed.data as MasterDataSearchQuery & { branch_id?: string })
+    );
+  }
+
+  @Post('branch-contacts')
+  @RequireCapabilities(Capabilities.masterDataWrite)
+  async createBranchContact(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<BranchContactCreate>(BranchContactCreateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.createBranchContact(tx, claims, input));
+  }
+
+  @Get('properties')
+  @RequireCapabilities(Capabilities.masterDataRead)
+  async listProperties(@Claims() claims: JwtClaims, @Query() query: Record<string, string | undefined>) {
+    const parsed = MasterDataSearchQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error);
+    }
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.listProperties(tx, claims, parsed.data as MasterDataSearchQuery)
+    );
+  }
+
+  @Post('properties')
+  @RequireCapabilities(Capabilities.masterDataWrite)
+  async createProperty(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<PropertyCreate>(PropertyCreateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.createProperty(tx, claims, input));
+  }
+
+  @Get('channels')
+  async listChannels(@Claims() claims: JwtClaims, @Query() query: Record<string, string | undefined>) {
+    const parsed = MasterDataSearchQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error);
+    }
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.listChannels(tx, claims, parsed.data as MasterDataSearchQuery)
+    );
+  }
+
+  @Post('channels')
+  async createChannel(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<ChannelCreate>(ChannelCreateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.createChannel(tx, claims, input));
+  }
+
+  @Post('channels/:id/approve')
+  @RequireCapabilities(Capabilities.masterDataApprove)
+  async approveChannel(@Claims() claims: JwtClaims, @Param('id') id: string) {
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.approveChannel(tx, claims, id));
+  }
+
+  @Get('channel-requests')
+  async listChannelRequests(@Claims() claims: JwtClaims, @Query() query: Record<string, string | undefined>) {
+    const mine = query.mine === 'true' || query.mine === '1';
+    const status = query.status as 'SUBMITTED' | 'ACCEPTED' | 'REJECTED' | undefined;
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.listChannelRequests(tx, claims, { mine, status })
+    );
+  }
+
+  @Post('channel-requests')
+  async createChannelRequest(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<ChannelRequestCreate>(ChannelRequestCreateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.createChannelRequest(tx, claims, input)
+    );
+  }
+
+  @Post('channel-requests/:id/status')
+  async updateChannelRequestStatus(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
+    const input = parseOrThrow<ChannelRequestUpdate>(ChannelRequestUpdateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.updateChannelRequestStatus(tx, claims, id, input)
+    );
   }
 
   @Get('employees')
@@ -271,6 +488,12 @@ export class DomainController {
     );
   }
 
+  @Get('analytics/overview')
+  @RequireCapabilities(Capabilities.tasksRead)
+  async getAnalyticsOverview(@Claims() claims: JwtClaims) {
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.getAnalyticsOverview(tx, claims));
+  }
+
   @Post('assignments')
   async createAssignment(@Claims() claims: JwtClaims, @Body() body: unknown) {
     const input = parseOrThrow<AssignmentCreate>(AssignmentCreateSchema, body);
@@ -287,6 +510,41 @@ export class DomainController {
     const input = parseOrThrow<AssignmentUpdate>(AssignmentUpdateSchema, body);
     return this.requestContext.runWithClaims(claims, (tx) =>
       this.domainService.patchAssignment(tx, claims, id, input)
+    );
+  }
+
+  @Post('assignments/:id/transition')
+  @RequireCapabilities(Capabilities.assignmentsTransition)
+  async transitionAssignment(
+    @Claims() claims: JwtClaims,
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: unknown
+  ) {
+    const input = parseOrThrow<AssignmentTransition>(AssignmentTransitionSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.transitionAssignment(tx, claims, id, input, req.requestId)
+    );
+  }
+
+  @Post('assignments/:id/status')
+  @RequireCapabilities(Capabilities.assignmentsTransition)
+  async changeAssignmentStatus(
+    @Claims() claims: JwtClaims,
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: unknown
+  ) {
+    const input = parseOrThrow<AssignmentStatusChange>(AssignmentStatusChangeSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.changeAssignmentStatus(tx, claims, id, input, req.requestId)
+    );
+  }
+
+  @Get('assignments/:id/status-history')
+  async listAssignmentStatusHistory(@Claims() claims: JwtClaims, @Param('id') id: string) {
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.listAssignmentStatusHistory(tx, claims, id)
     );
   }
 
@@ -314,7 +572,7 @@ export class DomainController {
   }
 
   @Get('assignments/:id/tasks')
-  async listTasks(@Claims() claims: JwtClaims, @Param('id') id: string) {
+  async listAssignmentTasks(@Claims() claims: JwtClaims, @Param('id') id: string) {
     return this.requestContext.runWithClaims(claims, (tx) =>
       this.domainService.listAssignmentTasks(tx, claims, id)
     );
@@ -346,6 +604,44 @@ export class DomainController {
     return this.requestContext.runWithClaims(claims, (tx) =>
       this.domainService.deleteAssignmentTask(tx, claims, id, taskId)
     );
+  }
+
+  @Get('tasks')
+  @RequireCapabilities(Capabilities.tasksRead)
+  async listTasks(@Claims() claims: JwtClaims, @Query() query: Record<string, string | undefined>) {
+    const parsed = TaskListQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error);
+    }
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.domainService.listTasks(tx, claims, parsed.data as TaskListQuery)
+    );
+  }
+
+  @Post('tasks')
+  @RequireCapabilities(Capabilities.tasksWrite)
+  async createTaskGlobal(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<TaskCreate>(TaskCreateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.createTask(tx, claims, input));
+  }
+
+  @Patch('tasks/:id')
+  @RequireCapabilities(Capabilities.tasksWrite)
+  async patchTaskGlobal(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
+    const input = parseOrThrow<TaskUpdate>(TaskUpdateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.patchTask(tx, claims, id, input));
+  }
+
+  @Delete('tasks/:id')
+  @RequireCapabilities(Capabilities.tasksWrite)
+  async deleteTaskGlobal(@Claims() claims: JwtClaims, @Param('id') id: string) {
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.deleteTask(tx, claims, id));
+  }
+
+  @Post('tasks/:id/mark-done')
+  @RequireCapabilities(Capabilities.tasksWrite)
+  async markTaskDone(@Claims() claims: JwtClaims, @Param('id') id: string) {
+    return this.requestContext.runWithClaims(claims, (tx) => this.domainService.markTaskDone(tx, claims, id));
   }
 
   @Post('assignments/:id/messages')

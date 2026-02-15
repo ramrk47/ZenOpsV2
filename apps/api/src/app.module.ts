@@ -8,6 +8,7 @@ import { PrismaService } from './db/prisma.service.js';
 import { RequestContextService } from './db/request-context.service.js';
 import { DomainService } from './domain/domain.service.js';
 import { ReportQueueService } from './queue/report-queue.service.js';
+import { AssignmentSignalsQueueService } from './queue/assignment-signals-queue.service.js';
 import { RequestIdMiddleware } from './common/request-id.middleware.js';
 import { loadLaunchModeConfig } from './common/launch-mode.js';
 import { loadEnv } from '@zenops/config';
@@ -28,6 +29,14 @@ import { NotificationsService } from './notifications/notifications.service.js';
       provide: ReportQueueService,
       useFactory: () =>
         new ReportQueueService(
+          process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
+          process.env.DISABLE_QUEUE === 'true'
+        )
+    },
+    {
+      provide: AssignmentSignalsQueueService,
+      useFactory: () =>
+        new AssignmentSignalsQueueService(
           process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
           process.env.DISABLE_QUEUE === 'true'
         )

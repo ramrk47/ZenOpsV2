@@ -8,15 +8,25 @@ import {
 } from '@nestjs/common';
 import type { JwtClaims } from '@zenops/auth';
 import type {
+  BankBranchCreate,
+  BankCreate,
   AssignmentAssigneeAdd,
   AssignmentAttachDocument,
   AssignmentCreate,
   AssignmentListQuery,
   AssignmentMessageCreate,
+  AssignmentStatusChange,
+  AnalyticsOverview,
   AssignmentTaskCreate,
   AssignmentTaskUpdate,
+  AssignmentTransition,
   AssignmentUpdate,
   AttendanceMark,
+  ChannelCreate,
+  ChannelRequestCreate,
+  ChannelRequestUpdate,
+  ClientOrgCreate,
+  ContactCreate,
   DocumentListQuery,
   DocumentMetadataPatch,
   DocumentTagsUpsert,
@@ -25,7 +35,13 @@ import type {
   EmployeeCreate,
   FileConfirmUploadRequest,
   FilePresignUploadRequest,
+  MasterDataSearchQuery,
   NotificationRouteCreate,
+  PropertyCreate,
+  BranchContactCreate,
+  TaskCreate,
+  TaskListQuery,
+  TaskUpdate,
   RoleContactPointUpsert,
   PayrollItemCreate,
   PayrollPeriodCreate,
@@ -41,6 +57,7 @@ import type { LaunchModeConfig } from '../common/launch-mode.js';
 import { BillingService } from '../billing/billing.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { Capabilities } from '../auth/rbac.js';
+import { AssignmentSignalsQueueService } from '../queue/assignment-signals-queue.service.js';
 
 export interface QueueResult {
   reportRequestId: string;
@@ -84,13 +101,63 @@ const toDateOnly = (value: Date | null | undefined): string | null => {
   return value.toISOString().slice(0, 10);
 };
 
+const ASSIGNMENT_STAGE_SEQUENCE = [
+  'draft_created',
+  'data_collected',
+  'qc_pending',
+  'qc_changes_requested',
+  'qc_approved',
+  'finalized',
+  'sent_to_client',
+  'billed',
+  'paid',
+  'closed'
+] as const;
+
+type AssignmentStageValue = (typeof ASSIGNMENT_STAGE_SEQUENCE)[number];
+
+const ASSIGNMENT_ALLOWED_TRANSITIONS: Record<AssignmentStageValue, AssignmentStageValue[]> = {
+  draft_created: ['data_collected'],
+  data_collected: ['qc_pending'],
+  qc_pending: ['qc_changes_requested', 'qc_approved'],
+  qc_changes_requested: ['data_collected'],
+  qc_approved: ['finalized', 'sent_to_client'],
+  finalized: ['sent_to_client'],
+  sent_to_client: ['billed'],
+  billed: ['paid'],
+  paid: ['closed'],
+  closed: []
+};
+
+const LIFECYCLE_STATUS_TO_STAGE: Record<
+  'DRAFT' | 'COLLECTING' | 'QC_PENDING' | 'CHANGES_REQUESTED' | 'QC_APPROVED' | 'DELIVERED' | 'BILLED' | 'PAID' | 'CLOSED',
+  AssignmentStageValue
+> = {
+  DRAFT: 'draft_created',
+  COLLECTING: 'data_collected',
+  QC_PENDING: 'qc_pending',
+  CHANGES_REQUESTED: 'qc_changes_requested',
+  QC_APPROVED: 'qc_approved',
+  DELIVERED: 'sent_to_client',
+  BILLED: 'billed',
+  PAID: 'paid',
+  CLOSED: 'closed'
+};
+
+const assignmentSignalKinds = ['overdue', 'stuck_in_qc', 'billing_pending'] as const;
+
+const utcDateBucket = (value = new Date()): string => {
+  return value.toISOString().slice(0, 10).replaceAll('-', '');
+};
+
 @Injectable()
 export class DomainService {
   constructor(
     @Inject('STORAGE_PROVIDER') private readonly storageProvider: StorageProvider,
     @Inject('LAUNCH_MODE_CONFIG') private readonly launchMode: LaunchModeConfig,
     private readonly billingService: BillingService,
-    private readonly notificationsService: NotificationsService
+    private readonly notificationsService: NotificationsService,
+    private readonly assignmentSignalsQueue: AssignmentSignalsQueueService
   ) {}
 
   async listTenants(tx: TxClient) {
@@ -111,6 +178,870 @@ export class DomainService {
 
   async createUser(tx: TxClient, input: UserCreate) {
     return tx.user.create({ data: input });
+  }
+
+  async listBanks(tx: TxClient, claims: JwtClaims, query: MasterDataSearchQuery) {
+    this.assertCapability(claims, Capabilities.masterDataRead);
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const rows = await tx.bank.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        ...(query.search
+          ? {
+              OR: [
+                { name: { contains: query.search, mode: 'insensitive' } },
+                { code: { contains: query.search, mode: 'insensitive' } }
+              ]
+            }
+          : {})
+      },
+      orderBy: [{ isVerified: 'desc' }, { name: 'asc' }],
+      take: query.limit
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      tenant_id: row.tenantId,
+      name: row.name,
+      code: row.code,
+      is_verified: row.isVerified,
+      reviewed_at: row.reviewedAt?.toISOString() ?? null,
+      reviewed_by_user_id: row.reviewedByUserId,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    }));
+  }
+
+  async createBank(tx: TxClient, claims: JwtClaims, input: BankCreate) {
+    this.assertCapability(claims, Capabilities.masterDataWrite);
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const row = await tx.bank.upsert({
+      where: {
+        tenantId_name: {
+          tenantId,
+          name: input.name
+        }
+      },
+      update: {
+        code: input.code ?? null,
+        deletedAt: null
+      },
+      create: {
+        tenantId,
+        name: input.name,
+        code: input.code ?? null,
+        isVerified: claims.roles.includes('super_admin')
+      }
+    });
+
+    return {
+      id: row.id,
+      tenant_id: row.tenantId,
+      name: row.name,
+      code: row.code,
+      is_verified: row.isVerified,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    };
+  }
+
+  async approveBank(tx: TxClient, claims: JwtClaims, bankId: string) {
+    this.assertCapability(claims, Capabilities.masterDataApprove);
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const row = await tx.bank.findFirst({
+      where: {
+        id: bankId,
+        tenantId,
+        deletedAt: null
+      }
+    });
+    if (!row) {
+      throw new NotFoundException(`bank ${bankId} not found`);
+    }
+    const updated = await tx.bank.update({
+      where: { id: bankId },
+      data: {
+        isVerified: true,
+        reviewedAt: new Date(),
+        reviewedByUserId: claims.user_id ?? null
+      }
+    });
+    return {
+      id: updated.id,
+      is_verified: updated.isVerified,
+      reviewed_at: updated.reviewedAt?.toISOString() ?? null
+    };
+  }
+
+  async listBankBranches(
+    tx: TxClient,
+    claims: JwtClaims,
+    query: MasterDataSearchQuery & { bank_id?: string }
+  ) {
+    this.assertCapability(claims, Capabilities.masterDataRead);
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const rows = await tx.bankBranch.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        ...(query.bank_id ? { bankId: query.bank_id } : {}),
+        ...(query.search
+          ? {
+              OR: [
+                { branchName: { contains: query.search, mode: 'insensitive' } },
+                { city: { contains: query.search, mode: 'insensitive' } },
+                { ifsc: { contains: query.search, mode: 'insensitive' } }
+              ]
+            }
+          : {})
+      },
+      include: {
+        bank: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      },
+      orderBy: [{ isVerified: 'desc' }, { branchName: 'asc' }],
+      take: query.limit
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      tenant_id: row.tenantId,
+      bank_id: row.bankId,
+      bank_name: row.bank.name,
+      client_org_id: row.clientOrgId,
+      branch_name: row.branchName,
+      city: row.city,
+      state: row.state,
+      ifsc: row.ifsc,
+      is_verified: row.isVerified,
+      reviewed_at: row.reviewedAt?.toISOString() ?? null,
+      reviewed_by_user_id: row.reviewedByUserId,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    }));
+  }
+
+  async createBankBranch(tx: TxClient, claims: JwtClaims, input: BankBranchCreate) {
+    this.assertCapability(claims, Capabilities.masterDataWrite);
+    const tenantId = this.resolveMasterDataTenantId(claims);
+
+    const bank = await tx.bank.findFirst({
+      where: {
+        id: input.bank_id,
+        tenantId,
+        deletedAt: null
+      }
+    });
+    if (!bank) {
+      throw new NotFoundException(`bank ${input.bank_id} not found`);
+    }
+
+    const row = await tx.bankBranch.upsert({
+      where: {
+        tenantId_bankId_branchName_city: {
+          tenantId,
+          bankId: input.bank_id,
+          branchName: input.branch_name,
+          city: input.city
+        }
+      },
+      update: {
+        state: input.state ?? null,
+        ifsc: input.ifsc ?? null,
+        clientOrgId: input.client_org_id ?? null,
+        deletedAt: null
+      },
+      create: {
+        tenantId,
+        bankId: input.bank_id,
+        clientOrgId: input.client_org_id ?? null,
+        branchName: input.branch_name,
+        city: input.city,
+        state: input.state ?? null,
+        ifsc: input.ifsc ?? null,
+        isVerified: claims.roles.includes('super_admin')
+      }
+    });
+
+    return {
+      id: row.id,
+      tenant_id: row.tenantId,
+      bank_id: row.bankId,
+      client_org_id: row.clientOrgId,
+      branch_name: row.branchName,
+      city: row.city,
+      state: row.state,
+      ifsc: row.ifsc,
+      is_verified: row.isVerified,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    };
+  }
+
+  async approveBankBranch(tx: TxClient, claims: JwtClaims, branchId: string) {
+    this.assertCapability(claims, Capabilities.masterDataApprove);
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const row = await tx.bankBranch.findFirst({
+      where: {
+        id: branchId,
+        tenantId,
+        deletedAt: null
+      }
+    });
+    if (!row) {
+      throw new NotFoundException(`bank_branch ${branchId} not found`);
+    }
+    const updated = await tx.bankBranch.update({
+      where: { id: branchId },
+      data: {
+        isVerified: true,
+        reviewedAt: new Date(),
+        reviewedByUserId: claims.user_id ?? null
+      }
+    });
+    return {
+      id: updated.id,
+      is_verified: updated.isVerified,
+      reviewed_at: updated.reviewedAt?.toISOString() ?? null
+    };
+  }
+
+  async listClientOrgs(tx: TxClient, claims: JwtClaims, query: MasterDataSearchQuery) {
+    this.assertCapability(claims, Capabilities.masterDataRead);
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const rows = await tx.clientOrg.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        ...(query.search
+          ? {
+              OR: [
+                { name: { contains: query.search, mode: 'insensitive' } },
+                { city: { contains: query.search, mode: 'insensitive' } }
+              ]
+            }
+          : {})
+      },
+      orderBy: [{ isVerified: 'desc' }, { name: 'asc' }],
+      take: query.limit
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      tenant_id: row.tenantId,
+      name: row.name,
+      city: row.city,
+      type: row.type,
+      is_verified: row.isVerified,
+      reviewed_at: row.reviewedAt?.toISOString() ?? null,
+      reviewed_by_user_id: row.reviewedByUserId,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    }));
+  }
+
+  async createClientOrg(tx: TxClient, claims: JwtClaims, input: ClientOrgCreate) {
+    this.assertCapability(claims, Capabilities.masterDataWrite);
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const row = await tx.clientOrg.upsert({
+      where: {
+        tenantId_name_city: {
+          tenantId,
+          name: input.name,
+          city: input.city
+        }
+      },
+      update: {
+        type: input.type ?? null,
+        deletedAt: null
+      },
+      create: {
+        tenantId,
+        name: input.name,
+        city: input.city,
+        type: input.type ?? null,
+        isVerified: claims.roles.includes('super_admin')
+      }
+    });
+    return {
+      id: row.id,
+      tenant_id: row.tenantId,
+      name: row.name,
+      city: row.city,
+      type: row.type,
+      is_verified: row.isVerified,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    };
+  }
+
+  async approveClientOrg(tx: TxClient, claims: JwtClaims, clientOrgId: string) {
+    this.assertCapability(claims, Capabilities.masterDataApprove);
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const row = await tx.clientOrg.findFirst({
+      where: {
+        id: clientOrgId,
+        tenantId,
+        deletedAt: null
+      }
+    });
+    if (!row) {
+      throw new NotFoundException(`client_org ${clientOrgId} not found`);
+    }
+    const updated = await tx.clientOrg.update({
+      where: { id: clientOrgId },
+      data: {
+        isVerified: true,
+        reviewedAt: new Date(),
+        reviewedByUserId: claims.user_id ?? null
+      }
+    });
+    return {
+      id: updated.id,
+      is_verified: updated.isVerified,
+      reviewed_at: updated.reviewedAt?.toISOString() ?? null
+    };
+  }
+
+  async listContacts(
+    tx: TxClient,
+    claims: JwtClaims,
+    query: MasterDataSearchQuery & { client_org_id?: string }
+  ) {
+    this.assertCapability(claims, Capabilities.masterDataRead);
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const rows = await tx.contact.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        ...(query.client_org_id ? { clientOrgId: query.client_org_id } : {}),
+        ...(query.search
+          ? {
+              OR: [
+                { name: { contains: query.search, mode: 'insensitive' } },
+                { email: { contains: query.search, mode: 'insensitive' } },
+                { phone: { contains: query.search, mode: 'insensitive' } }
+              ]
+            }
+          : {})
+      },
+      orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
+      take: query.limit
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      tenant_id: row.tenantId,
+      client_org_id: row.clientOrgId,
+      name: row.name,
+      role_label: row.roleLabel,
+      phone: row.phone,
+      email: row.email,
+      is_primary: row.isPrimary,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    }));
+  }
+
+  async createContact(tx: TxClient, claims: JwtClaims, input: ContactCreate) {
+    this.assertCapability(claims, Capabilities.masterDataWrite);
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const clientOrg = await tx.clientOrg.findFirst({
+      where: {
+        id: input.client_org_id,
+        tenantId,
+        deletedAt: null
+      }
+    });
+    if (!clientOrg) {
+      throw new NotFoundException(`client_org ${input.client_org_id} not found`);
+    }
+    const row = await tx.contact.create({
+      data: {
+        tenantId,
+        clientOrgId: input.client_org_id,
+        name: input.name,
+        roleLabel: input.role_label ?? null,
+        phone: input.phone ?? null,
+        email: input.email ?? null,
+        isPrimary: input.is_primary
+      }
+    });
+    return {
+      id: row.id,
+      tenant_id: row.tenantId,
+      client_org_id: row.clientOrgId,
+      name: row.name,
+      role_label: row.roleLabel,
+      phone: row.phone,
+      email: row.email,
+      is_primary: row.isPrimary,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    };
+  }
+
+  async listBranchContacts(
+    tx: TxClient,
+    claims: JwtClaims,
+    query: MasterDataSearchQuery & { branch_id?: string }
+  ) {
+    this.assertCapability(claims, Capabilities.masterDataRead);
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const rows = await tx.branchContact.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        ...(query.branch_id ? { branchId: query.branch_id } : {}),
+        ...(query.search
+          ? {
+              OR: [
+                { name: { contains: query.search, mode: 'insensitive' } },
+                { email: { contains: query.search, mode: 'insensitive' } },
+                { phone: { contains: query.search, mode: 'insensitive' } }
+              ]
+            }
+          : {})
+      },
+      orderBy: [{ createdAt: 'desc' }],
+      take: query.limit
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      tenant_id: row.tenantId,
+      branch_id: row.branchId,
+      name: row.name,
+      phone: row.phone,
+      email: row.email,
+      role: row.role,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    }));
+  }
+
+  async createBranchContact(tx: TxClient, claims: JwtClaims, input: BranchContactCreate) {
+    this.assertCapability(claims, Capabilities.masterDataWrite);
+    const tenantId = this.resolveMasterDataTenantId(claims);
+
+    const branch = await tx.bankBranch.findFirst({
+      where: {
+        id: input.branch_id,
+        tenantId,
+        deletedAt: null
+      }
+    });
+    if (!branch) {
+      throw new NotFoundException(`branch ${input.branch_id} not found`);
+    }
+
+    const row = await tx.branchContact.create({
+      data: {
+        tenantId,
+        branchId: input.branch_id,
+        name: input.name,
+        phone: input.phone ?? null,
+        email: input.email ?? null,
+        role: input.role ?? null
+      }
+    });
+
+    return {
+      id: row.id,
+      tenant_id: row.tenantId,
+      branch_id: row.branchId,
+      name: row.name,
+      phone: row.phone,
+      email: row.email,
+      role: row.role,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    };
+  }
+
+  async listProperties(tx: TxClient, claims: JwtClaims, query: MasterDataSearchQuery) {
+    this.assertCapability(claims, Capabilities.masterDataRead);
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const rows = await tx.property.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        ...(query.search
+          ? {
+              OR: [
+                { name: { contains: query.search, mode: 'insensitive' } },
+                { line1: { contains: query.search, mode: 'insensitive' } },
+                { city: { contains: query.search, mode: 'insensitive' } }
+              ]
+            }
+          : {})
+      },
+      orderBy: [{ name: 'asc' }],
+      take: query.limit
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      tenant_id: row.tenantId,
+      name: row.name,
+      line_1: row.line1,
+      city: row.city,
+      state: row.state,
+      postal_code: row.postalCode,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    }));
+  }
+
+  async createProperty(tx: TxClient, claims: JwtClaims, input: PropertyCreate) {
+    this.assertCapability(claims, Capabilities.masterDataWrite);
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const row = await tx.property.create({
+      data: {
+        tenantId,
+        name: input.name,
+        line1: input.line_1 ?? null,
+        city: input.city ?? null,
+        state: input.state ?? null,
+        postalCode: input.postal_code ?? null
+      }
+    });
+    return {
+      id: row.id,
+      tenant_id: row.tenantId,
+      name: row.name,
+      line_1: row.line1,
+      city: row.city,
+      state: row.state,
+      postal_code: row.postalCode,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    };
+  }
+
+  async listChannels(tx: TxClient, claims: JwtClaims, query: MasterDataSearchQuery) {
+    if (claims.aud !== 'portal') {
+      this.assertCapability(claims, Capabilities.masterDataRead);
+    }
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const rows = await tx.channel.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        ...(claims.aud === 'portal' ? { ownerUserId: claims.user_id ?? null } : {}),
+        ...(query.search
+          ? {
+              OR: [
+                { name: { contains: query.search, mode: 'insensitive' } },
+                { city: { contains: query.search, mode: 'insensitive' } }
+              ]
+            }
+          : {})
+      },
+      orderBy: [{ isVerified: 'desc' }, { name: 'asc' }],
+      take: query.limit
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      tenant_id: row.tenantId,
+      owner_user_id: row.ownerUserId,
+      name: row.name,
+      channel_name: row.name,
+      city: row.city,
+      channel_type: this.serializeChannelType(row.channelType),
+      commission_mode: this.serializeCommissionMode(row.commissionMode),
+      commission_value: Number(row.commissionValue),
+      is_active: row.isActive,
+      is_verified: row.isVerified,
+      reviewed_at: row.reviewedAt?.toISOString() ?? null,
+      reviewed_by_user_id: row.reviewedByUserId,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    }));
+  }
+
+  async createChannel(tx: TxClient, claims: JwtClaims, input: ChannelCreate) {
+    if (claims.aud !== 'portal') {
+      this.assertCapability(claims, Capabilities.masterDataWrite);
+    }
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const ownerUserId = claims.user_id ?? null;
+    const existing = await tx.channel.findFirst({
+      where: {
+        tenantId,
+        name: input.name,
+        city: input.city ?? null
+      }
+    });
+
+    const row = existing
+      ? await tx.channel.update({
+          where: { id: existing.id },
+          data: {
+            ownerUserId,
+            channelType: this.parseChannelType(input.channel_type),
+            commissionMode: this.parseCommissionMode(input.commission_mode),
+            commissionValue: new Prisma.Decimal(input.commission_value),
+            isActive: input.is_active,
+            deletedAt: null
+          }
+        })
+      : await tx.channel.create({
+          data: {
+            tenantId,
+            ownerUserId,
+            name: input.name,
+            city: input.city ?? null,
+            channelType: this.parseChannelType(input.channel_type),
+            commissionMode: this.parseCommissionMode(input.commission_mode),
+            commissionValue: new Prisma.Decimal(input.commission_value),
+            isActive: input.is_active,
+            isVerified: claims.roles.includes('super_admin')
+          }
+        });
+    const channelType = this.serializeChannelType(row.channelType);
+    const commissionMode = this.serializeCommissionMode(row.commissionMode);
+    return {
+      id: row.id,
+      tenant_id: row.tenantId,
+      owner_user_id: row.ownerUserId,
+      name: row.name,
+      city: row.city,
+      channel_type: channelType,
+      commission_mode: commissionMode,
+      commission_value: Number(row.commissionValue),
+      is_active: row.isActive,
+      is_verified: row.isVerified,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    };
+  }
+
+  async approveChannel(tx: TxClient, claims: JwtClaims, channelId: string) {
+    this.assertCapability(claims, Capabilities.masterDataApprove);
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const row = await tx.channel.findFirst({
+      where: {
+        id: channelId,
+        tenantId,
+        deletedAt: null
+      }
+    });
+    if (!row) {
+      throw new NotFoundException(`channel ${channelId} not found`);
+    }
+    const updated = await tx.channel.update({
+      where: { id: channelId },
+      data: {
+        isVerified: true,
+        reviewedAt: new Date(),
+        reviewedByUserId: claims.user_id ?? null
+      }
+    });
+    return {
+      id: updated.id,
+      is_verified: updated.isVerified,
+      reviewed_at: updated.reviewedAt?.toISOString() ?? null
+    };
+  }
+
+  async listChannelRequests(
+    tx: TxClient,
+    claims: JwtClaims,
+    query: { mine?: boolean; status?: 'SUBMITTED' | 'ACCEPTED' | 'REJECTED' }
+  ) {
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const status = query.status ? this.parseChannelRequestStatus(query.status) : undefined;
+
+    if (claims.aud !== 'portal') {
+      this.assertCapability(claims, Capabilities.masterDataRead);
+    }
+
+    const rows = await tx.channelRequest.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        ...(status ? { status } : {}),
+        ...(claims.aud === 'portal' || query.mine ? { requestedByUserId: claims.user_id ?? '' } : {})
+      },
+      include: {
+        channel: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      },
+      orderBy: [{ createdAt: 'desc' }]
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      tenant_id: row.tenantId,
+      channel_id: row.channelId,
+      channel_name: row.channel.name,
+      requested_by_user_id: row.requestedByUserId,
+      assignment_id: row.assignmentId,
+      borrower_name: row.borrowerName,
+      phone: row.phone,
+      property_city: row.propertyCity,
+      property_address: row.propertyAddress,
+      notes: row.notes,
+      status: this.serializeChannelRequestStatus(row.status),
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    }));
+  }
+
+  async createChannelRequest(tx: TxClient, claims: JwtClaims, input: ChannelRequestCreate) {
+    const tenantId = this.resolveMasterDataTenantId(claims);
+    const requester = claims.user_id;
+    if (!requester) {
+      throw new ForbiddenException('USER_REQUIRED');
+    }
+
+    const channel = await tx.channel.findFirst({
+      where: {
+        id: input.channel_id,
+        tenantId,
+        deletedAt: null,
+        ...(claims.aud === 'portal' ? { ownerUserId: requester } : {})
+      }
+    });
+    if (!channel) {
+      throw new NotFoundException(`channel ${input.channel_id} not found`);
+    }
+
+    const row = await tx.channelRequest.create({
+      data: {
+        tenantId,
+        channelId: channel.id,
+        requestedByUserId: requester,
+        borrowerName: input.borrower_name,
+        phone: input.phone,
+        propertyCity: input.property_city,
+        propertyAddress: input.property_address,
+        notes: input.notes ?? null,
+        status: 'submitted'
+      }
+    });
+
+    return {
+      id: row.id,
+      tenant_id: row.tenantId,
+      channel_id: row.channelId,
+      requested_by_user_id: row.requestedByUserId,
+      borrower_name: row.borrowerName,
+      phone: row.phone,
+      property_city: row.propertyCity,
+      property_address: row.propertyAddress,
+      notes: row.notes,
+      status: this.serializeChannelRequestStatus(row.status),
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    };
+  }
+
+  async updateChannelRequestStatus(
+    tx: TxClient,
+    claims: JwtClaims,
+    requestId: string,
+    input: ChannelRequestUpdate
+  ) {
+    if (claims.aud === 'portal') {
+      throw new ForbiddenException('PORTAL_REQUEST_REVIEW_FORBIDDEN');
+    }
+    this.assertCapability(claims, Capabilities.masterDataWrite);
+    const tenantId = this.resolveMasterDataTenantId(claims);
+
+    const row = await tx.channelRequest.findFirst({
+      where: {
+        id: requestId,
+        tenantId,
+        deletedAt: null
+      }
+    });
+    if (!row) {
+      throw new NotFoundException(`channel_request ${requestId} not found`);
+    }
+
+    const nextStatus = this.parseChannelRequestStatus(input.status);
+    let assignmentId = row.assignmentId;
+
+    if (nextStatus === 'accepted' && !assignmentId) {
+      const createdAssignment = await tx.assignment.create({
+        data: {
+          tenantId,
+          source: 'partner',
+          sourceType: 'channel',
+          stage: 'draft_created',
+          channelId: row.channelId,
+          title: `Channel Request: ${row.borrowerName}`,
+          summary: row.notes ?? `Request from channel ${row.channelId}`,
+          priority: 'normal',
+          status: 'requested',
+          createdByUserId: claims.user_id ?? row.requestedByUserId
+        }
+      });
+      assignmentId = createdAssignment.id;
+
+      await tx.assignmentSourceRecord.upsert({
+        where: { assignmentId: createdAssignment.id },
+        update: {
+          sourceType: 'channel',
+          sourceRefId: row.channelId,
+          channelId: row.channelId,
+          recordedByUserId: claims.user_id ?? null
+        },
+        create: {
+          tenantId,
+          assignmentId: createdAssignment.id,
+          sourceType: 'channel',
+          sourceRefId: row.channelId,
+          channelId: row.channelId,
+          recordedByUserId: claims.user_id ?? null
+        }
+      });
+
+      await tx.assignmentStatusHistory.create({
+        data: {
+          tenantId,
+          assignmentId: createdAssignment.id,
+          fromStatus: null,
+          toStatus: 'draft_created',
+          changedByUserId: claims.user_id ?? null,
+          note: 'assignment created'
+        }
+      });
+    }
+
+    const updated = await tx.channelRequest.update({
+      where: { id: requestId },
+      data: {
+        status: nextStatus,
+        assignmentId,
+        notes: input.note ? `${row.notes ?? ''}${row.notes ? '\n' : ''}[review] ${input.note}` : row.notes
+      }
+    });
+
+    return {
+      id: updated.id,
+      tenant_id: updated.tenantId,
+      channel_id: updated.channelId,
+      requested_by_user_id: updated.requestedByUserId,
+      assignment_id: updated.assignmentId,
+      borrower_name: updated.borrowerName,
+      phone: updated.phone,
+      property_city: updated.propertyCity,
+      property_address: updated.propertyAddress,
+      notes: updated.notes,
+      status: this.serializeChannelRequestStatus(updated.status),
+      created_at: updated.createdAt.toISOString(),
+      updated_at: updated.updatedAt.toISOString()
+    };
   }
 
   async listEmployees(tx: TxClient, claims: JwtClaims) {
@@ -175,6 +1106,8 @@ export class DomainService {
           Capabilities.employeesRead,
           Capabilities.attendanceRead,
           Capabilities.attendanceWrite,
+          Capabilities.tasksRead,
+          Capabilities.tasksWrite,
           Capabilities.notificationsRoutesRead,
           Capabilities.notificationsSend,
           Capabilities.invoicesRead
@@ -214,11 +1147,11 @@ export class DomainService {
         key: 'field_valuer',
         label: 'Field Valuer',
         employee_role: 'field_valuer',
-        capabilities: [Capabilities.attendanceWrite]
+        capabilities: [Capabilities.attendanceWrite, Capabilities.tasksRead]
       },
       {
-        key: 'external_partner',
-        label: 'External Partner',
+        key: 'external_channel',
+        label: 'External Channel',
         employee_role: 'operations',
         capabilities: []
       }
@@ -719,12 +1652,85 @@ export class DomainService {
     return tx.workOrder.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 
+  async getAnalyticsOverview(tx: TxClient, claims: JwtClaims): Promise<AnalyticsOverview> {
+    this.assertAssignmentReadAudience(claims);
+    const tenantId = this.resolveTenantIdForMutation(claims);
+
+    const [assignmentsTotal, assignmentsOpen, tasksOpen, tasksOverdue, channelRequestsSubmitted, outboxFailed, outboxDead] =
+      await Promise.all([
+        tx.assignment.count({
+          where: {
+            tenantId,
+            deletedAt: null
+          }
+        }),
+        tx.assignment.count({
+          where: {
+            tenantId,
+            deletedAt: null,
+            stage: {
+              not: 'closed'
+            }
+          }
+        }),
+        tx.task.count({
+          where: {
+            tenantId,
+            deletedAt: null,
+            status: {
+              not: 'done'
+            }
+          }
+        }),
+        tx.task.count({
+          where: {
+            tenantId,
+            deletedAt: null,
+            isOverdue: true,
+            status: {
+              not: 'done'
+            }
+          }
+        }),
+        tx.channelRequest.count({
+          where: {
+            tenantId,
+            deletedAt: null,
+            status: 'submitted'
+          }
+        }),
+        tx.notificationOutbox.count({
+          where: {
+            tenantId,
+            status: 'failed'
+          }
+        }),
+        tx.notificationOutbox.count({
+          where: {
+            tenantId,
+            status: 'dead'
+          }
+        })
+      ]);
+
+    return {
+      assignments_total: assignmentsTotal,
+      assignments_open: assignmentsOpen,
+      tasks_open: tasksOpen,
+      tasks_overdue: tasksOverdue,
+      channel_requests_submitted: channelRequestsSubmitted,
+      outbox_failed: outboxFailed,
+      outbox_dead: outboxDead
+    };
+  }
+
   async listAssignments(tx: TxClient, claims: JwtClaims, query: AssignmentListQuery = {}) {
     this.assertAssignmentReadAudience(claims);
 
     const where: Prisma.AssignmentWhereInput = {
       deletedAt: null,
       ...(query.status ? { status: query.status } : {}),
+      ...(query.stage ? { stage: query.stage } : {}),
       ...(query.priority ? { priority: query.priority } : {}),
       ...(query.assignee_user_id
         ? {
@@ -766,34 +1772,84 @@ export class DomainService {
             messages: true,
             activities: true
           }
+        },
+        bank: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        bankBranch: {
+          select: {
+            id: true,
+            branchName: true
+          }
+        },
+        clientOrg: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        property: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        primaryContact: {
+          select: {
+            id: true,
+            name: true
+          }
         }
       },
       orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }]
     });
 
-    return rows.map((row) => ({
-      id: row.id,
-      tenant_id: row.tenantId,
-      source: row.source,
-      work_order_id: row.workOrderId,
-      title: row.title,
-      summary: row.summary,
-      priority: row.priority,
-      status: row.status,
-      due_date: toDateOnly(row.dueDate),
-      created_by_user_id: row.createdByUserId,
-      created_at: row.createdAt.toISOString(),
-      updated_at: row.updatedAt.toISOString(),
-      assignees: row.assignees.map((assignee) => ({
-        user_id: assignee.userId,
-        role: assignee.role,
-        user_name: assignee.user.name,
-        user_email: assignee.user.email
-      })),
-      task_count: row._count.tasks,
-      message_count: row._count.messages,
-      activity_count: row._count.activities
-    }));
+    return rows.map((row) => {
+      const completeness = this.computeAssignmentCompleteness(row);
+      return {
+        id: row.id,
+        tenant_id: row.tenantId,
+        source: row.source,
+        source_type: row.sourceType,
+        source_label: row.source === 'partner' ? 'channel' : row.source,
+        work_order_id: row.workOrderId,
+        bank_id: row.bankId,
+        bank_name: row.bank?.name ?? null,
+        bank_branch_id: row.bankBranchId,
+        bank_branch_name: row.bankBranch?.branchName ?? null,
+        client_org_id: row.clientOrgId,
+        client_org_name: row.clientOrg?.name ?? null,
+        property_id: row.propertyId,
+        property_name: row.property?.name ?? null,
+        primary_contact_id: row.primaryContactId,
+        primary_contact_name: row.primaryContact?.name ?? null,
+        fee_paise: row.feePaise === null ? null : Number(row.feePaise),
+        stage: row.stage,
+        lifecycle_status: this.serializeLifecycleStatus(row.stage),
+        title: row.title,
+        summary: row.summary,
+        priority: row.priority,
+        status: row.status,
+        due_date: toDateOnly(row.dueDate),
+        due_at: row.dueAt?.toISOString() ?? null,
+        created_by_user_id: row.createdByUserId,
+        created_at: row.createdAt.toISOString(),
+        updated_at: row.updatedAt.toISOString(),
+        data_completeness: completeness,
+        assignees: row.assignees.map((assignee) => ({
+          user_id: assignee.userId,
+          role: assignee.role,
+          user_name: assignee.user.name,
+          user_email: assignee.user.email
+        })),
+        task_count: row._count.tasks,
+        message_count: row._count.messages,
+        activity_count: row._count.activities
+      };
+    });
   }
 
   async createAssignment(tx: TxClient, claims: JwtClaims, input: AssignmentCreate) {
@@ -827,18 +1883,73 @@ export class DomainService {
       }
     }
 
+    await this.assertAssignmentMasterData(tx, tenantId, {
+      bankId: input.bank_id,
+      bankBranchId: input.bank_branch_id,
+      clientOrgId: input.client_org_id,
+      propertyId: input.property_id,
+      primaryContactId: input.primary_contact_id,
+      channelId: input.channel_id,
+      sourceRefId: input.source_ref_id,
+      sourceType: input.source_type
+    });
+
+    const source = input.source === 'partner' ? 'partner' : input.source;
+
     try {
       const created = await tx.assignment.create({
         data: {
           tenantId,
-          source: input.source,
+          source,
+          sourceType: input.source_type,
           workOrderId: input.work_order_id,
+          bankId: input.bank_id,
+          bankBranchId: input.bank_branch_id,
+          clientOrgId: input.client_org_id,
+          propertyId: input.property_id,
+          channelId: input.channel_id,
+          primaryContactId: input.primary_contact_id,
+          feePaise: input.fee_paise === undefined ? null : BigInt(input.fee_paise),
+          stage: 'draft_created',
           title: input.title,
           summary: input.summary,
           priority: input.priority,
           status: input.status,
+          dueAt: parseDateOnly(input.due_date),
           dueDate: parseDateOnly(input.due_date),
           createdByUserId: actorUserId
+        }
+      });
+
+      await tx.assignmentSourceRecord.upsert({
+        where: {
+          assignmentId: created.id
+        },
+        update: {
+          sourceType: input.source_type,
+          sourceRefId: input.source_ref_id ?? null,
+          bankBranchId: input.bank_branch_id ?? null,
+          clientOrgId: input.client_org_id ?? null,
+          channelId: input.channel_id ?? null,
+          recordedByUserId: actorUserId,
+          metadataJson: {
+            source: input.source,
+            source_ref_id: input.source_ref_id ?? null
+          }
+        },
+        create: {
+          tenantId,
+          assignmentId: created.id,
+          sourceType: input.source_type,
+          sourceRefId: input.source_ref_id ?? null,
+          bankBranchId: input.bank_branch_id ?? null,
+          clientOrgId: input.client_org_id ?? null,
+          channelId: input.channel_id ?? null,
+          recordedByUserId: actorUserId,
+          metadataJson: {
+            source: input.source,
+            source_ref_id: input.source_ref_id ?? null
+          }
         }
       });
 
@@ -848,7 +1959,9 @@ export class DomainService {
         actorUserId,
         type: 'created',
         payload: {
-          source: input.source,
+          source,
+          source_type: input.source_type,
+          source_ref_id: input.source_ref_id ?? null,
           work_order_id: input.work_order_id ?? null
         }
       });
@@ -887,7 +2000,7 @@ export class DomainService {
     this.assertAssignmentReadAudience(claims);
     const assignment = await this.getAssignmentOrThrow(tx, assignmentId);
 
-    const [tasks, messages, activities, links] = await Promise.all([
+    const [tasks, messages, activities, links, sourceRecord, transitions, statusHistory, signals] = await Promise.all([
       tx.assignmentTask.findMany({
         where: { assignmentId: assignment.id },
         include: {
@@ -937,6 +2050,50 @@ export class DomainService {
           document: true
         },
         orderBy: { createdAt: 'desc' }
+      }),
+      tx.assignmentSourceRecord.findUnique({
+        where: {
+          assignmentId: assignment.id
+        }
+      }),
+      tx.assignmentStageTransition.findMany({
+        where: {
+          tenantId: assignment.tenantId,
+          assignmentId: assignment.id
+        },
+        include: {
+          changedByUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
+        },
+        orderBy: { changedAt: 'desc' }
+      }),
+      tx.assignmentStatusHistory.findMany({
+        where: {
+          tenantId: assignment.tenantId,
+          assignmentId: assignment.id
+        },
+        include: {
+          changedByUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      tx.assignmentSignal.findMany({
+        where: {
+          tenantId: assignment.tenantId,
+          assignmentId: assignment.id
+        },
+        orderBy: { kind: 'asc' }
       })
     ]);
 
@@ -947,6 +2104,20 @@ export class DomainService {
 
     return {
       ...this.serializeAssignment(assignment),
+      source_record: sourceRecord
+        ? {
+            id: sourceRecord.id,
+            source_type: sourceRecord.sourceType,
+            source_ref_id: sourceRecord.sourceRefId,
+            bank_branch_id: sourceRecord.bankBranchId,
+            client_org_id: sourceRecord.clientOrgId,
+            channel_id: sourceRecord.channelId,
+            recorded_by_user_id: sourceRecord.recordedByUserId,
+            recorded_at: sourceRecord.recordedAt.toISOString(),
+            metadata_json: asJsonRecord(sourceRecord.metadataJson)
+          }
+        : null,
+      data_completeness: this.computeAssignmentCompleteness(assignment),
       assignees: assignment.assignees.map((assignee) => ({
         id: assignee.id,
         user_id: assignee.userId,
@@ -992,6 +2163,46 @@ export class DomainService {
             }
           : null
       })),
+      stage_transitions: transitions.map((row) => ({
+        id: row.id,
+        assignment_id: row.assignmentId,
+        from_stage: row.fromStage,
+        to_stage: row.toStage,
+        reason: row.reason,
+        changed_by_user_id: row.changedByUserId,
+        changed_at: row.changedAt.toISOString(),
+        metadata_json: asJsonRecord(row.metadataJson),
+        changed_by_user: row.changedByUser
+          ? {
+              id: row.changedByUser.id,
+              name: row.changedByUser.name,
+              email: row.changedByUser.email
+            }
+          : null
+      })),
+      status_history: statusHistory.map((row) => ({
+        id: row.id,
+        from_status: row.fromStatus ? this.serializeLifecycleStatus(row.fromStatus as AssignmentStageValue) : null,
+        to_status: this.serializeLifecycleStatus(row.toStatus as AssignmentStageValue),
+        note: row.note,
+        created_at: row.createdAt.toISOString(),
+        changed_by_user_id: row.changedByUserId,
+        changed_by_user: row.changedByUser
+          ? {
+              id: row.changedByUser.id,
+              name: row.changedByUser.name,
+              email: row.changedByUser.email
+            }
+          : null
+      })),
+      signals: signals.map((signal) => ({
+        id: signal.id,
+        kind: signal.kind,
+        is_active: signal.isActive,
+        first_seen_at: signal.firstSeenAt.toISOString(),
+        last_seen_at: signal.lastSeenAt.toISOString(),
+        details_json: asJsonRecord(signal.detailsJson)
+      })),
       documents: links
         .filter((link) => link.document.deletedAt === null)
         .map((link) => ({
@@ -1012,7 +2223,7 @@ export class DomainService {
     }
 
     const existing = await this.getAssignmentOrThrow(tx, assignmentId);
-    const data: Prisma.AssignmentUpdateInput = {};
+    const data: Prisma.AssignmentUncheckedUpdateInput = {};
 
     if (input.title !== undefined) {
       data.title = input.title;
@@ -1026,9 +2237,45 @@ export class DomainService {
     if (input.status !== undefined) {
       data.status = input.status;
     }
+    if (input.bank_id !== undefined) {
+      data.bankId = input.bank_id;
+    }
+    if (input.bank_branch_id !== undefined) {
+      data.bankBranchId = input.bank_branch_id;
+    }
+    if (input.client_org_id !== undefined) {
+      data.clientOrgId = input.client_org_id;
+    }
+    if (input.property_id !== undefined) {
+      data.propertyId = input.property_id;
+    }
+    if (input.channel_id !== undefined) {
+      data.channelId = input.channel_id;
+    }
+    if (input.source_type !== undefined) {
+      data.sourceType = input.source_type;
+    }
+    if (input.primary_contact_id !== undefined) {
+      data.primaryContactId = input.primary_contact_id;
+    }
+    if (input.fee_paise !== undefined) {
+      data.feePaise = input.fee_paise === null ? null : BigInt(input.fee_paise);
+    }
+    if (input.due_at !== undefined) {
+      data.dueAt = input.due_at ? new Date(input.due_at) : null;
+    }
     if (input.due_date !== undefined) {
       data.dueDate = parseDateOnly(input.due_date);
     }
+
+    await this.assertAssignmentMasterData(tx, existing.tenantId, {
+      bankId: input.bank_id === undefined ? existing.bankId : input.bank_id,
+      bankBranchId: input.bank_branch_id === undefined ? existing.bankBranchId : input.bank_branch_id,
+      clientOrgId: input.client_org_id === undefined ? existing.clientOrgId : input.client_org_id,
+      propertyId: input.property_id === undefined ? existing.propertyId : input.property_id,
+      channelId: input.channel_id === undefined ? existing.channelId : input.channel_id,
+      primaryContactId: input.primary_contact_id === undefined ? existing.primaryContactId : input.primary_contact_id
+    });
 
     if (Object.keys(data).length === 0) {
       throw new BadRequestException('NO_CHANGES');
@@ -1054,6 +2301,148 @@ export class DomainService {
     });
 
     return this.getAssignmentDetail(tx, claims, assignmentId);
+  }
+
+  async transitionAssignment(
+    tx: TxClient,
+    claims: JwtClaims,
+    assignmentId: string,
+    input: AssignmentTransition,
+    requestId: string
+  ) {
+    this.assertAssignmentReadAudience(claims);
+    this.assertCapability(claims, Capabilities.assignmentsTransition);
+    const actorUserId = claims.user_id;
+    if (!actorUserId) {
+      throw new ForbiddenException('USER_REQUIRED');
+    }
+
+    const assignment = await this.getAssignmentOrThrow(tx, assignmentId);
+    const fromStage = assignment.stage as AssignmentStageValue;
+    const toStage = input.to_stage as AssignmentStageValue;
+
+    if (fromStage === toStage) {
+      return this.getAssignmentDetail(tx, claims, assignmentId);
+    }
+    this.assertStageTransitionAllowed(fromStage, toStage);
+
+    const now = new Date();
+    const updated = await tx.assignment.update({
+      where: { id: assignmentId },
+      data: {
+        stage: toStage
+      }
+    });
+
+    await tx.assignmentStageTransition.create({
+      data: {
+        tenantId: assignment.tenantId,
+        assignmentId,
+        fromStage,
+        toStage,
+        reason: input.reason ?? null,
+        changedByUserId: actorUserId,
+        changedAt: now,
+        metadataJson: {
+          request_id: requestId
+        }
+      }
+    });
+
+    await tx.assignmentStatusHistory.create({
+      data: {
+        tenantId: assignment.tenantId,
+        assignmentId,
+        fromStatus: fromStage,
+        toStatus: toStage,
+        changedByUserId: actorUserId,
+        note: input.reason ?? null
+      }
+    });
+
+    await this.appendAssignmentActivity(tx, {
+      tenantId: assignment.tenantId,
+      assignmentId,
+      actorUserId,
+      type: 'stage_transitioned',
+      payload: {
+        from_stage: fromStage,
+        to_stage: toStage,
+        reason: input.reason ?? null
+      }
+    });
+
+    if (toStage === 'qc_pending') {
+      await this.ensureQcPendingTask(tx, assignment.tenantId, assignmentId, actorUserId);
+    }
+
+    await this.assignmentSignalsQueue.enqueueRecompute({
+      assignmentId,
+      tenantId: assignment.tenantId,
+      stage: toStage,
+      dateBucket: utcDateBucket(now),
+      requestId
+    });
+
+    return this.getAssignmentDetail(tx, claims, updated.id);
+  }
+
+  async changeAssignmentStatus(
+    tx: TxClient,
+    claims: JwtClaims,
+    assignmentId: string,
+    input: AssignmentStatusChange,
+    requestId: string
+  ) {
+    const toStage = this.parseLifecycleStatus(input.to_status);
+    return this.transitionAssignment(
+      tx,
+      claims,
+      assignmentId,
+      {
+        to_stage: toStage,
+        reason: input.note
+      },
+      requestId
+    );
+  }
+
+  async listAssignmentStatusHistory(tx: TxClient, claims: JwtClaims, assignmentId: string) {
+    this.assertAssignmentReadAudience(claims);
+    const assignment = await this.getAssignmentOrThrow(tx, assignmentId);
+    const rows = await tx.assignmentStatusHistory.findMany({
+      where: {
+        tenantId: assignment.tenantId,
+        assignmentId
+      },
+      include: {
+        changedByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      assignment_id: row.assignmentId,
+      from_status: row.fromStatus ? this.serializeLifecycleStatus(row.fromStatus as AssignmentStageValue) : null,
+      to_status: this.serializeLifecycleStatus(row.toStatus as AssignmentStageValue),
+      changed_by_user_id: row.changedByUserId,
+      note: row.note,
+      created_at: row.createdAt.toISOString(),
+      changed_by_user: row.changedByUser
+        ? {
+            id: row.changedByUser.id,
+            name: row.changedByUser.name,
+            email: row.changedByUser.email
+          }
+        : null
+    }));
   }
 
   async addAssignmentAssignee(
@@ -1379,6 +2768,192 @@ export class DomainService {
       payload: {
         action: 'task_removed',
         task_id: taskId
+      }
+    });
+
+    return {
+      id: taskId,
+      deleted: true
+    };
+  }
+
+  async listTasks(tx: TxClient, claims: JwtClaims, query: TaskListQuery) {
+    this.assertAssignmentReadAudience(claims);
+    const tenantId = this.resolveTenantIdForMutation(claims);
+    const now = new Date();
+    const dueSoonThreshold = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    const andClauses: Prisma.TaskWhereInput[] = [];
+    const where: Prisma.TaskWhereInput = {
+      tenantId,
+      deletedAt: null,
+      ...(query.assignment_id ? { assignmentId: query.assignment_id } : {}),
+      ...(query.status ? { status: this.parseTaskStatus(query.status) } : {}),
+      ...(query.assigned_to_me ? { assignedToUserId: claims.user_id ?? '' } : {})
+    };
+
+    if (query.overdue) {
+      andClauses.push({ dueAt: { lt: now } }, { status: { not: 'done' } });
+    }
+
+    if (query.due_soon) {
+      andClauses.push({ dueAt: { gte: now, lte: dueSoonThreshold } }, { status: 'open' });
+    }
+
+    if (andClauses.length > 0) {
+      where.AND = andClauses;
+    }
+
+    const rows = await tx.task.findMany({
+      where,
+      orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }]
+    });
+
+    return rows.map((row) => this.serializeTask(row));
+  }
+
+  async createTask(tx: TxClient, claims: JwtClaims, input: TaskCreate) {
+    this.assertAssignmentReadAudience(claims);
+    const tenantId = this.resolveTenantIdForMutation(claims);
+    const actorUserId = claims.user_id;
+    if (!actorUserId) {
+      throw new ForbiddenException('USER_REQUIRED');
+    }
+
+    if (input.assignment_id) {
+      const assignment = await tx.assignment.findFirst({
+        where: {
+          id: input.assignment_id,
+          tenantId,
+          deletedAt: null
+        }
+      });
+      if (!assignment) {
+        throw new NotFoundException(`assignment ${input.assignment_id} not found`);
+      }
+    }
+
+    if (input.assigned_to_user_id) {
+      const user = await tx.user.findFirst({
+        where: {
+          id: input.assigned_to_user_id,
+          deletedAt: null
+        }
+      });
+      if (!user) {
+        throw new NotFoundException(`user ${input.assigned_to_user_id} not found`);
+      }
+    }
+
+    const dueAt = input.due_at ? new Date(input.due_at) : null;
+    const status = this.parseTaskStatus(input.status);
+    const created = await tx.task.create({
+      data: {
+        tenantId,
+        assignmentId: input.assignment_id ?? null,
+        title: input.title,
+        description: input.description ?? null,
+        status,
+        isOverdue: Boolean(dueAt && dueAt.getTime() < Date.now() && status !== 'done'),
+        priority: this.parseTaskPriority(input.priority),
+        dueAt,
+        assignedToUserId: input.assigned_to_user_id ?? null,
+        createdByUserId: actorUserId
+      }
+    });
+
+    return this.serializeTask(created);
+  }
+
+  async patchTask(tx: TxClient, claims: JwtClaims, taskId: string, input: TaskUpdate) {
+    this.assertAssignmentReadAudience(claims);
+    const tenantId = this.resolveTenantIdForMutation(claims);
+    const row = await tx.task.findFirst({
+      where: {
+        id: taskId,
+        tenantId,
+        deletedAt: null
+      }
+    });
+    if (!row) {
+      throw new NotFoundException(`task ${taskId} not found`);
+    }
+
+    const data: Prisma.TaskUncheckedUpdateInput = {};
+    if (input.title !== undefined) {
+      data.title = input.title;
+    }
+    if (input.description !== undefined) {
+      data.description = input.description;
+    }
+    if (input.status !== undefined) {
+      data.status = this.parseTaskStatus(input.status);
+    }
+    if (input.priority !== undefined) {
+      data.priority = this.parseTaskPriority(input.priority);
+    }
+    if (input.due_at !== undefined) {
+      data.dueAt = input.due_at ? new Date(input.due_at) : null;
+    }
+    if (input.assigned_to_user_id !== undefined) {
+      data.assignedToUserId = input.assigned_to_user_id;
+    }
+
+    const dueAt = input.due_at !== undefined ? (input.due_at ? new Date(input.due_at) : null) : row.dueAt;
+    const status = input.status !== undefined ? this.parseTaskStatus(input.status) : row.status;
+    data.isOverdue = Boolean(dueAt && dueAt.getTime() < Date.now() && status !== 'done');
+
+    const updated = await tx.task.update({
+      where: { id: taskId },
+      data
+    });
+
+    return this.serializeTask(updated);
+  }
+
+  async markTaskDone(tx: TxClient, claims: JwtClaims, taskId: string) {
+    this.assertAssignmentReadAudience(claims);
+    const tenantId = this.resolveTenantIdForMutation(claims);
+    const row = await tx.task.findFirst({
+      where: {
+        id: taskId,
+        tenantId,
+        deletedAt: null
+      }
+    });
+    if (!row) {
+      throw new NotFoundException(`task ${taskId} not found`);
+    }
+
+    const updated = await tx.task.update({
+      where: { id: taskId },
+      data: {
+        status: 'done',
+        isOverdue: false
+      }
+    });
+
+    return this.serializeTask(updated);
+  }
+
+  async deleteTask(tx: TxClient, claims: JwtClaims, taskId: string) {
+    this.assertAssignmentReadAudience(claims);
+    const tenantId = this.resolveTenantIdForMutation(claims);
+    const row = await tx.task.findFirst({
+      where: {
+        id: taskId,
+        tenantId,
+        deletedAt: null
+      }
+    });
+    if (!row) {
+      throw new NotFoundException(`task ${taskId} not found`);
+    }
+
+    await tx.task.update({
+      where: { id: taskId },
+      data: {
+        deletedAt: new Date()
       }
     });
 
@@ -2359,6 +3934,321 @@ export class DomainService {
     return tenantId;
   }
 
+  private resolveMasterDataTenantId(claims: JwtClaims): string {
+    if (claims.aud === 'portal') {
+      return this.launchMode.externalTenantId;
+    }
+
+    const tenantId = this.resolveTenantIdForMutation(claims);
+    if (!this.launchMode.multiTenantEnabled && tenantId !== this.launchMode.internalTenantId) {
+      throw new ForbiddenException('TENANT_NOT_ENABLED');
+    }
+    return tenantId;
+  }
+
+  private assertStageTransitionAllowed(fromStage: AssignmentStageValue, toStage: AssignmentStageValue): void {
+    const allowed = ASSIGNMENT_ALLOWED_TRANSITIONS[fromStage] ?? [];
+    if (!allowed.includes(toStage)) {
+      throw new BadRequestException(`ILLEGAL_STAGE_TRANSITION:${fromStage}->${toStage}`);
+    }
+  }
+
+  private async ensureQcPendingTask(
+    tx: TxClient,
+    tenantId: string,
+    assignmentId: string,
+    actorUserId: string
+  ): Promise<void> {
+    const existingOpen = await tx.task.findFirst({
+      where: {
+        tenantId,
+        assignmentId,
+        deletedAt: null,
+        title: 'QC review',
+        status: {
+          not: 'done'
+        }
+      },
+      select: { id: true }
+    });
+    if (existingOpen) {
+      return;
+    }
+
+    const opsAssignee = await tx.membership.findFirst({
+      where: {
+        tenantId,
+        role: {
+          name: 'ops_manager'
+        }
+      },
+      select: {
+        userId: true
+      }
+    });
+
+    const dueAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await tx.task.create({
+      data: {
+        tenantId,
+        assignmentId,
+        title: 'QC review',
+        description: 'Validate assignment data and mark QC outcome.',
+        status: 'open',
+        priority: 'high',
+        dueAt,
+        assignedToUserId: opsAssignee?.userId ?? null,
+        createdByUserId: actorUserId
+      }
+    });
+  }
+
+  private async assertAssignmentMasterData(
+    tx: TxClient,
+    tenantId: string,
+    input: {
+      bankId?: string | null;
+      bankBranchId?: string | null;
+      clientOrgId?: string | null;
+      propertyId?: string | null;
+      primaryContactId?: string | null;
+      channelId?: string | null;
+      sourceRefId?: string | null;
+      sourceType?: 'bank' | 'direct' | 'channel';
+    }
+  ): Promise<void> {
+    if (input.bankId) {
+      const row = await tx.bank.findFirst({
+        where: {
+          id: input.bankId,
+          tenantId,
+          deletedAt: null
+        },
+        select: { id: true }
+      });
+      if (!row) {
+        throw new NotFoundException(`bank ${input.bankId} not found`);
+      }
+    }
+
+    if (input.bankBranchId) {
+      const row = await tx.bankBranch.findFirst({
+        where: {
+          id: input.bankBranchId,
+          tenantId,
+          deletedAt: null
+        },
+        select: { id: true, bankId: true, clientOrgId: true }
+      });
+      if (!row) {
+        throw new NotFoundException(`bank_branch ${input.bankBranchId} not found`);
+      }
+      if (input.bankId && row.bankId !== input.bankId) {
+        throw new BadRequestException('bank_branch does not belong to bank');
+      }
+      if (input.clientOrgId && row.clientOrgId && row.clientOrgId !== input.clientOrgId) {
+        throw new BadRequestException('bank_branch does not belong to client_org');
+      }
+    }
+
+    if (input.clientOrgId) {
+      const row = await tx.clientOrg.findFirst({
+        where: {
+          id: input.clientOrgId,
+          tenantId,
+          deletedAt: null
+        },
+        select: { id: true }
+      });
+      if (!row) {
+        throw new NotFoundException(`client_org ${input.clientOrgId} not found`);
+      }
+    }
+
+    if (input.propertyId) {
+      const row = await tx.property.findFirst({
+        where: {
+          id: input.propertyId,
+          tenantId,
+          deletedAt: null
+        },
+        select: { id: true }
+      });
+      if (!row) {
+        throw new NotFoundException(`property ${input.propertyId} not found`);
+      }
+    }
+
+    if (input.primaryContactId) {
+      const row = await tx.contact.findFirst({
+        where: {
+          id: input.primaryContactId,
+          tenantId,
+          deletedAt: null
+        },
+        select: { id: true, clientOrgId: true }
+      });
+      if (!row) {
+        throw new NotFoundException(`contact ${input.primaryContactId} not found`);
+      }
+      if (input.clientOrgId && row.clientOrgId !== input.clientOrgId) {
+        throw new BadRequestException('contact does not belong to client_org');
+      }
+    }
+
+    if (input.channelId) {
+      const row = await tx.channel.findFirst({
+        where: {
+          id: input.channelId,
+          tenantId,
+          deletedAt: null
+        },
+        select: { id: true }
+      });
+      if (!row) {
+        throw new NotFoundException(`channel ${input.channelId} not found`);
+      }
+    }
+
+    if (input.sourceRefId) {
+      if (input.sourceType === 'bank') {
+        const row = await tx.bankBranch.findFirst({
+          where: {
+            id: input.sourceRefId,
+            tenantId,
+            deletedAt: null
+          },
+          select: { id: true }
+        });
+        if (!row) {
+          throw new NotFoundException(`source_ref bank_branch ${input.sourceRefId} not found`);
+        }
+      } else if (input.sourceType === 'channel') {
+        const row = await tx.channel.findFirst({
+          where: {
+            id: input.sourceRefId,
+            tenantId,
+            deletedAt: null
+          },
+          select: { id: true }
+        });
+        if (!row) {
+          throw new NotFoundException(`source_ref channel ${input.sourceRefId} not found`);
+        }
+      }
+    }
+  }
+
+  private computeAssignmentCompleteness(assignment: {
+    bankId?: string | null;
+    bankBranchId?: string | null;
+    propertyId?: string | null;
+    feePaise?: bigint | null;
+    dueDate?: Date | null;
+    primaryContactId?: string | null;
+  }) {
+    const checks: Array<{ ok: boolean; key: string }> = [
+      { ok: Boolean(assignment.bankId), key: 'bank' },
+      { ok: Boolean(assignment.bankBranchId), key: 'branch' },
+      { ok: Boolean(assignment.propertyId), key: 'property' },
+      { ok: assignment.feePaise !== null && assignment.feePaise !== undefined, key: 'fee' },
+      { ok: Boolean(assignment.dueDate), key: 'due_date' },
+      { ok: Boolean(assignment.primaryContactId), key: 'contact' }
+    ];
+
+    const complete = checks.filter((item) => item.ok).length;
+    const score = Math.round((complete / checks.length) * 100);
+    const missing = checks.filter((item) => !item.ok).map((item) => item.key);
+
+    return {
+      score,
+      missing
+    };
+  }
+
+  private parseChannelType(value: 'AGENT' | 'ADVOCATE' | 'BUILDER' | 'OTHER'): 'agent' | 'advocate' | 'builder' | 'other' {
+    return value.toLowerCase() as 'agent' | 'advocate' | 'builder' | 'other';
+  }
+
+  private serializeChannelType(value: string): 'AGENT' | 'ADVOCATE' | 'BUILDER' | 'OTHER' {
+    return value.toUpperCase() as 'AGENT' | 'ADVOCATE' | 'BUILDER' | 'OTHER';
+  }
+
+  private parseCommissionMode(value: 'PERCENT' | 'FLAT'): 'percent' | 'flat' {
+    return value.toLowerCase() as 'percent' | 'flat';
+  }
+
+  private serializeCommissionMode(value: string): 'PERCENT' | 'FLAT' {
+    return value.toUpperCase() as 'PERCENT' | 'FLAT';
+  }
+
+  private parseTaskStatus(value: 'OPEN' | 'DONE' | 'BLOCKED'): 'open' | 'done' | 'blocked' {
+    return value.toLowerCase() as 'open' | 'done' | 'blocked';
+  }
+
+  private serializeTaskStatus(value: string): 'OPEN' | 'DONE' | 'BLOCKED' {
+    return value.toUpperCase() as 'OPEN' | 'DONE' | 'BLOCKED';
+  }
+
+  private parseTaskPriority(value: 'LOW' | 'MEDIUM' | 'HIGH'): 'low' | 'medium' | 'high' {
+    return value.toLowerCase() as 'low' | 'medium' | 'high';
+  }
+
+  private serializeTaskPriority(value: string): 'LOW' | 'MEDIUM' | 'HIGH' {
+    return value.toUpperCase() as 'LOW' | 'MEDIUM' | 'HIGH';
+  }
+
+  private parseChannelRequestStatus(
+    value: 'SUBMITTED' | 'ACCEPTED' | 'REJECTED'
+  ): 'submitted' | 'accepted' | 'rejected' {
+    return value.toLowerCase() as 'submitted' | 'accepted' | 'rejected';
+  }
+
+  private serializeChannelRequestStatus(value: string): 'SUBMITTED' | 'ACCEPTED' | 'REJECTED' {
+    return value.toUpperCase() as 'SUBMITTED' | 'ACCEPTED' | 'REJECTED';
+  }
+
+  private parseLifecycleStatus(value: AssignmentStatusChange['to_status']): AssignmentStageValue {
+    return LIFECYCLE_STATUS_TO_STAGE[value];
+  }
+
+  private serializeLifecycleStatus(stage: AssignmentStageValue): AssignmentStatusChange['to_status'] {
+    const match = Object.entries(LIFECYCLE_STATUS_TO_STAGE).find(([, mapped]) => mapped === stage)?.[0];
+    return (match ?? 'DRAFT') as AssignmentStatusChange['to_status'];
+  }
+
+  private serializeTask(row: {
+    id: string;
+    tenantId: string;
+    assignmentId: string | null;
+    title: string;
+    description: string | null;
+    status: string;
+    isOverdue: boolean;
+    priority: string;
+    dueAt: Date | null;
+    assignedToUserId: string | null;
+    createdByUserId: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }) {
+    return {
+      id: row.id,
+      tenant_id: row.tenantId,
+      assignment_id: row.assignmentId,
+      title: row.title,
+      description: row.description,
+      status: this.serializeTaskStatus(row.status),
+      priority: this.serializeTaskPriority(row.priority),
+      due_at: row.dueAt?.toISOString() ?? null,
+      assigned_to_user_id: row.assignedToUserId,
+      created_by_user_id: row.createdByUserId,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString(),
+      overdue: row.isOverdue
+    };
+  }
+
   private serializeEmployee(row: {
     id: string;
     tenantId: string;
@@ -2445,6 +4335,39 @@ export class DomainService {
             }
           },
           orderBy: { createdAt: 'asc' }
+        },
+        bank: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        bankBranch: {
+          select: {
+            id: true,
+            branchName: true,
+            city: true
+          }
+        },
+        clientOrg: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        property: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        primaryContact: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true
+          }
         }
       }
     });
@@ -2465,6 +4388,7 @@ export class DomainService {
       type:
         | 'created'
         | 'status_changed'
+        | 'stage_transitioned'
         | 'assignee_added'
         | 'assignee_removed'
         | 'task_added'
@@ -2491,29 +4415,78 @@ export class DomainService {
     id: string;
     tenantId: string;
     source: string;
+    sourceType: string;
+    stage: string;
     workOrderId: string | null;
+    bankId: string | null;
+    bankBranchId: string | null;
+    clientOrgId: string | null;
+    propertyId: string | null;
+    primaryContactId: string | null;
+    feePaise: bigint | null;
     title: string;
     summary: string | null;
     priority: string;
     status: string;
     dueDate: Date | null;
+    dueAt: Date | null;
     createdByUserId: string;
     createdAt: Date;
     updatedAt: Date;
+    bank?: {
+      id: string;
+      name: string;
+    } | null;
+    bankBranch?: {
+      id: string;
+      branchName: string;
+      city: string;
+    } | null;
+    clientOrg?: {
+      id: string;
+      name: string;
+    } | null;
+    property?: {
+      id: string;
+      name: string;
+    } | null;
+    primaryContact?: {
+      id: string;
+      name: string;
+      phone: string | null;
+      email: string | null;
+    } | null;
   }) {
     return {
       id: assignment.id,
       tenant_id: assignment.tenantId,
       source: assignment.source,
+      source_type: assignment.sourceType,
+      source_label: assignment.source === 'partner' ? 'channel' : assignment.source,
+      stage: assignment.stage,
+      lifecycle_status: this.serializeLifecycleStatus(assignment.stage as AssignmentStageValue),
       work_order_id: assignment.workOrderId,
+      bank_id: assignment.bankId,
+      bank_name: assignment.bank?.name ?? null,
+      bank_branch_id: assignment.bankBranchId,
+      bank_branch_name: assignment.bankBranch?.branchName ?? null,
+      client_org_id: assignment.clientOrgId,
+      client_org_name: assignment.clientOrg?.name ?? null,
+      property_id: assignment.propertyId,
+      property_name: assignment.property?.name ?? null,
+      primary_contact_id: assignment.primaryContactId,
+      primary_contact_name: assignment.primaryContact?.name ?? null,
+      fee_paise: assignment.feePaise === null ? null : Number(assignment.feePaise),
       title: assignment.title,
       summary: assignment.summary,
       priority: assignment.priority,
       status: assignment.status,
+      due_at: assignment.dueAt?.toISOString() ?? null,
       due_date: toDateOnly(assignment.dueDate),
       created_by_user_id: assignment.createdByUserId,
       created_at: assignment.createdAt.toISOString(),
-      updated_at: assignment.updatedAt.toISOString()
+      updated_at: assignment.updatedAt.toISOString(),
+      data_completeness: this.computeAssignmentCompleteness(assignment)
     };
   }
 
