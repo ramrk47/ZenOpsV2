@@ -173,6 +173,16 @@
         }
       }
     },
+    "/v1/control/credits/reconcile": {
+      "post": {
+        "summary": "Reconcile stuck credit reservations (cron-safe)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/v1/auth/login": {
       "post": {
         "summary": "Issue local JWT",

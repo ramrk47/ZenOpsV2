@@ -57,6 +57,9 @@ const document = {
     '/v1/control/credits/release': {
       post: { summary: 'Studio release reserved credits', responses: { '200': { description: 'OK' } } }
     },
+    '/v1/control/credits/reconcile': {
+      post: { summary: 'Reconcile stuck credit reservations (cron-safe)', responses: { '200': { description: 'OK' } } }
+    },
     '/v1/auth/login': {
       post: { summary: 'Issue local JWT', responses: { '200': { description: 'Token issued' } } }
     },
