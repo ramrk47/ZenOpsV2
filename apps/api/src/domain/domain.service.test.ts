@@ -68,6 +68,7 @@ const createService = (
       externalTenantId: '22222222-2222-2222-2222-222222222222'
     },
     billingService as any,
+    {} as any,
     notificationsService as any,
     {
       enqueueRecompute: vi.fn().mockResolvedValue(undefined)

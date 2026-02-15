@@ -28,6 +28,18 @@ export class RequestContextService {
     }, fn);
   }
 
+  async runService<T>(fn: (tx: TxClient) => Promise<T>): Promise<T> {
+    return withTxContext(this.prismaService.client, {
+      tenantId: null,
+      userId: null,
+      aud: 'service'
+    }, fn);
+  }
+
+  tenantIdForClaims(claims: JwtClaims): string | null {
+    return this.resolveTenantId(claims);
+  }
+
   private resolveTenantId(claims: JwtClaims): string | null {
     if (claims.aud === 'portal') {
       return this.launchMode.externalTenantId;

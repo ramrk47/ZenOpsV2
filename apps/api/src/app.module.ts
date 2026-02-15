@@ -19,9 +19,21 @@ import { NotificationsController } from './notifications/notifications.controlle
 import { NotificationQueueService } from './notifications/notification-queue.service.js';
 import { NotificationsService } from './notifications/notifications.service.js';
 import { ControlController } from './control/control.controller.js';
+import { BillingControlController } from './billing-control/billing-control.controller.js';
+import { ServiceInvoicesController } from './billing-control/service-invoices.controller.js';
+import { BillingControlService } from './billing-control/billing-control.service.js';
 
 @Module({
-  controllers: [HealthController, MetaController, AuthController, DomainController, NotificationsController, ControlController],
+  controllers: [
+    HealthController,
+    MetaController,
+    AuthController,
+    DomainController,
+    NotificationsController,
+    ControlController,
+    BillingControlController,
+    ServiceInvoicesController
+  ],
   providers: [
     {
       provide: PrismaService,
@@ -86,6 +98,7 @@ import { ControlController } from './control/control.controller.js';
     },
     RequestContextService,
     BillingService,
+    BillingControlService,
     NotificationsService,
     DomainService,
     {

@@ -77,6 +77,150 @@ BEGIN
   EXECUTE 'ALTER TABLE public.audit_events FORCE ROW LEVEL SECURITY';
 END $$;
 
+-- ============================================================================
+-- M4.7 Billing control plane + service invoicing RLS policies
+-- ============================================================================
+
+DO $$
+DECLARE
+  t text;
+  tenant_scoped text[] := ARRAY[
+    'billing_accounts',
+    'billing_policies',
+    'billing_subscriptions',
+    'billing_credit_reservations',
+    'billing_credit_ledger',
+    'billing_usage_events',
+    'service_invoice_sequences',
+    'service_invoices',
+    'service_invoice_items',
+    'service_invoice_payments',
+    'service_invoice_adjustments',
+    'service_invoice_attachments',
+    'service_invoice_audit_logs',
+    'service_idempotency_keys'
+  ];
+BEGIN
+  FOREACH t IN ARRAY tenant_scoped
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY', t);
+  END LOOP;
+END $$;
+
+ALTER TABLE public.billing_plan_catalog ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.billing_plan_catalog FORCE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE
+  t text;
+  tenant_scoped text[] := ARRAY[
+    'billing_accounts',
+    'billing_policies',
+    'billing_subscriptions',
+    'billing_credit_reservations',
+    'billing_credit_ledger',
+    'billing_usage_events',
+    'service_invoice_sequences',
+    'service_invoices',
+    'service_invoice_items',
+    'service_invoice_payments',
+    'service_invoice_adjustments',
+    'service_invoice_attachments',
+    'service_invoice_audit_logs',
+    'service_idempotency_keys'
+  ];
+BEGIN
+  FOREACH t IN ARRAY tenant_scoped
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS tenant_web_select ON public.%I', t);
+    EXECUTE format(
+      'CREATE POLICY tenant_web_select ON public.%I FOR SELECT TO zen_web USING (tenant_id = app.current_tenant_id())',
+      t
+    );
+    EXECUTE format('DROP POLICY IF EXISTS tenant_web_modify ON public.%I', t);
+    EXECUTE format(
+      'CREATE POLICY tenant_web_modify ON public.%I FOR ALL TO zen_web USING (tenant_id = app.current_tenant_id()) WITH CHECK (tenant_id = app.current_tenant_id())',
+      t
+    );
+  END LOOP;
+END $$;
+
+DO $$
+DECLARE
+  t text;
+  portal_read_tables text[] := ARRAY[
+    'billing_accounts',
+    'billing_policies',
+    'service_invoices',
+    'service_invoice_items',
+    'service_invoice_payments',
+    'service_invoice_adjustments',
+    'service_invoice_attachments'
+  ];
+BEGIN
+  FOREACH t IN ARRAY portal_read_tables
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS portal_billing_read ON public.%I', t);
+    EXECUTE format(
+      'CREATE POLICY portal_billing_read ON public.%I FOR SELECT TO zen_portal USING (tenant_id = app.current_tenant_id())',
+      t
+    );
+  END LOOP;
+END $$;
+
+DROP POLICY IF EXISTS portal_billing_attachments_write ON public.service_invoice_attachments;
+CREATE POLICY portal_billing_attachments_write ON public.service_invoice_attachments
+  FOR INSERT TO zen_portal
+  WITH CHECK (tenant_id = app.current_tenant_id() AND kind = 'payment_proof'::"ServiceInvoiceAttachmentKind");
+
+DO $$
+DECLARE
+  t text;
+  studio_worker_tables text[] := ARRAY[
+    'billing_accounts',
+    'billing_policies',
+    'billing_plan_catalog',
+    'billing_subscriptions',
+    'billing_credit_reservations',
+    'billing_credit_ledger',
+    'billing_usage_events',
+    'service_invoice_sequences',
+    'service_invoices',
+    'service_invoice_items',
+    'service_invoice_payments',
+    'service_invoice_adjustments',
+    'service_invoice_attachments',
+    'service_invoice_audit_logs',
+    'service_idempotency_keys'
+  ];
+BEGIN
+  FOREACH t IN ARRAY studio_worker_tables
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS studio_billing_rw ON public.%I', t);
+    EXECUTE format(
+      'CREATE POLICY studio_billing_rw ON public.%I FOR ALL TO zen_studio USING (current_setting(''app.aud'', true) = ''studio'') WITH CHECK (current_setting(''app.aud'', true) = ''studio'')',
+      t
+    );
+
+    EXECUTE format('DROP POLICY IF EXISTS worker_billing_rw ON public.%I', t);
+    EXECUTE format(
+      'CREATE POLICY worker_billing_rw ON public.%I FOR ALL TO zen_worker USING (current_setting(''app.aud'', true) IN (''worker'', ''service'')) WITH CHECK (current_setting(''app.aud'', true) IN (''worker'', ''service''))',
+      t
+    );
+  END LOOP;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS billing_credit_reservations_active_ref_idx
+  ON public.billing_credit_reservations (account_id, ref_type, ref_id)
+  WHERE status = 'active'::"CreditReservationStatus";
+
+CREATE UNIQUE INDEX IF NOT EXISTS billing_credit_ledger_account_idempotency_idx
+  ON public.billing_credit_ledger (account_id, idempotency_key);
+
+CREATE UNIQUE INDEX IF NOT EXISTS service_invoice_sequences_fy_idx
+  ON public.service_invoice_sequences (tenant_id, account_id, financial_year);
+
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO zen_web, zen_studio, zen_portal, zen_worker;
 
 -- Baseline tenant policy for web users

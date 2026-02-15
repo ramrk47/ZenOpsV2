@@ -69,6 +69,10 @@ model ChannelRequest {
   channelId         String               @map("channel_id") @db.Uuid
   requestedByUserId String               @map("requested_by_user_id") @db.Uuid
   assignmentId      String?              @map("assignment_id") @db.Uuid
+  billingAccountId  String?              @map("billing_account_id") @db.Uuid
+  billingReservationId String?           @map("billing_reservation_id") @db.Uuid
+  serviceInvoiceId  String?              @map("service_invoice_id") @db.Uuid
+  billingModeAtDecision BillingMode?     @map("billing_mode_at_decision")
   borrowerName      String               @map("borrower_name")
   phone             String
   propertyCity      String               @map("property_city")
@@ -86,5 +90,7 @@ model ChannelRequest {
   @@index([tenantId, channelId, createdAt(sort: Desc)])
   @@index([tenantId, requestedByUserId, createdAt(sort: Desc)])
   @@index([tenantId, status, createdAt(sort: Desc)])
+  @@index([billingAccountId])
+  @@index([serviceInvoiceId])
   @@map("channel_requests")
 }

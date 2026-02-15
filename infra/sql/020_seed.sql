@@ -122,6 +122,154 @@ SET billing_plan_id = EXCLUDED.billing_plan_id,
     tax_rate_bps = EXCLUDED.tax_rate_bps,
     updated_at = NOW();
 
+INSERT INTO public.billing_accounts (
+  id,
+  tenant_id,
+  account_type,
+  external_key,
+  display_name,
+  status,
+  default_payment_terms_days,
+  created_at,
+  updated_at
+)
+VALUES
+  (
+    gen_random_uuid(),
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    'tenant',
+    'tenant:11111111-1111-1111-1111-111111111111',
+    'Tenant #1 Factory Account',
+    'active',
+    15,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid(),
+    '22222222-2222-2222-2222-222222222222'::uuid,
+    'external_associate',
+    'external_associate:seed',
+    'Seed External Associate',
+    'active',
+    7,
+    NOW(),
+    NOW()
+  )
+ON CONFLICT (external_key) DO UPDATE
+SET display_name = EXCLUDED.display_name,
+    status = EXCLUDED.status,
+    default_payment_terms_days = EXCLUDED.default_payment_terms_days,
+    updated_at = NOW();
+
+INSERT INTO public.billing_policies (
+  id,
+  tenant_id,
+  account_id,
+  billing_mode,
+  payment_terms_days,
+  credit_cost_model,
+  currency,
+  is_enabled,
+  created_at,
+  updated_at
+)
+SELECT
+  gen_random_uuid(),
+  ba.tenant_id,
+  ba.id,
+  CASE
+    WHEN ba.account_type = 'tenant'::"BillingAccountType" THEN 'postpaid'::"BillingMode"
+    ELSE 'credit'::"BillingMode"
+  END,
+  ba.default_payment_terms_days,
+  'flat'::"CreditCostModel",
+  'INR',
+  TRUE,
+  NOW(),
+  NOW()
+FROM public.billing_accounts ba
+ON CONFLICT (account_id) DO UPDATE
+SET billing_mode = EXCLUDED.billing_mode,
+    payment_terms_days = EXCLUDED.payment_terms_days,
+    credit_cost_model = EXCLUDED.credit_cost_model,
+    currency = EXCLUDED.currency,
+    is_enabled = EXCLUDED.is_enabled,
+    updated_at = NOW();
+
+INSERT INTO public.billing_plan_catalog (
+  id,
+  name,
+  monthly_credit_allowance,
+  is_active,
+  created_at,
+  updated_at
+)
+VALUES (
+  gen_random_uuid(),
+  'Starter Credit 100',
+  100,
+  TRUE,
+  NOW(),
+  NOW()
+)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.billing_subscriptions (
+  id,
+  tenant_id,
+  account_id,
+  plan_id,
+  status,
+  starts_at,
+  ends_at,
+  created_at,
+  updated_at
+)
+SELECT
+  gen_random_uuid(),
+  ba.tenant_id,
+  ba.id,
+  pc.id,
+  'active'::"BillingSubscriptionStatus",
+  NOW(),
+  NULL,
+  NOW(),
+  NOW()
+FROM public.billing_accounts ba
+CROSS JOIN LATERAL (
+  SELECT id FROM public.billing_plan_catalog WHERE is_active IS TRUE ORDER BY created_at ASC LIMIT 1
+) pc
+WHERE ba.account_type = 'external_associate'::"BillingAccountType"
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.billing_credit_ledger (
+  id,
+  tenant_id,
+  account_id,
+  delta,
+  reason,
+  ref_type,
+  ref_id,
+  idempotency_key,
+  metadata_json,
+  created_at
+)
+SELECT
+  gen_random_uuid(),
+  ba.tenant_id,
+  ba.id,
+  25,
+  'grant'::"CreditLedgerReason",
+  'seed',
+  'opening-balance',
+  CONCAT('seed-grant:', ba.id),
+  '{"note":"Seed opening balance"}'::jsonb,
+  NOW()
+FROM public.billing_accounts ba
+WHERE ba.account_type = 'external_associate'::"BillingAccountType"
+ON CONFLICT (account_id, idempotency_key) DO NOTHING;
+
 INSERT INTO public.contact_points (
   id,
   tenant_id,

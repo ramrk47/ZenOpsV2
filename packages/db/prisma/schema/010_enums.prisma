@@ -299,3 +299,63 @@ enum ChannelRequestStatus {
   accepted
   rejected
 }
+
+enum BillingAccountType {
+  tenant
+  external_associate
+}
+
+enum BillingAccountStatus {
+  active
+  suspended
+}
+
+enum BillingMode {
+  postpaid
+  credit
+}
+
+enum CreditCostModel {
+  flat
+}
+
+enum BillingSubscriptionStatus {
+  active
+  past_due
+  cancelled
+}
+
+enum CreditLedgerReason {
+  grant
+  topup
+  reserve
+  consume
+  release
+  adjustment
+}
+
+enum CreditReservationStatus {
+  active
+  consumed
+  released
+}
+
+enum BillingUsageSourceSystem {
+  v1
+  v2
+}
+
+enum ServiceInvoiceStatus {
+  draft
+  issued
+  sent
+  partially_paid
+  paid
+  void
+}
+
+enum ServiceInvoiceAttachmentKind {
+  invoice_document
+  payment_proof
+  other
+}

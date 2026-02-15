@@ -769,7 +769,7 @@ export class DomainController {
   @Get('files/:id/presign-download')
   async presignDownload(@Claims() claims: JwtClaims, @Param('id') id: string) {
     return this.requestContext.runWithClaims(claims, (tx) =>
-      this.domainService.presignDownload(tx, id)
+      this.domainService.presignDownload(tx, claims, id)
     );
   }
 

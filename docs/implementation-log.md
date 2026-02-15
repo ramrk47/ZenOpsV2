@@ -4,6 +4,23 @@ Last updated: 2026-02-15
 
 ## Scope Completed
 
+### 0) M4.7 Billing Spine (Current)
+- Added billing control-plane schema/components:
+  - accounts, policies, subscriptions/plans
+  - credit reservations + immutable ledger
+  - usage events ingestion
+  - service invoice module (invoices/items/payments/adjustments/attachments/audit/idempotency/sequences)
+- Added V2 billing APIs:
+  - `/v1/billing/accounts/:accountId/status`
+  - `/v1/billing/accounts/status?external_key=...`
+  - credit reserve/consume/release
+  - billing event ingestion
+- Replaced control-plane stubs with functional account/policy/credit/subscription endpoints.
+- Extended domain hooks for billing behavior on channel acceptance and deliverables gating checks.
+- Added M4.7 docs:
+  - `docs/m4.7-dual-vps-launch-readiness.md`
+  - `docs/m4.7-smoke-checklist.md`
+
 ### 1) Foundation Scaffold (Monorepo + Apps + Packages)
 - Built Turborepo + pnpm monorepo structure.
 - Apps created:

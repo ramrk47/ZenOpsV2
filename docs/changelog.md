@@ -2,6 +2,20 @@
 
 ## 2026-02-15
 
+### Added (M4.7 Billing Spine + V1 Handshake Enablement)
+- Billing control-plane and service invoicing foundations in V2:
+  - new Prisma billing models and enums
+  - control + billing + invoices API controllers/services
+  - control-plane account/policy/credits/subscription operations wired
+  - V2 billing status lookup by external account key (`GET /v1/billing/accounts/status?external_key=...`)
+- V2 docs:
+  - `docs/m4.7-dual-vps-launch-readiness.md`
+  - `docs/m4.7-smoke-checklist.md`
+
+### Changed (M4.7)
+- Domain/service wiring updated for channel acceptance billing actions and billing-gated download checks.
+- SQL RLS/seed files expanded for billing control-plane and service invoice tables.
+
 ### Added (M4.6.1 V1/V2 Segregation + Port Identity)
 - V2 API identity endpoint:
   - `GET /v1/meta` returning app/repo/git/build/env identity payload

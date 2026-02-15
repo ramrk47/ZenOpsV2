@@ -55,6 +55,7 @@ import { Prisma, type TxClient } from '@zenops/db';
 import { buildStorageKey, type StorageProvider } from '@zenops/storage';
 import type { LaunchModeConfig } from '../common/launch-mode.js';
 import { BillingService } from '../billing/billing.service.js';
+import { BillingControlService } from '../billing-control/billing-control.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { Capabilities } from '../auth/rbac.js';
 import { AssignmentSignalsQueueService } from '../queue/assignment-signals-queue.service.js';
@@ -156,6 +157,7 @@ export class DomainService {
     @Inject('STORAGE_PROVIDER') private readonly storageProvider: StorageProvider,
     @Inject('LAUNCH_MODE_CONFIG') private readonly launchMode: LaunchModeConfig,
     private readonly billingService: BillingService,
+    private readonly billingControlService: BillingControlService,
     private readonly notificationsService: NotificationsService,
     private readonly assignmentSignalsQueue: AssignmentSignalsQueueService
   ) {}
@@ -878,22 +880,56 @@ export class DomainService {
       orderBy: [{ createdAt: 'desc' }]
     });
 
-    return rows.map((row) => ({
-      id: row.id,
-      tenant_id: row.tenantId,
-      channel_id: row.channelId,
-      channel_name: row.channel.name,
-      requested_by_user_id: row.requestedByUserId,
-      assignment_id: row.assignmentId,
-      borrower_name: row.borrowerName,
-      phone: row.phone,
-      property_city: row.propertyCity,
-      property_address: row.propertyAddress,
-      notes: row.notes,
-      status: this.serializeChannelRequestStatus(row.status),
-      created_at: row.createdAt.toISOString(),
-      updated_at: row.updatedAt.toISOString()
-    }));
+    const invoiceIds = rows
+      .map((row) => row.serviceInvoiceId)
+      .filter((value): value is string => Boolean(value));
+    const invoices = invoiceIds.length
+      ? await tx.serviceInvoice.findMany({
+          where: {
+            id: {
+              in: invoiceIds
+            }
+          },
+          select: {
+            id: true,
+            status: true,
+            invoiceNumber: true,
+            amountDue: true,
+            totalAmount: true,
+            isPaid: true
+          }
+        })
+      : [];
+    const invoiceById = new Map(invoices.map((invoice) => [invoice.id, invoice]));
+
+    return rows.map((row) => {
+      const linkedInvoice = row.serviceInvoiceId ? invoiceById.get(row.serviceInvoiceId) : null;
+      return {
+        id: row.id,
+        tenant_id: row.tenantId,
+        channel_id: row.channelId,
+        channel_name: row.channel.name,
+        requested_by_user_id: row.requestedByUserId,
+        assignment_id: row.assignmentId,
+        billing_account_id: row.billingAccountId,
+        billing_reservation_id: row.billingReservationId,
+        service_invoice_id: row.serviceInvoiceId,
+        billing_mode_at_decision: row.billingModeAtDecision ? row.billingModeAtDecision.toUpperCase() : null,
+        service_invoice_status: linkedInvoice ? linkedInvoice.status.toUpperCase() : null,
+        service_invoice_number: linkedInvoice?.invoiceNumber ?? null,
+        service_invoice_total_amount: linkedInvoice ? Number(linkedInvoice.totalAmount.toString()) : null,
+        service_invoice_amount_due: linkedInvoice ? Number(linkedInvoice.amountDue.toString()) : null,
+        service_invoice_is_paid: linkedInvoice?.isPaid ?? null,
+        borrower_name: row.borrowerName,
+        phone: row.phone,
+        property_city: row.propertyCity,
+        property_address: row.propertyAddress,
+        notes: row.notes,
+        status: this.serializeChannelRequestStatus(row.status),
+        created_at: row.createdAt.toISOString(),
+        updated_at: row.updatedAt.toISOString()
+      };
+    });
   }
 
   async createChannelRequest(tx: TxClient, claims: JwtClaims, input: ChannelRequestCreate) {
@@ -939,6 +975,10 @@ export class DomainService {
       property_city: row.propertyCity,
       property_address: row.propertyAddress,
       notes: row.notes,
+      billing_account_id: row.billingAccountId,
+      billing_reservation_id: row.billingReservationId,
+      service_invoice_id: row.serviceInvoiceId,
+      billing_mode_at_decision: row.billingModeAtDecision ? row.billingModeAtDecision.toUpperCase() : null,
       status: this.serializeChannelRequestStatus(row.status),
       created_at: row.createdAt.toISOString(),
       updated_at: row.updatedAt.toISOString()
@@ -970,6 +1010,10 @@ export class DomainService {
 
     const nextStatus = this.parseChannelRequestStatus(input.status);
     let assignmentId = row.assignmentId;
+    let billingAccountId = row.billingAccountId;
+    let billingReservationId = row.billingReservationId;
+    let serviceInvoiceId = row.serviceInvoiceId;
+    let billingModeAtDecision = row.billingModeAtDecision;
 
     if (nextStatus === 'accepted' && !assignmentId) {
       const createdAssignment = await tx.assignment.create({
@@ -1016,6 +1060,42 @@ export class DomainService {
           note: 'assignment created'
         }
       });
+      const billing = await this.billingControlService.ensureChannelAcceptanceBilling(tx, {
+        tenant_id: tenantId,
+        channel_request_id: row.id,
+        requested_by_user_id: row.requestedByUserId,
+        borrower_name: row.borrowerName,
+        assignment_id: assignmentId,
+        fee_paise: createdAssignment.feePaise
+      });
+      billingAccountId = billing.account_id;
+      billingReservationId = billing.reservation_id;
+      serviceInvoiceId = billing.service_invoice_id;
+      billingModeAtDecision = billing.mode === 'CREDIT' ? 'credit' : 'postpaid';
+    }
+
+    if (nextStatus === 'accepted' && assignmentId) {
+      const billing = await this.billingControlService.ensureChannelAcceptanceBilling(tx, {
+        tenant_id: tenantId,
+        channel_request_id: row.id,
+        requested_by_user_id: row.requestedByUserId,
+        borrower_name: row.borrowerName,
+        assignment_id: assignmentId,
+        fee_paise: null
+      });
+      billingAccountId = billing.account_id;
+      billingReservationId = billing.reservation_id;
+      serviceInvoiceId = billing.service_invoice_id;
+      billingModeAtDecision = billing.mode === 'CREDIT' ? 'credit' : 'postpaid';
+    }
+
+    if (nextStatus === 'rejected') {
+      await this.billingControlService.markChannelCancelledRelease(tx, {
+        channel_request_id: row.id,
+        account_id: row.billingAccountId ?? null,
+        reservation_id: row.billingReservationId ?? null
+      });
+      billingReservationId = null;
     }
 
     const updated = await tx.channelRequest.update({
@@ -1023,6 +1103,10 @@ export class DomainService {
       data: {
         status: nextStatus,
         assignmentId,
+        billingAccountId,
+        billingReservationId,
+        serviceInvoiceId,
+        billingModeAtDecision,
         notes: input.note ? `${row.notes ?? ''}${row.notes ? '\n' : ''}[review] ${input.note}` : row.notes
       }
     });
@@ -1033,6 +1117,10 @@ export class DomainService {
       channel_id: updated.channelId,
       requested_by_user_id: updated.requestedByUserId,
       assignment_id: updated.assignmentId,
+      billing_account_id: updated.billingAccountId,
+      billing_reservation_id: updated.billingReservationId,
+      service_invoice_id: updated.serviceInvoiceId,
+      billing_mode_at_decision: updated.billingModeAtDecision ? updated.billingModeAtDecision.toUpperCase() : null,
       borrower_name: updated.borrowerName,
       phone: updated.phone,
       property_city: updated.propertyCity,
@@ -2299,6 +2387,37 @@ export class DomainService {
         after_priority: updated.priority
       }
     });
+
+    if (
+      input.status &&
+      input.status !== existing.status &&
+      (input.status === 'delivered' || input.status === 'cancelled')
+    ) {
+      const linkedRequest = await tx.channelRequest.findFirst({
+        where: {
+          tenantId: updated.tenantId,
+          assignmentId,
+          deletedAt: null
+        }
+      });
+      if (linkedRequest?.billingAccountId) {
+        if (input.status === 'delivered') {
+          await this.billingControlService.markChannelDeliveredBillingSatisfied(tx, {
+            tenant_id: linkedRequest.tenantId,
+            channel_request_id: linkedRequest.id,
+            account_id: linkedRequest.billingAccountId,
+            reservation_id: linkedRequest.billingReservationId,
+            service_invoice_id: linkedRequest.serviceInvoiceId
+          });
+        } else if (input.status === 'cancelled') {
+          await this.billingControlService.markChannelCancelledRelease(tx, {
+            channel_request_id: linkedRequest.id,
+            account_id: linkedRequest.billingAccountId,
+            reservation_id: linkedRequest.billingReservationId
+          });
+        }
+      }
+    }
 
     return this.getAssignmentDetail(tx, claims, assignmentId);
   }
@@ -3570,17 +3689,42 @@ export class DomainService {
     return this.serializeDocument(updated);
   }
 
-  async presignDownload(tx: TxClient, documentId: string) {
+  async presignDownload(tx: TxClient, claims: JwtClaims, documentId: string) {
     const document = await tx.document.findFirst({
       where: {
         id: documentId,
         deletedAt: null,
         status: 'uploaded'
+      },
+      include: {
+        documentLinks: {
+          where: {
+            assignmentId: {
+              not: null
+            }
+          }
+        }
       }
     });
 
     if (!document) {
       throw new NotFoundException(`document ${documentId} not found`);
+    }
+
+    if (claims.aud === 'portal' && document.documentLinks.length > 0) {
+      const assignmentIds = document.documentLinks
+        .map((link) => link.assignmentId)
+        .filter((value): value is string => Boolean(value));
+      for (const assignmentId of assignmentIds) {
+        const billingSatisfied = await this.billingControlService.isAssignmentBillingSatisfied(
+          tx,
+          document.tenantId,
+          assignmentId
+        );
+        if (!billingSatisfied) {
+          throw new ForbiddenException('DELIVERABLE_LOCKED_UNTIL_BILLING_SATISFIED');
+        }
+      }
     }
 
     return this.storageProvider.presignDownload({
