@@ -36,6 +36,25 @@ enum AssignmentSource {
   partner
 }
 
+enum AssignmentSourceType {
+  bank
+  direct
+  channel
+}
+
+enum AssignmentStage {
+  draft_created
+  data_collected
+  qc_pending
+  qc_changes_requested
+  qc_approved
+  finalized
+  sent_to_client
+  billed
+  paid
+  closed
+}
+
 enum AssignmentPriority {
   low
   normal
@@ -60,6 +79,7 @@ enum AssignmentTaskStatus {
 enum AssignmentActivityType {
   created
   status_changed
+  stage_transitioned
   assignee_added
   assignee_removed
   task_added
@@ -242,4 +262,10 @@ enum NotificationEventType {
   report_finalized
   invoice_created
   invoice_paid
+}
+
+enum AssignmentSignalKind {
+  overdue
+  stuck_in_qc
+  billing_pending
 }

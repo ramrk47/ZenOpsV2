@@ -1,0 +1,209 @@
+model Bank {
+  id               String       @id @default(uuid()) @db.Uuid
+  tenantId         String       @map("tenant_id") @db.Uuid
+  name             String
+  code             String?
+  isVerified       Boolean      @default(false) @map("is_verified")
+  reviewedAt       DateTime?    @map("reviewed_at")
+  reviewedByUserId String?      @map("reviewed_by_user_id") @db.Uuid
+  deletedAt        DateTime?    @map("deleted_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+  tenant           Tenant       @relation(fields: [tenantId], references: [id])
+  reviewedByUser   User?        @relation("BankReviewedBy", fields: [reviewedByUserId], references: [id])
+  branches         BankBranch[]
+  assignments      Assignment[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, isVerified])
+  @@index([reviewedByUserId])
+  @@map("banks")
+}
+
+model BankBranch {
+  id               String             @id @default(uuid()) @db.Uuid
+  tenantId         String             @map("tenant_id") @db.Uuid
+  bankId           String             @map("bank_id") @db.Uuid
+  clientOrgId      String?            @map("client_org_id") @db.Uuid
+  branchName       String             @map("branch_name")
+  city             String
+  state            String?
+  ifsc             String?
+  isVerified       Boolean            @default(false) @map("is_verified")
+  reviewedAt       DateTime?          @map("reviewed_at")
+  reviewedByUserId String?            @map("reviewed_by_user_id") @db.Uuid
+  deletedAt        DateTime?          @map("deleted_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  tenant           Tenant             @relation(fields: [tenantId], references: [id])
+  bank             Bank               @relation(fields: [bankId], references: [id])
+  clientOrg        ClientOrg?         @relation(fields: [clientOrgId], references: [id])
+  reviewedByUser   User?              @relation("BankBranchReviewedBy", fields: [reviewedByUserId], references: [id])
+  assignments      Assignment[]
+  assignmentSources AssignmentSourceRecord[]
+
+  @@unique([tenantId, bankId, branchName, city])
+  @@unique([tenantId, bankId, ifsc])
+  @@index([tenantId, bankId, isVerified])
+  @@index([tenantId, branchName, city])
+  @@index([reviewedByUserId])
+  @@map("bank_branches")
+}
+
+model ClientOrg {
+  id               String                  @id @default(uuid()) @db.Uuid
+  tenantId         String                  @map("tenant_id") @db.Uuid
+  name             String
+  city             String
+  type             String?
+  isVerified       Boolean                 @default(false) @map("is_verified")
+  reviewedAt       DateTime?               @map("reviewed_at")
+  reviewedByUserId String?                 @map("reviewed_by_user_id") @db.Uuid
+  deletedAt        DateTime?               @map("deleted_at")
+  createdAt        DateTime                @default(now()) @map("created_at")
+  updatedAt        DateTime                @updatedAt @map("updated_at")
+  tenant           Tenant                  @relation(fields: [tenantId], references: [id])
+  reviewedByUser   User?                   @relation("ClientOrgReviewedBy", fields: [reviewedByUserId], references: [id])
+  branches         BankBranch[]
+  contacts         Contact[]
+  assignments      Assignment[]
+  assignmentSources AssignmentSourceRecord[]
+
+  @@unique([tenantId, name, city])
+  @@index([tenantId, isVerified])
+  @@index([tenantId, name, city])
+  @@index([reviewedByUserId])
+  @@map("client_orgs")
+}
+
+model Contact {
+  id             String      @id @default(uuid()) @db.Uuid
+  tenantId       String      @map("tenant_id") @db.Uuid
+  clientOrgId    String      @map("client_org_id") @db.Uuid
+  name           String
+  roleLabel      String?     @map("role_label")
+  phone          String?
+  email          String?
+  isPrimary      Boolean     @default(false) @map("is_primary")
+  deletedAt      DateTime?   @map("deleted_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  tenant         Tenant      @relation(fields: [tenantId], references: [id])
+  clientOrg      ClientOrg   @relation(fields: [clientOrgId], references: [id])
+  assignments    Assignment[] @relation("AssignmentPrimaryContact")
+
+  @@index([tenantId, clientOrgId])
+  @@index([tenantId, name])
+  @@index([tenantId, email])
+  @@map("contacts")
+}
+
+model Property {
+  id             String      @id @default(uuid()) @db.Uuid
+  tenantId       String      @map("tenant_id") @db.Uuid
+  name           String
+  line1          String?     @map("line_1")
+  city           String?
+  state          String?
+  postalCode     String?     @map("postal_code")
+  latitude       Decimal?    @db.Decimal(10, 7)
+  longitude      Decimal?    @db.Decimal(10, 7)
+  deletedAt      DateTime?   @map("deleted_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  tenant         Tenant      @relation(fields: [tenantId], references: [id])
+  assignments    Assignment[]
+
+  @@index([tenantId, name])
+  @@index([tenantId, city])
+  @@map("properties")
+}
+
+model Channel {
+  id               String                  @id @default(uuid()) @db.Uuid
+  tenantId         String                  @map("tenant_id") @db.Uuid
+  ownerUserId      String?                 @map("owner_user_id") @db.Uuid
+  name             String
+  city             String?
+  isVerified       Boolean                 @default(false) @map("is_verified")
+  reviewedAt       DateTime?               @map("reviewed_at")
+  reviewedByUserId String?                 @map("reviewed_by_user_id") @db.Uuid
+  deletedAt        DateTime?               @map("deleted_at")
+  createdAt        DateTime                @default(now()) @map("created_at")
+  updatedAt        DateTime                @updatedAt @map("updated_at")
+  tenant           Tenant                  @relation(fields: [tenantId], references: [id])
+  ownerUser        User?                   @relation("ChannelOwner", fields: [ownerUserId], references: [id])
+  reviewedByUser   User?                   @relation("ChannelReviewedBy", fields: [reviewedByUserId], references: [id])
+  assignmentSources AssignmentSourceRecord[]
+
+  @@unique([tenantId, name, city])
+  @@index([tenantId, ownerUserId])
+  @@index([reviewedByUserId])
+  @@map("channels")
+}
+
+model AssignmentSourceRecord {
+  id             String               @id @default(uuid()) @db.Uuid
+  tenantId       String               @map("tenant_id") @db.Uuid
+  assignmentId   String               @map("assignment_id") @db.Uuid
+  sourceType     AssignmentSourceType @map("source_type")
+  sourceRefId    String?              @map("source_ref_id") @db.Uuid
+  bankBranchId   String?              @map("bank_branch_id") @db.Uuid
+  clientOrgId    String?              @map("client_org_id") @db.Uuid
+  channelId      String?              @map("channel_id") @db.Uuid
+  recordedByUserId String?            @map("recorded_by_user_id") @db.Uuid
+  recordedAt     DateTime             @default(now()) @map("recorded_at")
+  metadataJson   Json                 @default("{}") @db.JsonB @map("metadata_json")
+  tenant         Tenant               @relation(fields: [tenantId], references: [id])
+  assignment     Assignment           @relation(fields: [assignmentId], references: [id])
+  bankBranch     BankBranch?          @relation(fields: [bankBranchId], references: [id])
+  clientOrg      ClientOrg?           @relation(fields: [clientOrgId], references: [id])
+  channel        Channel?             @relation(fields: [channelId], references: [id])
+  recordedByUser User?                @relation("AssignmentSourceRecordedBy", fields: [recordedByUserId], references: [id])
+
+  @@unique([assignmentId])
+  @@index([tenantId, sourceType])
+  @@index([bankBranchId])
+  @@index([clientOrgId])
+  @@index([channelId])
+  @@index([recordedByUserId])
+  @@map("assignment_sources")
+}
+
+model AssignmentStageTransition {
+  id              String          @id @default(uuid()) @db.Uuid
+  tenantId        String          @map("tenant_id") @db.Uuid
+  assignmentId    String          @map("assignment_id") @db.Uuid
+  fromStage       AssignmentStage? @map("from_stage")
+  toStage         AssignmentStage  @map("to_stage")
+  reason          String?
+  changedByUserId String?         @map("changed_by_user_id") @db.Uuid
+  changedAt       DateTime        @default(now()) @map("changed_at")
+  metadataJson    Json            @default("{}") @db.JsonB @map("metadata_json")
+  tenant          Tenant          @relation(fields: [tenantId], references: [id])
+  assignment      Assignment      @relation(fields: [assignmentId], references: [id])
+  changedByUser   User?           @relation("AssignmentStageChangedBy", fields: [changedByUserId], references: [id])
+
+  @@index([tenantId, assignmentId, changedAt])
+  @@index([tenantId, toStage, changedAt])
+  @@index([changedByUserId])
+  @@map("assignment_stage_transitions")
+}
+
+model AssignmentSignal {
+  id           String               @id @default(uuid()) @db.Uuid
+  tenantId     String               @map("tenant_id") @db.Uuid
+  assignmentId String               @map("assignment_id") @db.Uuid
+  kind         AssignmentSignalKind
+  isActive     Boolean              @default(true) @map("is_active")
+  firstSeenAt  DateTime             @default(now()) @map("first_seen_at")
+  lastSeenAt   DateTime             @default(now()) @map("last_seen_at")
+  detailsJson  Json                 @default("{}") @db.JsonB @map("details_json")
+  tenant       Tenant               @relation(fields: [tenantId], references: [id])
+  assignment   Assignment           @relation(fields: [assignmentId], references: [id])
+
+  @@unique([tenantId, assignmentId, kind])
+  @@index([tenantId, kind, isActive])
+  @@index([tenantId, assignmentId, isActive])
+  @@map("assignment_signals")
+}

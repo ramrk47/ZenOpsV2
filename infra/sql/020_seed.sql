@@ -564,3 +564,264 @@ JOIN public.employees e
 ON CONFLICT (tenant_id, employee_id, event_type, channel) DO UPDATE
 SET is_active = EXCLUDED.is_active,
     updated_at = NOW();
+
+INSERT INTO public.banks (
+  id,
+  tenant_id,
+  name,
+  code,
+  is_verified,
+  reviewed_at,
+  reviewed_by_user_id,
+  deleted_at,
+  created_at,
+  updated_at
+)
+VALUES
+  (
+    gen_random_uuid(),
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    'State Bank of India',
+    'SBI',
+    true,
+    NOW(),
+    '33333333-3333-3333-3333-333333333333'::uuid,
+    NULL,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid(),
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    'Bank of India',
+    'BOI',
+    true,
+    NOW(),
+    '33333333-3333-3333-3333-333333333333'::uuid,
+    NULL,
+    NOW(),
+    NOW()
+  )
+ON CONFLICT (tenant_id, name) DO UPDATE
+SET code = EXCLUDED.code,
+    is_verified = EXCLUDED.is_verified,
+    reviewed_at = EXCLUDED.reviewed_at,
+    reviewed_by_user_id = EXCLUDED.reviewed_by_user_id,
+    deleted_at = EXCLUDED.deleted_at,
+    updated_at = NOW();
+
+INSERT INTO public.client_orgs (
+  id,
+  tenant_id,
+  name,
+  city,
+  type,
+  is_verified,
+  reviewed_at,
+  reviewed_by_user_id,
+  deleted_at,
+  created_at,
+  updated_at
+)
+VALUES
+  (
+    gen_random_uuid(),
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    'SBI Belgaum Main Branch Org',
+    'Belgaum',
+    'bank_branch',
+    true,
+    NOW(),
+    '33333333-3333-3333-3333-333333333333'::uuid,
+    NULL,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid(),
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    'Direct Retail Clients',
+    'Belgaum',
+    'direct',
+    true,
+    NOW(),
+    '33333333-3333-3333-3333-333333333333'::uuid,
+    NULL,
+    NOW(),
+    NOW()
+  )
+ON CONFLICT (tenant_id, name, city) DO UPDATE
+SET type = EXCLUDED.type,
+    is_verified = EXCLUDED.is_verified,
+    reviewed_at = EXCLUDED.reviewed_at,
+    reviewed_by_user_id = EXCLUDED.reviewed_by_user_id,
+    deleted_at = EXCLUDED.deleted_at,
+    updated_at = NOW();
+
+INSERT INTO public.bank_branches (
+  id,
+  tenant_id,
+  bank_id,
+  client_org_id,
+  branch_name,
+  city,
+  state,
+  ifsc,
+  is_verified,
+  reviewed_at,
+  reviewed_by_user_id,
+  deleted_at,
+  created_at,
+  updated_at
+)
+SELECT
+  gen_random_uuid(),
+  '11111111-1111-1111-1111-111111111111'::uuid,
+  b.id,
+  co.id,
+  seeded.branch_name,
+  seeded.city,
+  seeded.state,
+  seeded.ifsc,
+  true,
+  NOW(),
+  '33333333-3333-3333-3333-333333333333'::uuid,
+  NULL,
+  NOW(),
+  NOW()
+FROM (
+  VALUES
+    ('State Bank of India', 'SBI Belgaum Main', 'Belgaum', 'KA', 'SBIN0000123', 'SBI Belgaum Main Branch Org'),
+    ('Bank of India', 'BOI Mudhol Road', 'Mudhol', 'KA', 'BKID0000456', 'Direct Retail Clients')
+) AS seeded(bank_name, branch_name, city, state, ifsc, client_org_name)
+JOIN public.banks b
+  ON b.tenant_id = '11111111-1111-1111-1111-111111111111'::uuid
+ AND b.name = seeded.bank_name
+LEFT JOIN public.client_orgs co
+  ON co.tenant_id = b.tenant_id
+ AND co.name = seeded.client_org_name
+ AND co.city = 'Belgaum'
+ON CONFLICT (tenant_id, bank_id, branch_name, city) DO UPDATE
+SET state = EXCLUDED.state,
+    ifsc = EXCLUDED.ifsc,
+    client_org_id = EXCLUDED.client_org_id,
+    is_verified = EXCLUDED.is_verified,
+    reviewed_at = EXCLUDED.reviewed_at,
+    reviewed_by_user_id = EXCLUDED.reviewed_by_user_id,
+    deleted_at = EXCLUDED.deleted_at,
+    updated_at = NOW();
+
+INSERT INTO public.contacts (
+  id,
+  tenant_id,
+  client_org_id,
+  name,
+  role_label,
+  phone,
+  email,
+  is_primary,
+  deleted_at,
+  created_at,
+  updated_at
+)
+SELECT
+  gen_random_uuid(),
+  co.tenant_id,
+  co.id,
+  seeded.name,
+  seeded.role_label,
+  seeded.phone,
+  seeded.email,
+  seeded.is_primary,
+  NULL,
+  NOW(),
+  NOW()
+FROM (
+  VALUES
+    ('SBI Belgaum Main Branch Org', 'Branch Manager', 'Manager', '+919999000910', 'manager.sbi@zenops.local', true),
+    ('Direct Retail Clients', 'Primary Borrower Contact', 'Borrower', '+919999000920', 'borrower@zenops.local', true)
+) AS seeded(client_org_name, name, role_label, phone, email, is_primary)
+JOIN public.client_orgs co
+  ON co.tenant_id = '11111111-1111-1111-1111-111111111111'::uuid
+ AND co.name = seeded.client_org_name
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.properties (
+  id,
+  tenant_id,
+  name,
+  line_1,
+  city,
+  state,
+  postal_code,
+  latitude,
+  longitude,
+  deleted_at,
+  created_at,
+  updated_at
+)
+VALUES
+  (
+    gen_random_uuid(),
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    'Plot 42, Basavan Galli',
+    'Basavan Galli',
+    'Belgaum',
+    'KA',
+    '590001',
+    NULL,
+    NULL,
+    NULL,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid(),
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    'Mudhol Warehouse Site',
+    'Industrial Road',
+    'Mudhol',
+    'KA',
+    '587313',
+    NULL,
+    NULL,
+    NULL,
+    NOW(),
+    NOW()
+  )
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.channels (
+  id,
+  tenant_id,
+  owner_user_id,
+  name,
+  city,
+  is_verified,
+  reviewed_at,
+  reviewed_by_user_id,
+  deleted_at,
+  created_at,
+  updated_at
+)
+VALUES
+  (
+    gen_random_uuid(),
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    '33333333-3333-3333-3333-333333333333'::uuid,
+    'Belgaum Channel Desk',
+    'Belgaum',
+    true,
+    NOW(),
+    '33333333-3333-3333-3333-333333333333'::uuid,
+    NULL,
+    NOW(),
+    NOW()
+  )
+ON CONFLICT (tenant_id, name, city) DO UPDATE
+SET owner_user_id = EXCLUDED.owner_user_id,
+    is_verified = EXCLUDED.is_verified,
+    reviewed_at = EXCLUDED.reviewed_at,
+    reviewed_by_user_id = EXCLUDED.reviewed_by_user_id,
+    deleted_at = EXCLUDED.deleted_at,
+    updated_at = NOW();

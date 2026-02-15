@@ -49,6 +49,15 @@ model Tenant {
   notificationTargetGroups NotificationTargetGroup[]
   notificationTargets NotificationTarget[]
   notificationSubscriptions NotificationSubscription[]
+  banks        Bank[]
+  bankBranches BankBranch[]
+  clientOrgs   ClientOrg[]
+  contacts     Contact[]
+  properties   Property[]
+  channels     Channel[]
+  assignmentSources AssignmentSourceRecord[]
+  assignmentStageTransitions AssignmentStageTransition[]
+  assignmentSignals AssignmentSignal[]
 
   @@map("tenants")
 }
@@ -74,6 +83,13 @@ model User {
   contactPoints ContactPoint[]
   employeeProfiles Employee[] @relation("EmployeeUser")
   createdAttendanceEvents AttendanceEvent[] @relation("AttendanceEventCreatedBy")
+  reviewedBanks Bank[] @relation("BankReviewedBy")
+  reviewedBankBranches BankBranch[] @relation("BankBranchReviewedBy")
+  reviewedClientOrgs ClientOrg[] @relation("ClientOrgReviewedBy")
+  channelRecords Channel[] @relation("ChannelOwner")
+  reviewedChannels Channel[] @relation("ChannelReviewedBy")
+  assignmentSourceRecords AssignmentSourceRecord[] @relation("AssignmentSourceRecordedBy")
+  assignmentStageChanges AssignmentStageTransition[] @relation("AssignmentStageChangedBy")
 
   @@map("users")
 }
