@@ -63,4 +63,19 @@ echo "[smoke-v2] release reservation"
 RELEASE_KEY="smoke-release-${SUFFIX}"
 curl -fsS "${AUTH_HEADER[@]}" -X POST "${API_BASE_URL}/control/credits/release" -d "$(jq -n --arg account_id "${ACCOUNT_ID}" --arg reservation_id "${RESERVATION_ID}" --arg key "${RELEASE_KEY}" '{account_id:$account_id, reservation_id:$reservation_id, idempotency_key:$key}')" >/dev/null
 
+echo "[smoke-v2] switch account to POSTPAID and run invoice flow"
+curl -fsS "${AUTH_HEADER[@]}" -X PATCH "${API_BASE_URL}/control/accounts/${ACCOUNT_ID}/policy" -d '{"billing_mode":"postpaid","payment_terms_days":15,"currency":"INR","is_enabled":true}' >/dev/null
+INVOICE_CREATE="$(curl -fsS "${AUTH_HEADER[@]}" -X POST "${API_BASE_URL}/service-invoices" -d "$(jq -n --arg account_id "${ACCOUNT_ID}" '{account_id:$account_id, notes:"smoke invoice", items:[{description:"Smoke service",quantity:1,unit_price:199.00,order_index:0}] }')")"
+INVOICE_ID="$(printf '%s' "${INVOICE_CREATE}" | jq -r '.id')"
+if [[ -z "${INVOICE_ID}" || "${INVOICE_ID}" == "null" ]]; then
+  echo "ERROR: unable to create service invoice" >&2
+  exit 1
+fi
+
+curl -fsS "${AUTH_HEADER[@]}" -H "Idempotency-Key: smoke-issue-${SUFFIX}" -X POST "${API_BASE_URL}/service-invoices/${INVOICE_ID}/issue" -d '{}' >/dev/null
+curl -fsS "${AUTH_HEADER[@]}" -X POST "${API_BASE_URL}/service-invoices/${INVOICE_ID}/mark-paid" -d '{"mode":"manual","notes":"smoke mark paid"}' >/dev/null
+
+echo "[smoke-v2] reconcile dry-run"
+curl -fsS "${AUTH_HEADER[@]}" -X POST "${API_BASE_URL}/control/credits/reconcile" -d "$(jq -n --arg tenant_id "${TENANT_ID}" '{tenant_id:$tenant_id, dry_run:true, limit:50}')" >/dev/null
+
 echo "[smoke-v2] success"
