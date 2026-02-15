@@ -14,6 +14,11 @@ import {
   processTaskOverdueJob,
   type RecomputeOverduePayload
 } from './task-overdue.processor.js';
+import {
+  BILLING_SUBSCRIPTION_REFILL_QUEUE,
+  processSubscriptionRefillJob,
+  type SubscriptionRefillPayload
+} from './subscription-refill.processor.js';
 
 const REPORT_GENERATION_QUEUE = 'report-generation';
 
@@ -58,6 +63,24 @@ const taskOverdueQueue = new Queue<RecomputeOverduePayload>(TASK_OVERDUE_QUEUE, 
     },
     removeOnFail: {
       count: 1000,
+      age: 60 * 60 * 24
+    }
+  }
+});
+
+const subscriptionRefillQueue = new Queue<SubscriptionRefillPayload>(BILLING_SUBSCRIPTION_REFILL_QUEUE, {
+  connection: redisConnection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 5000
+    },
+    removeOnComplete: {
+      count: 200
+    },
+    removeOnFail: {
+      count: 500,
       age: 60 * 60 * 24
     }
   }
@@ -133,6 +156,20 @@ const taskOverdueWorker = new Worker<RecomputeOverduePayload>(
   }
 );
 
+const subscriptionRefillWorker = new Worker<SubscriptionRefillPayload>(
+  BILLING_SUBSCRIPTION_REFILL_QUEUE,
+  async (job) => {
+    await processSubscriptionRefillJob({
+      logger,
+      payload: job.data
+    });
+  },
+  {
+    connection: redisConnection,
+    concurrency: 1
+  }
+);
+
 const ensureRecurringOverdueJobs = async () => {
   const internalJobId = `recompute_overdue:${defaultTenantId}`;
   await taskOverdueQueue.add(
@@ -173,6 +210,27 @@ void ensureRecurringOverdueJobs().catch((error) => {
   });
 });
 
+const ensureRecurringSubscriptionRefill = async () => {
+  await subscriptionRefillQueue.add(
+    'subscription_refill_due',
+    {
+      requestId: 'scheduler'
+    },
+    {
+      jobId: 'subscription_refill_due:hourly',
+      repeat: {
+        every: 60 * 60 * 1000
+      }
+    }
+  );
+};
+
+void ensureRecurringSubscriptionRefill().catch((error) => {
+  logger.error('subscription_refill_schedule_failed', {
+    error: error instanceof Error ? error.message : 'unknown'
+  });
+});
+
 worker.on('ready', () => {
   logger.info('worker_ready', {
     queue: REPORT_GENERATION_QUEUE,
@@ -198,6 +256,13 @@ taskOverdueWorker.on('ready', () => {
   logger.info('worker_ready', {
     queue: TASK_OVERDUE_QUEUE,
     concurrency: Math.max(1, Math.min(2, concurrency))
+  });
+});
+
+subscriptionRefillWorker.on('ready', () => {
+  logger.info('worker_ready', {
+    queue: BILLING_SUBSCRIPTION_REFILL_QUEUE,
+    concurrency: 1
   });
 });
 
@@ -229,14 +294,23 @@ taskOverdueWorker.on('error', (error) => {
   });
 });
 
+subscriptionRefillWorker.on('error', (error) => {
+  logger.error('worker_error', {
+    queue: BILLING_SUBSCRIPTION_REFILL_QUEUE,
+    error: error.message
+  });
+});
+
 const shutdown = async () => {
   logger.info('worker_shutdown');
   await worker.close();
   await notificationsWorker.close();
   await assignmentSignalsWorker.close();
   await taskOverdueWorker.close();
+  await subscriptionRefillWorker.close();
   await notificationsQueue.close();
   await taskOverdueQueue.close();
+  await subscriptionRefillQueue.close();
   await prisma.$disconnect();
   process.exit(0);
 };
