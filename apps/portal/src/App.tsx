@@ -16,6 +16,24 @@ interface ChannelRequestRow {
   phone: string;
   property_city: string;
   status: 'SUBMITTED' | 'ACCEPTED' | 'REJECTED';
+  service_invoice_id?: string | null;
+  service_invoice_status?: string | null;
+  service_invoice_number?: string | null;
+  service_invoice_total_amount?: number | null;
+  service_invoice_amount_due?: number | null;
+  service_invoice_is_paid?: boolean | null;
+  created_at: string;
+}
+
+interface ServiceInvoiceDetail {
+  id: string;
+  invoice_number: string | null;
+  status: 'DRAFT' | 'ISSUED' | 'SENT' | 'PARTIALLY_PAID' | 'PAID' | 'VOID';
+  currency: string;
+  total_amount: number;
+  amount_due: number;
+  amount_paid: number;
+  due_date: string | null;
   created_at: string;
 }
 
@@ -30,6 +48,9 @@ export default function App() {
   const [files, setFiles] = useState<File[]>([]);
   const [channels, setChannels] = useState<ChannelRow[]>([]);
   const [requests, setRequests] = useState<ChannelRequestRow[]>([]);
+  const [invoices, setInvoices] = useState<Record<string, ServiceInvoiceDetail>>({});
+  const [proofRefByInvoice, setProofRefByInvoice] = useState<Record<string, string>>({});
+  const [proofNameByInvoice, setProofNameByInvoice] = useState<Record<string, string>>({});
   const [message, setMessage] = useState('');
 
   const fileText = useMemo(() => {
@@ -58,9 +79,26 @@ export default function App() {
       setChannels([]);
     }
     if (requestsRes.ok) {
-      setRequests(await requestsRes.json());
+      const requestRows = (await requestsRes.json()) as ChannelRequestRow[];
+      setRequests(requestRows);
+      const invoiceIds = Array.from(new Set(requestRows.map((row) => row.service_invoice_id).filter((value): value is string => Boolean(value))));
+      if (invoiceIds.length > 0) {
+        const details = await Promise.all(
+          invoiceIds.map(async (invoiceId) => {
+            const response = await fetch(`${API}/service-invoices/${invoiceId}`, { headers });
+            if (!response.ok) return null;
+            const row = (await response.json()) as ServiceInvoiceDetail;
+            return [invoiceId, row] as const;
+          })
+        );
+        const mapped = details.filter((row): row is readonly [string, ServiceInvoiceDetail] => Boolean(row));
+        setInvoices(Object.fromEntries(mapped));
+      } else {
+        setInvoices({});
+      }
     } else {
       setRequests([]);
+      setInvoices({});
     }
   };
 
@@ -99,6 +137,44 @@ export default function App() {
     setPropertyCity('');
     setPropertyAddress('');
     setNotes('');
+    await load();
+  };
+
+  const submitPaymentProof = async (invoiceId: string) => {
+    if (!token) {
+      setMessage('Paste portal JWT first.');
+      return;
+    }
+
+    const selectedFile = files[0] ?? null;
+    const manualRef = (proofRefByInvoice[invoiceId] ?? '').trim();
+    const manualName = (proofNameByInvoice[invoiceId] ?? '').trim();
+    const suffix = manualRef || `proof-${Date.now()}`;
+    const safeSuffix = suffix.replace(/[^A-Za-z0-9._-]/g, '-');
+    const generatedName = selectedFile?.name || manualName || `payment-proof-${invoiceId}.txt`;
+
+    const payload = {
+      kind: 'payment_proof',
+      original_name: generatedName,
+      storage_key: `portal/payment-proof/${invoiceId}/${Date.now()}-${safeSuffix}`,
+      mime_type: selectedFile?.type || 'text/plain',
+      size_bytes: selectedFile?.size || 0
+    };
+
+    setMessage(`Uploading payment proof metadata for ${invoiceId}...`);
+    const response = await fetch(`${API}/service-invoices/${invoiceId}/payment-proof`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      setMessage(`Payment proof failed: ${await response.text()}`);
+      return;
+    }
+    setMessage(`Payment proof metadata submitted for ${invoiceId}.`);
     await load();
   };
 
@@ -190,11 +266,58 @@ export default function App() {
             {requests.map((row) => (
               <li key={row.id} className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm">
                 <p className="m-0"><strong>{row.borrower_name}</strong> · {row.property_city} · {row.status}</p>
+                {row.service_invoice_id ? (
+                  <p className="m-0 text-xs text-[var(--zen-muted)]">
+                    Invoice {row.service_invoice_number ?? row.service_invoice_id} · {row.service_invoice_status ?? 'N/A'} · due{' '}
+                    {row.service_invoice_amount_due ?? row.service_invoice_total_amount ?? 0}
+                  </p>
+                ) : null}
                 <p className="m-0 text-xs text-[var(--zen-muted)]">{new Date(row.created_at).toLocaleString()}</p>
               </li>
             ))}
           </ul>
           {requests.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No requests yet.</p> : null}
+        </section>
+
+        <section className="mt-6">
+          <h2 className="mt-0 text-lg">My Invoices</h2>
+          <p className="text-xs text-[var(--zen-muted)]">
+            Deliverables stay locked until invoice is paid in POSTPAID mode.
+          </p>
+          <ul className="m-0 list-none space-y-2 p-0">
+            {Object.values(invoices)
+              .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+              .map((invoice) => (
+                <li key={invoice.id} className="rounded-lg border border-[var(--zen-border)] bg-white p-3 text-sm">
+                  <p className="m-0">
+                    <strong>{invoice.invoice_number ?? invoice.id}</strong> · {invoice.status} · {invoice.total_amount} {invoice.currency}
+                  </p>
+                  <p className="m-0 text-xs text-[var(--zen-muted)]">
+                    Amount due: {invoice.amount_due} · Due date: {invoice.due_date ?? 'N/A'}
+                  </p>
+                  <div className="mt-2 grid gap-2 md:grid-cols-3">
+                    <input
+                      className="rounded-lg border border-[var(--zen-border)] px-3 py-2"
+                      placeholder="Proof reference"
+                      value={proofRefByInvoice[invoice.id] ?? ''}
+                      onChange={(event) =>
+                        setProofRefByInvoice((current) => ({ ...current, [invoice.id]: event.target.value }))
+                      }
+                    />
+                    <input
+                      className="rounded-lg border border-[var(--zen-border)] px-3 py-2"
+                      placeholder="Proof file name (optional)"
+                      value={proofNameByInvoice[invoice.id] ?? ''}
+                      onChange={(event) =>
+                        setProofNameByInvoice((current) => ({ ...current, [invoice.id]: event.target.value }))
+                      }
+                    />
+                    <Button onClick={() => void submitPaymentProof(invoice.id)}>Upload Payment Proof</Button>
+                  </div>
+                </li>
+              ))}
+          </ul>
+          {Object.keys(invoices).length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No invoices linked yet.</p> : null}
         </section>
       </section>
     </main>

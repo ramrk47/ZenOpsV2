@@ -200,6 +200,21 @@ interface AnalyticsOverview {
   outbox_dead: number;
 }
 
+interface ServiceInvoiceSummary {
+  id: string;
+  account_id: string;
+  account_display_name: string | null;
+  invoice_number: string | null;
+  status: 'DRAFT' | 'ISSUED' | 'SENT' | 'PARTIALLY_PAID' | 'PAID' | 'VOID';
+  total_amount: number;
+  amount_due: number;
+  amount_paid: number;
+  currency: string;
+  issued_date: string | null;
+  due_date: string | null;
+  created_at: string;
+}
+
 const EMPTY_ANALYTICS_OVERVIEW: AnalyticsOverview = {
   assignments_total: 0,
   assignments_open: 0,
@@ -1257,6 +1272,234 @@ function AnalyticsPage({ token }: { token: string }) {
   );
 }
 
+function ServiceInvoicesPage({ token }: { token: string }) {
+  const [rows, setRows] = useState<ServiceInvoiceSummary[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const [accountIdFilter, setAccountIdFilter] = useState('');
+  const [newAccountId, setNewAccountId] = useState('');
+  const [newDescription, setNewDescription] = useState('Commissioned work');
+  const [newAmount, setNewAmount] = useState('1000');
+  const [newDueDate, setNewDueDate] = useState('');
+
+  const load = async () => {
+    if (!token) {
+      setError('Paste a bearer token to load invoices.');
+      setRows([]);
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const query = accountIdFilter.trim() ? `?account_id=${encodeURIComponent(accountIdFilter.trim())}` : '';
+      const data = await apiRequest<ServiceInvoiceSummary[]>(token, `/service-invoices${query}`);
+      setRows(data);
+    } catch (err) {
+      setRows([]);
+      setError(err instanceof Error ? err.message : 'Unable to load invoices.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, [token]);
+
+  const withReload = async (label: string, action: () => Promise<void>) => {
+    setWorking(true);
+    setError('');
+    setNotice('');
+    try {
+      await action();
+      await load();
+      setNotice(label);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Action failed.');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const createDraft = async () => {
+    const amount = Number.parseFloat(newAmount);
+    if (!newAccountId.trim()) {
+      setError('account_id is required.');
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError('Amount must be a positive number.');
+      return;
+    }
+
+    await withReload('Invoice draft created.', async () => {
+      await apiRequest(token, '/service-invoices', {
+        method: 'POST',
+        body: JSON.stringify({
+          account_id: newAccountId.trim(),
+          due_date: newDueDate || undefined,
+          notes: 'Created from tenant web invoices lane',
+          items: [
+            {
+              description: newDescription || 'Commissioned work',
+              quantity: 1,
+              unit_price: amount,
+              order_index: 0
+            }
+          ]
+        })
+      });
+    });
+  };
+
+  const issueInvoice = async (invoiceId: string) => {
+    await withReload(`Issued ${invoiceId}.`, async () => {
+      await apiRequest(token, `/service-invoices/${invoiceId}/issue`, {
+        method: 'POST',
+        headers: {
+          'Idempotency-Key': `web:invoice_issue:${invoiceId}`
+        },
+        body: JSON.stringify({})
+      });
+    });
+  };
+
+  const markPaid = async (invoiceId: string, amountDue: number) => {
+    const amount = Number.isFinite(amountDue) && amountDue > 0 ? amountDue : undefined;
+    await withReload(`Marked ${invoiceId} as paid.`, async () => {
+      await apiRequest(token, `/service-invoices/${invoiceId}/mark-paid`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ...(amount ? { amount } : {}),
+          mode: 'manual',
+          notes: 'Marked paid from tenant web invoices lane'
+        })
+      });
+    });
+  };
+
+  return (
+    <section className="space-y-4">
+      <header className="card">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="m-0 text-2xl font-bold">Service Invoices</h1>
+            <p className="m-0 text-sm text-[var(--zen-muted)]">Postpaid safety net in V2 (draft → issue → paid).</p>
+          </div>
+          <Button disabled={loading || working} onClick={() => void load()}>
+            {loading ? 'Loading...' : 'Refresh'}
+          </Button>
+        </div>
+
+        <div className="grid gap-2 md:grid-cols-2">
+          <input
+            className="rounded-lg border border-[var(--zen-border)] px-3 py-2"
+            placeholder="Filter by account_id"
+            value={accountIdFilter}
+            onChange={(event) => setAccountIdFilter(event.target.value)}
+          />
+          <Button disabled={loading || working} onClick={() => void load()}>
+            Apply Filter
+          </Button>
+        </div>
+      </header>
+
+      <section className="card">
+        <p className="m-0 text-sm font-semibold">Create Draft</p>
+        <div className="mt-2 grid gap-2 md:grid-cols-4">
+          <input
+            className="rounded-lg border border-[var(--zen-border)] px-3 py-2"
+            placeholder="billing account_id"
+            value={newAccountId}
+            onChange={(event) => setNewAccountId(event.target.value)}
+          />
+          <input
+            className="rounded-lg border border-[var(--zen-border)] px-3 py-2"
+            placeholder="description"
+            value={newDescription}
+            onChange={(event) => setNewDescription(event.target.value)}
+          />
+          <input
+            className="rounded-lg border border-[var(--zen-border)] px-3 py-2"
+            type="number"
+            min={1}
+            step="0.01"
+            placeholder="amount"
+            value={newAmount}
+            onChange={(event) => setNewAmount(event.target.value)}
+          />
+          <input
+            className="rounded-lg border border-[var(--zen-border)] px-3 py-2"
+            type="date"
+            value={newDueDate}
+            onChange={(event) => setNewDueDate(event.target.value)}
+          />
+        </div>
+        <div className="mt-2">
+          <Button disabled={working || loading || !token} onClick={() => void createDraft()}>
+            Create Draft
+          </Button>
+        </div>
+      </section>
+
+      {error ? <section className="card text-sm text-red-700">{error}</section> : null}
+      {notice ? <section className="card text-sm text-emerald-700">{notice}</section> : null}
+
+      <section className="card overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr>
+              <th className="border-b border-[var(--zen-border)] p-2 text-left">Invoice</th>
+              <th className="border-b border-[var(--zen-border)] p-2 text-left">Account</th>
+              <th className="border-b border-[var(--zen-border)] p-2 text-left">Status</th>
+              <th className="border-b border-[var(--zen-border)] p-2 text-left">Amount</th>
+              <th className="border-b border-[var(--zen-border)] p-2 text-left">Due</th>
+              <th className="border-b border-[var(--zen-border)] p-2 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id}>
+                <td className="border-b border-[var(--zen-border)] p-2">
+                  <p className="m-0 font-semibold">{row.invoice_number ?? row.id}</p>
+                  <p className="m-0 text-xs text-[var(--zen-muted)]">{new Date(row.created_at).toLocaleString()}</p>
+                </td>
+                <td className="border-b border-[var(--zen-border)] p-2">
+                  <p className="m-0">{row.account_display_name ?? '-'}</p>
+                  <p className="m-0 text-xs text-[var(--zen-muted)]">{row.account_id}</p>
+                </td>
+                <td className="border-b border-[var(--zen-border)] p-2">{row.status}</td>
+                <td className="border-b border-[var(--zen-border)] p-2">
+                  {row.total_amount.toFixed(2)} {row.currency} · due {row.amount_due.toFixed(2)}
+                </td>
+                <td className="border-b border-[var(--zen-border)] p-2">{row.due_date ?? '-'}</td>
+                <td className="border-b border-[var(--zen-border)] p-2 text-right">
+                  <div className="inline-flex gap-2">
+                    {row.status === 'DRAFT' ? (
+                      <Button disabled={working} onClick={() => void issueInvoice(row.id)}>
+                        Issue
+                      </Button>
+                    ) : null}
+                    {row.status !== 'PAID' && row.status !== 'VOID' ? (
+                      <Button disabled={working} onClick={() => void markPaid(row.id, row.amount_due)}>
+                        Mark Paid
+                      </Button>
+                    ) : null}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No invoices found.</p> : null}
+      </section>
+    </section>
+  );
+}
+
 function AppShell({ token, setToken }: { token: string; setToken: (token: string) => void }) {
   useEffect(() => {
     localStorage.setItem('zenops_web_token', token);
@@ -1278,6 +1521,7 @@ function AppShell({ token, setToken }: { token: string; setToken: (token: string
       <nav className="mb-4 flex flex-wrap gap-2">
         <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/assignments">Assignments</NavLink>
         <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/assignments/new">New</NavLink>
+        <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/invoices">Invoices</NavLink>
         <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/analytics">Analytics</NavLink>
         <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/employees">Employees</NavLink>
       </nav>
@@ -1286,6 +1530,7 @@ function AppShell({ token, setToken }: { token: string; setToken: (token: string
         <Route path="/assignments" element={<AssignmentListPage token={token} />} />
         <Route path="/assignments/new" element={<NewAssignmentPage token={token} />} />
         <Route path="/assignments/:id" element={<AssignmentDetailPage token={token} />} />
+        <Route path="/invoices" element={<ServiceInvoicesPage token={token} />} />
         <Route path="/analytics" element={<AnalyticsPage token={token} />} />
         <Route path="/employees" element={<EmployeesPage token={token} />} />
         <Route path="*" element={<Navigate to="/assignments" replace />} />

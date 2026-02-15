@@ -95,6 +95,15 @@ interface BillingTimelineRow {
   idempotency_key: string | null;
 }
 
+interface CreditReconcileResult {
+  dry_run: boolean;
+  scanned: number;
+  consumed: number;
+  released: number;
+  skipped: number;
+  errors: Array<{ reservation_id: string; error: string }>;
+}
+
 interface ServiceInvoiceRow {
   id: string;
   account_id: string;
@@ -396,6 +405,34 @@ export default function App() {
     });
   };
 
+  const reconcileCredits = async (dryRun: boolean) => {
+    if (!selected) {
+      setError('Select an account first.');
+      return;
+    }
+    setWorking(true);
+    setError('');
+    setNotice('');
+    try {
+      const result = await apiRequest<CreditReconcileResult>(token, '/control/credits/reconcile', {
+        method: 'POST',
+        body: JSON.stringify({
+          tenant_id: selected.tenant_id,
+          limit: 200,
+          dry_run: dryRun
+        })
+      });
+      await Promise.all([loadAccounts(), loadAccountDetails(selectedAccountId)]);
+      setNotice(
+        `${dryRun ? 'Dry run' : 'Reconcile'}: scanned ${result.scanned}, consumed ${result.consumed}, released ${result.released}, skipped ${result.skipped}, errors ${result.errors.length}.`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Reconcile failed');
+    } finally {
+      setWorking(false);
+    }
+  };
+
   const createInvoiceDraft = async () => {
     const amount = Number.parseFloat(invoiceAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -665,6 +702,21 @@ export default function App() {
                         </label>
                         <Button disabled={working} onClick={() => void reserveCredits()}>
                           Reserve
+                        </Button>
+                      </div>
+                    </article>
+
+                    <article className="mt-3 rounded-md border border-[var(--zen-border)] p-3">
+                      <p className="m-0 text-sm font-semibold">Reconciliation</p>
+                      <p className="m-0 text-xs text-[var(--zen-muted)]">
+                        Sweep ACTIVE reservations for delivered/cancelled/timed-out channel work.
+                      </p>
+                      <div className="mt-2 flex gap-2">
+                        <Button disabled={working} onClick={() => void reconcileCredits(true)}>
+                          Dry Run
+                        </Button>
+                        <Button disabled={working} onClick={() => void reconcileCredits(false)}>
+                          Reconcile Now
                         </Button>
                       </div>
                     </article>
