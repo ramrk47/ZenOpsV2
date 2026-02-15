@@ -266,6 +266,9 @@ export class ServiceInvoicesController {
 
     return this.requestContext.runWithClaims(claims, async (tx) => {
       const invoice = await this.billingControlService.getServiceInvoice(tx, tenantId, id);
+      if (invoice.status === 'PAID' || invoice.amount_due <= 0) {
+        return invoice;
+      }
       const amount = input.amount ?? invoice.amount_due;
       const markPaidIdempotencyKey = idempotencyKey ?? `invoice_mark_paid:${id}`;
       return this.billingControlService.addServiceInvoicePayment(tx, tenantId, id, claims.user_id ?? null, {

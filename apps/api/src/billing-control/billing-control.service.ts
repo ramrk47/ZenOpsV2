@@ -1508,14 +1508,6 @@ export class BillingControlService {
     if (input.amount <= 0) {
       throw new BadRequestException('amount must be positive');
     }
-    const due = decimalToNumber(row.amountDue);
-    if (due <= 0) {
-      throw new ConflictException('Invoice already settled');
-    }
-    if (input.amount > due) {
-      throw new BadRequestException('amount exceeds due');
-    }
-
     const normalizedMode = input.mode ?? 'manual';
     const requestHash = `invoice_payment:${invoiceId}:${input.amount}:${normalizedMode}:${input.reference ?? ''}:${input.notes ?? ''}`;
 
@@ -1566,6 +1558,14 @@ export class BillingControlService {
         }
         throw error;
       }
+    }
+
+    const due = decimalToNumber(row.amountDue);
+    if (due <= 0) {
+      throw new ConflictException('Invoice already settled');
+    }
+    if (input.amount > due) {
+      throw new BadRequestException('amount exceeds due');
     }
 
     const payment = await tx.serviceInvoicePayment.create({
