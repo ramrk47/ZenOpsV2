@@ -36,6 +36,10 @@ const setupFixtures = async () => {
   const portalDocB = randomUUID();
   const internalBankId = randomUUID();
   const externalBankId = randomUUID();
+  const portalChannelA = randomUUID();
+  const portalChannelB = randomUUID();
+  const portalChannelRequestA = randomUUID();
+  const portalChannelRequestB = randomUUID();
 
   await rootClient.query(
     `INSERT INTO users (id, email, name, created_at, updated_at)
@@ -93,6 +97,24 @@ const setupFixtures = async () => {
       ($2, $4, 'External Bank Fixture', true, NOW(), NOW())
      ON CONFLICT (id) DO NOTHING`,
     [internalBankId, externalBankId, cfg.tenantInternal, cfg.tenantExternal]
+  );
+
+  await rootClient.query(
+    `INSERT INTO channels (id, tenant_id, owner_user_id, name, city, channel_type, commission_mode, commission_value, is_active, is_verified, created_at, updated_at)
+     VALUES
+      ($1, $3, $5, 'Portal Channel A', 'Belgaum', 'agent', 'percent', 1, true, true, NOW(), NOW()),
+      ($2, $4, $6, 'Portal Channel B', 'Mudhol', 'agent', 'percent', 1, true, true, NOW(), NOW())
+     ON CONFLICT (id) DO NOTHING`,
+    [portalChannelA, portalChannelB, cfg.tenantExternal, cfg.tenantExternal, userA, userB]
+  );
+
+  await rootClient.query(
+    `INSERT INTO channel_requests (id, tenant_id, channel_id, requested_by_user_id, borrower_name, phone, property_city, property_address, status, created_at, updated_at)
+     VALUES
+      ($1, $3, $5, $7, 'Borrower A', '+919999000001', 'Belgaum', 'Address A', 'submitted', NOW(), NOW()),
+      ($2, $4, $6, $8, 'Borrower B', '+919999000002', 'Mudhol', 'Address B', 'submitted', NOW(), NOW())
+     ON CONFLICT (id) DO NOTHING`,
+    [portalChannelRequestA, portalChannelRequestB, cfg.tenantExternal, cfg.tenantExternal, portalChannelA, portalChannelB, userA, userB]
   );
 
   await rootClient.query(
@@ -154,10 +176,17 @@ const setupFixtures = async () => {
   process.env.TEST_EXTERNAL_OUTBOX = externalOutboxId;
   process.env.TEST_INTERNAL_BANK = internalBankId;
   process.env.TEST_EXTERNAL_BANK = externalBankId;
+  process.env.TEST_PORTAL_CHANNEL_REQUEST_A = portalChannelRequestA;
+  process.env.TEST_PORTAL_CHANNEL_REQUEST_B = portalChannelRequestB;
 };
 
 describe('RLS integration', () => {
   beforeAll(async () => {
+    if (process.env.CI && !ready) {
+      throw new Error(
+        'RLS integration test env is missing TEST_DATABASE_URL_ROOT/WEB/PORTAL; refusing to skip in CI.'
+      );
+    }
     await setupFixtures();
   });
 
@@ -368,6 +397,27 @@ describe('RLS integration', () => {
     await webClient.query('COMMIT');
 
     await webClient.end();
+
+    expect(own.rows.length).toBe(1);
+    expect(other.rows.length).toBe(0);
+  });
+
+  it.skipIf(!ready)('enforces portal ownership isolation for channel_requests', async () => {
+    const portalClient = new Client({ connectionString: cfg.portal });
+    await portalClient.connect();
+
+    await portalClient.query('BEGIN');
+    await portalClient.query(`SELECT set_config('app.aud', 'portal', true)`);
+    await portalClient.query(`SELECT set_config('app.user_id', $1, true)`, [process.env.TEST_PORTAL_USER_A]);
+    const own = await portalClient.query('SELECT id FROM channel_requests WHERE id = $1', [
+      process.env.TEST_PORTAL_CHANNEL_REQUEST_A
+    ]);
+    const other = await portalClient.query('SELECT id FROM channel_requests WHERE id = $1', [
+      process.env.TEST_PORTAL_CHANNEL_REQUEST_B
+    ]);
+    await portalClient.query('COMMIT');
+
+    await portalClient.end();
 
     expect(own.rows.length).toBe(1);
     expect(other.rows.length).toBe(0);

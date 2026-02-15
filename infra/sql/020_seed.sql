@@ -711,6 +711,39 @@ SET state = EXCLUDED.state,
     deleted_at = EXCLUDED.deleted_at,
     updated_at = NOW();
 
+INSERT INTO public.branch_contacts (
+  id,
+  tenant_id,
+  branch_id,
+  name,
+  phone,
+  email,
+  role,
+  deleted_at,
+  created_at,
+  updated_at
+)
+SELECT
+  gen_random_uuid(),
+  bb.tenant_id,
+  bb.id,
+  seeded.name,
+  seeded.phone,
+  seeded.email,
+  seeded.role,
+  NULL,
+  NOW(),
+  NOW()
+FROM (
+  VALUES
+    ('SBI Belgaum Main', 'Branch Ops Desk', '+919999000911', 'ops.sbi.main@zenops.local', 'ops_manager'),
+    ('SBI Belgaum Main', 'Credit Officer', '+919999000912', 'credit.sbi.main@zenops.local', 'credit')
+) AS seeded(branch_name, name, phone, email, role)
+JOIN public.bank_branches bb
+  ON bb.tenant_id = '11111111-1111-1111-1111-111111111111'::uuid
+ AND bb.branch_name = seeded.branch_name
+ON CONFLICT DO NOTHING;
+
 INSERT INTO public.contacts (
   id,
   tenant_id,
@@ -797,6 +830,10 @@ INSERT INTO public.channels (
   owner_user_id,
   name,
   city,
+  channel_type,
+  commission_mode,
+  commission_value,
+  is_active,
   is_verified,
   reviewed_at,
   reviewed_by_user_id,
@@ -811,6 +848,27 @@ VALUES
     '33333333-3333-3333-3333-333333333333'::uuid,
     'Belgaum Channel Desk',
     'Belgaum',
+    'agent'::"ChannelType",
+    'percent'::"CommissionMode",
+    10.0,
+    true,
+    true,
+    NOW(),
+    '33333333-3333-3333-3333-333333333333'::uuid,
+    NULL,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid(),
+    '22222222-2222-2222-2222-222222222222'::uuid,
+    '33333333-3333-3333-3333-333333333333'::uuid,
+    'Mudhol External Channel',
+    'Mudhol',
+    'other'::"ChannelType",
+    'flat'::"CommissionMode",
+    1500.0,
+    true,
     true,
     NOW(),
     '33333333-3333-3333-3333-333333333333'::uuid,
@@ -820,8 +878,48 @@ VALUES
   )
 ON CONFLICT (tenant_id, name, city) DO UPDATE
 SET owner_user_id = EXCLUDED.owner_user_id,
+    channel_type = EXCLUDED.channel_type,
+    commission_mode = EXCLUDED.commission_mode,
+    commission_value = EXCLUDED.commission_value,
+    is_active = EXCLUDED.is_active,
     is_verified = EXCLUDED.is_verified,
     reviewed_at = EXCLUDED.reviewed_at,
     reviewed_by_user_id = EXCLUDED.reviewed_by_user_id,
     deleted_at = EXCLUDED.deleted_at,
     updated_at = NOW();
+
+INSERT INTO public.channel_requests (
+  id,
+  tenant_id,
+  channel_id,
+  requested_by_user_id,
+  assignment_id,
+  borrower_name,
+  phone,
+  property_city,
+  property_address,
+  notes,
+  status,
+  deleted_at,
+  created_at,
+  updated_at
+)
+SELECT
+  gen_random_uuid(),
+  ch.tenant_id,
+  ch.id,
+  ch.owner_user_id,
+  NULL,
+  'Demo Borrower',
+  '+919999001111',
+  ch.city,
+  'Near Main Road',
+  'Seeded request for portal channel flow',
+  'submitted'::"ChannelRequestStatus",
+  NULL,
+  NOW(),
+  NOW()
+FROM public.channels ch
+WHERE ch.tenant_id = '22222222-2222-2222-2222-222222222222'::uuid
+  AND ch.name = 'Mudhol External Channel'
+ON CONFLICT DO NOTHING;

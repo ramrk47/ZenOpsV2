@@ -10,8 +10,10 @@ DECLARE
     'bank_branches',
     'client_orgs',
     'contacts',
+    'branch_contacts',
     'properties',
     'channels',
+    'channel_requests',
     'report_requests',
     'report_jobs',
     'report_artifacts',
@@ -21,7 +23,8 @@ DECLARE
     'plans',
     'credits_ledger',
     'documents',
-    'employees'
+    'employees',
+    'tasks'
   ];
   tables_without_deleted_at text[] := ARRAY[
     'document_links',
@@ -54,7 +57,8 @@ DECLARE
     'notification_subscriptions',
     'assignment_sources',
     'assignment_stage_transitions',
-    'assignment_signals'
+    'assignment_signals',
+    'assignment_status_history'
   ];
 BEGIN
   FOREACH t IN ARRAY tables_with_deleted_at
@@ -87,8 +91,10 @@ DECLARE
     'bank_branches',
     'client_orgs',
     'contacts',
+    'branch_contacts',
     'properties',
     'channels',
+    'channel_requests',
     'report_requests',
     'report_jobs',
     'report_artifacts',
@@ -98,7 +104,8 @@ DECLARE
     'plans',
     'credits_ledger',
     'documents',
-    'employees'
+    'employees',
+    'tasks'
   ];
   targets_without_deleted_at text[] := ARRAY[
     'document_links',
@@ -131,7 +138,8 @@ DECLARE
     'notification_subscriptions',
     'assignment_sources',
     'assignment_stage_transitions',
-    'assignment_signals'
+    'assignment_signals',
+    'assignment_status_history'
   ];
 BEGIN
   FOREACH t IN ARRAY targets_with_deleted_at
@@ -162,6 +170,117 @@ BEGIN
     );
   END LOOP;
 END $$;
+
+DROP POLICY IF EXISTS tenant_web_select ON public.tasks;
+CREATE POLICY tenant_web_select ON public.tasks
+  FOR SELECT TO zen_web
+  USING (
+    tenant_id = app.current_tenant_id()
+    AND deleted_at IS NULL
+    AND (
+      EXISTS (
+        SELECT 1
+        FROM public.memberships m
+        JOIN public.roles r ON r.id = m.role_id
+        WHERE m.tenant_id = tasks.tenant_id
+          AND m.user_id = app.current_user_id()
+          AND r.name IN ('super_admin', 'admin', 'ops_manager')
+      )
+      OR assigned_to_user_id = app.current_user_id()
+      OR created_by_user_id = app.current_user_id()
+    )
+  );
+
+DROP POLICY IF EXISTS tenant_web_modify ON public.tasks;
+CREATE POLICY tenant_web_modify ON public.tasks
+  FOR ALL TO zen_web
+  USING (
+    tenant_id = app.current_tenant_id()
+    AND (
+      EXISTS (
+        SELECT 1
+        FROM public.memberships m
+        JOIN public.roles r ON r.id = m.role_id
+        WHERE m.tenant_id = tasks.tenant_id
+          AND m.user_id = app.current_user_id()
+          AND r.name IN ('super_admin', 'admin', 'ops_manager')
+      )
+      OR assigned_to_user_id = app.current_user_id()
+      OR created_by_user_id = app.current_user_id()
+    )
+  )
+  WITH CHECK (
+    tenant_id = app.current_tenant_id()
+    AND (
+      EXISTS (
+        SELECT 1
+        FROM public.memberships m
+        JOIN public.roles r ON r.id = m.role_id
+        WHERE m.tenant_id = tasks.tenant_id
+          AND m.user_id = app.current_user_id()
+          AND r.name IN ('super_admin', 'admin', 'ops_manager')
+      )
+      OR created_by_user_id = app.current_user_id()
+    )
+  );
+
+DROP POLICY IF EXISTS tenant_web_select ON public.assignment_status_history;
+CREATE POLICY tenant_web_select ON public.assignment_status_history
+  FOR SELECT TO zen_web
+  USING (
+    tenant_id = app.current_tenant_id()
+    AND (
+      EXISTS (
+        SELECT 1
+        FROM public.memberships m
+        JOIN public.roles r ON r.id = m.role_id
+        WHERE m.tenant_id = assignment_status_history.tenant_id
+          AND m.user_id = app.current_user_id()
+          AND r.name IN ('super_admin', 'admin', 'ops_manager')
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM public.assignments a
+        WHERE a.id = assignment_status_history.assignment_id
+          AND a.tenant_id = assignment_status_history.tenant_id
+          AND a.created_by_user_id = app.current_user_id()
+          AND a.deleted_at IS NULL
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM public.assignment_assignees aa
+        WHERE aa.assignment_id = assignment_status_history.assignment_id
+          AND aa.tenant_id = assignment_status_history.tenant_id
+          AND aa.user_id = app.current_user_id()
+      )
+    )
+  );
+
+DROP POLICY IF EXISTS tenant_web_modify ON public.assignment_status_history;
+CREATE POLICY tenant_web_modify ON public.assignment_status_history
+  FOR ALL TO zen_web
+  USING (
+    tenant_id = app.current_tenant_id()
+    AND EXISTS (
+      SELECT 1
+      FROM public.memberships m
+      JOIN public.roles r ON r.id = m.role_id
+      WHERE m.tenant_id = assignment_status_history.tenant_id
+        AND m.user_id = app.current_user_id()
+        AND r.name IN ('super_admin', 'admin', 'ops_manager')
+    )
+  )
+  WITH CHECK (
+    tenant_id = app.current_tenant_id()
+    AND EXISTS (
+      SELECT 1
+      FROM public.memberships m
+      JOIN public.roles r ON r.id = m.role_id
+      WHERE m.tenant_id = assignment_status_history.tenant_id
+        AND m.user_id = app.current_user_id()
+        AND r.name IN ('super_admin', 'admin', 'ops_manager')
+    )
+  );
 
 DROP POLICY IF EXISTS tenant_web_select ON public.audit_events;
 CREATE POLICY tenant_web_select ON public.audit_events
@@ -376,6 +495,48 @@ CREATE POLICY portal_channels_modify ON public.channels
     AND owner_user_id = app.current_user_id()
   );
 
+DROP POLICY IF EXISTS portal_channel_requests_select ON public.channel_requests;
+CREATE POLICY portal_channel_requests_select ON public.channel_requests
+  FOR SELECT TO zen_portal
+  USING (
+    tenant_id = '22222222-2222-2222-2222-222222222222'::uuid
+    AND deleted_at IS NULL
+    AND EXISTS (
+      SELECT 1
+      FROM public.channels ch
+      WHERE ch.id = channel_requests.channel_id
+        AND ch.tenant_id = channel_requests.tenant_id
+        AND ch.owner_user_id = app.current_user_id()
+        AND ch.deleted_at IS NULL
+    )
+  );
+
+DROP POLICY IF EXISTS portal_channel_requests_modify ON public.channel_requests;
+CREATE POLICY portal_channel_requests_modify ON public.channel_requests
+  FOR ALL TO zen_portal
+  USING (
+    tenant_id = '22222222-2222-2222-2222-222222222222'::uuid
+    AND EXISTS (
+      SELECT 1
+      FROM public.channels ch
+      WHERE ch.id = channel_requests.channel_id
+        AND ch.tenant_id = channel_requests.tenant_id
+        AND ch.owner_user_id = app.current_user_id()
+        AND ch.deleted_at IS NULL
+    )
+  )
+  WITH CHECK (
+    tenant_id = '22222222-2222-2222-2222-222222222222'::uuid
+    AND EXISTS (
+      SELECT 1
+      FROM public.channels ch
+      WHERE ch.id = channel_requests.channel_id
+        AND ch.tenant_id = channel_requests.tenant_id
+        AND ch.owner_user_id = app.current_user_id()
+        AND ch.deleted_at IS NULL
+    )
+  );
+
 -- Studio read policies across tenants with aud check
 DO $$
 DECLARE
@@ -388,8 +549,10 @@ DECLARE
     'bank_branches',
     'client_orgs',
     'contacts',
+    'branch_contacts',
     'properties',
     'channels',
+    'channel_requests',
     'report_requests',
     'report_jobs',
     'report_artifacts',
@@ -399,7 +562,8 @@ DECLARE
     'plans',
     'credits_ledger',
     'documents',
-    'employees'
+    'employees',
+    'tasks'
   ];
   targets_without_deleted_at text[] := ARRAY[
     'document_links',
@@ -432,7 +596,8 @@ DECLARE
     'notification_subscriptions',
     'assignment_sources',
     'assignment_stage_transitions',
-    'assignment_signals'
+    'assignment_signals',
+    'assignment_status_history'
   ];
 BEGIN
   FOREACH t IN ARRAY targets_with_deleted_at
@@ -513,8 +678,10 @@ DECLARE
     'bank_branches',
     'client_orgs',
     'contacts',
+    'branch_contacts',
     'properties',
     'channels',
+    'channel_requests',
     'report_requests',
     'report_jobs',
     'report_artifacts',
@@ -524,7 +691,8 @@ DECLARE
     'plans',
     'credits_ledger',
     'documents',
-    'employees'
+    'employees',
+    'tasks'
   ];
   targets_without_deleted_at text[] := ARRAY[
     'document_links',
@@ -557,7 +725,8 @@ DECLARE
     'notification_subscriptions',
     'assignment_sources',
     'assignment_stage_transitions',
-    'assignment_signals'
+    'assignment_signals',
+    'assignment_status_history'
   ];
 BEGIN
   FOREACH t IN ARRAY targets_with_deleted_at
