@@ -57,6 +57,17 @@ interface MockState {
     sourceSystem: 'v1' | 'v2';
     idempotencyKey: string;
   }>;
+  channelRequests: Array<{
+    id: string;
+    tenantId: string;
+    status: 'submitted' | 'accepted' | 'rejected';
+    assignmentId: string | null;
+    serviceInvoiceId: string | null;
+  }>;
+  assignments: Array<{
+    id: string;
+    status: 'requested' | 'in_progress' | 'delivered' | 'cancelled';
+  }>;
 }
 
 const createState = (wallet = 2): MockState => ({
@@ -85,7 +96,9 @@ const createState = (wallet = 2): MockState => ({
   },
   reservations: [],
   ledger: [],
-  usageEvents: []
+  usageEvents: [],
+  channelRequests: [],
+  assignments: []
 });
 
 const buildTx = (state: MockState) => {
@@ -208,7 +221,16 @@ const buildTx = (state: MockState) => {
           .reduce((sum, row) => sum + row.amount, 0);
         return { _sum: { amount } };
       }),
-      findMany: vi.fn().mockImplementation(async () => state.reservations)
+      findMany: vi.fn().mockImplementation(async ({ where, take }: any = {}) => {
+        const filtered = state.reservations.filter((row) => {
+          if (where?.status && row.status !== where.status) return false;
+          if (where?.tenantId && row.tenantId !== where.tenantId) return false;
+          if (where?.refType && row.refType !== where.refType) return false;
+          if (where?.accountId && row.accountId !== where.accountId) return false;
+          return true;
+        });
+        return filtered.slice(0, take ?? filtered.length);
+      })
     },
     billingCreditLedger: {
       findUnique: vi.fn().mockImplementation(async ({ where }: any) => {
@@ -275,6 +297,20 @@ const buildTx = (state: MockState) => {
         };
       }),
       findMany: vi.fn().mockImplementation(async () => [])
+    },
+    channelRequest: {
+      findMany: vi.fn().mockImplementation(async ({ where }: any) => {
+        const ids: string[] | undefined = where?.id?.in;
+        if (!ids) return [];
+        return state.channelRequests.filter((row) => ids.includes(row.id));
+      })
+    },
+    assignment: {
+      findMany: vi.fn().mockImplementation(async ({ where }: any) => {
+        const ids: string[] | undefined = where?.id?.in;
+        if (!ids) return [];
+        return state.assignments.filter((row) => ids.includes(row.id));
+      })
     },
     serviceInvoice: {
       findMany: vi.fn().mockResolvedValue([])
@@ -403,5 +439,100 @@ describe('BillingControlService credit lifecycle', () => {
         idempotency_key: 'release-5'
       })
     ).rejects.toThrowError(ConflictException);
+  });
+
+  it('reconcile consumes delivered reservations and releases cancelled ones', async () => {
+    const service = new BillingControlService();
+    const state = createState(5);
+    const tx = buildTx(state);
+
+    const delivered = await service.reserveCredits(tx, {
+      account_id: state.account.id,
+      amount: 1,
+      ref_type: 'channel_request',
+      ref_id: 'cr-delivered',
+      idempotency_key: 'reserve-delivered'
+    });
+    const cancelled = await service.reserveCredits(tx, {
+      account_id: state.account.id,
+      amount: 1,
+      ref_type: 'channel_request',
+      ref_id: 'cr-cancelled',
+      idempotency_key: 'reserve-cancelled'
+    });
+
+    state.channelRequests.push(
+      {
+        id: 'cr-delivered',
+        tenantId: state.account.tenantId,
+        status: 'accepted',
+        assignmentId: 'asn-delivered',
+        serviceInvoiceId: null
+      },
+      {
+        id: 'cr-cancelled',
+        tenantId: state.account.tenantId,
+        status: 'accepted',
+        assignmentId: 'asn-cancelled',
+        serviceInvoiceId: null
+      }
+    );
+    state.assignments.push(
+      { id: 'asn-delivered', status: 'delivered' },
+      { id: 'asn-cancelled', status: 'cancelled' }
+    );
+
+    const result = await service.reconcileCredits(tx, {
+      tenant_id: state.account.tenantId,
+      limit: 20
+    });
+
+    expect(result.consumed).toBe(1);
+    expect(result.released).toBe(1);
+    expect(result.errors).toHaveLength(0);
+
+    const deliveredRow = state.reservations.find((row) => row.id === delivered.id);
+    const cancelledRow = state.reservations.find((row) => row.id === cancelled.id);
+    expect(deliveredRow?.status).toBe('consumed');
+    expect(cancelledRow?.status).toBe('released');
+    expect(state.balance.wallet).toBe(4);
+    expect(state.balance.reserved).toBe(0);
+    expect(state.balance.available).toBe(4);
+  });
+
+  it('reconcile dry-run reports actions without mutating reservations', async () => {
+    const service = new BillingControlService();
+    const state = createState(3);
+    const tx = buildTx(state);
+
+    const reservation = await service.reserveCredits(tx, {
+      account_id: state.account.id,
+      amount: 1,
+      ref_type: 'channel_request',
+      ref_id: 'cr-dry',
+      idempotency_key: 'reserve-dry'
+    });
+
+    state.channelRequests.push({
+      id: 'cr-dry',
+      tenantId: state.account.tenantId,
+      status: 'accepted',
+      assignmentId: 'asn-dry',
+      serviceInvoiceId: null
+    });
+    state.assignments.push({ id: 'asn-dry', status: 'delivered' });
+
+    const before = state.reservations.find((row) => row.id === reservation.id)?.status;
+    const result = await service.reconcileCredits(tx, {
+      tenant_id: state.account.tenantId,
+      dry_run: true
+    });
+    const after = state.reservations.find((row) => row.id === reservation.id)?.status;
+
+    expect(result.dry_run).toBe(true);
+    expect(result.consumed).toBe(1);
+    expect(result.released).toBe(0);
+    expect(before).toBe('active');
+    expect(after).toBe('active');
   });
 });
