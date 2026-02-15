@@ -86,6 +86,7 @@ DECLARE
   t text;
   tenant_scoped text[] := ARRAY[
     'billing_accounts',
+    'billing_credit_balances',
     'billing_policies',
     'billing_subscriptions',
     'billing_credit_reservations',
@@ -116,6 +117,7 @@ DECLARE
   t text;
   tenant_scoped text[] := ARRAY[
     'billing_accounts',
+    'billing_credit_balances',
     'billing_policies',
     'billing_subscriptions',
     'billing_credit_reservations',
@@ -179,6 +181,7 @@ DECLARE
   t text;
   studio_worker_tables text[] := ARRAY[
     'billing_accounts',
+    'billing_credit_balances',
     'billing_policies',
     'billing_plan_catalog',
     'billing_subscriptions',
@@ -217,6 +220,22 @@ CREATE UNIQUE INDEX IF NOT EXISTS billing_credit_reservations_active_ref_idx
 
 CREATE UNIQUE INDEX IF NOT EXISTS billing_credit_ledger_account_idempotency_idx
   ON public.billing_credit_ledger (account_id, idempotency_key);
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'billing_credit_balances') THEN
+    ALTER TABLE public.billing_credit_balances
+      DROP CONSTRAINT IF EXISTS billing_credit_balances_invariant_check;
+    ALTER TABLE public.billing_credit_balances
+      ADD CONSTRAINT billing_credit_balances_invariant_check
+      CHECK (
+        wallet_balance >= 0
+        AND reserved_balance >= 0
+        AND available_balance >= 0
+        AND wallet_balance - reserved_balance = available_balance
+      );
+  END IF;
+END $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS service_invoice_sequences_fy_idx
   ON public.service_invoice_sequences (tenant_id, account_id, financial_year);
