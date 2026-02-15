@@ -59,6 +59,9 @@ model BillingPolicy {
 model BillingPlanCatalog {
   id                    String                @id @default(uuid()) @db.Uuid
   name                  String
+  currency              String                @default("INR")
+  priceMonthly          Decimal               @default(0) @db.Decimal(14, 2) @map("price_monthly")
+  cycleDays             Int                   @default(30) @map("cycle_days")
   monthlyCreditAllowance Int?                @map("monthly_credit_allowance")
   isActive              Boolean               @default(true) @map("is_active")
   createdAt             DateTime              @default(now()) @map("created_at")
@@ -76,15 +79,40 @@ model BillingSubscription {
   status       BillingSubscriptionStatus @default(active)
   startsAt     DateTime                  @default(now()) @map("starts_at")
   endsAt       DateTime?                 @map("ends_at")
+  currentPeriodStart DateTime?           @map("current_period_start")
+  currentPeriodEnd DateTime?             @map("current_period_end")
+  nextRefillAt DateTime?                 @map("next_refill_at")
+  lastRefilledAt DateTime?               @map("last_refilled_at")
+  externalProvider String?               @map("external_provider")
+  externalSubscriptionId String?         @map("external_subscription_id")
   createdAt    DateTime                  @default(now()) @map("created_at")
   updatedAt    DateTime                  @updatedAt @map("updated_at")
   account      BillingAccount            @relation(fields: [accountId], references: [id], onDelete: Cascade)
   plan         BillingPlanCatalog        @relation(fields: [planId], references: [id], onDelete: Cascade)
+  events       BillingSubscriptionEvent[]
 
   @@index([tenantId, accountId, status])
   @@index([accountId, status])
   @@index([planId, status])
+  @@index([tenantId, nextRefillAt, status])
+  @@index([externalProvider, externalSubscriptionId])
   @@map("billing_subscriptions")
+}
+
+model BillingSubscriptionEvent {
+  id             String                @id @default(uuid()) @db.Uuid
+  tenantId       String                @map("tenant_id") @db.Uuid
+  subscriptionId String?               @map("subscription_id") @db.Uuid
+  provider       String
+  eventType      String                @map("event_type")
+  payloadJson    Json                  @default("{}") @db.JsonB @map("payload_json")
+  idempotencyKey String                @map("idempotency_key")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  subscription   BillingSubscription?  @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, idempotencyKey])
+  @@index([tenantId, subscriptionId, createdAt])
+  @@map("billing_subscription_events")
 }
 
 model BillingCreditReservation {

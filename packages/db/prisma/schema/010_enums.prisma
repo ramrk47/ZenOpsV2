@@ -321,6 +321,7 @@ enum CreditCostModel {
 
 enum BillingSubscriptionStatus {
   active
+  paused
   past_due
   cancelled
 }
