@@ -66,6 +66,13 @@ export interface BillingCreditReleaseInput {
   idempotency_key: string;
 }
 
+export interface BillingCreditReconcileInput {
+  tenant_id?: string;
+  limit?: number;
+  timeout_minutes?: number;
+  dry_run?: boolean;
+}
+
 export interface BillingUsageEventInput {
   source_system: 'v1' | 'v2';
   event_type: string;
@@ -1584,6 +1591,166 @@ export class BillingControlService {
       },
       idempotency_key: `v2:work_cancelled:${input.channel_request_id}`
     });
+  }
+
+  async reconcileCredits(tx: TxClient, input: BillingCreditReconcileInput = {}) {
+    const limit = Math.min(Math.max(input.limit ?? 100, 1), 500);
+    const configuredTimeout = Number.parseInt(process.env.BILLING_RESERVATION_TIMEOUT_MINUTES ?? '1440', 10);
+    const timeoutMinutes = Math.max(input.timeout_minutes ?? (Number.isFinite(configuredTimeout) ? configuredTimeout : 1440), 5);
+    const now = new Date();
+
+    const reservations = await tx.billingCreditReservation.findMany({
+      where: {
+        status: 'active',
+        ...(input.tenant_id ? { tenantId: input.tenant_id } : {}),
+        refType: 'channel_request'
+      },
+      orderBy: [{ createdAt: 'asc' }],
+      take: limit
+    });
+
+    if (reservations.length === 0) {
+      return {
+        dry_run: Boolean(input.dry_run),
+        scanned: 0,
+        consumed: 0,
+        released: 0,
+        skipped: 0,
+        errors: [] as Array<{ reservation_id: string; error: string }>
+      };
+    }
+
+    const channelRequestIds = Array.from(new Set(reservations.map((row) => row.refId)));
+    const channelRequests = await tx.channelRequest.findMany({
+      where: {
+        id: {
+          in: channelRequestIds
+        }
+      },
+      select: {
+        id: true,
+        tenantId: true,
+        status: true,
+        assignmentId: true,
+        serviceInvoiceId: true
+      }
+    });
+    const channelById = new Map(channelRequests.map((row) => [row.id, row]));
+
+    const assignmentIds = Array.from(new Set(channelRequests.map((row) => row.assignmentId).filter((value): value is string => Boolean(value))));
+    const assignments = assignmentIds.length
+      ? await tx.assignment.findMany({
+          where: {
+            id: {
+              in: assignmentIds
+            }
+          },
+          select: {
+            id: true,
+            status: true
+          }
+        })
+      : [];
+    const assignmentById = new Map(assignments.map((row) => [row.id, row]));
+
+    let consumed = 0;
+    let released = 0;
+    let skipped = 0;
+    const errors: Array<{ reservation_id: string; error: string }> = [];
+
+    for (const reservation of reservations) {
+      const channel = channelById.get(reservation.refId);
+      const ageMinutes = Math.floor((now.getTime() - reservation.createdAt.getTime()) / 60_000);
+      const isTimedOut = ageMinutes >= timeoutMinutes;
+      const assignment = channel?.assignmentId ? assignmentById.get(channel.assignmentId) : undefined;
+      const assignmentStatus = assignment?.status ?? null;
+
+      let action: 'consume' | 'release' | 'skip' = 'skip';
+      let reason: 'delivered' | 'cancelled' | 'rejected' | 'timeout' | 'orphan' | 'pending' = 'pending';
+
+      if (!channel) {
+        if (isTimedOut) {
+          action = 'release';
+          reason = 'orphan';
+        }
+      } else if (channel.status === 'rejected') {
+        action = 'release';
+        reason = 'rejected';
+      } else if (assignmentStatus === 'cancelled') {
+        action = 'release';
+        reason = 'cancelled';
+      } else if (assignmentStatus === 'delivered') {
+        action = 'consume';
+        reason = 'delivered';
+      } else if (isTimedOut) {
+        action = 'release';
+        reason = 'timeout';
+      }
+
+      if (action === 'skip') {
+        skipped += 1;
+        continue;
+      }
+
+      if (input.dry_run) {
+        if (action === 'consume') {
+          consumed += 1;
+        } else {
+          released += 1;
+        }
+        continue;
+      }
+
+      try {
+        if (action === 'consume' && channel) {
+          await this.markChannelDeliveredBillingSatisfied(tx, {
+            tenant_id: channel.tenantId,
+            channel_request_id: channel.id,
+            account_id: reservation.accountId,
+            reservation_id: reservation.id,
+            service_invoice_id: channel.serviceInvoiceId
+          });
+          consumed += 1;
+          continue;
+        }
+
+        await this.releaseCredits(tx, {
+          account_id: reservation.accountId,
+          reservation_id: reservation.id,
+          idempotency_key: `reconcile_release:${reservation.id}:${reason}`
+        });
+
+        if (channel) {
+          await this.ingestUsageEvent(tx, {
+            source_system: 'v2',
+            event_type: reason === 'timeout' ? 'work_timed_out' : 'work_cancelled',
+            account_id: reservation.accountId,
+            payload_json: {
+              channel_request_id: channel.id,
+              reservation_id: reservation.id,
+              reconciliation_reason: reason
+            },
+            idempotency_key: `v2:reconcile_release:${reservation.id}:${reason}`
+          });
+        }
+
+        released += 1;
+      } catch (error) {
+        errors.push({
+          reservation_id: reservation.id,
+          error: error instanceof Error ? error.message : 'unknown'
+        });
+      }
+    }
+
+    return {
+      dry_run: Boolean(input.dry_run),
+      scanned: reservations.length,
+      consumed,
+      released,
+      skipped,
+      errors
+    };
   }
 
   async isAssignmentBillingSatisfied(tx: TxClient, tenantId: string, assignmentId: string): Promise<boolean> {

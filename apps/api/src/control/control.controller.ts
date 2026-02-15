@@ -62,6 +62,13 @@ const CreditSettleSchema = z.object({
   idempotency_key: z.string().min(1)
 });
 
+const CreditReconcileSchema = z.object({
+  tenant_id: z.string().uuid().optional(),
+  limit: z.number().int().positive().max(500).optional(),
+  timeout_minutes: z.number().int().positive().optional(),
+  dry_run: z.boolean().optional()
+});
+
 const SubscriptionAssignSchema = z.object({
   account_id: z.string().uuid(),
   plan_name: z.string().min(1),
@@ -230,5 +237,18 @@ export class ControlController {
   releaseCredits(@Claims() claims: JwtClaims, @Body() body: unknown) {
     const input = parseOrThrow<BillingCreditReleaseInput>(CreditSettleSchema, body);
     return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.releaseCredits(tx, input));
+  }
+
+  @Post('credits/reconcile')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.invoicesWrite)
+  reconcileCredits(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<{
+      tenant_id?: string;
+      limit?: number;
+      timeout_minutes?: number;
+      dry_run?: boolean;
+    }>(CreditReconcileSchema, body ?? {});
+    return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.reconcileCredits(tx, input));
   }
 }
