@@ -36,6 +36,25 @@ Last updated: 2026-02-15
   - reservations table with consume/release actions
   - merged billing timeline list
 
+### 0.2) M4.9 Launch Productization (Credits + Service Invoices)
+- Credit mutation path hardened with explicit balance row semantics:
+  - account/balance row lock on credit writes
+  - strict reservation transition rules
+  - idempotent reserve/consume/release behavior
+  - operator override support for reserve shortfall (tracked via adjustment ledger)
+- Added tests covering credit lifecycle and idempotency behavior in:
+  - `apps/api/src/billing-control/billing-control.service.test.ts`
+- Added temporary VPS control-plane hardening:
+  - `STUDIO_ADMIN_TOKEN` fallback auth for `/v1/control/*`
+  - control-plane request rate limiting (`CONTROL_RATE_LIMIT_RPM`)
+- Added service invoice migration compatibility:
+  - `/v1/service-invoices` alias surface
+  - mark-paid endpoint + issue idempotency key handling
+- Added launch docs and smoke automation:
+  - `docs/CREDIT_SYSTEM_RULEBOOK.md`
+  - `docs/VPS_DUAL_DEPLOY_RUNBOOK.md`
+  - `scripts/smoke-v2.sh`
+
 ### 1) Foundation Scaffold (Monorepo + Apps + Packages)
 - Built Turborepo + pnpm monorepo structure.
 - Apps created:

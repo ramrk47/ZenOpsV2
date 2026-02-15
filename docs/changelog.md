@@ -2,6 +2,24 @@
 
 ## 2026-02-15
 
+### Added (M4.9 Credits + Postpaid Billing Productization)
+- Credit system hardening:
+  - `billing_credit_balances` table support in Prisma + RLS + invariant check constraint
+  - stricter reserve/consume/release state enforcement and balance invariants
+  - operator override reserve mode with explicit adjustment ledger entry
+  - timeline events for grant/reserve/consume/release
+- Service invoice compatibility routes (for V1 migration path):
+  - `/v1/service-invoices/*` alias endpoints
+  - `POST /v1/service-invoices/:id/mark-paid`
+  - idempotent issue via `Idempotency-Key`
+- Studio auth hardening:
+  - temporary `STUDIO_ADMIN_TOKEN` support for `/v1/control/*`
+  - control-plane request throttling via `CONTROL_RATE_LIMIT_RPM`
+- Launch docs/scripts:
+  - `docs/CREDIT_SYSTEM_RULEBOOK.md`
+  - `docs/VPS_DUAL_DEPLOY_RUNBOOK.md`
+  - `scripts/smoke-v2.sh`
+
 ### Added (M4.8 Billing Operator Surfaces)
 - V2 control-plane credit operations expanded for Studio operator usage:
   - `GET /v1/control/accounts/:id/status`
