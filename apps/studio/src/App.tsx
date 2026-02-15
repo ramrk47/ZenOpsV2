@@ -193,6 +193,7 @@ export default function App() {
   const [reserveRefId, setReserveRefId] = useState('');
   const [reserveAmount, setReserveAmount] = useState('1');
   const [reserveOverride, setReserveOverride] = useState(false);
+  const [forceEnableCredit, setForceEnableCredit] = useState(false);
 
   const [timelineRefType, setTimelineRefType] = useState('');
   const [timelineRefId, setTimelineRefId] = useState('');
@@ -308,7 +309,7 @@ export default function App() {
     }
   };
 
-  const setPolicy = async (mode: BillingMode) => {
+  const setPolicy = async (mode: BillingMode, forceEnable = false) => {
     await runAction(`Policy set to ${mode}.`, async () => {
       await apiRequest(token, `/control/accounts/${selectedAccountId}/policy`, {
         method: 'PATCH',
@@ -316,7 +317,8 @@ export default function App() {
           billing_mode: mode.toLowerCase(),
           is_enabled: true,
           payment_terms_days: 15,
-          currency: 'INR'
+          currency: 'INR',
+          force_enable_credit: forceEnable
         })
       });
     });
@@ -573,6 +575,11 @@ export default function App() {
                   CREDIT mode is enabled, but available credits are 0. New commissioned work will fail reserve unless operator override is used.
                 </section>
               ) : null}
+              {selected.billing_mode === 'POSTPAID' && selected.credit.wallet <= 0 ? (
+                <section className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                  Not enrolled in credits yet. This account is operating in POSTPAID mode with zero credit wallet.
+                </section>
+              ) : null}
 
               <section className="panel p-4">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -638,9 +645,20 @@ export default function App() {
                           <Button disabled={working || selected.billing_mode === 'POSTPAID'} onClick={() => void setPolicy('POSTPAID')}>
                             Switch to POSTPAID
                           </Button>
-                          <Button disabled={working || selected.billing_mode === 'CREDIT'} onClick={() => void setPolicy('CREDIT')}>
+                          <Button
+                            disabled={working || selected.billing_mode === 'CREDIT'}
+                            onClick={() => void setPolicy('CREDIT', forceEnableCredit)}
+                          >
                             Switch to CREDIT
                           </Button>
+                          <label className="flex items-center gap-2 rounded-lg border border-[var(--zen-border)] px-3 py-2 text-xs">
+                            <input
+                              type="checkbox"
+                              checked={forceEnableCredit}
+                              onChange={(event) => setForceEnableCredit(event.target.checked)}
+                            />
+                            Force credit enable when wallet is zero
+                          </label>
                         </div>
                       </article>
 
