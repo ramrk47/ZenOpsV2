@@ -1,5 +1,53 @@
 # ZenOps v2 Changelog
 
+## 2026-02-15
+
+### Added
+- M4.4 delivery merged (`PR #4`, merge commit `2df39c2136b1549cf5df15c007639e9b5c03219f`, tag `m4.4`).
+- Mobile document metadata and linkability support:
+  - new document source/classification/sensitivity enums
+  - captured timestamp and captured-by employee tracking
+  - optional employee linkage in document links
+- New role/routing administration APIs:
+  - `GET /v1/roles/templates`
+  - `POST /v1/employees/:id/role`
+  - `POST /v1/roles/contact-points`
+- Manual WhatsApp month-1 operational APIs:
+  - `POST /v1/notifications/manual-whatsapp`
+  - `POST /v1/notifications/outbox/:id/mark-manual-sent`
+- Studio ops monitor API:
+  - `GET /v1/notifications/ops-monitor`
+- UI additions:
+  - web mobile upload and tag-on-upload flow in assignment detail
+  - studio ops monitor panel and manual send controls
+- New demo:
+  - `scripts/demo-mobile-docs.sh`
+
+### Changed
+- OpenAPI registry expanded to include new M4.4 routes and admin surfaces.
+- SQL policy/index support updated for document metadata query patterns and employee-link constraint handling.
+- Document listing/upload behavior now supports classification/source/sensitivity filters and metadata enrichment.
+
+### Added
+- M4.5 delivery merged (`PR #5`, merge commit `ad46e757180da8cdcf621788567ffff1812fbcfd`, tag `m4.5`).
+- VPS production-like deploy stack:
+  - `infra/docker/compose.vps.yml` (Traefik edge + TLS + host routing)
+  - BasicAuth middleware path for Studio and API docs (plus optional webhook gating)
+- Production env template:
+  - `.env.prod.example`
+- Ops scripts:
+  - `scripts/prod-backup-db.sh`
+  - `scripts/prod-restore-db.sh`
+  - `scripts/prod-pre-migrate-backup.sh`
+  - `scripts/prod-offhours.sh`
+  - `infra/docker/ops/cron.example`
+- M4.5 deployment runbook:
+  - `docs/deploy-runbook-m4.5.md`
+
+### Changed
+- README updated with M4.5 deployment/ops asset references.
+- Deploy posture formalized to always-on VPS with off-hours worker downshift instead of host sleep semantics.
+
 ## 2026-02-12
 
 ### Added

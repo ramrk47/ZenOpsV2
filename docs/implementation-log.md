@@ -1,6 +1,6 @@
 # ZenOps v2 Implementation Log
 
-Last updated: 2026-02-11
+Last updated: 2026-02-15
 
 ## Scope Completed
 
@@ -217,3 +217,283 @@ Notes:
 - `e07afad` - `chore: scaffold v2 foundation`
 - `0449e5e` - `chore: remove generated vite config artifacts`
 - `8a9d029` - `feat: add single-tenant launch gating controls`
+
+---
+
+## 10) Milestone Timeline (M4.1 -> M4.5)
+
+### M4.1 (merged and tagged)
+- PR: `#1` - `M4.1 hardening: webhook security, idempotency, and notifications demo`
+- Merge commit on `main`: `3bd91c5f65d2b579954c7d196e19e44b44e49ff1`
+- Tag: `m4.1`
+- Outcome:
+  - communications spine baseline was stabilized
+  - webhook security hardening and dedupe/idempotency foundations were landed
+
+### M4.2 (merged and tagged)
+- PR: `#2` - `M4.2: people directory + comms routing`
+- Merge commit on `main`: `8be59d29b16dd0203169c5074dd7aba9a356fe93`
+- Tag: `m4.2`
+- Outcome:
+  - people directory + attendance + payroll foundations
+  - routing tables for role/team comms assignment
+  - first-layer employee/payroll endpoints and UI surface
+
+### M4.3 (merged and tagged)
+- PR: `#3` - `M4.3: provider integrations + RBAC hardening`
+- Merge commit on `main`: `af8843caf211d8deabf909e3304239df7928c411`
+- Tag: `m4.3`
+- Outcome:
+  - provider-ready worker adapters (Mailgun/Twilio paths)
+  - RBAC capability model hardened
+  - webhook verification controls extended
+
+### M4.4 (merged and tagged)
+- PR: `#4` - `M4.4: mobile docs + manual whatsapp + ops monitor`
+- Merge commit on `main`: `2df39c2136b1549cf5df15c007639e9b5c03219f`
+- Tag: `m4.4`
+- Outcome:
+  - mobile document workflow became practical for field operations
+  - manual WhatsApp month-1 operational flow landed with auditability
+  - studio ops monitor view was added for operational awareness
+
+### M4.5 (merged and tagged)
+- PR: `#5` - `M4.5: deploy + ops hardening`
+- Merge commit on `main`: `ad46e757180da8cdcf621788567ffff1812fbcfd`
+- Tag: `m4.5`
+- Outcome:
+  - production-like VPS deployment kit added
+  - edge auth + routing + backup/restore/downshift operational tooling landed
+  - runbook and deploy protocol documented for repeatable operations
+
+---
+
+## 11) Detailed M4.3 Record (Provider Integration + RBAC)
+
+### Branch + commits (ordered)
+- Branch: `codex/m4-3-provider-integration`
+- Key commit sequence:
+  - `0f6849b` - `feat(rls): seed operational roles for m4.3 capability model`
+  - `f99f518` - `feat(config): add provider and webhook env flags for notifications`
+  - `decc8a4` - `feat(api): enforce capability RBAC and add mailgun webhook route`
+  - `1ac0659` - `feat(worker): add mailgun email and twilio whatsapp delivery adapters`
+  - `54c63c3` - `test: cover RBAC restrictions webhook status mapping and provider failures`
+  - `4397c50` - `chore(docs): add provider demo script and refresh openapi`
+
+### Architecture and behavior changes
+- RBAC model formalized around capabilities:
+  - `employees.read|write`
+  - `attendance.read|write`
+  - `payroll.read|write|run`
+  - `notifications.routes.read|write`
+  - `notifications.send`
+  - `invoices.read|write`
+- Role mapping used at login/capability expansion:
+  - `super_admin`, `ops_manager`, `valuer`, `accounts`, `hr`, `portal_user`
+- API guard behavior:
+  - role-derived capabilities are enforced by `JwtAuthGuard` + capability decorators
+  - protected endpoints reject with explicit missing-capability semantics
+
+### Provider layer changes
+- Worker provider adapters:
+  - Mailgun email adapter (messages API path)
+  - Twilio WhatsApp adapter (messaging API path)
+- Safe defaults:
+  - NOOP remains default when provider flags/keys are absent
+  - missing provider secrets fail safely without crashing core app flow
+
+### Webhook hardening changes
+- API routes supported:
+  - `/v1/webhooks/sendgrid`
+  - `/v1/webhooks/mailgun`
+  - `/v1/webhooks/twilio`
+  - `/v1/webhooks/twilio/whatsapp`
+  - `/v1/webhooks/email` (provider-resolved path)
+- Validation control:
+  - `WEBHOOKS_ENABLED` default-off gate
+  - provider-specific validation flags supported with inheritance from global gate
+
+### Tooling and validation
+- Added demo flow:
+  - `scripts/demo-providers.sh` (NOOP-first, optional real-provider run when secrets exist)
+- Validation run outcomes during milestone:
+  - API tests passed
+  - worker tests passed
+  - contract/openapi drift checks passed once regenerated output was committed
+
+---
+
+## 12) Detailed M4.4 Record (Mobile Docs + Manual WhatsApp + Ops Monitor)
+
+### Branch + commits (ordered)
+- Branch: `codex/m4-4-mobile-docs-permissions`
+- Commit sequence:
+  - `739d13d` - `feat(db): extend document metadata and employee linkability`
+  - `ccdc107` - `feat(api): add mobile docs metadata, role routing, and ops monitor endpoints`
+  - `1104b4f` - `feat(ui): add mobile upload flow, studio ops monitor, and demo script`
+
+### Database and schema changes
+- Enums expanded for operational metadata:
+  - `DocumentSource` extended with mobile/desktop ingestion modes:
+    - `mobile_camera`, `mobile_gallery`, `desktop_upload`, `email_ingest`, `portal_upload`
+  - Added `DocumentClassification`:
+    - `bank_kyc`, `site_photo`, `approval_plan`, `tax_receipt`, `legal`, `invoice`, `other`
+  - Added `DocumentSensitivity`:
+    - `public`, `internal`, `pii`, `confidential`
+- `Document` model expanded with:
+  - `classification`
+  - `sensitivity`
+  - `capturedAt`
+  - `capturedByEmployeeId`
+- `DocumentLink` expanded with:
+  - optional `employeeId`
+- Index and constraint work:
+  - tenant/classification/created index support
+  - employee link index support
+  - link-target check widened so one of work_order/assignment/report_request/employee must exist
+
+### Contracts/API changes
+- Contracts expanded for richer upload and query surfaces:
+  - upload body now supports source/classification/sensitivity/captured fields + optional employee link
+  - document list query expanded with classification/source/sensitivity/employee filters
+- New/updated domain endpoints:
+  - `GET /v1/roles/templates`
+  - `POST /v1/employees/:id/role`
+  - `POST /v1/roles/contact-points`
+- Notification admin endpoints added:
+  - `POST /v1/notifications/manual-whatsapp`
+  - `POST /v1/notifications/outbox/:id/mark-manual-sent`
+  - `GET /v1/notifications/ops-monitor`
+- Manual WhatsApp flow behavior:
+  - create manual outbox card in queued state
+  - explicit mark-sent action records attempt metadata and updates status
+
+### UI changes (web + studio)
+- Web assignment detail:
+  - mobile-friendly upload experience for camera/gallery/file-manager use
+  - upload-time tagging metadata
+  - status/error states for upload flow
+- Studio:
+  - read-oriented ops monitor block for outbox/webhook/billing signals
+  - manual WhatsApp outbox controls for month-1 operations
+
+### Demo and verification
+- Added script:
+  - `scripts/demo-mobile-docs.sh`
+- Validation executed in milestone:
+  - `pnpm --filter @zenops/db prisma:validate`
+  - `pnpm --filter @zenops/api lint`
+  - `pnpm --filter @zenops/api test`
+  - `pnpm --filter @zenops/web lint && build`
+  - `pnpm --filter @zenops/studio lint && build`
+  - `pnpm --filter @zenops/api contract_check`
+- CI/PR gates:
+  - required checks (`contract_check`, `rls_integration`) passed before merge
+
+---
+
+## 13) Detailed M4.5 Record (Deploy + Ops Hardening)
+
+### Branch + commits (ordered)
+- Branch: `codex/m4-5-deploy-ops-hardening`
+- Commit sequence:
+  - `35eb0b1` - `feat(infra): add traefik-routed vps compose with basic auth gates`
+  - `6593eeb` - `feat(ops): add backup restore and off-hours downshift scripts`
+  - `41ccf4e` - `docs: add m4.5 deploy runbook and production checklist`
+
+### New deploy artifacts
+- `infra/docker/compose.vps.yml`
+  - Traefik edge, TLS resolver wiring, Docker labels for host routing
+  - Route map:
+    - web host
+    - studio host
+    - api host
+    - portal host
+  - BasicAuth middleware scoped to:
+    - studio routes
+    - api docs
+    - optional webhook path hardening
+  - internal/edge network separation, healthchecks, restart policy and log bounds
+- `.env.prod.example`
+  - required production env map:
+    - hosts/domains
+    - TLS/ACME
+    - basic auth env format
+    - DB/Redis credentials
+    - provider flags + secrets
+    - object storage defaults for production mode
+
+### Operational scripts
+- `scripts/prod-backup-db.sh`
+  - nightly-compatible postgres custom-format backup (`pg_dump -Fc`), gzip + retention pruning
+- `scripts/prod-restore-db.sh`
+  - restore path with clean/if-exists/no-owner/no-privileges semantics
+- `scripts/prod-pre-migrate-backup.sh`
+  - backup-first migration guardrail
+- `scripts/prod-offhours.sh`
+  - worker downshift/upshift/status helper for off-hours cost/load control
+- `infra/docker/ops/cron.example`
+  - backup and downshift cron templates
+
+### Documentation hardening
+- Added runbook:
+  - `docs/deploy-runbook-m4.5.md`
+  - covers prerequisites, DNS, env setup, first deploy, rollout protocol, backup/restore drill, rollback
+- README references updated to include M4.5 assets
+
+### Validation and merge hygiene
+- Local validation completed before PR merge:
+  - compose config parse with env
+  - shell syntax checks on new prod scripts
+- CI gates passed before merge:
+  - `contract_check`
+  - `rls_integration`
+
+---
+
+## 14) Operating Decisions Locked During M4.4/M4.5
+
+- Deployment model:
+  - one always-on production-like stack first (no separate staging at current scale)
+- Edge protection:
+  - one shared BasicAuth password for studio and api docs
+  - portal remains externally reachable as designed
+- WhatsApp rollout:
+  - month-1 manual WhatsApp outbox flow retained
+  - Twilio-ready adapter paths preserved for later switch
+- Email rollout:
+  - Mailgun as first live provider path
+- Worker cost policy:
+  - no VPS sleep mode
+  - off-hours downshift via worker stop/resume
+
+---
+
+## 15) Repository State Notes (Important for Future Sessions)
+
+- There are recurring unrelated local modifications in this workspace that were intentionally not reverted during milestone delivery unless explicitly requested.
+- Known examples observed across sessions:
+  - `apps/api/package.json`
+  - `apps/api/src/common/request-id.middleware.ts`
+  - `apps/portal/src/App.tsx`
+  - `infra/docker/compose.prod.yml`
+  - `turbo.json`
+  - `packages/storage/` (untracked in some snapshots)
+- Milestone PR work was kept isolated from those files to avoid accidental regression.
+
+---
+
+## 16) Next Recommended Build Track (Post M4.5)
+
+Target next milestone recommendation:
+- `M4.6: Bank Standards + Report Readiness + Evidence Pack`
+
+Rationale:
+- It unlocks structured report-generation readiness without requiring full template renderer completion.
+- It provides immediate operational ROI by reducing missing-data churn and enabling deterministic readiness scoring.
+
+Proposed M4.6 high-value scope:
+- bank/report-type standards + required field matrix
+- assignment readiness score against selected bank/report type
+- evidence pack checklist + exportable assignment data bundle JSON
+- tighter field capture discipline for mobile ingestion
