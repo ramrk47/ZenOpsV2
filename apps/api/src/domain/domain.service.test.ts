@@ -68,7 +68,10 @@ const createService = (
       externalTenantId: '22222222-2222-2222-2222-222222222222'
     },
     billingService as any,
-    notificationsService as any
+    notificationsService as any,
+    {
+      enqueueRecompute: vi.fn().mockResolvedValue(undefined)
+    } as any
   );
 
 const buildTx = () => {
@@ -115,17 +118,32 @@ const assignmentRow = (status: string = 'requested') => ({
   id: 'assignment-1',
   tenantId: '11111111-1111-1111-1111-111111111111',
   source: 'tenant',
+  sourceType: 'direct',
+  stage: 'draft_created',
   workOrderId: null,
+  bankId: null,
+  bankBranchId: null,
+  clientOrgId: null,
+  propertyId: null,
+  channelId: null,
+  primaryContactId: null,
+  feePaise: null,
   title: 'Test Assignment',
   summary: 'Summary',
   priority: 'normal',
   status,
+  dueAt: null,
   dueDate: null,
   createdByUserId: '33333333-3333-3333-3333-333333333333',
   deletedAt: null,
   createdAt: new Date('2026-02-11T00:00:00.000Z'),
   updatedAt: new Date('2026-02-11T00:00:00.000Z'),
-  assignees: []
+  assignees: [],
+  bank: null,
+  bankBranch: null,
+  clientOrg: null,
+  property: null,
+  primaryContact: null
 });
 
 const buildAssignmentGraphTx = () => {
@@ -163,8 +181,52 @@ const buildAssignmentGraphTx = () => {
           return state.assignment;
         })
       },
+      bank: {
+        findFirst: vi.fn().mockResolvedValue(null)
+      },
+      bankBranch: {
+        findFirst: vi.fn().mockResolvedValue(null)
+      },
+      clientOrg: {
+        findFirst: vi.fn().mockResolvedValue(null)
+      },
+      contact: {
+        findFirst: vi.fn().mockResolvedValue(null)
+      },
+      property: {
+        findFirst: vi.fn().mockResolvedValue(null)
+      },
+      channel: {
+        findFirst: vi.fn().mockResolvedValue(null)
+      },
+      assignmentSourceRecord: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        upsert: vi.fn().mockResolvedValue(undefined)
+      },
+      assignmentStatusHistory: {
+        create: vi.fn().mockResolvedValue(undefined),
+        findMany: vi.fn().mockResolvedValue([])
+      },
+      assignmentStageTransition: {
+        findMany: vi.fn().mockResolvedValue([]),
+        create: vi.fn().mockResolvedValue(undefined)
+      },
+      assignmentSignal: {
+        findMany: vi.fn().mockResolvedValue([])
+      },
       assignmentTask: {
         findMany: vi.fn().mockResolvedValue([])
+      },
+      task: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({
+          id: 'task-qc-1'
+        })
+      },
+      membership: {
+        findFirst: vi.fn().mockResolvedValue({
+          userId: '33333333-3333-3333-3333-333333333333'
+        })
       },
       assignmentMessage: {
         findMany: vi.fn().mockResolvedValue([])
@@ -397,6 +459,7 @@ describe('DomainService assignment spine', () => {
 
     const created = await service.createAssignment(tx, webClaims, {
       source: 'tenant',
+      source_type: 'direct',
       title: 'Test Assignment',
       priority: 'normal',
       status: 'requested'
@@ -444,6 +507,7 @@ describe('DomainService assignment spine', () => {
 
     await service.createAssignment(tx, webClaims, {
       source: 'external_portal',
+      source_type: 'direct',
       work_order_id: 'work-order-1',
       title: 'From Work Order',
       priority: 'high',
@@ -452,6 +516,7 @@ describe('DomainService assignment spine', () => {
 
     await service.createAssignment(tx, webClaims, {
       source: 'external_portal',
+      source_type: 'direct',
       work_order_id: 'work-order-1',
       title: 'From Work Order',
       priority: 'high',
@@ -478,6 +543,123 @@ describe('DomainService assignment spine', () => {
         })
       })
     );
+  });
+
+  it('lifecycle transition logs history and stage transition', async () => {
+    const service = createService();
+    const { tx } = buildAssignmentGraphTx();
+    const claims = {
+      ...webClaims,
+      capabilities: ['assignments.transition']
+    };
+
+    await service.changeAssignmentStatus(
+      tx,
+      claims,
+      'assignment-1',
+      {
+        to_status: 'COLLECTING',
+        note: 'field docs started'
+      },
+      'req-transition-1'
+    );
+
+    expect(tx.assignment.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'assignment-1' },
+        data: expect.objectContaining({ stage: 'data_collected' })
+      })
+    );
+    expect(tx.assignmentStageTransition.create).toHaveBeenCalledTimes(1);
+    expect(tx.assignmentStatusHistory.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects illegal lifecycle transitions', async () => {
+    const service = createService();
+    const { tx } = buildAssignmentGraphTx();
+    const claims = {
+      ...webClaims,
+      capabilities: ['assignments.transition']
+    };
+
+    await expect(
+      service.changeAssignmentStatus(
+        tx,
+        claims,
+        'assignment-1',
+        {
+          to_status: 'QC_PENDING'
+        },
+        'req-transition-2'
+      )
+    ).rejects.toThrow('ILLEGAL_STAGE_TRANSITION');
+  });
+
+  it('creates one QC review task when entering QC_PENDING', async () => {
+    const service = createService();
+    const { tx } = buildAssignmentGraphTx();
+    const claims = {
+      ...webClaims,
+      capabilities: ['assignments.transition']
+    };
+
+    await service.changeAssignmentStatus(
+      tx,
+      claims,
+      'assignment-1',
+      {
+        to_status: 'COLLECTING'
+      },
+      'req-transition-3'
+    );
+    await service.changeAssignmentStatus(
+      tx,
+      claims,
+      'assignment-1',
+      {
+        to_status: 'QC_PENDING'
+      },
+      'req-transition-4'
+    );
+    await service.changeAssignmentStatus(
+      tx,
+      claims,
+      'assignment-1',
+      {
+        to_status: 'QC_PENDING'
+      },
+      'req-transition-5'
+    );
+
+    expect(tx.task.create).toHaveBeenCalledTimes(1);
+    expect(tx.task.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          assignmentId: 'assignment-1',
+          title: 'QC review',
+          status: 'open',
+          priority: 'high'
+        })
+      })
+    );
+  });
+});
+
+describe('DomainService channel request review guard', () => {
+  it('blocks portal user from accepting/rejecting channel requests', async () => {
+    const service = createService();
+    await expect(
+      service.updateChannelRequestStatus(
+        {} as any,
+        {
+          ...webClaims,
+          aud: 'portal',
+          tenant_id: '22222222-2222-2222-2222-222222222222'
+        },
+        'request-1',
+        { status: 'ACCEPTED' }
+      )
+    ).rejects.toThrow('PORTAL_REQUEST_REVIEW_FORBIDDEN');
   });
 });
 
