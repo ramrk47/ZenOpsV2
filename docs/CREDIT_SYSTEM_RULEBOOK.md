@@ -74,6 +74,7 @@ Studio control-plane supports:
 - account search + policy switching
 - grant credits
 - reserve/consume/release
+- reconciliation sweep (`POST /v1/control/credits/reconcile`, supports dry-run)
 - ledger view (last events)
 - reservations view (active/consumed/released)
 - billing timeline (credits + usage + invoice state)

@@ -55,6 +55,23 @@ Last updated: 2026-02-15
   - `docs/VPS_DUAL_DEPLOY_RUNBOOK.md`
   - `scripts/smoke-v2.sh`
 
+### 0.3) M5.0 Launchable Billing Workflow Wiring
+- Added reconciliation sweep endpoint for operator/cron use:
+  - `POST /v1/control/credits/reconcile`
+  - scans ACTIVE `channel_request` reservations and resolves:
+    - delivered assignments -> consume
+    - cancelled/rejected/timed-out/orphaned flows -> release
+  - supports `dry_run` mode and bounded `limit`.
+- Studio UI now exposes reconciliation actions directly in the Credits tab.
+- Web app added a minimal `Invoices` lane:
+  - list/filter service invoices
+  - create draft
+  - issue
+  - mark paid
+- Portal app now surfaces billing information for commissioned requests:
+  - request rows show linked invoice status
+  - `My Invoices` section allows payment-proof metadata submission.
+
 ### 1) Foundation Scaffold (Monorepo + Apps + Packages)
 - Built Turborepo + pnpm monorepo structure.
 - Apps created:

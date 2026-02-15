@@ -2,6 +2,21 @@
 
 ## 2026-02-15
 
+### Added (M5.0 Launchable Billing Wiring)
+- Credit reconciliation endpoint:
+  - `POST /v1/control/credits/reconcile` for cron-safe reserve consume/release cleanup
+  - supports `dry_run`, `tenant_id`, and bounded scan limits
+- Studio operator actions:
+  - reconciliation dry-run and execute buttons in credits tab
+- Web app invoices lane:
+  - list/filter service invoices
+  - create draft, issue, and mark paid actions
+- Portal billing visibility:
+  - invoice status surfaced with channel requests
+  - "My Invoices" section with payment-proof metadata submission (`/v1/service-invoices/:id/payment-proof`)
+- Smoke script coverage:
+  - `scripts/smoke-v2.sh` now validates both credit lifecycle and postpaid invoice flow and runs reconciliation dry-run.
+
 ### Added (M4.9 Credits + Postpaid Billing Productization)
 - Credit system hardening:
   - `billing_credit_balances` table support in Prisma + RLS + invariant check constraint
