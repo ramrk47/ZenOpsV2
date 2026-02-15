@@ -233,6 +233,23 @@ const document = {
     '/v1/billing/invoices/{id}/mark-paid': {
       post: { summary: 'Studio-only: mark invoice paid with manual payment record', responses: { '200': { description: 'OK' } } }
     },
+    '/v1/service-invoices': {
+      get: { summary: 'List service invoices (v2 billing domain)', responses: { '200': { description: 'OK' } } },
+      post: { summary: 'Create service invoice draft', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/service-invoices/{id}': {
+      get: { summary: 'Get service invoice detail', responses: { '200': { description: 'OK' } } },
+      patch: { summary: 'Update service invoice draft', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/service-invoices/{id}/issue': {
+      post: { summary: 'Issue service invoice (idempotent)', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/service-invoices/{id}/mark-paid': {
+      post: { summary: 'Mark service invoice paid (records payment)', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/service-invoices/{id}/payment-proof': {
+      post: { summary: 'Attach payment proof to service invoice', responses: { '200': { description: 'OK' } } }
+    },
     '/v1/notify/test': {
       post: { summary: 'Studio-only: enqueue a test notification', responses: { '200': { description: 'Queued' } } }
     },
