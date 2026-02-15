@@ -690,3 +690,92 @@ Proposed M4.6 high-value scope:
 ### Known integration nuance noted
 - In launch mode, `aud=portal` tenant mapping remains external lane by default.
 - Channel request review for portal-origin rows is handled using a studio token scoped to external lane in demo flow.
+
+## 18) Detailed M4.6.1 Record (V1/V2 Segregation + Port Identity + Control/Data Plane Boundaries)
+
+### Objective
+- Remove local runtime ambiguity between V1 and V2 APIs.
+- Enforce stable V2 demo targeting even when common ports (`3000`) are occupied.
+- Reserve control-plane route namespace early, without implementing subscription/credit business logic yet.
+- Keep work additive and migration-safe.
+
+### V2 API identity and control namespace
+- Added V2 identity endpoint:
+  - `/Users/dr.156/ZenOpsV2/apps/api/src/common/meta.controller.ts`
+  - Route: `GET /v1/meta`
+  - Payload includes:
+    - `app=zenops-v2`
+    - `repo_root`
+    - `git_sha`
+    - `build_time`
+    - `service=api`
+    - `env=dev|prod`
+- Added control-plane route placeholders (RBAC protected, 501):
+  - `/Users/dr.156/ZenOpsV2/apps/api/src/control/control.controller.ts`
+  - Routes:
+    - `GET /v1/control/tenant`
+    - `GET /v1/control/subscriptions`
+    - `GET /v1/control/credits`
+- Wired controllers in module:
+  - `/Users/dr.156/ZenOpsV2/apps/api/src/app.module.ts`
+- OpenAPI registry updated:
+  - `/Users/dr.156/ZenOpsV2/apps/api/src/openapi.ts`
+  - regenerated `/Users/dr.156/ZenOpsV2/apps/api/openapi.json`
+
+### Cross-repo V1 identity endpoint
+- Added V1 identity endpoint:
+  - `/Users/dr.156/zen-ops/backend/app/main.py`
+  - Route: `GET /v1/meta`
+  - Payload includes:
+    - `app=zenops-v1`
+    - `repo_root`
+    - `git_sha`
+    - `build_time`
+    - `service=api`
+    - `env=dev|prod`
+- `git_sha` resolution uses settings value first, then best-effort `git rev-parse`.
+
+### Port detection + script-level hardening
+- Added V2 utility:
+  - `/Users/dr.156/ZenOpsV2/scripts/detect-zenops-ports.sh`
+  - Detects listening Node/Python processes and probes `/v1/meta` and `/v1/health`.
+  - Outputs table:
+    - `port`
+    - `app`
+    - `repo_root`
+    - `pid`
+    - `cmdline`
+  - Returns nonzero on multiple V2 API listeners unless `ALLOW_MULTIPLE_V2_APIS=1`.
+- Added shared demo resolver:
+  - `/Users/dr.156/ZenOpsV2/scripts/lib/resolve-v2-api.sh`
+  - Preference order:
+    1. `ZENOPS_V2_API_BASE_URL`
+    2. `API_BASE_URL`
+    3. auto-detected V2 `/v1/meta`
+    4. default `http://127.0.0.1:${API_PORT:-3000}/v1` (for can-start mode)
+  - Explicit URL mismatch fails fast.
+
+### Demo scripts updated to target V2 explicitly
+- Updated scripts:
+  - `/Users/dr.156/ZenOpsV2/scripts/demo.sh`
+  - `/Users/dr.156/ZenOpsV2/scripts/demo-billing.sh`
+  - `/Users/dr.156/ZenOpsV2/scripts/demo-notifications.sh`
+  - `/Users/dr.156/ZenOpsV2/scripts/demo-providers.sh`
+  - `/Users/dr.156/ZenOpsV2/scripts/demo-mobile-docs.sh`
+  - `/Users/dr.156/ZenOpsV2/scripts/demo-m4.6.sh`
+- Outcome:
+  - scripts no longer silently hit unrelated HTML apps on occupied localhost ports.
+  - `demo-m4.6.sh` and `demo-mobile-docs.sh` require an existing validated V2 API.
+
+### Boundary docs added
+- `/Users/dr.156/ZenOpsV2/docs/V1_V2_SEGREGATION_REPORT.md`
+  - V1 vs V2 responsibility split
+  - overlap/conflict inventory
+  - non-negotiable separation rules
+  - strangler-style migration outline
+- `/Users/dr.156/ZenOpsV2/docs/CONTROL_PLANE_BOUNDARIES.md`
+  - control-plane vs data-plane contract
+  - RLS posture note and Repogen-ready boundary guidance
+- `/Users/dr.156/ZenOpsV2/docs/V1_V2_ONE_VPS_HOSTNAMES.md`
+  - one-VPS hostname/routing convention
+  - minimal Traefik host-rule example

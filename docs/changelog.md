@@ -2,6 +2,34 @@
 
 ## 2026-02-15
 
+### Added (M4.6.1 V1/V2 Segregation + Port Identity)
+- V2 API identity endpoint:
+  - `GET /v1/meta` returning app/repo/git/build/env identity payload
+- V2 control-plane namespace reservation endpoints (RBAC-protected, 501 by design):
+  - `GET /v1/control/tenant`
+  - `GET /v1/control/subscriptions`
+  - `GET /v1/control/credits`
+- New V2 port detection utility:
+  - `scripts/detect-zenops-ports.sh`
+  - probes `/:port/v1/meta` and prints `port/app/repo_root/pid/cmdline`
+  - exits nonzero when multiple V2 API listeners are found unless explicitly allowed
+- Cross-system segregation docs:
+  - `docs/V1_V2_SEGREGATION_REPORT.md`
+  - `docs/CONTROL_PLANE_BOUNDARIES.md`
+  - `docs/V1_V2_ONE_VPS_HOSTNAMES.md`
+
+### Changed (M4.6.1)
+- V2 demo scripts now prefer `ZENOPS_V2_API_BASE_URL` and validate target identity via `/v1/meta` before running:
+  - `scripts/demo.sh`
+  - `scripts/demo-billing.sh`
+  - `scripts/demo-notifications.sh`
+  - `scripts/demo-providers.sh`
+  - `scripts/demo-mobile-docs.sh`
+  - `scripts/demo-m4.6.sh`
+- Added shared resolver helper:
+  - `scripts/lib/resolve-v2-api.sh`
+- README updated with segregation utility references and new base-URL convention.
+
 ### Added (M4.6 Assignment Ops Factory + Master Data Spine)
 - Assignment lifecycle operations:
   - `POST /v1/assignments/:id/status`

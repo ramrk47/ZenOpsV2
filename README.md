@@ -44,6 +44,8 @@ ZenOps v2 foundation scaffold as a Turborepo + pnpm monorepo.
   - `./scripts/demo-notifications.sh`
 - Run the M4.6 ops-factory demo:
   - `./scripts/demo-m4.6.sh`
+- Detect which local ports are V1 vs V2:
+  - `./scripts/detect-zenops-ports.sh`
 - Expected outcome:
   - PASS summary with `tasks=1`, `messages=1`, `documents=1`, `activities>=4`.
   - PASS summary from billing demo with `usage_events=1`, `invoice_lines=1`, stable total after retry.
@@ -54,6 +56,16 @@ ZenOps v2 foundation scaffold as a Turborepo + pnpm monorepo.
   - Same flags apply to `./scripts/demo-billing.sh`.
   - `DEMO_FORCE_RESET=0 ./scripts/demo-billing.sh` (do not call `reset-demo.sh` first)
   - `DEMO_ASSUME_WORKER_RUNNING=1 ./scripts/demo-notifications.sh` (skip worker startup)
+  - `ZENOPS_V2_API_BASE_URL=http://127.0.0.1:3001/v1 ./scripts/demo-m4.6.sh` (force a known V2 API target)
+
+## V1/V2 Segregation Utilities
+- V2 identity endpoint:
+  - `/v1/meta` returns `app=zenops-v2` plus `repo_root/git_sha/build_time`.
+- Port identity script:
+  - `/Users/dr.156/ZenOpsV2/scripts/detect-zenops-ports.sh`
+- Segregation docs:
+  - `/Users/dr.156/ZenOpsV2/docs/V1_V2_SEGREGATION_REPORT.md`
+  - `/Users/dr.156/ZenOpsV2/docs/CONTROL_PLANE_BOUNDARIES.md`
 
 ## Local Dev Notes
 - `infra:up` starts only Postgres + Redis.
