@@ -7,8 +7,11 @@ cd "$ROOT_DIR"
 API_PORT="${API_PORT:-3000}"
 POSTGRES_BIND_PORT="${POSTGRES_BIND_PORT:-55432}"
 REDIS_BIND_PORT="${REDIS_BIND_PORT:-56379}"
-if [[ -z "${API_BASE_URL:-}" ]]; then
-  API_BASE_URL="http://127.0.0.1:${API_PORT}/v1"
+API_BASE_URL="${API_BASE_URL:-}"
+ZENOPS_V2_API_BASE_URL="${ZENOPS_V2_API_BASE_URL:-}"
+source "$ROOT_DIR/scripts/lib/resolve-v2-api.sh"
+apply_v2_api_base "can-start"
+if [[ "${ZENOPS_V2_API_BASE_SOURCE:-}" == "default" ]]; then
   API_BASE_URL_WAS_DEFAULT="1"
 else
   API_BASE_URL_WAS_DEFAULT="0"

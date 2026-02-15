@@ -7,7 +7,10 @@ cd "$ROOT_DIR"
 API_PORT="${API_PORT:-3000}"
 POSTGRES_BIND_PORT="${POSTGRES_BIND_PORT:-55432}"
 REDIS_BIND_PORT="${REDIS_BIND_PORT:-56379}"
-API_BASE_URL="${API_BASE_URL:-http://127.0.0.1:${API_PORT}/v1}"
+API_BASE_URL="${API_BASE_URL:-}"
+ZENOPS_V2_API_BASE_URL="${ZENOPS_V2_API_BASE_URL:-}"
+source "$ROOT_DIR/scripts/lib/resolve-v2-api.sh"
+apply_v2_api_base "can-start"
 
 JWT_SECRET="${JWT_SECRET:-dev-secret}"
 ZENOPS_MULTI_TENANT_ENABLED="${ZENOPS_MULTI_TENANT_ENABLED:-false}"
@@ -103,6 +106,28 @@ wait_for_api() {
   return 1
 }
 
+is_port_in_use() {
+  local port="$1"
+  if command -v nc >/dev/null 2>&1; then
+    nc -z 127.0.0.1 "$port" >/dev/null 2>&1
+    return $?
+  fi
+  return 1
+}
+
+pick_available_port() {
+  local start="$1"
+  local end=$((start + 20))
+  local candidate
+  for ((candidate = start; candidate <= end; candidate++)); do
+    if ! is_port_in_use "$candidate"; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
 run_setup() {
   echo "Resetting local demo state..."
   env \
@@ -116,6 +141,21 @@ run_setup() {
 start_stack() {
   local provider_email="$1"
   local provider_whatsapp="$2"
+
+  if [[ "${ZENOPS_V2_API_BASE_SOURCE:-}" == "default" ]] && is_port_in_use "$API_PORT"; then
+    local original_port="$API_PORT"
+    local next_port
+    next_port="$(pick_available_port $((API_PORT + 1)) || true)"
+    if [[ -n "$next_port" ]]; then
+      API_PORT="$next_port"
+      API_BASE_URL="http://127.0.0.1:${API_PORT}/v1"
+      export API_PORT API_BASE_URL ZENOPS_V2_API_BASE_URL="$API_BASE_URL"
+      echo "Port ${original_port} is busy; using API_PORT=${API_PORT} for demo."
+    else
+      echo "ERROR: could not find a free API port after ${original_port}."
+      exit 1
+    fi
+  fi
 
   env \
     API_PORT="$API_PORT" \

@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API_BASE_URL="${API_BASE_URL:-http://127.0.0.1:3000/v1}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+API_PORT="${API_PORT:-3000}"
+API_BASE_URL="${API_BASE_URL:-}"
+ZENOPS_V2_API_BASE_URL="${ZENOPS_V2_API_BASE_URL:-}"
+source "$ROOT_DIR/scripts/lib/resolve-v2-api.sh"
+apply_v2_api_base "must-exist"
+
 WEB_TOKEN="${WEB_TOKEN:-}"
 STUDIO_TOKEN="${STUDIO_TOKEN:-}"
 
