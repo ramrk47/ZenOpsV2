@@ -54,10 +54,37 @@ Every side-effect write must include `idempotency_key`.
 Required for:
 - credit grant/topup/adjustment
 - reserve/consume/release
+- subscription refill events
 - billing event ingestion
-- invoice issue/remind/payment-related side effects
+- invoice issue/remind/payment-related side effects (`mark-paid` retries reuse the same key)
 
 Duplicate idempotency keys must not create duplicate financial effects.
+
+## Subscriptions and Monthly Refill
+V2 subscription tables (`subscription_plans`, `tenant_subscriptions`, `subscription_events`) drive scheduled credit grants.
+
+- Refill worker cadence: hourly.
+- Due criteria: `status=ACTIVE` and `next_refill_at <= now`.
+- Refill key format: `refill:{subscription_id}:{period_start_iso}`.
+- Refill path: same invariant-safe grant path used by manual credit grants.
+- Refill writes:
+  - ledger entry (`reason=GRANT`, `ref_type=subscription_refill`)
+  - timeline usage event
+  - subscription event row (`credits_refilled`)
+  - period advancement (`current_period_start`, `current_period_end`, `next_refill_at`).
+
+Duplicate refill attempts for the same key must be no-op.
+
+## Payment Webhook Ingestion
+Webhook ingress endpoints:
+- `POST /v1/webhooks/stripe`
+- `POST /v1/webhooks/razorpay`
+
+Rules:
+- Verify signature (or allow dev bypass with `PAYMENT_WEBHOOK_DEV_BYPASS=true` in local environments only).
+- Store raw parsed payload in `subscription_events` first.
+- De-duplicate by provider event id (`provider + idempotency_key` unique).
+- Apply minimal subscription status transitions (`cancel`, `resume`/`activate`) after persistence.
 
 ## Real Work Triggers
 V2-native channel request flow wiring:
@@ -79,6 +106,18 @@ Studio control-plane supports:
 - reservations view (active/consumed/released)
 - billing timeline (credits + usage + invoice state)
 - service invoices (create/issue/mark-paid)
+- subscriptions (create/pause/resume/cancel/manual refill)
+- onboarding endpoint that creates tenant + default POSTPAID billing account
+
+## Onboarding Defaults
+For every new billing account created through Studio onboarding:
+- `billing_mode=POSTPAID`
+- `is_enabled=true`
+- `wallet=0`
+- `reserved=0`
+- `available=0`
+
+Credit mode should be enabled only when the operator confirms readiness and funding.
 
 ## Launch Guidance
 - Start new customers in `POSTPAID`.

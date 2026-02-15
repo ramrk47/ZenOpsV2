@@ -26,6 +26,10 @@ Run V1 and V2 on the same VPS with separate databases and independent subdomains
 - `CONTROL_RATE_LIMIT_RPM` (default `180`)
 - `DATABASE_URL_API`, `DATABASE_URL_WORKER`, `DATABASE_URL_ROOT`
 - `REDIS_URL`
+- `PAYMENT_WEBHOOK_DEV_BYPASS` (`false` in VPS/prod)
+- `STRIPE_WEBHOOK_SECRET` (when Stripe webhooks are enabled)
+- `RAZORPAY_WEBHOOK_SECRET` (when Razorpay webhooks are enabled)
+- `BILLING_API_BASE_URL` (worker -> API refill call, include `/v1` or bare API host)
 
 ## V1 Required Env
 - `STUDIO_BASE_URL=https://api.<domain>`
@@ -56,6 +60,7 @@ Run:
 ```bash
 cd /Users/dr.156/ZenOpsV2
 ./scripts/smoke-v2.sh
+./scripts/smoke-vps.sh
 ```
 
 What it validates:
@@ -64,6 +69,9 @@ What it validates:
 - grant credits
 - reserve credits
 - release credits
+- consume credits
+- reconcile dry-run
+- postpaid service invoice create -> issue -> mark-paid
 
 ## DNS/Subdomain Migration Safety
 Subdomain moves do not require DB migration:
@@ -76,3 +84,15 @@ Subdomain moves do not require DB migration:
 2. Redeploy previous image tags.
 3. Keep DB volumes intact (no destroy).
 4. Re-run `/v1/meta` and smoke checks.
+
+## Monthly Refill Operations
+1. Worker queue `billing-subscription-refill` runs hourly.
+2. Worker calls `POST /v1/billing/subscriptions/refill-due` using `x-service-token`.
+3. If worker is paused, operator can run manual refill from Studio or:
+
+```bash
+curl -sS -X POST "https://api.<domain>/v1/control/subscriptions/<subscription_id>/refill" \
+  -H "Authorization: Bearer <studio token>" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
