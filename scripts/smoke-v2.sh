@@ -49,9 +49,9 @@ echo "[smoke-v2] grant credits"
 GRANT_KEY="smoke-grant-${SUFFIX}"
 curl -fsS "${AUTH_HEADER[@]}" -X POST "${API_BASE_URL}/control/accounts/${ACCOUNT_ID}/credits/grant" -d "$(jq -n --arg key "${GRANT_KEY}" '{amount:2, reason:"grant", ref_type:"smoke", ref_id:"smoke", idempotency_key:$key}')" >/dev/null
 
-echo "[smoke-v2] reserve credits"
-RESERVE_KEY="smoke-reserve-${SUFFIX}"
-RESERVATION="$(curl -fsS "${AUTH_HEADER[@]}" -X POST "${API_BASE_URL}/control/credits/reserve" -d "$(jq -n --arg account_id "${ACCOUNT_ID}" --arg key "${RESERVE_KEY}" '{account_id:$account_id, amount:1, ref_type:"smoke", ref_id:"smoke-ref", idempotency_key:$key}')")"
+echo "[smoke-v2] reserve + consume credits"
+RESERVE_KEY="smoke-reserve-consume-${SUFFIX}"
+RESERVATION="$(curl -fsS "${AUTH_HEADER[@]}" -X POST "${API_BASE_URL}/control/credits/reserve" -d "$(jq -n --arg account_id "${ACCOUNT_ID}" --arg key "${RESERVE_KEY}" '{account_id:$account_id, amount:1, ref_type:"smoke", ref_id:"smoke-consume", idempotency_key:$key}')")"
 RESERVATION_ID="$(printf '%s' "${RESERVATION}" | jq -r '.id')"
 
 if [[ -z "${RESERVATION_ID}" || "${RESERVATION_ID}" == "null" ]]; then
@@ -59,9 +59,20 @@ if [[ -z "${RESERVATION_ID}" || "${RESERVATION_ID}" == "null" ]]; then
   exit 1
 fi
 
-echo "[smoke-v2] release reservation"
+CONSUME_KEY="smoke-consume-${SUFFIX}"
+curl -fsS "${AUTH_HEADER[@]}" -X POST "${API_BASE_URL}/control/credits/consume" -d "$(jq -n --arg account_id "${ACCOUNT_ID}" --arg reservation_id "${RESERVATION_ID}" --arg key "${CONSUME_KEY}" '{account_id:$account_id, reservation_id:$reservation_id, idempotency_key:$key}')" >/dev/null
+
+echo "[smoke-v2] reserve + release credits"
+RESERVE_RELEASE_KEY="smoke-reserve-release-${SUFFIX}"
+RESERVE_RELEASE="$(curl -fsS "${AUTH_HEADER[@]}" -X POST "${API_BASE_URL}/control/credits/reserve" -d "$(jq -n --arg account_id "${ACCOUNT_ID}" --arg key "${RESERVE_RELEASE_KEY}" '{account_id:$account_id, amount:1, ref_type:"smoke", ref_id:"smoke-release", idempotency_key:$key}')")"
+RESERVE_RELEASE_ID="$(printf '%s' "${RESERVE_RELEASE}" | jq -r '.id')"
+if [[ -z "${RESERVE_RELEASE_ID}" || "${RESERVE_RELEASE_ID}" == "null" ]]; then
+  echo "ERROR: unable to reserve credits for release flow" >&2
+  exit 1
+fi
+
 RELEASE_KEY="smoke-release-${SUFFIX}"
-curl -fsS "${AUTH_HEADER[@]}" -X POST "${API_BASE_URL}/control/credits/release" -d "$(jq -n --arg account_id "${ACCOUNT_ID}" --arg reservation_id "${RESERVATION_ID}" --arg key "${RELEASE_KEY}" '{account_id:$account_id, reservation_id:$reservation_id, idempotency_key:$key}')" >/dev/null
+curl -fsS "${AUTH_HEADER[@]}" -X POST "${API_BASE_URL}/control/credits/release" -d "$(jq -n --arg account_id "${ACCOUNT_ID}" --arg reservation_id "${RESERVE_RELEASE_ID}" --arg key "${RELEASE_KEY}" '{account_id:$account_id, reservation_id:$reservation_id, idempotency_key:$key}')" >/dev/null
 
 echo "[smoke-v2] switch account to POSTPAID and run invoice flow"
 curl -fsS "${AUTH_HEADER[@]}" -X PATCH "${API_BASE_URL}/control/accounts/${ACCOUNT_ID}/policy" -d '{"billing_mode":"postpaid","payment_terms_days":15,"currency":"INR","is_enabled":true}' >/dev/null
@@ -73,7 +84,8 @@ if [[ -z "${INVOICE_ID}" || "${INVOICE_ID}" == "null" ]]; then
 fi
 
 curl -fsS "${AUTH_HEADER[@]}" -H "Idempotency-Key: smoke-issue-${SUFFIX}" -X POST "${API_BASE_URL}/service-invoices/${INVOICE_ID}/issue" -d '{}' >/dev/null
-curl -fsS "${AUTH_HEADER[@]}" -X POST "${API_BASE_URL}/service-invoices/${INVOICE_ID}/mark-paid" -d '{"mode":"manual","notes":"smoke mark paid"}' >/dev/null
+curl -fsS "${AUTH_HEADER[@]}" -H "Idempotency-Key: smoke-mark-paid-${SUFFIX}" -X POST "${API_BASE_URL}/service-invoices/${INVOICE_ID}/mark-paid" -d '{"mode":"manual","notes":"smoke mark paid"}' >/dev/null
+curl -fsS "${AUTH_HEADER[@]}" -H "Idempotency-Key: smoke-mark-paid-${SUFFIX}" -X POST "${API_BASE_URL}/service-invoices/${INVOICE_ID}/mark-paid" -d '{"mode":"manual","notes":"smoke mark paid"}' >/dev/null
 
 echo "[smoke-v2] reconcile dry-run"
 curl -fsS "${AUTH_HEADER[@]}" -X POST "${API_BASE_URL}/control/credits/reconcile" -d "$(jq -n --arg tenant_id "${TENANT_ID}" '{tenant_id:$tenant_id, dry_run:true, limit:50}')" >/dev/null
