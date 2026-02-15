@@ -2,6 +2,39 @@
 
 ## 2026-02-15
 
+### Added (M4.6 Assignment Ops Factory + Master Data Spine)
+- Assignment lifecycle operations:
+  - `POST /v1/assignments/:id/status`
+  - `GET /v1/assignments/:id/status-history`
+  - transition audit rows in `assignment_status_history`
+- Master-data operational CRUD surfaces:
+  - banks, bank branches, client orgs, contacts, properties, channels
+  - branch contacts
+  - channel request intake/review (`/v1/channel-requests`, `/v1/channel-requests/:id/status`)
+- Real task board primitives:
+  - `/v1/tasks` list/create/update/delete
+  - `/v1/tasks/:id/mark-done`
+  - overdue recompute worker and assignment-signal recompute worker
+- Analytics fallback endpoint:
+  - `GET /v1/analytics/overview` (safe zero counters when data is empty)
+- New demo flow:
+  - `scripts/demo-m4.6.sh`
+
+### Changed (M4.6)
+- Prisma/schema expansion for ops factory and master data:
+  - `tasks`, `assignment_status_history`, `channel_requests`, `branch_contacts`
+  - assignment source/master foreign key normalization and lifecycle mapping
+- RLS policy coverage extended to all new M4.6 tables with portal ownership filtering for channel requests.
+- Workspace/web UI:
+  - assignment detail lifecycle status actions + timeline panel
+  - assignment tasks wired to global task endpoints
+  - analytics page with retry + safe fallback
+  - channel wording retained user-facing (`Channel`, not `Partner`)
+- Portal UI:
+  - channel request submit/list flow
+  - user-facing copy uses `Channel`
+- Worker startup now includes M4.6 processors and deduped queue scheduling.
+
 ### Added
 - M4.4 delivery merged (`PR #4`, merge commit `2df39c2136b1549cf5df15c007639e9b5c03219f`, tag `m4.4`).
 - Mobile document metadata and linkability support:

@@ -42,6 +42,8 @@ ZenOps v2 foundation scaffold as a Turborepo + pnpm monorepo.
   - `./scripts/demo-billing.sh`
 - Run the notifications outbox/worker demo:
   - `./scripts/demo-notifications.sh`
+- Run the M4.6 ops-factory demo:
+  - `./scripts/demo-m4.6.sh`
 - Expected outcome:
   - PASS summary with `tasks=1`, `messages=1`, `documents=1`, `activities>=4`.
   - PASS summary from billing demo with `usage_events=1`, `invoice_lines=1`, stable total after retry.
@@ -97,6 +99,22 @@ This is a foundation scaffold with minimal business logic and clear extension po
   - `/Users/dr.156/ZenOpsV2/scripts/prod-offhours.sh`
 - Full runbook:
   - `/Users/dr.156/ZenOpsV2/docs/deploy-runbook-m4.5.md`
+
+## M4.6 Assignment Ops Factory + Master Data Spine
+- Master data module now includes banks, branches, channels, properties, contacts, and branch contacts with tenant-safe RLS.
+- Assignment lifecycle state movement is exposed via:
+  - `/v1/assignments/:id/status`
+  - `/v1/assignments/:id/status-history`
+- Task system (`/v1/tasks`) is first-class and used by Workspace "My Tasks".
+- Channel intake flow is live through portal + review APIs:
+  - `/v1/channel-requests`
+  - `/v1/channel-requests/:id/status`
+- Analytics counters endpoint for resilient UI:
+  - `/v1/analytics/overview`
+- Local smoke script:
+  - `/Users/dr.156/ZenOpsV2/scripts/demo-m4.6.sh`
+- Smoke checklist:
+  - `/Users/dr.156/ZenOpsV2/docs/m4.6-smoke-checklist.md`
 
 ## Staging Deploy Notes (Hostinger VPS + Traefik)
 - DNS/subdomains:

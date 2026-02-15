@@ -497,3 +497,196 @@ Proposed M4.6 high-value scope:
 - assignment readiness score against selected bank/report type
 - evidence pack checklist + exportable assignment data bundle JSON
 - tighter field capture discipline for mobile ingestion
+
+---
+
+## 17) Detailed M4.6 Record (Assignment Ops Factory + Master Data Spine)
+
+### Branch + objective context
+- Working branch: `codex/m4-6-masterdata-lifecycle`
+- Milestone objective: make Workspace operations deterministic with normalized master data, lifecycle state transitions, real task queues, channel intake flow, and idempotent signal recomputation.
+- Guardrails followed during implementation:
+  - no Postgres volume recreation steps added
+  - RLS extended for every new tenant-owned table
+  - OpenAPI/contract surfaces updated with endpoint additions
+  - user-facing naming retained as `Channel` instead of `Partner`
+
+### DB/Prisma expansion (expand phase)
+- New schema files and extensions:
+  - `/Users/dr.156/ZenOpsV2/packages/db/prisma/schema/097_ops_factory.prisma`
+  - updates in:
+    - `/Users/dr.156/ZenOpsV2/packages/db/prisma/schema/010_enums.prisma`
+    - `/Users/dr.156/ZenOpsV2/packages/db/prisma/schema/020_identity.prisma`
+    - `/Users/dr.156/ZenOpsV2/packages/db/prisma/schema/030_workflow.prisma`
+    - `/Users/dr.156/ZenOpsV2/packages/db/prisma/schema/096_master_data_lifecycle.prisma`
+- New enums introduced for M4.6 operations:
+  - `TaskStatus`: `open`, `done`, `blocked`
+  - `TaskPriority`: `low`, `medium`, `high`
+  - `ChannelType`: `agent`, `advocate`, `builder`, `other`
+  - `CommissionMode`: `percent`, `flat`
+  - `ChannelRequestStatus`: `submitted`, `accepted`, `rejected`
+- New tables/models:
+  - `tasks`
+  - `assignment_status_history`
+  - `channel_requests`
+  - `branch_contacts`
+- Assignment model normalization updates:
+  - `sourceType`, `channelId`, `dueAt`
+  - relation links to bank, branch, org, property, contact, channel
+- Channel model hardening:
+  - `channelType`, `commissionMode`, `commissionValue`, `isActive`
+- Key indexes added/kept for query paths:
+  - tasks by tenant/status/assignee/due
+  - status history by tenant+assignment+created desc
+  - channel requests by tenant+status+created desc and requester ownership path
+
+### SQL RLS + seed extension
+- RLS file updated:
+  - `/Users/dr.156/ZenOpsV2/infra/sql/010_rls.sql`
+- New-table RLS enable/force coverage added for:
+  - `tasks`
+  - `assignment_status_history`
+  - `channel_requests`
+  - `branch_contacts`
+- Policy behavior added/adjusted:
+  - org/tenant isolation for all new master/ops tables
+  - `tasks` visibility split:
+    - admin/ops: full tenant visibility
+    - regular users: assigned-to-me or created-by-me
+  - `assignment_status_history` visibility split:
+    - admin/ops full
+    - assignment creator/assignee readable
+  - portal ownership rule for channel requests uses channel owner/user context
+- Seed file updated:
+  - `/Users/dr.156/ZenOpsV2/infra/sql/020_seed.sql`
+- Seed additions:
+  - channel records with channel type + commission fields
+  - branch contacts
+  - sample channel request fixture row
+
+### Contracts + OpenAPI surface updates
+- Contract schema updates in:
+  - `/Users/dr.156/ZenOpsV2/packages/contracts/src/index.ts`
+- Added/expanded contract shapes:
+  - assignment lifecycle change payloads
+  - task CRUD/list payloads
+  - channel request payloads
+  - master-data create payloads (bank/branch/channel/branch-contact)
+  - analytics overview response schema
+- OpenAPI registry updates in:
+  - `/Users/dr.156/ZenOpsV2/apps/api/src/openapi.ts`
+  - generated: `/Users/dr.156/ZenOpsV2/apps/api/openapi.json`
+- Added route docs include:
+  - `/v1/banks`, `/v1/bank-branches`, `/v1/client-orgs`, `/v1/contacts`, `/v1/properties`, `/v1/channels`, `/v1/branch-contacts`
+  - `/v1/channel-requests`, `/v1/channel-requests/:id/status`
+  - `/v1/assignments/:id/status`, `/v1/assignments/:id/status-history`
+  - `/v1/tasks`, `/v1/tasks/:id`, `/v1/tasks/:id/mark-done`
+  - `/v1/analytics/overview`
+
+### API backend implementation (Nest)
+- Core implementation files:
+  - `/Users/dr.156/ZenOpsV2/apps/api/src/domain/domain.service.ts`
+  - `/Users/dr.156/ZenOpsV2/apps/api/src/domain/domain.controller.ts`
+  - `/Users/dr.156/ZenOpsV2/apps/api/src/auth/rbac.ts`
+- Master-data module endpoints implemented:
+  - banks, bank branches, client orgs, contacts, properties, channels, branch contacts
+  - approval endpoints for unverified records
+- Assignment lifecycle operations:
+  - `POST /v1/assignments/:id/status`
+  - `GET /v1/assignments/:id/status-history`
+  - transition validator centralized via allowed transition map
+  - every transition writes:
+    - `assignment_stage_transitions`
+    - `assignment_status_history`
+    - assignment activity event
+- Tasks module endpoints:
+  - `GET /v1/tasks` with filters (`assigned_to_me`, `status`, `due_soon`, `overdue`, `assignment_id`)
+  - `POST /v1/tasks`
+  - `PATCH /v1/tasks/:id`
+  - `DELETE /v1/tasks/:id`
+  - `POST /v1/tasks/:id/mark-done`
+- Channel portal intake/review endpoints:
+  - `POST /v1/channel-requests`
+  - `GET /v1/channel-requests`
+  - `POST /v1/channel-requests/:id/status`
+  - accept flow auto-creates assignment + source record when no assignment exists
+- Assignment serialization enhancements:
+  - source labels and channel aliases for user-facing channel wording
+  - completeness score included in assignment list/detail responses
+  - status history included in assignment detail
+- Analytics hardening endpoint:
+  - `GET /v1/analytics/overview`
+  - returns counter set (assignments/tasks/channel requests/outbox failed-dead)
+  - empty datasets return zeros rather than API failures
+
+### Worker and queue integration
+- New worker processors:
+  - `/Users/dr.156/ZenOpsV2/apps/worker/src/assignment-signals.processor.ts`
+  - `/Users/dr.156/ZenOpsV2/apps/worker/src/task-overdue.processor.ts`
+- Worker bootstrap updates:
+  - `/Users/dr.156/ZenOpsV2/apps/worker/src/index.ts`
+- Queue behavior:
+  - assignment transition enqueues recompute signal event with dedupe payload components
+  - periodic `recompute_overdue` every 10 minutes updates overdue flags on tasks
+- Idempotency pattern preserved:
+  - recompute job identities and deterministic filters avoid duplicate flooding
+
+### Frontend updates
+- Workspace (`web`) changes:
+  - `/Users/dr.156/ZenOpsV2/apps/web/src/App.tsx`
+  - New Assignment flow uses master-data selectors (bank/branch/org/property/channel/contact)
+  - Assignment detail lifecycle controls:
+    - status transition call
+    - timeline/history panel
+  - My Tasks card uses `/v1/tasks?assigned_to_me=true`
+  - Tasks tab uses global tasks filtered by `assignment_id`
+  - Added Analytics page with retry + zero fallback state
+- Portal changes:
+  - `/Users/dr.156/ZenOpsV2/apps/portal/src/App.tsx`
+  - channel request submit/list flow
+  - user-facing copy uses `Channel`
+- Studio changes retained for M4.6 compatibility:
+  - ops monitor and manual WhatsApp flows continue to work with new data model
+
+### Tests added/updated
+- API unit tests updated:
+  - `/Users/dr.156/ZenOpsV2/apps/api/src/domain/domain.service.test.ts`
+- Added transition coverage:
+  - valid lifecycle transition writes stage transition + status history rows
+  - illegal transition path throws guard error
+- Worker tests added:
+  - `/Users/dr.156/ZenOpsV2/apps/worker/src/assignment-signals.processor.test.ts`
+  - `/Users/dr.156/ZenOpsV2/apps/worker/src/task-overdue.processor.test.ts`
+- Existing RLS integration suite remained in place and includes tenant/master-data isolation checks:
+  - `/Users/dr.156/ZenOpsV2/packages/db/src/__tests__/rls.integration.test.ts`
+
+### Demo + smoke operations
+- New script:
+  - `/Users/dr.156/ZenOpsV2/scripts/demo-m4.6.sh`
+- Smoke checklist:
+  - `/Users/dr.156/ZenOpsV2/docs/m4.6-smoke-checklist.md`
+- Demo script flow:
+  1. login demo actors (web + portal + studio)
+  2. create bank + branch + internal channel
+  3. create assignment with bank source
+  4. transition assignment lifecycle (`DRAFT -> COLLECTING`)
+  5. create task assigned to admin user
+  6. mark task done
+  7. create portal channel request
+  8. accept channel request and verify assignment link
+
+### Validation runs completed during M4.6
+- `pnpm --filter @zenops/db prisma:generate` passed
+- `pnpm --filter @zenops/contracts build` passed
+- `pnpm --filter @zenops/api lint` passed
+- `pnpm --filter @zenops/api test` passed
+- `pnpm --filter @zenops/worker lint` passed
+- `pnpm --filter @zenops/worker test` passed
+- `pnpm --filter @zenops/web lint` passed
+- `pnpm --filter @zenops/portal lint` passed
+- `pnpm --filter @zenops/studio lint` passed
+- `pnpm --filter @zenops/api openapi:generate` ran and updated `openapi.json`
+
+### Known integration nuance noted
+- In launch mode, `aud=portal` tenant mapping remains external lane by default.
+- Channel request review for portal-origin rows is handled using a studio token scoped to external lane in demo flow.
