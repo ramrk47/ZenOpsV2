@@ -172,3 +172,16 @@
 - Multi-tenant architecture remains intact; launch gating behavior remains unchanged (`ZENOPS_MULTI_TENANT_ENABLED=false` default).
 - Prisma version pin remains exact: `prisma@6.19.2`, `@prisma/client@6.19.2`.
 - Single-tenant launch gate explicitly validated with expected `403 TENANT_NOT_ENABLED` for non-internal web tenant tokens.
+
+## 2026-02-15
+
+### Changed
+- Production compose bind ports in `/Users/dr.156/ZenOpsV2/infra/docker/compose.prod.yml` are now env-driven for safer side-by-side local/server runs:
+  - `POSTGRES_BIND_PORT`, `REDIS_BIND_PORT`
+  - `API_BIND_PORT`, `WEB_BIND_PORT`, `STUDIO_BIND_PORT`, `PORTAL_BIND_PORT`
+- Postgres data path in compose remains aligned to Postgres 18 image layout (`/var/lib/postgresql`) while keeping persisted volume mount.
+- Turbo task graph updated in `/Users/dr.156/ZenOpsV2/turbo.json` so `lint` depends on `^build` and avoids stale cross-workspace type surfaces.
+
+### Added
+- M4.6 continuation handoff for next chat:
+  - `/Users/dr.156/ZenOpsV2/docs/handoff-m4.6-takeover.md`

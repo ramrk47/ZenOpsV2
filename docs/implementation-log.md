@@ -779,3 +779,34 @@ Proposed M4.6 high-value scope:
 - `/Users/dr.156/ZenOpsV2/docs/V1_V2_ONE_VPS_HOSTNAMES.md`
   - one-VPS hostname/routing convention
   - minimal Traefik host-rule example
+
+## 19) Detailed M4.6.2 Record (Compose Port Flex + Build Graph Guard + Handoff)
+
+### Objective
+- Finalize branch hygiene after M4.6/M4.6.1 by making local/prod compose bindings explicit and configurable.
+- Prevent lint-only runs from reading stale type surfaces in dependent workspaces.
+- Provide an explicit takeover handoff doc so a new chat can continue without context loss.
+
+### Infra compose changes
+- Updated `/Users/dr.156/ZenOpsV2/infra/docker/compose.prod.yml`:
+  - Added env-driven host port bindings:
+    - `POSTGRES_BIND_PORT` (default `5432`)
+    - `REDIS_BIND_PORT` (default `6379`)
+    - `API_BIND_PORT` (default `3000`)
+    - `WEB_BIND_PORT` (default `5173`)
+    - `STUDIO_BIND_PORT` (default `5174`)
+    - `PORTAL_BIND_PORT` (default `5175`)
+  - Preserved Postgres persistent mount path aligned to image expectations:
+    - `zenops_pgdata:/var/lib/postgresql`
+
+### Build orchestration update
+- Updated `/Users/dr.156/ZenOpsV2/turbo.json`:
+  - `lint` now depends on `^build` in addition to `^lint`.
+  - This ensures lint/type-aware consumers evaluate against built upstream packages and avoids false negatives caused by stale generated outputs.
+
+### Documentation added
+- Added `/Users/dr.156/ZenOpsV2/docs/handoff-m4.6-takeover.md` with:
+  - branch + head snapshot
+  - completed M4.6 and M4.6.1 summary
+  - current local deltas and validation checklist
+  - exact next-chat continuation commands
