@@ -18,6 +18,32 @@ const statusOptions = [
 
 const priorityOptions = ['low', 'normal', 'high', 'urgent'] as const;
 const taskStatusOptions = ['todo', 'doing', 'done', 'blocked'] as const;
+const lifecycleStatusOptions = [
+  'DRAFT',
+  'COLLECTING',
+  'QC_PENDING',
+  'CHANGES_REQUESTED',
+  'QC_APPROVED',
+  'DELIVERED',
+  'BILLED',
+  'PAID',
+  'CLOSED'
+] as const;
+const assignmentStageOptions = [
+  'draft_created',
+  'data_collected',
+  'qc_pending',
+  'qc_changes_requested',
+  'qc_approved',
+  'finalized',
+  'sent_to_client',
+  'billed',
+  'paid',
+  'closed'
+] as const;
+const assignmentSourceTypeOptions = ['direct', 'bank', 'channel'] as const;
+const taskOpsStatusOptions = ['OPEN', 'DONE', 'BLOCKED'] as const;
+const taskOpsPriorityOptions = ['LOW', 'MEDIUM', 'HIGH'] as const;
 const documentPurposeOptions = ['evidence', 'reference', 'photo', 'annexure', 'other'] as const;
 const documentSourceOptions = ['mobile_camera', 'mobile_gallery', 'desktop_upload', 'portal_upload', 'tenant', 'internal'] as const;
 const documentClassificationOptions = ['bank_kyc', 'site_photo', 'approval_plan', 'tax_receipt', 'legal', 'invoice', 'other'] as const;
@@ -27,6 +53,8 @@ const employeeRoleOptions = ['admin', 'manager', 'assistant_valuer', 'field_valu
 type AssignmentStatus = (typeof statusOptions)[number];
 type AssignmentPriority = (typeof priorityOptions)[number];
 type TaskStatus = (typeof taskStatusOptions)[number];
+type AssignmentStage = (typeof assignmentStageOptions)[number];
+type AssignmentLifecycleStatus = (typeof lifecycleStatusOptions)[number];
 type EmployeeRole = (typeof employeeRoleOptions)[number];
 type DocumentSource = (typeof documentSourceOptions)[number];
 type DocumentClassification = (typeof documentClassificationOptions)[number];
@@ -47,7 +75,19 @@ interface AssignmentSummary {
   summary: string | null;
   priority: AssignmentPriority;
   status: AssignmentStatus;
+  stage: AssignmentStage;
+  lifecycle_status: AssignmentLifecycleStatus;
   due_date: string | null;
+  due_at?: string | null;
+  source_type?: 'direct' | 'bank' | 'channel';
+  source_label?: string;
+  bank_name?: string | null;
+  bank_branch_name?: string | null;
+  property_name?: string | null;
+  data_completeness?: {
+    score: number;
+    missing: string[];
+  };
   work_order_id: string | null;
   assignees: Array<{
     user_id: string;
@@ -63,7 +103,14 @@ interface AssignmentDetail {
   summary: string | null;
   priority: AssignmentPriority;
   status: AssignmentStatus;
+  stage: AssignmentStage;
+  lifecycle_status: AssignmentLifecycleStatus;
   due_date: string | null;
+  due_at?: string | null;
+  data_completeness?: {
+    score: number;
+    missing: string[];
+  };
   work_order_id: string | null;
   created_at: string;
   updated_at: string;
@@ -116,7 +163,52 @@ interface AssignmentDetail {
     };
     presign_download_endpoint: string;
   }>;
+  status_history?: Array<{
+    id: string;
+    from_status: AssignmentLifecycleStatus | null;
+    to_status: AssignmentLifecycleStatus;
+    note: string | null;
+    created_at: string;
+  }>;
 }
+
+interface MasterDataOption {
+  id: string;
+  name?: string;
+  branch_name?: string;
+  channel_name?: string;
+}
+
+interface TaskRow {
+  id: string;
+  assignment_id: string | null;
+  title: string;
+  description: string | null;
+  status: (typeof taskOpsStatusOptions)[number];
+  priority: (typeof taskOpsPriorityOptions)[number];
+  due_at: string | null;
+  overdue: boolean;
+}
+
+interface AnalyticsOverview {
+  assignments_total: number;
+  assignments_open: number;
+  tasks_open: number;
+  tasks_overdue: number;
+  channel_requests_submitted: number;
+  outbox_failed: number;
+  outbox_dead: number;
+}
+
+const EMPTY_ANALYTICS_OVERVIEW: AnalyticsOverview = {
+  assignments_total: 0,
+  assignments_open: 0,
+  tasks_open: 0,
+  tasks_overdue: 0,
+  channel_requests_submitted: 0,
+  outbox_failed: 0,
+  outbox_dead: 0
+};
 
 const statusChipClass = (status: string): string => {
   if (status === 'delivered' || status === 'finalized') return 'bg-emerald-100 text-emerald-800 border-emerald-300';
@@ -146,11 +238,13 @@ const apiRequest = async <T,>(token: string, path: string, init?: RequestInit): 
 
 function AssignmentListPage({ token }: { token: string }) {
   const [status, setStatus] = useState<AssignmentStatus | ''>('');
+  const [stage, setStage] = useState<AssignmentStage | ''>('');
   const [priority, setPriority] = useState<AssignmentPriority | ''>('');
   const [assigneeUserId, setAssigneeUserId] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [search, setSearch] = useState('');
   const [rows, setRows] = useState<AssignmentSummary[]>([]);
+  const [myTasks, setMyTasks] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -166,17 +260,23 @@ function AssignmentListPage({ token }: { token: string }) {
 
     const query = new URLSearchParams();
     if (status) query.set('status', status);
+    if (stage) query.set('stage', stage);
     if (priority) query.set('priority', priority);
     if (assigneeUserId) query.set('assignee_user_id', assigneeUserId);
     if (dueDate) query.set('due_date', dueDate);
     if (search) query.set('search', search);
 
     try {
-      const data = await apiRequest<AssignmentSummary[]>(token, `/assignments?${query.toString()}`);
+      const [data, tasks] = await Promise.all([
+        apiRequest<AssignmentSummary[]>(token, `/assignments?${query.toString()}`),
+        apiRequest<TaskRow[]>(token, '/tasks?assigned_to_me=true')
+      ]);
       setRows(data);
+      setMyTasks(tasks);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load assignments.');
       setRows([]);
+      setMyTasks([]);
     } finally {
       setLoading(false);
     }
@@ -199,10 +299,17 @@ function AssignmentListPage({ token }: { token: string }) {
           </Link>
         </div>
 
-        <div className="grid gap-2 md:grid-cols-5">
+        <div className="grid gap-2 md:grid-cols-6">
           <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={status} onChange={(event) => setStatus(event.target.value as AssignmentStatus | '')}>
             <option value="">All Statuses</option>
             {statusOptions.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+
+          <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={stage} onChange={(event) => setStage(event.target.value as AssignmentStage | '')}>
+            <option value="">All Stages</option>
+            {assignmentStageOptions.map((option) => (
               <option key={option} value={option}>{option}</option>
             ))}
           </select>
@@ -226,13 +333,22 @@ function AssignmentListPage({ token }: { token: string }) {
       </header>
 
       <section className="card overflow-x-auto">
+        <div className="mb-3">
+          <p className="m-0 text-xs uppercase tracking-[0.2em] text-[var(--zen-muted)]">My Day</p>
+          <p className="m-0 text-sm text-[var(--zen-muted)]">
+            Tasks: overdue {myTasks.filter((task) => task.overdue && task.status !== 'DONE').length} · due soon{' '}
+            {myTasks.filter((task) => !task.overdue && task.status !== 'DONE').length}
+          </p>
+        </div>
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
               <th className="border-b border-[var(--zen-border)] p-2 text-left">Title</th>
+              <th className="border-b border-[var(--zen-border)] p-2 text-left">Lifecycle</th>
               <th className="border-b border-[var(--zen-border)] p-2 text-left">Status</th>
               <th className="border-b border-[var(--zen-border)] p-2 text-left">Priority</th>
               <th className="border-b border-[var(--zen-border)] p-2 text-left">Due</th>
+              <th className="border-b border-[var(--zen-border)] p-2 text-left">Data</th>
               <th className="border-b border-[var(--zen-border)] p-2 text-left">Assignees</th>
               <th className="border-b border-[var(--zen-border)] p-2 text-left">Tasks</th>
             </tr>
@@ -244,11 +360,15 @@ function AssignmentListPage({ token }: { token: string }) {
                   <Link className="font-semibold text-[var(--zen-primary)]" to={`/assignments/${row.id}`}>{row.title}</Link>
                   <p className="m-0 text-xs text-[var(--zen-muted)]">{row.summary ?? 'No summary'}</p>
                 </td>
+                <td className="border-b border-[var(--zen-border)] p-2">{row.lifecycle_status}</td>
                 <td className="border-b border-[var(--zen-border)] p-2">
                   <span className={`inline-flex rounded-full border px-2 py-1 text-xs ${statusChipClass(row.status)}`}>{row.status}</span>
                 </td>
                 <td className="border-b border-[var(--zen-border)] p-2">{row.priority}</td>
                 <td className="border-b border-[var(--zen-border)] p-2">{row.due_date ?? '-'}</td>
+                <td className="border-b border-[var(--zen-border)] p-2">
+                  {row.data_completeness ? `${row.data_completeness.score}%` : '-'}
+                </td>
                 <td className="border-b border-[var(--zen-border)] p-2">
                   <div className="flex flex-wrap gap-1">
                     {row.assignees.length === 0 ? <span className="text-xs text-[var(--zen-muted)]">Unassigned</span> : null}
@@ -275,11 +395,54 @@ function NewAssignmentPage({ token }: { token: string }) {
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
   const [source, setSource] = useState<'tenant' | 'external_portal' | 'partner'>('tenant');
+  const [sourceType, setSourceType] = useState<(typeof assignmentSourceTypeOptions)[number]>('direct');
   const [priority, setPriority] = useState<AssignmentPriority>('normal');
   const [dueDate, setDueDate] = useState('');
+  const [feePaise, setFeePaise] = useState('');
   const [workOrderId, setWorkOrderId] = useState('');
+  const [bankSearch, setBankSearch] = useState('');
+  const [branchSearch, setBranchSearch] = useState('');
+  const [orgSearch, setOrgSearch] = useState('');
+  const [propertySearch, setPropertySearch] = useState('');
+  const [channelSearch, setChannelSearch] = useState('');
+  const [contactSearch, setContactSearch] = useState('');
+  const [banks, setBanks] = useState<MasterDataOption[]>([]);
+  const [branches, setBranches] = useState<MasterDataOption[]>([]);
+  const [orgs, setOrgs] = useState<MasterDataOption[]>([]);
+  const [properties, setProperties] = useState<MasterDataOption[]>([]);
+  const [channels, setChannels] = useState<MasterDataOption[]>([]);
+  const [contacts, setContacts] = useState<MasterDataOption[]>([]);
+  const [bankId, setBankId] = useState('');
+  const [branchId, setBranchId] = useState('');
+  const [orgId, setOrgId] = useState('');
+  const [propertyId, setPropertyId] = useState('');
+  const [channelId, setChannelId] = useState('');
+  const [contactId, setContactId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  const loadMaster = async (path: string, setter: (value: MasterDataOption[]) => void) => {
+    if (!token) return;
+    try {
+      const rows = await apiRequest<MasterDataOption[]>(token, path);
+      setter(rows);
+    } catch {
+      setter([]);
+    }
+  };
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+    const query = (value: string) => `?search=${encodeURIComponent(value)}&limit=12`;
+    void loadMaster(`/banks${query(bankSearch)}`, setBanks);
+    void loadMaster(`/bank-branches${query(branchSearch)}${bankId ? `&bank_id=${bankId}` : ''}`, setBranches);
+    void loadMaster(`/client-orgs${query(orgSearch)}`, setOrgs);
+    void loadMaster(`/properties${query(propertySearch)}`, setProperties);
+    void loadMaster(`/channels${query(channelSearch)}`, setChannels);
+    void loadMaster(`/contacts${query(contactSearch)}${orgId ? `&client_org_id=${orgId}` : ''}`, setContacts);
+  }, [token, bankSearch, branchSearch, orgSearch, propertySearch, channelSearch, contactSearch, bankId, orgId]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -298,7 +461,15 @@ function NewAssignmentPage({ token }: { token: string }) {
           title,
           summary: summary || undefined,
           source,
+          source_type: sourceType,
           priority,
+          ...(bankId ? { bank_id: bankId } : {}),
+          ...(branchId ? { bank_branch_id: branchId } : {}),
+          ...(orgId ? { client_org_id: orgId } : {}),
+          ...(propertyId ? { property_id: propertyId } : {}),
+          ...(channelId ? { channel_id: channelId } : {}),
+          ...(contactId ? { primary_contact_id: contactId } : {}),
+          ...(feePaise ? { fee_paise: Number(feePaise) } : {}),
           ...(dueDate ? { due_date: dueDate } : {}),
           ...(workOrderId ? { work_order_id: workOrderId } : {})
         })
@@ -314,17 +485,23 @@ function NewAssignmentPage({ token }: { token: string }) {
   return (
     <section className="card">
       <h1 className="m-0 text-3xl font-bold">New Assignment</h1>
-      <p className="text-sm text-[var(--zen-muted)]">Create a tenant assignment or convert a portal work order into assignment spine.</p>
+      <p className="text-sm text-[var(--zen-muted)]">Fast intake with master data spine for Bank/Branch/Referral Channel operations.</p>
 
       <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
         <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Assignment title" value={title} onChange={(event) => setTitle(event.target.value)} required />
         <textarea className="min-h-24 rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Summary" value={summary} onChange={(event) => setSummary(event.target.value)} />
 
-        <div className="grid gap-2 md:grid-cols-3">
+        <div className="grid gap-2 md:grid-cols-4">
           <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={source} onChange={(event) => setSource(event.target.value as 'tenant' | 'external_portal' | 'partner')}>
             <option value="tenant">tenant</option>
             <option value="external_portal">external_portal</option>
-            <option value="partner">partner</option>
+            <option value="partner">referral channel</option>
+          </select>
+
+          <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={sourceType} onChange={(event) => setSourceType(event.target.value as (typeof assignmentSourceTypeOptions)[number])}>
+            {assignmentSourceTypeOptions.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
           </select>
 
           <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={priority} onChange={(event) => setPriority(event.target.value as AssignmentPriority)}>
@@ -334,6 +511,68 @@ function NewAssignmentPage({ token }: { token: string }) {
           </select>
 
           <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
+        </div>
+
+        <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Fee (paise)" value={feePaise} onChange={(event) => setFeePaise(event.target.value)} />
+
+        <div className="grid gap-2 md:grid-cols-2">
+          <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Search banks" value={bankSearch} onChange={(event) => setBankSearch(event.target.value)} />
+          <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={bankId} onChange={(event) => setBankId(event.target.value)}>
+            <option value="">Select bank</option>
+            {banks.map((row) => (
+              <option key={row.id} value={row.id}>{row.name ?? row.id}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="grid gap-2 md:grid-cols-2">
+          <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Search branches" value={branchSearch} onChange={(event) => setBranchSearch(event.target.value)} />
+          <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={branchId} onChange={(event) => setBranchId(event.target.value)}>
+            <option value="">Select branch</option>
+            {branches.map((row) => (
+              <option key={row.id} value={row.id}>{row.branch_name ?? row.name ?? row.id}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="grid gap-2 md:grid-cols-2">
+          <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Search client orgs" value={orgSearch} onChange={(event) => setOrgSearch(event.target.value)} />
+          <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={orgId} onChange={(event) => setOrgId(event.target.value)}>
+            <option value="">Select client org</option>
+            {orgs.map((row) => (
+              <option key={row.id} value={row.id}>{row.name ?? row.id}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="grid gap-2 md:grid-cols-2">
+          <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Search properties" value={propertySearch} onChange={(event) => setPropertySearch(event.target.value)} />
+          <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={propertyId} onChange={(event) => setPropertyId(event.target.value)}>
+            <option value="">Select property</option>
+            {properties.map((row) => (
+              <option key={row.id} value={row.id}>{row.name ?? row.id}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="grid gap-2 md:grid-cols-2">
+          <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Search referral channels" value={channelSearch} onChange={(event) => setChannelSearch(event.target.value)} />
+          <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={channelId} onChange={(event) => setChannelId(event.target.value)}>
+            <option value="">Select referral channel</option>
+            {channels.map((row) => (
+              <option key={row.id} value={row.id}>{row.channel_name ?? row.name ?? row.id}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="grid gap-2 md:grid-cols-2">
+          <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Search contacts" value={contactSearch} onChange={(event) => setContactSearch(event.target.value)} />
+          <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={contactId} onChange={(event) => setContactId(event.target.value)}>
+            <option value="">Select contact</option>
+            {contacts.map((row) => (
+              <option key={row.id} value={row.id}>{row.name ?? row.id}</option>
+            ))}
+          </select>
         </div>
 
         <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Create from work_order_id (optional)" value={workOrderId} onChange={(event) => setWorkOrderId(event.target.value)} />
@@ -352,9 +591,11 @@ function AssignmentDetailPage({ token }: { token: string }) {
   const { id = '' } = useParams();
   const [tab, setTab] = useState<'overview' | 'tasks' | 'messages' | 'documents' | 'activity'>('overview');
   const [assignment, setAssignment] = useState<AssignmentDetail | null>(null);
+  const [taskRows, setTaskRows] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [statusDraft, setStatusDraft] = useState<AssignmentStatus>('requested');
+  const [lifecycleDraft, setLifecycleDraft] = useState<AssignmentLifecycleStatus>('DRAFT');
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDueDate, setTaskDueDate] = useState('');
   const [messageBody, setMessageBody] = useState('');
@@ -381,12 +622,18 @@ function AssignmentDetailPage({ token }: { token: string }) {
     setLoading(true);
     setError('');
     try {
-      const data = await apiRequest<AssignmentDetail>(token, `/assignments/${id}`);
+      const [data, tasks] = await Promise.all([
+        apiRequest<AssignmentDetail>(token, `/assignments/${id}`),
+        apiRequest<TaskRow[]>(token, `/tasks?assignment_id=${id}`)
+      ]);
       setAssignment(data);
+      setTaskRows(tasks);
       setStatusDraft(data.status);
+      setLifecycleDraft(data.lifecycle_status);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load assignment.');
       setAssignment(null);
+      setTaskRows([]);
     } finally {
       setLoading(false);
     }
@@ -397,16 +644,16 @@ function AssignmentDetailPage({ token }: { token: string }) {
   }, [token, id]);
 
   const tasksByFloor = useMemo(() => {
-    if (!assignment) return [] as Array<{ floor: string; tasks: AssignmentDetail['tasks'] }>;
-    const groups = new Map<string, AssignmentDetail['tasks']>();
-    for (const task of assignment.tasks) {
-      const key = task.floor?.name ?? 'Unassigned Floor';
+    if (taskRows.length === 0) return [] as Array<{ floor: string; tasks: TaskRow[] }>;
+    const groups = new Map<string, TaskRow[]>();
+    for (const task of taskRows) {
+      const key = 'Task Queue';
       const current = groups.get(key) ?? [];
       current.push(task);
       groups.set(key, current);
     }
     return Array.from(groups.entries()).map(([floor, tasks]) => ({ floor, tasks }));
-  }, [assignment]);
+  }, [taskRows]);
 
   const updateStatus = async () => {
     if (!token || !id) return;
@@ -421,12 +668,31 @@ function AssignmentDetailPage({ token }: { token: string }) {
     }
   };
 
+  const updateLifecycleStatus = async () => {
+    if (!token || !id) return;
+    try {
+      await apiRequest(token, `/assignments/${id}/status`, {
+        method: 'POST',
+        body: JSON.stringify({
+          to_status: lifecycleDraft
+        })
+      });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update lifecycle status.');
+    }
+  };
+
   const createTask = async () => {
     if (!taskTitle || !token || !id) return;
     try {
-      await apiRequest(token, `/assignments/${id}/tasks`, {
+      await apiRequest(token, '/tasks', {
         method: 'POST',
-        body: JSON.stringify({ title: taskTitle, ...(taskDueDate ? { due_date: taskDueDate } : {}) })
+        body: JSON.stringify({
+          assignment_id: id,
+          title: taskTitle,
+          due_at: taskDueDate ? new Date(`${taskDueDate}T00:00:00.000Z`).toISOString() : undefined
+        })
       });
       setTaskTitle('');
       setTaskDueDate('');
@@ -439,10 +705,16 @@ function AssignmentDetailPage({ token }: { token: string }) {
   const updateTaskStatus = async (taskId: string, nextStatus: TaskStatus) => {
     if (!token || !id) return;
     try {
-      await apiRequest(token, `/assignments/${id}/tasks/${taskId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: nextStatus })
-      });
+      if (nextStatus === 'done') {
+        await apiRequest(token, `/tasks/${taskId}/mark-done`, {
+          method: 'POST'
+        });
+      } else {
+        await apiRequest(token, `/tasks/${taskId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'OPEN' })
+        });
+      }
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update task.');
@@ -558,6 +830,12 @@ function AssignmentDetailPage({ token }: { token: string }) {
               ))}
             </select>
             <Button onClick={() => void updateStatus()} disabled={!assignment}>Update Status</Button>
+            <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={lifecycleDraft} onChange={(event) => setLifecycleDraft(event.target.value as AssignmentLifecycleStatus)}>
+              {lifecycleStatusOptions.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+            <Button onClick={() => void updateLifecycleStatus()} disabled={!assignment}>Move Next</Button>
           </div>
         </div>
 
@@ -583,9 +861,13 @@ function AssignmentDetailPage({ token }: { token: string }) {
           <article>
             <h2 className="mt-0 text-lg">Overview</h2>
             <p className="m-0 text-sm">Status: <strong>{assignment.status}</strong></p>
+            <p className="m-0 text-sm">Lifecycle: <strong>{assignment.lifecycle_status}</strong></p>
             <p className="m-0 text-sm">Priority: <strong>{assignment.priority}</strong></p>
             <p className="m-0 text-sm">Due Date: <strong>{assignment.due_date ?? '-'}</strong></p>
             <p className="m-0 text-sm">Work Order: <strong>{assignment.work_order_id ?? '-'}</strong></p>
+            <p className="m-0 text-sm">
+              Data Completeness: <strong>{assignment.data_completeness ? `${assignment.data_completeness.score}%` : '-'}</strong>
+            </p>
           </article>
           <article>
             <h2 className="mt-0 text-lg">Assignees</h2>
@@ -597,6 +879,22 @@ function AssignmentDetailPage({ token }: { token: string }) {
               ))}
             </ul>
             {assignment.assignees.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No assignees yet.</p> : null}
+          </article>
+          <article className="md:col-span-2">
+            <h2 className="mt-0 text-lg">Status Timeline</h2>
+            <div className="space-y-2">
+              {(assignment.status_history ?? []).map((item) => (
+                <div key={item.id} className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm">
+                  <p className="m-0">
+                    {item.from_status ?? 'START'}
+                    {' -> '}
+                    <strong>{item.to_status}</strong>
+                  </p>
+                  <p className="m-0 text-xs text-[var(--zen-muted)]">{new Date(item.created_at).toLocaleString()}</p>
+                  {item.note ? <p className="m-0 text-xs text-[var(--zen-muted)]">{item.note}</p> : null}
+                </div>
+              ))}
+            </div>
           </article>
         </section>
       ) : null}
@@ -619,15 +917,19 @@ function AssignmentDetailPage({ token }: { token: string }) {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <strong>{task.title}</strong>
-                        <p className="m-0 text-xs text-[var(--zen-muted)]">Due: {task.due_date ?? '-'}</p>
+                        <p className="m-0 text-xs text-[var(--zen-muted)]">
+                          Due: {task.due_at ? new Date(task.due_at).toLocaleDateString() : '-'}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <select className="rounded-lg border border-[var(--zen-border)] px-2 py-1" value={task.status} onChange={(event) => void updateTaskStatus(task.id, event.target.value as TaskStatus)}>
-                          {taskStatusOptions.map((option) => (
+                        <select className="rounded-lg border border-[var(--zen-border)] px-2 py-1" value={task.status.toLowerCase() === 'done' ? 'done' : 'todo'} onChange={(event) => void updateTaskStatus(task.id, event.target.value as TaskStatus)}>
+                          {taskStatusOptions.filter((value) => value === 'todo' || value === 'done').map((option) => (
                             <option key={option} value={option}>{option}</option>
                           ))}
                         </select>
-                        <span className={`inline-flex rounded-full border px-2 py-1 text-xs ${statusChipClass(task.status)}`}>{task.status}</span>
+                        <span className={`inline-flex rounded-full border px-2 py-1 text-xs ${task.overdue ? 'border-red-300 bg-red-100 text-red-800' : 'border-slate-300 bg-slate-100 text-slate-800'}`}>
+                          {task.status}
+                        </span>
                       </div>
                     </div>
                   </li>
@@ -635,7 +937,7 @@ function AssignmentDetailPage({ token }: { token: string }) {
               </ul>
             </article>
           ))}
-          {assignment.tasks.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No tasks yet.</p> : null}
+          {taskRows.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No tasks yet.</p> : null}
         </section>
       ) : null}
 
@@ -881,6 +1183,80 @@ function EmployeesPage({ token }: { token: string }) {
   );
 }
 
+function AnalyticsPage({ token }: { token: string }) {
+  const [stats, setStats] = useState<AnalyticsOverview>(EMPTY_ANALYTICS_OVERVIEW);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const load = async () => {
+    if (!token) {
+      setError('Paste a bearer token to load analytics.');
+      setStats(EMPTY_ANALYTICS_OVERVIEW);
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const data = await apiRequest<AnalyticsOverview>(token, '/analytics/overview');
+      setStats(data);
+    } catch (err) {
+      setStats(EMPTY_ANALYTICS_OVERVIEW);
+      setError(err instanceof Error ? `Failed to load analytics: ${err.message}` : 'Failed to load analytics.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, [token]);
+
+  return (
+    <section className="space-y-4">
+      <header className="card">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h1 className="m-0 text-2xl font-bold">Analytics</h1>
+            <p className="m-0 text-sm text-[var(--zen-muted)]">Ops counters with safe zero fallback when no data exists.</p>
+          </div>
+          <Button onClick={() => void load()} disabled={loading}>
+            {loading ? 'Loading...' : 'Retry'}
+          </Button>
+        </div>
+      </header>
+
+      {error ? <section className="card text-sm text-red-700">{error}</section> : null}
+
+      <section className="grid gap-3 md:grid-cols-3">
+        <article className="card">
+          <p className="m-0 text-xs uppercase tracking-[0.15em] text-[var(--zen-muted)]">Assignments</p>
+          <h2 className="m-0 text-2xl">{stats.assignments_total}</h2>
+          <p className="m-0 text-sm text-[var(--zen-muted)]">Open: {stats.assignments_open}</p>
+        </article>
+        <article className="card">
+          <p className="m-0 text-xs uppercase tracking-[0.15em] text-[var(--zen-muted)]">Tasks</p>
+          <h2 className="m-0 text-2xl">{stats.tasks_open}</h2>
+          <p className="m-0 text-sm text-[var(--zen-muted)]">Overdue: {stats.tasks_overdue}</p>
+        </article>
+        <article className="card">
+          <p className="m-0 text-xs uppercase tracking-[0.15em] text-[var(--zen-muted)]">Referral Channel Requests</p>
+          <h2 className="m-0 text-2xl">{stats.channel_requests_submitted}</h2>
+          <p className="m-0 text-sm text-[var(--zen-muted)]">Awaiting review</p>
+        </article>
+        <article className="card">
+          <p className="m-0 text-xs uppercase tracking-[0.15em] text-[var(--zen-muted)]">Outbox Failed</p>
+          <h2 className="m-0 text-2xl">{stats.outbox_failed}</h2>
+        </article>
+        <article className="card">
+          <p className="m-0 text-xs uppercase tracking-[0.15em] text-[var(--zen-muted)]">Outbox Dead</p>
+          <h2 className="m-0 text-2xl">{stats.outbox_dead}</h2>
+        </article>
+      </section>
+    </section>
+  );
+}
+
 function AppShell({ token, setToken }: { token: string; setToken: (token: string) => void }) {
   useEffect(() => {
     localStorage.setItem('zenops_web_token', token);
@@ -902,6 +1278,7 @@ function AppShell({ token, setToken }: { token: string; setToken: (token: string
       <nav className="mb-4 flex flex-wrap gap-2">
         <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/assignments">Assignments</NavLink>
         <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/assignments/new">New</NavLink>
+        <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/analytics">Analytics</NavLink>
         <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/employees">Employees</NavLink>
       </nav>
 
@@ -909,6 +1286,7 @@ function AppShell({ token, setToken }: { token: string; setToken: (token: string
         <Route path="/assignments" element={<AssignmentListPage token={token} />} />
         <Route path="/assignments/new" element={<NewAssignmentPage token={token} />} />
         <Route path="/assignments/:id" element={<AssignmentDetailPage token={token} />} />
+        <Route path="/analytics" element={<AnalyticsPage token={token} />} />
         <Route path="/employees" element={<EmployeesPage token={token} />} />
         <Route path="*" element={<Navigate to="/assignments" replace />} />
       </Routes>
