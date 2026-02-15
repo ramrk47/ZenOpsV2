@@ -24,8 +24,8 @@ class ReflectorStub {
   }
 }
 
-const makeExecutionContext = (authorization: string): ExecutionContext => {
-  const request = { headers: { authorization } };
+const makeExecutionContext = (authorization: string, url = '/v1/secure', ip = '127.0.0.1'): ExecutionContext => {
+  const request = { headers: { authorization }, url, ip };
   return {
     getHandler: () => ({}),
     getClass: () => class TestController {},
@@ -56,7 +56,7 @@ describe('JwtAuthGuard audience gating', () => {
       }
     });
 
-    const guard = new JwtAuthGuard(new ReflectorStub('studio') as any, secret, launchMode);
+    const guard = new JwtAuthGuard(new ReflectorStub('studio') as any, secret, launchMode, null, 1000);
 
     expect(() => guard.canActivate(makeExecutionContext(`Bearer ${token}`))).toThrowError(UnauthorizedException);
   });
@@ -75,7 +75,7 @@ describe('JwtAuthGuard audience gating', () => {
       }
     });
 
-    const guard = new JwtAuthGuard(new ReflectorStub('studio') as any, secret, launchMode);
+    const guard = new JwtAuthGuard(new ReflectorStub('studio') as any, secret, launchMode, null, 1000);
 
     expect(guard.canActivate(makeExecutionContext(`Bearer ${token}`))).toBe(true);
   });
@@ -94,7 +94,7 @@ describe('JwtAuthGuard audience gating', () => {
       }
     });
 
-    const guard = new JwtAuthGuard(new ReflectorStub('web') as any, secret, launchMode);
+    const guard = new JwtAuthGuard(new ReflectorStub('web') as any, secret, launchMode, null, 1000);
     expect(() => guard.canActivate(makeExecutionContext(`Bearer ${token}`))).toThrowError(ForbiddenException);
   });
 
@@ -112,7 +112,26 @@ describe('JwtAuthGuard audience gating', () => {
       }
     });
 
-    const guard = new JwtAuthGuard(new ReflectorStub('web', false, ['payroll.write']) as any, secret, launchMode);
+    const guard = new JwtAuthGuard(new ReflectorStub('web', false, ['payroll.write']) as any, secret, launchMode, null, 1000);
     expect(() => guard.canActivate(makeExecutionContext(`Bearer ${token}`))).toThrowError(ForbiddenException);
+  });
+
+  it('allows studio admin token on control routes', () => {
+    const secret = 'dev-secret';
+    const guard = new JwtAuthGuard(new ReflectorStub('studio') as any, secret, launchMode, 'studio-admin-token', 1000);
+    expect(guard.canActivate(makeExecutionContext('Bearer studio-admin-token', '/v1/control/tenant'))).toBe(true);
+  });
+
+  it('rate limits control routes when rpm threshold is exceeded', () => {
+    const secret = 'dev-secret';
+    const guard = new JwtAuthGuard(new ReflectorStub('studio') as any, secret, launchMode, 'studio-admin-token', 1);
+    expect(guard.canActivate(makeExecutionContext('Bearer studio-admin-token', '/v1/control/tenant', '127.0.0.2'))).toBe(
+      true
+    );
+    expect(() =>
+      guard.canActivate(makeExecutionContext('Bearer studio-admin-token', '/v1/control/tenant', '127.0.0.2'))
+    ).toThrowError(
+      ForbiddenException
+    );
   });
 });
