@@ -13,6 +13,7 @@ type BillingMode = 'postpaid' | 'credit';
 type CreditReason = 'grant' | 'topup' | 'reserve' | 'consume' | 'release' | 'adjustment';
 type ReservationStatus = 'active' | 'consumed' | 'released';
 type ServiceInvoiceStatus = 'draft' | 'issued' | 'sent' | 'partially_paid' | 'paid' | 'void';
+type BillingSubscriptionStatusValue = 'active' | 'paused' | 'past_due' | 'cancelled';
 
 export interface BillingAccountCreateInput {
   tenant_id: string;
@@ -27,6 +28,7 @@ export interface BillingPolicyUpdateInput {
   payment_terms_days?: number;
   currency?: string;
   is_enabled?: boolean;
+  force_enable_credit?: boolean;
 }
 
 export interface BillingCreditGrantInput {
@@ -71,6 +73,43 @@ export interface BillingCreditReconcileInput {
   limit?: number;
   timeout_minutes?: number;
   dry_run?: boolean;
+}
+
+export interface BillingSubscriptionCreateInput {
+  tenant_id: string;
+  account_id?: string;
+  plan_name: string;
+  monthly_credit_grant?: number;
+  cycle_days?: number;
+  currency?: string;
+  price_monthly?: number;
+  status?: BillingSubscriptionStatusValue;
+  external_provider?: string;
+  external_subscription_id?: string;
+}
+
+export interface BillingSubscriptionUpdateInput {
+  status?: BillingSubscriptionStatusValue;
+  external_provider?: string | null;
+  external_subscription_id?: string | null;
+}
+
+export interface BillingSubscriptionRefillInput {
+  idempotency_key?: string;
+}
+
+export interface BillingSubscriptionDueRefillInput {
+  limit?: number;
+  dry_run?: boolean;
+}
+
+export interface BillingSubscriptionWebhookInput {
+  provider: 'stripe' | 'razorpay';
+  event_id: string;
+  event_type: string;
+  payload_json: Record<string, unknown>;
+  external_subscription_id?: string | null;
+  tenant_id?: string | null;
 }
 
 export interface BillingUsageEventInput {
@@ -164,6 +203,12 @@ const fyForDate = (issuedDate: Date): string => {
   const fyStart = month >= 4 ? year : year - 1;
   const fyEnd = fyStart + 1;
   return `${String(fyStart).slice(-2)}-${String(fyEnd).slice(-2)}`;
+};
+
+const addDaysUtc = (date: Date, days: number): Date => {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
 };
 
 const invoiceStatusOut = (status: ServiceInvoiceStatus): 'DRAFT' | 'ISSUED' | 'SENT' | 'PARTIALLY_PAID' | 'PAID' | 'VOID' => {
@@ -375,7 +420,27 @@ export class BillingControlService {
 
   async setBillingPolicy(tx: TxClient, accountId: string, input: BillingPolicyUpdateInput) {
     const account = await this.getAccountOr404(tx, { accountId });
+    const previous = await this.ensureBillingPolicy(tx, account.id, {});
+    if (input.billing_mode === 'credit') {
+      const credit = await this.computeCreditBalances(tx, account.id);
+      if (credit.available <= 0 && !input.force_enable_credit) {
+        throw new ConflictException('available credits must be > 0 before enabling CREDIT mode');
+      }
+    }
     const policy = await this.ensureBillingPolicy(tx, account.id, input);
+    if (previous.billingMode !== policy.billingMode) {
+      await this.ingestUsageEvent(tx, {
+        source_system: 'v2',
+        event_type: policy.billingMode === 'credit' ? 'credit_mode_enabled' : 'credit_mode_disabled',
+        account_id: account.id,
+        payload_json: {
+          previous_mode: previous.billingMode.toUpperCase(),
+          next_mode: policy.billingMode.toUpperCase(),
+          force_enable_credit: Boolean(input.force_enable_credit)
+        },
+        idempotency_key: `v2:policy_change:${account.id}:${policy.updatedAt.toISOString()}`
+      });
+    }
     return {
       account_id: account.id,
       billing_mode: policy.billingMode.toUpperCase(),
@@ -918,8 +983,11 @@ export class BillingControlService {
     return this.serializeUsageEvent(row);
   }
 
-  async listSubscriptions(tx: TxClient) {
+  async listSubscriptions(tx: TxClient, tenantId?: string) {
     const rows = await tx.billingSubscription.findMany({
+      where: {
+        ...(tenantId ? { tenantId } : {})
+      },
       include: {
         account: true,
         plan: true
@@ -933,53 +1001,219 @@ export class BillingControlService {
       account_display_name: row.account.displayName,
       plan_id: row.planId,
       plan_name: row.plan.name,
-      monthly_credit_allowance: row.plan.monthlyCreditAllowance,
+      monthly_credit_grant: row.plan.monthlyCreditAllowance,
+      cycle_days: row.plan.cycleDays,
+      currency: row.plan.currency,
+      price_monthly: decimalToNumber(row.plan.priceMonthly),
       status: row.status.toUpperCase(),
       starts_at: row.startsAt.toISOString(),
-      ends_at: row.endsAt?.toISOString() ?? null
+      ends_at: row.endsAt?.toISOString() ?? null,
+      current_period_start: row.currentPeriodStart?.toISOString() ?? null,
+      current_period_end: row.currentPeriodEnd?.toISOString() ?? null,
+      next_refill_at: row.nextRefillAt?.toISOString() ?? null,
+      last_refilled_at: row.lastRefilledAt?.toISOString() ?? null,
+      external_provider: row.externalProvider,
+      external_subscription_id: row.externalSubscriptionId
     }));
   }
 
-  async assignSubscription(tx: TxClient, input: { account_id: string; plan_name: string; monthly_credit_allowance?: number; status?: 'active' | 'past_due' | 'cancelled' }) {
-    const account = await this.getAccountOr404(tx, { accountId: input.account_id });
-    const existingPlan = await tx.billingPlanCatalog.findFirst({
-      where: {
-        name: input.plan_name
-      }
+  async createSubscription(tx: TxClient, input: BillingSubscriptionCreateInput) {
+    const account = input.account_id
+      ? await this.getAccountOr404(tx, { accountId: input.account_id })
+      : await this.getPrimaryTenantBillingAccount(tx, input.tenant_id);
+    if (account.tenantId !== input.tenant_id) {
+      throw new ConflictException('account does not belong to tenant');
+    }
+
+    const plan = await this.upsertSubscriptionPlan(tx, {
+      name: input.plan_name,
+      monthly_credit_grant: input.monthly_credit_grant,
+      cycle_days: input.cycle_days,
+      currency: input.currency,
+      price_monthly: input.price_monthly
     });
-    const plan = existingPlan
-      ? await tx.billingPlanCatalog.update({
-          where: {
-            id: existingPlan.id
-          },
-          data: {
-            monthlyCreditAllowance: input.monthly_credit_allowance ?? null,
-            isActive: true
-          }
-        })
-      : await tx.billingPlanCatalog.create({
-          data: {
-            name: input.plan_name,
-            monthlyCreditAllowance: input.monthly_credit_allowance ?? null,
-            isActive: true
-          }
-        });
+
+    const startsAt = new Date();
+    const periodStart = startsAt;
+    const periodEnd = addDaysUtc(periodStart, plan.cycleDays);
 
     const created = await tx.billingSubscription.create({
       data: {
         tenantId: account.tenantId,
         accountId: account.id,
         planId: plan.id,
-        status: input.status ?? 'active'
+        status: input.status ?? 'active',
+        startsAt,
+        currentPeriodStart: periodStart,
+        currentPeriodEnd: periodEnd,
+        nextRefillAt: periodEnd,
+        externalProvider: input.external_provider ?? null,
+        externalSubscriptionId: input.external_subscription_id ?? null
+      },
+      include: {
+        account: true,
+        plan: true
+      }
+    });
+
+    await tx.billingSubscriptionEvent.create({
+      data: {
+        tenantId: created.tenantId,
+        subscriptionId: created.id,
+        provider: 'internal',
+        eventType: 'subscription_created',
+        payloadJson: asInputJson({
+          account_id: created.accountId,
+          plan_name: created.plan.name
+        }),
+        idempotencyKey: `subscription_create:${created.id}`
       }
     });
 
     return {
       id: created.id,
+      tenant_id: created.tenantId,
       account_id: created.accountId,
       plan_id: created.planId,
-      status: created.status.toUpperCase()
+      plan_name: created.plan.name,
+      status: created.status.toUpperCase(),
+      next_refill_at: created.nextRefillAt?.toISOString() ?? null
     };
+  }
+
+  async updateSubscription(tx: TxClient, subscriptionId: string, input: BillingSubscriptionUpdateInput) {
+    const current = await tx.billingSubscription.findFirst({
+      where: {
+        id: subscriptionId
+      }
+    });
+    if (!current) {
+      throw new NotFoundException(`subscription ${subscriptionId} not found`);
+    }
+
+    const updated = await tx.billingSubscription.update({
+      where: {
+        id: subscriptionId
+      },
+      data: {
+        ...(input.status ? { status: input.status } : {}),
+        ...(input.status === 'cancelled' ? { endsAt: new Date(), nextRefillAt: null } : {}),
+        ...(input.external_provider !== undefined ? { externalProvider: input.external_provider } : {}),
+        ...(input.external_subscription_id !== undefined ? { externalSubscriptionId: input.external_subscription_id } : {})
+      }
+    });
+
+    await tx.billingSubscriptionEvent.create({
+      data: {
+        tenantId: updated.tenantId,
+        subscriptionId: updated.id,
+        provider: 'internal',
+        eventType: 'subscription_updated',
+        payloadJson: asInputJson({
+          status: updated.status,
+          external_provider: updated.externalProvider,
+          external_subscription_id: updated.externalSubscriptionId
+        }),
+        idempotencyKey: `subscription_update:${updated.id}:${updated.updatedAt.toISOString()}`
+      }
+    });
+
+    return {
+      id: updated.id,
+      tenant_id: updated.tenantId,
+      account_id: updated.accountId,
+      status: updated.status.toUpperCase(),
+      next_refill_at: updated.nextRefillAt?.toISOString() ?? null
+    };
+  }
+
+  async refillSubscription(tx: TxClient, subscriptionId: string, input: BillingSubscriptionRefillInput = {}) {
+    const subscription = await tx.billingSubscription.findFirst({
+      where: {
+        id: subscriptionId
+      },
+      include: {
+        plan: true,
+        account: true
+      }
+    });
+    if (!subscription) {
+      throw new NotFoundException(`subscription ${subscriptionId} not found`);
+    }
+    return this.applySubscriptionRefill(tx, subscription, input.idempotency_key, 'manual');
+  }
+
+  async processDueSubscriptionRefills(tx: TxClient, input: BillingSubscriptionDueRefillInput = {}) {
+    const limit = Math.min(Math.max(input.limit ?? 100, 1), 500);
+    const now = new Date();
+    const due = await tx.billingSubscription.findMany({
+      where: {
+        status: 'active',
+        nextRefillAt: {
+          lte: now
+        }
+      },
+      include: {
+        plan: true,
+        account: true
+      },
+      orderBy: [{ nextRefillAt: 'asc' }],
+      take: limit
+    });
+
+    if (input.dry_run) {
+      return {
+        dry_run: true,
+        scanned: due.length,
+        refilled: due.length,
+        skipped: 0,
+        errors: [] as Array<{ subscription_id: string; error: string }>
+      };
+    }
+
+    let refilled = 0;
+    let skipped = 0;
+    const errors: Array<{ subscription_id: string; error: string }> = [];
+
+    for (const row of due) {
+      try {
+        const result = await this.applySubscriptionRefill(
+          tx,
+          row,
+          undefined,
+          'scheduled'
+        );
+        if (result.duplicate) {
+          skipped += 1;
+        } else {
+          refilled += 1;
+        }
+      } catch (error) {
+        errors.push({
+          subscription_id: row.id,
+          error: error instanceof Error ? error.message : 'unknown'
+        });
+      }
+    }
+
+    return {
+      dry_run: false,
+      scanned: due.length,
+      refilled,
+      skipped,
+      errors
+    };
+  }
+
+  async assignSubscription(tx: TxClient, input: { account_id: string; plan_name: string; monthly_credit_allowance?: number; status?: 'active' | 'paused' | 'past_due' | 'cancelled' }) {
+    const account = await this.getAccountOr404(tx, { accountId: input.account_id });
+    return this.createSubscription(tx, {
+      tenant_id: account.tenantId,
+      account_id: account.id,
+      plan_name: input.plan_name,
+      monthly_credit_grant: input.monthly_credit_allowance,
+      status: input.status
+    });
   }
 
   async listServiceInvoices(tx: TxClient, tenantId: string, accountId?: string) {
@@ -1254,7 +1488,14 @@ export class BillingControlService {
     return this.getServiceInvoice(tx, tenantId, row.id);
   }
 
-  async addServiceInvoicePayment(tx: TxClient, tenantId: string, invoiceId: string, actorUserId: string | null, input: ServiceInvoicePaymentInput) {
+  async addServiceInvoicePayment(
+    tx: TxClient,
+    tenantId: string,
+    invoiceId: string,
+    actorUserId: string | null,
+    input: ServiceInvoicePaymentInput,
+    idempotencyKey?: string | null
+  ) {
     const row = await tx.serviceInvoice.findFirst({
       where: { id: invoiceId, tenantId }
     });
@@ -1275,12 +1516,64 @@ export class BillingControlService {
       throw new BadRequestException('amount exceeds due');
     }
 
-    await tx.serviceInvoicePayment.create({
+    const normalizedMode = input.mode ?? 'manual';
+    const requestHash = `invoice_payment:${invoiceId}:${input.amount}:${normalizedMode}:${input.reference ?? ''}:${input.notes ?? ''}`;
+
+    if (idempotencyKey) {
+      const existing = await tx.serviceIdempotencyKey.findUnique({
+        where: {
+          accountId_scope_key: {
+            accountId: row.accountId,
+            scope: 'invoice_payment',
+            key: idempotencyKey
+          }
+        }
+      });
+      if (existing) {
+        if (existing.requestHash !== requestHash) {
+          throw new ConflictException('Idempotency key mismatch');
+        }
+        return this.getServiceInvoice(tx, tenantId, row.id);
+      }
+      try {
+        await tx.serviceIdempotencyKey.create({
+          data: {
+            tenantId,
+            accountId: row.accountId,
+            scope: 'invoice_payment',
+            key: idempotencyKey,
+            requestHash,
+            responseJson: {
+              status: 'pending'
+            }
+          }
+        });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          const raced = await tx.serviceIdempotencyKey.findUnique({
+            where: {
+              accountId_scope_key: {
+                accountId: row.accountId,
+                scope: 'invoice_payment',
+                key: idempotencyKey
+              }
+            }
+          });
+          if (raced && raced.requestHash === requestHash) {
+            return this.getServiceInvoice(tx, tenantId, row.id);
+          }
+          throw new ConflictException('Idempotency key mismatch');
+        }
+        throw error;
+      }
+    }
+
+    const payment = await tx.serviceInvoicePayment.create({
       data: {
         tenantId,
         invoiceId: row.id,
         amount: new Prisma.Decimal(input.amount),
-        mode: input.mode ?? 'manual',
+        mode: normalizedMode,
         reference: input.reference ?? null,
         notes: input.notes ?? null,
         createdByUserId: actorUserId
@@ -1299,9 +1592,31 @@ export class BillingControlService {
         invoice_id: row.id,
         amount: input.amount
       },
-      idempotency_key: `v2:payment:${row.id}:${Date.now()}`
+      idempotency_key: `v2:payment:${row.id}:${idempotencyKey ?? payment.id}`
     });
-    return this.getServiceInvoice(tx, tenantId, row.id);
+
+    const invoice = await this.getServiceInvoice(tx, tenantId, row.id);
+    if (idempotencyKey) {
+      await tx.serviceIdempotencyKey.update({
+        where: {
+          accountId_scope_key: {
+            accountId: row.accountId,
+            scope: 'invoice_payment',
+            key: idempotencyKey
+          }
+        },
+        data: {
+          responseJson: {
+            invoice_id: invoice.id,
+            status: invoice.status,
+            amount_due: invoice.amount_due,
+            amount_paid: invoice.amount_paid
+          }
+        }
+      });
+    }
+
+    return invoice;
   }
 
   async addServiceInvoiceAdjustment(tx: TxClient, tenantId: string, invoiceId: string, actorUserId: string | null, input: ServiceInvoiceAdjustmentInput) {
@@ -1753,6 +2068,243 @@ export class BillingControlService {
     };
   }
 
+  async getTenantSubscription(tx: TxClient, tenantId: string) {
+    const row = await tx.billingSubscription.findFirst({
+      where: {
+        tenantId,
+        status: {
+          in: ['active', 'paused', 'past_due']
+        }
+      },
+      include: {
+        plan: true
+      },
+      orderBy: [{ createdAt: 'desc' }]
+    });
+    if (!row) {
+      return null;
+    }
+    return {
+      id: row.id,
+      tenant_id: row.tenantId,
+      account_id: row.accountId,
+      plan_id: row.planId,
+      plan_name: row.plan.name,
+      status: row.status.toUpperCase(),
+      monthly_credit_grant: row.plan.monthlyCreditAllowance,
+      cycle_days: row.plan.cycleDays,
+      currency: row.plan.currency,
+      next_refill_at: row.nextRefillAt?.toISOString() ?? null,
+      current_period_start: row.currentPeriodStart?.toISOString() ?? null,
+      current_period_end: row.currentPeriodEnd?.toISOString() ?? null
+    };
+  }
+
+  async getTenantCreditSummary(tx: TxClient, tenantId: string) {
+    const accounts = await tx.billingAccount.findMany({
+      where: {
+        tenantId,
+        status: 'active'
+      },
+      orderBy: [{ createdAt: 'asc' }]
+    });
+    if (accounts.length === 0) {
+      return {
+        tenant_id: tenantId,
+        account_count: 0,
+        wallet: 0,
+        reserved: 0,
+        available: 0,
+        primary_account_id: null
+      };
+    }
+    const balances = await Promise.all(accounts.map((row) => this.computeCreditBalances(tx, row.id)));
+    const totals = balances.reduce(
+      (acc, row) => {
+        acc.wallet += row.wallet;
+        acc.reserved += row.reserved;
+        acc.available += row.available;
+        return acc;
+      },
+      { wallet: 0, reserved: 0, available: 0 }
+    );
+    return {
+      tenant_id: tenantId,
+      account_count: accounts.length,
+      wallet: totals.wallet,
+      reserved: totals.reserved,
+      available: totals.available,
+      primary_account_id: accounts[0]?.id ?? null
+    };
+  }
+
+  async onboardTenant(
+    tx: TxClient,
+    input: {
+      tenant_name: string;
+      owner_email: string;
+      account_type: AccountType;
+      display_name: string;
+      external_key: string;
+    }
+  ) {
+    const baseSlug = input.tenant_name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48);
+    const slugCandidate = baseSlug || `tenant-${Date.now()}`;
+    const existingSlug = await tx.tenant.findFirst({
+      where: {
+        slug: slugCandidate
+      }
+    });
+    const slug = existingSlug ? `${slugCandidate}-${Date.now().toString().slice(-6)}` : slugCandidate;
+
+    const tenant = await tx.tenant.create({
+      data: {
+        name: input.tenant_name,
+        slug,
+        lane: 'tenant'
+      }
+    });
+
+    const owner = await tx.user.upsert({
+      where: {
+        email: input.owner_email
+      },
+      update: {},
+      create: {
+        email: input.owner_email,
+        name: input.owner_email.split('@')[0] ?? input.owner_email
+      }
+    });
+
+    const role = await tx.role.findFirst({
+      where: {
+        name: 'super_admin'
+      }
+    });
+    if (role) {
+      await tx.membership.upsert({
+        where: {
+          tenantId_userId_roleId: {
+            tenantId: tenant.id,
+            userId: owner.id,
+            roleId: role.id
+          }
+        },
+        update: {},
+        create: {
+          tenantId: tenant.id,
+          userId: owner.id,
+          roleId: role.id
+        }
+      });
+    }
+
+    const account = await this.createAccount(tx, {
+      tenant_id: tenant.id,
+      account_type: input.account_type,
+      display_name: input.display_name,
+      external_key: input.external_key,
+      payment_terms_days: 15
+    });
+
+    await this.setBillingPolicy(tx, account.account_id, {
+      billing_mode: 'postpaid',
+      payment_terms_days: 15,
+      currency: 'INR',
+      is_enabled: true
+    });
+
+    await this.ingestUsageEvent(tx, {
+      source_system: 'v2',
+      event_type: 'billing_onboarded',
+      account_id: account.account_id,
+      payload_json: {
+        tenant_id: tenant.id,
+        owner_email: input.owner_email
+      },
+      idempotency_key: `v2:onboard:${tenant.id}:${account.account_id}`
+    });
+
+    return {
+      tenant_id: tenant.id,
+      tenant_slug: tenant.slug,
+      owner_user_id: owner.id,
+      account_id: account.account_id,
+      billing_mode: 'POSTPAID'
+    };
+  }
+
+  async ingestSubscriptionWebhook(tx: TxClient, input: BillingSubscriptionWebhookInput) {
+    const existing = await tx.billingSubscriptionEvent.findUnique({
+      where: {
+        provider_idempotencyKey: {
+          provider: input.provider,
+          idempotencyKey: input.event_id
+        }
+      }
+    });
+    if (existing) {
+      return {
+        duplicate: true,
+        event_id: existing.id
+      };
+    }
+
+    const subscription = input.external_subscription_id
+      ? await tx.billingSubscription.findFirst({
+          where: {
+            externalSubscriptionId: input.external_subscription_id
+          }
+        })
+      : null;
+    const tenantId =
+      subscription?.tenantId ??
+      input.tenant_id ??
+      process.env.ZENOPS_INTERNAL_TENANT_ID ??
+      '11111111-1111-1111-1111-111111111111';
+
+    if (subscription) {
+      const eventType = input.event_type.toLowerCase();
+      if (eventType.includes('cancel')) {
+        await tx.billingSubscription.update({
+          where: { id: subscription.id },
+          data: {
+            status: 'cancelled',
+            endsAt: new Date(),
+            nextRefillAt: null
+          }
+        });
+      } else if (eventType.includes('resume') || eventType.includes('activated')) {
+        await tx.billingSubscription.update({
+          where: { id: subscription.id },
+          data: {
+            status: 'active'
+          }
+        });
+      }
+    }
+
+    const created = await tx.billingSubscriptionEvent.create({
+      data: {
+        tenantId,
+        subscriptionId: subscription?.id ?? null,
+        provider: input.provider,
+        eventType: input.event_type,
+        payloadJson: asInputJson(input.payload_json),
+        idempotencyKey: input.event_id
+      }
+    });
+
+    return {
+      duplicate: false,
+      event_id: created.id
+    };
+  }
+
   async isAssignmentBillingSatisfied(tx: TxClient, tenantId: string, assignmentId: string): Promise<boolean> {
     const rows = await tx.serviceInvoice.findMany({
       where: {
@@ -1766,6 +2318,162 @@ export class BillingControlService {
       return false;
     }
     return rows.some((row) => row.status === 'paid');
+  }
+
+  private async getPrimaryTenantBillingAccount(tx: TxClient, tenantId: string) {
+    const account = await tx.billingAccount.findFirst({
+      where: {
+        tenantId,
+        status: 'active'
+      },
+      orderBy: [{ createdAt: 'asc' }]
+    });
+    if (!account) {
+      throw new NotFoundException(`no billing account found for tenant ${tenantId}`);
+    }
+    return account;
+  }
+
+  private async upsertSubscriptionPlan(
+    tx: TxClient,
+    input: {
+      name: string;
+      monthly_credit_grant?: number;
+      cycle_days?: number;
+      currency?: string;
+      price_monthly?: number;
+    }
+  ) {
+    const existing = await tx.billingPlanCatalog.findFirst({
+      where: {
+        name: input.name
+      }
+    });
+    const update = {
+      isActive: true,
+      ...(input.monthly_credit_grant !== undefined ? { monthlyCreditAllowance: input.monthly_credit_grant } : {}),
+      ...(input.cycle_days !== undefined ? { cycleDays: input.cycle_days } : {}),
+      ...(input.currency ? { currency: input.currency } : {}),
+      ...(input.price_monthly !== undefined ? { priceMonthly: toDecimal(input.price_monthly) } : {})
+    };
+
+    if (existing) {
+      return tx.billingPlanCatalog.update({
+        where: {
+          id: existing.id
+        },
+        data: update
+      });
+    }
+
+    return tx.billingPlanCatalog.create({
+      data: {
+        name: input.name,
+        monthlyCreditAllowance: input.monthly_credit_grant ?? null,
+        cycleDays: input.cycle_days ?? 30,
+        currency: input.currency ?? 'INR',
+        priceMonthly: toDecimal(input.price_monthly ?? 0),
+        isActive: true
+      }
+    });
+  }
+
+  private async applySubscriptionRefill(
+    tx: TxClient,
+    subscription: {
+      id: string;
+      tenantId: string;
+      accountId: string;
+      status: BillingSubscriptionStatusValue;
+      startsAt: Date;
+      currentPeriodStart: Date | null;
+      currentPeriodEnd: Date | null;
+      nextRefillAt: Date | null;
+      plan: {
+        monthlyCreditAllowance: number | null;
+        cycleDays: number;
+      };
+    },
+    explicitIdempotencyKey?: string,
+    source: 'manual' | 'scheduled' = 'scheduled'
+  ) {
+    if (subscription.status !== 'active') {
+      return {
+        duplicate: false,
+        status: 'skipped_inactive'
+      };
+    }
+
+    const periodStart = subscription.currentPeriodStart ?? subscription.startsAt;
+    const idempotencyKey =
+      explicitIdempotencyKey ?? `refill:${subscription.id}:${periodStart.toISOString().slice(0, 10)}`;
+
+    const existing = await tx.billingSubscriptionEvent.findUnique({
+      where: {
+        provider_idempotencyKey: {
+          provider: 'internal',
+          idempotencyKey
+        }
+      }
+    });
+    if (existing) {
+      return {
+        duplicate: true,
+        status: 'already_processed'
+      };
+    }
+
+    const grantAmount = subscription.plan.monthlyCreditAllowance ?? 0;
+    if (grantAmount > 0) {
+      await this.grantCredits(tx, subscription.accountId, {
+        amount: grantAmount,
+        reason: 'grant',
+        ref_type: 'subscription_refill',
+        ref_id: subscription.id,
+        idempotency_key: idempotencyKey,
+        metadata_json: {
+          source
+        }
+      });
+    }
+
+    const nextPeriodStart = subscription.currentPeriodEnd ?? periodStart;
+    const nextPeriodEnd = addDaysUtc(nextPeriodStart, subscription.plan.cycleDays || 30);
+    const now = new Date();
+
+    await tx.billingSubscription.update({
+      where: {
+        id: subscription.id
+      },
+      data: {
+        currentPeriodStart: nextPeriodStart,
+        currentPeriodEnd: nextPeriodEnd,
+        nextRefillAt: nextPeriodEnd,
+        lastRefilledAt: now
+      }
+    });
+
+    await tx.billingSubscriptionEvent.create({
+      data: {
+        tenantId: subscription.tenantId,
+        subscriptionId: subscription.id,
+        provider: 'internal',
+        eventType: 'credits_refilled',
+        payloadJson: asInputJson({
+          amount: grantAmount,
+          period_start: periodStart.toISOString(),
+          period_end: (subscription.currentPeriodEnd ?? nextPeriodStart).toISOString(),
+          source
+        }),
+        idempotencyKey
+      }
+    });
+
+    return {
+      duplicate: false,
+      status: 'refilled',
+      amount: grantAmount
+    };
   }
 
   private async resolveOrCreateAccountForTenant(
@@ -2161,7 +2869,7 @@ export class BillingControlService {
         lastNumber: 1
       }
     });
-    return `ZFY${fy.replace('-', '')}-${String(seq.lastNumber).padStart(5, '0')}`;
+    return `INV-${issuedDate.getUTCFullYear()}-${String(seq.lastNumber).padStart(5, '0')}`;
   }
 
   private async addInvoiceAudit(

@@ -1,5 +1,7 @@
 import { BadRequestException, Body, Controller, Get, Headers, Param, Post, Query } from '@nestjs/common';
 import { z } from 'zod';
+import type { JwtClaims } from '@zenops/auth';
+import { Claims } from '../auth/claims.decorator.js';
 import { Public } from '../auth/public.decorator.js';
 import { RequestContextService } from '../db/request-context.service.js';
 import {
@@ -7,6 +9,7 @@ import {
   type BillingCreditConsumeInput,
   type BillingCreditReleaseInput,
   type BillingCreditReserveInput,
+  type BillingSubscriptionDueRefillInput,
   type BillingUsageEventInput
 } from './billing-control.service.js';
 
@@ -38,6 +41,11 @@ const BillingUsageEventSchema = z.object({
   external_account_key: z.string().min(1).optional(),
   payload_json: z.record(z.any()).optional(),
   idempotency_key: z.string().min(1)
+});
+
+const DueRefillSchema = z.object({
+  limit: z.number().int().positive().max(500).optional(),
+  dry_run: z.boolean().optional()
 });
 
 const parseOrThrow = <T>(schema: z.ZodType<T>, body: unknown): T => {
@@ -144,5 +152,36 @@ export class BillingControlController {
     this.billingControlService.requireStudioServiceToken(token);
     const input = parseOrThrow<BillingUsageEventInput>(BillingUsageEventSchema, body);
     return this.requestContext.runService((tx) => this.billingControlService.ingestUsageEvent(tx, input));
+  }
+
+  @Post('subscriptions/refill-due')
+  @Public()
+  async processDueRefills(
+    @Body() body: unknown,
+    @Headers('x-service-token') serviceToken: string | undefined,
+    @Headers('authorization') authorization: string | undefined
+  ) {
+    const token = this.extractServiceToken(serviceToken, authorization);
+    this.billingControlService.requireStudioServiceToken(token);
+    const input = parseOrThrow<BillingSubscriptionDueRefillInput>(DueRefillSchema, body ?? {});
+    return this.requestContext.runService((tx) => this.billingControlService.processDueSubscriptionRefills(tx, input));
+  }
+
+  @Get('subscription')
+  async getTenantSubscription(@Claims() claims: JwtClaims) {
+    const tenantId = this.requestContext.tenantIdForClaims(claims);
+    if (!tenantId) {
+      throw new BadRequestException('tenant context required');
+    }
+    return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.getTenantSubscription(tx, tenantId));
+  }
+
+  @Get('credits/summary')
+  async getTenantCreditsSummary(@Claims() claims: JwtClaims) {
+    const tenantId = this.requestContext.tenantIdForClaims(claims);
+    if (!tenantId) {
+      throw new BadRequestException('tenant context required');
+    }
+    return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.getTenantCreditSummary(tx, tenantId));
   }
 }

@@ -7,6 +7,10 @@ import { Capabilities } from '../auth/rbac.js';
 import { RequestContextService } from '../db/request-context.service.js';
 import {
   BillingControlService,
+  type BillingSubscriptionCreateInput,
+  type BillingSubscriptionDueRefillInput,
+  type BillingSubscriptionRefillInput,
+  type BillingSubscriptionUpdateInput,
   type BillingAccountCreateInput,
   type BillingCreditConsumeInput,
   type BillingCreditGrantInput,
@@ -27,7 +31,8 @@ const BillingPolicySchema = z.object({
   billing_mode: z.enum(['postpaid', 'credit']),
   payment_terms_days: z.number().int().positive().optional(),
   currency: z.string().min(1).optional(),
-  is_enabled: z.boolean().optional()
+  is_enabled: z.boolean().optional(),
+  force_enable_credit: z.boolean().optional()
 });
 
 const AccountStatusSchema = z.object({
@@ -73,7 +78,43 @@ const SubscriptionAssignSchema = z.object({
   account_id: z.string().uuid(),
   plan_name: z.string().min(1),
   monthly_credit_allowance: z.number().int().positive().optional(),
-  status: z.enum(['active', 'past_due', 'cancelled']).optional()
+  status: z.enum(['active', 'paused', 'past_due', 'cancelled']).optional()
+});
+
+const SubscriptionCreateSchema = z.object({
+  tenant_id: z.string().uuid(),
+  account_id: z.string().uuid().optional(),
+  plan_name: z.string().min(1),
+  monthly_credit_grant: z.number().int().nonnegative().optional(),
+  cycle_days: z.number().int().positive().optional(),
+  currency: z.string().min(1).optional(),
+  price_monthly: z.number().nonnegative().optional(),
+  status: z.enum(['active', 'paused', 'past_due', 'cancelled']).optional(),
+  external_provider: z.string().optional(),
+  external_subscription_id: z.string().optional()
+});
+
+const SubscriptionUpdateSchema = z.object({
+  status: z.enum(['active', 'paused', 'past_due', 'cancelled']).optional(),
+  external_provider: z.string().nullable().optional(),
+  external_subscription_id: z.string().nullable().optional()
+});
+
+const SubscriptionRefillSchema = z.object({
+  idempotency_key: z.string().min(1).optional()
+});
+
+const OnboardSchema = z.object({
+  tenant_name: z.string().min(1),
+  owner_email: z.string().email(),
+  account_type: z.enum(['tenant', 'external_associate']),
+  display_name: z.string().min(1),
+  external_key: z.string().min(1)
+});
+
+const DueRefillSchema = z.object({
+  limit: z.number().int().positive().max(500).optional(),
+  dry_run: z.boolean().optional()
 });
 
 const parseOrThrow = <T>(schema: z.ZodType<T>, body: unknown): T => {
@@ -140,8 +181,32 @@ export class ControlController {
   @Get('subscriptions')
   @RequireAudience('studio')
   @RequireCapabilities(Capabilities.masterDataRead)
-  listSubscriptions(@Claims() claims: JwtClaims) {
-    return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.listSubscriptions(tx));
+  listSubscriptions(@Claims() claims: JwtClaims, @Query('tenant_id') tenantId?: string) {
+    return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.listSubscriptions(tx, tenantId));
+  }
+
+  @Post('subscriptions')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.masterDataWrite)
+  createSubscription(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<BillingSubscriptionCreateInput>(SubscriptionCreateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.createSubscription(tx, input));
+  }
+
+  @Patch('subscriptions/:id')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.masterDataWrite)
+  updateSubscription(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
+    const input = parseOrThrow<BillingSubscriptionUpdateInput>(SubscriptionUpdateSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.updateSubscription(tx, id, input));
+  }
+
+  @Post('subscriptions/:id/refill')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.invoicesWrite)
+  refillSubscription(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
+    const input = parseOrThrow<BillingSubscriptionRefillInput>(SubscriptionRefillSchema, body ?? {});
+    return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.refillSubscription(tx, id, input));
   }
 
   @Post('subscriptions/assign')
@@ -152,7 +217,7 @@ export class ControlController {
       account_id: string;
       plan_name: string;
       monthly_credit_allowance?: number;
-      status?: 'active' | 'past_due' | 'cancelled';
+      status?: 'active' | 'paused' | 'past_due' | 'cancelled';
     }>(SubscriptionAssignSchema, body);
     return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.assignSubscription(tx, input));
   }
@@ -250,5 +315,27 @@ export class ControlController {
       dry_run?: boolean;
     }>(CreditReconcileSchema, body ?? {});
     return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.reconcileCredits(tx, input));
+  }
+
+  @Post('onboard')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.masterDataWrite)
+  onboardTenant(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<{
+      tenant_name: string;
+      owner_email: string;
+      account_type: 'tenant' | 'external_associate';
+      display_name: string;
+      external_key: string;
+    }>(OnboardSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.onboardTenant(tx, input));
+  }
+
+  @Post('subscriptions/refill-due')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.invoicesWrite)
+  processDueRefills(@Claims() claims: JwtClaims, @Body() body: unknown) {
+    const input = parseOrThrow<BillingSubscriptionDueRefillInput>(DueRefillSchema, body ?? {});
+    return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.processDueSubscriptionRefills(tx, input));
   }
 }

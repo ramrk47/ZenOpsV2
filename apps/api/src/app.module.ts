@@ -22,6 +22,7 @@ import { ControlController } from './control/control.controller.js';
 import { BillingControlController } from './billing-control/billing-control.controller.js';
 import { ServiceInvoicesController } from './billing-control/service-invoices.controller.js';
 import { BillingControlService } from './billing-control/billing-control.service.js';
+import { PaymentWebhooksController } from './billing-control/payment-webhooks.controller.js';
 
 @Module({
   controllers: [
@@ -32,7 +33,8 @@ import { BillingControlService } from './billing-control/billing-control.service
     NotificationsController,
     ControlController,
     BillingControlController,
-    ServiceInvoicesController
+    ServiceInvoicesController,
+    PaymentWebhooksController
   ],
   providers: [
     {

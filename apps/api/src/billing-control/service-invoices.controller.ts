@@ -220,7 +220,12 @@ export class ServiceInvoicesController {
   }
 
   @Post(':id/payments')
-  async addPayment(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
+  async addPayment(
+    @Claims() claims: JwtClaims,
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Headers('idempotency-key') idempotencyKey?: string
+  ) {
     this.assertCanWrite(claims);
     const tenantId = this.requestContext.tenantIdForClaims(claims);
     if (!tenantId) {
@@ -228,7 +233,7 @@ export class ServiceInvoicesController {
     }
     const input = parseOrThrow<ServiceInvoicePaymentInput>(ServiceInvoicePaymentSchema, body);
     return this.requestContext.runWithClaims(claims, (tx) =>
-      this.billingControlService.addServiceInvoicePayment(tx, tenantId, id, claims.user_id ?? null, input)
+      this.billingControlService.addServiceInvoicePayment(tx, tenantId, id, claims.user_id ?? null, input, idempotencyKey ?? null)
     );
   }
 
@@ -236,7 +241,8 @@ export class ServiceInvoicesController {
   async markPaid(
     @Claims() claims: JwtClaims,
     @Param('id') id: string,
-    @Body() body: unknown
+    @Body() body: unknown,
+    @Headers('idempotency-key') idempotencyKey?: string
   ) {
     this.assertCanWrite(claims);
     const tenantId = this.requestContext.tenantIdForClaims(claims);
@@ -261,12 +267,13 @@ export class ServiceInvoicesController {
     return this.requestContext.runWithClaims(claims, async (tx) => {
       const invoice = await this.billingControlService.getServiceInvoice(tx, tenantId, id);
       const amount = input.amount ?? invoice.amount_due;
+      const markPaidIdempotencyKey = idempotencyKey ?? `invoice_mark_paid:${id}`;
       return this.billingControlService.addServiceInvoicePayment(tx, tenantId, id, claims.user_id ?? null, {
         amount,
         mode: input.mode ?? 'manual',
         reference: input.reference,
         notes: input.notes
-      });
+      }, markPaidIdempotencyKey);
     });
   }
 
