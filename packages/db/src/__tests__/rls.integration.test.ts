@@ -34,6 +34,8 @@ const setupFixtures = async () => {
   const internalDocId = randomUUID();
   const portalDocA = randomUUID();
   const portalDocB = randomUUID();
+  const internalBankId = randomUUID();
+  const externalBankId = randomUUID();
 
   await rootClient.query(
     `INSERT INTO users (id, email, name, created_at, updated_at)
@@ -82,6 +84,15 @@ const setupFixtures = async () => {
       userB,
       `fixtures/${portalDocB}.pdf`
     ]
+  );
+
+  await rootClient.query(
+    `INSERT INTO banks (id, tenant_id, name, is_verified, created_at, updated_at)
+     VALUES
+      ($1, $3, 'Internal Bank Fixture', true, NOW(), NOW()),
+      ($2, $4, 'External Bank Fixture', true, NOW(), NOW())
+     ON CONFLICT (id) DO NOTHING`,
+    [internalBankId, externalBankId, cfg.tenantInternal, cfg.tenantExternal]
   );
 
   await rootClient.query(
@@ -141,6 +152,8 @@ const setupFixtures = async () => {
   process.env.TEST_EXTERNAL_INVOICE = externalInvoiceId;
   process.env.TEST_INTERNAL_OUTBOX = internalOutboxId;
   process.env.TEST_EXTERNAL_OUTBOX = externalOutboxId;
+  process.env.TEST_INTERNAL_BANK = internalBankId;
+  process.env.TEST_EXTERNAL_BANK = externalBankId;
 };
 
 describe('RLS integration', () => {
@@ -340,5 +353,23 @@ describe('RLS integration', () => {
     expect(external.rows.length).toBeGreaterThan(0);
     expect(internal.rows.every((row) => row.tenant_id === cfg.tenantInternal)).toBe(true);
     expect(external.rows.every((row) => row.tenant_id === cfg.tenantExternal)).toBe(true);
+  });
+
+  it.skipIf(!ready)('blocks web tenant from reading other-tenant master data rows', async () => {
+    const webClient = new Client({ connectionString: cfg.web });
+    await webClient.connect();
+
+    await webClient.query('BEGIN');
+    await webClient.query(`SELECT set_config('app.tenant_id', $1, true)`, [cfg.tenantInternal]);
+    await webClient.query(`SELECT set_config('app.user_id', '', true)`);
+    await webClient.query(`SELECT set_config('app.aud', 'web', true)`);
+    const own = await webClient.query('SELECT id FROM banks WHERE id = $1', [process.env.TEST_INTERNAL_BANK]);
+    const other = await webClient.query('SELECT id FROM banks WHERE id = $1', [process.env.TEST_EXTERNAL_BANK]);
+    await webClient.query('COMMIT');
+
+    await webClient.end();
+
+    expect(own.rows.length).toBe(1);
+    expect(other.rows.length).toBe(0);
   });
 });

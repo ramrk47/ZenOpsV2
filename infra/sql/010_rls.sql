@@ -6,6 +6,12 @@ DECLARE
     'partners',
     'work_orders',
     'assignments',
+    'banks',
+    'bank_branches',
+    'client_orgs',
+    'contacts',
+    'properties',
+    'channels',
     'report_requests',
     'report_jobs',
     'report_artifacts',
@@ -45,7 +51,10 @@ DECLARE
     'payroll_items',
     'notification_target_groups',
     'notification_targets',
-    'notification_subscriptions'
+    'notification_subscriptions',
+    'assignment_sources',
+    'assignment_stage_transitions',
+    'assignment_signals'
   ];
 BEGIN
   FOREACH t IN ARRAY tables_with_deleted_at
@@ -74,6 +83,12 @@ DECLARE
     'partners',
     'work_orders',
     'assignments',
+    'banks',
+    'bank_branches',
+    'client_orgs',
+    'contacts',
+    'properties',
+    'channels',
     'report_requests',
     'report_jobs',
     'report_artifacts',
@@ -113,7 +128,10 @@ DECLARE
     'payroll_items',
     'notification_target_groups',
     'notification_targets',
-    'notification_subscriptions'
+    'notification_subscriptions',
+    'assignment_sources',
+    'assignment_stage_transitions',
+    'assignment_signals'
   ];
 BEGIN
   FOREACH t IN ARRAY targets_with_deleted_at
@@ -337,6 +355,27 @@ CREATE POLICY portal_document_tag_map_modify ON public.document_tag_map
     )
   );
 
+DROP POLICY IF EXISTS portal_channels_select ON public.channels;
+CREATE POLICY portal_channels_select ON public.channels
+  FOR SELECT TO zen_portal
+  USING (
+    tenant_id = '22222222-2222-2222-2222-222222222222'::uuid
+    AND owner_user_id = app.current_user_id()
+    AND deleted_at IS NULL
+  );
+
+DROP POLICY IF EXISTS portal_channels_modify ON public.channels;
+CREATE POLICY portal_channels_modify ON public.channels
+  FOR ALL TO zen_portal
+  USING (
+    tenant_id = '22222222-2222-2222-2222-222222222222'::uuid
+    AND owner_user_id = app.current_user_id()
+  )
+  WITH CHECK (
+    tenant_id = '22222222-2222-2222-2222-222222222222'::uuid
+    AND owner_user_id = app.current_user_id()
+  );
+
 -- Studio read policies across tenants with aud check
 DO $$
 DECLARE
@@ -345,6 +384,12 @@ DECLARE
     'partners',
     'work_orders',
     'assignments',
+    'banks',
+    'bank_branches',
+    'client_orgs',
+    'contacts',
+    'properties',
+    'channels',
     'report_requests',
     'report_jobs',
     'report_artifacts',
@@ -384,7 +429,10 @@ DECLARE
     'payroll_items',
     'notification_target_groups',
     'notification_targets',
-    'notification_subscriptions'
+    'notification_subscriptions',
+    'assignment_sources',
+    'assignment_stage_transitions',
+    'assignment_signals'
   ];
 BEGIN
   FOREACH t IN ARRAY targets_with_deleted_at
@@ -461,6 +509,12 @@ DECLARE
     'partners',
     'work_orders',
     'assignments',
+    'banks',
+    'bank_branches',
+    'client_orgs',
+    'contacts',
+    'properties',
+    'channels',
     'report_requests',
     'report_jobs',
     'report_artifacts',
@@ -500,7 +554,10 @@ DECLARE
     'payroll_items',
     'notification_target_groups',
     'notification_targets',
-    'notification_subscriptions'
+    'notification_subscriptions',
+    'assignment_sources',
+    'assignment_stage_transitions',
+    'assignment_signals'
   ];
 BEGIN
   FOREACH t IN ARRAY targets_with_deleted_at
