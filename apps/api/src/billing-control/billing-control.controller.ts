@@ -16,7 +16,8 @@ const BillingCreditReserveSchema = z.object({
   amount: z.number().int().positive().optional(),
   ref_type: z.string().min(1),
   ref_id: z.string().min(1),
-  idempotency_key: z.string().min(1)
+  idempotency_key: z.string().min(1),
+  operator_override: z.boolean().optional()
 });
 
 const BillingCreditConsumeSchema = z.object({

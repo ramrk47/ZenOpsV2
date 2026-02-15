@@ -49,7 +49,8 @@ const CreditReserveSchema = z.object({
   amount: z.number().int().positive().optional(),
   ref_type: z.string().min(1),
   ref_id: z.string().min(1),
-  idempotency_key: z.string().min(1)
+  idempotency_key: z.string().min(1),
+  operator_override: z.boolean().optional()
 });
 
 const CreditSettleSchema = z.object({
@@ -191,6 +192,8 @@ export class ControlController {
     @Claims() claims: JwtClaims,
     @Query('account_id') accountId?: string,
     @Query('tenant_id') tenantId?: string,
+    @Query('ref_type') refType?: string,
+    @Query('ref_id') refId?: string,
     @Query('limit') limit?: string
   ) {
     const parsedLimit = limit ? Number.parseInt(limit, 10) : undefined;
@@ -198,6 +201,8 @@ export class ControlController {
       this.billingControlService.listBillingTimeline(tx, {
         account_id: accountId,
         tenant_id: tenantId,
+        ref_type: refType,
+        ref_id: refId,
         limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined
       })
     );

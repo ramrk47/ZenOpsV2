@@ -64,6 +64,20 @@ import { BillingControlService } from './billing-control/billing-control.service
       useFactory: () => loadLaunchModeConfig(process.env)
     },
     {
+      provide: 'STUDIO_ADMIN_TOKEN',
+      useFactory: () => {
+        const value = process.env.STUDIO_ADMIN_TOKEN?.trim();
+        return value && value.length > 0 ? value : null;
+      }
+    },
+    {
+      provide: 'CONTROL_RATE_LIMIT_RPM',
+      useFactory: () => {
+        const value = Number.parseInt(process.env.CONTROL_RATE_LIMIT_RPM ?? '180', 10);
+        return Number.isFinite(value) ? value : 180;
+      }
+    },
+    {
       provide: 'STORAGE_PROVIDER',
       useFactory: () => {
         const env = loadEnv(process.env);

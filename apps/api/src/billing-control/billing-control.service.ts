@@ -23,7 +23,7 @@ export interface BillingAccountCreateInput {
 }
 
 export interface BillingPolicyUpdateInput {
-  billing_mode: BillingMode;
+  billing_mode?: BillingMode;
   payment_terms_days?: number;
   currency?: string;
   is_enabled?: boolean;
@@ -45,6 +45,7 @@ export interface BillingCreditReserveInput {
   ref_type: string;
   ref_id: string;
   idempotency_key: string;
+  operator_override?: boolean;
 }
 
 export interface BillingCreditConsumeInput {
@@ -170,6 +171,16 @@ const invoiceStatusOut = (status: ServiceInvoiceStatus): 'DRAFT' | 'ISSUED' | 'S
   return map[status];
 };
 
+const isKnownExternalKey = (value: string): boolean => {
+  if (!value) {
+    return false;
+  }
+
+  const v1 = /^v1:(partner|client|assignment|invoice):[A-Za-z0-9_-]+$/;
+  const v2 = /^v2:(tenant|external):[A-Za-z0-9_-]+$/;
+  return v1.test(value) || v2.test(value);
+};
+
 @Injectable()
 export class BillingControlService {
   private studioServiceToken = process.env.STUDIO_SERVICE_TOKEN ?? '';
@@ -229,6 +240,7 @@ export class BillingControlService {
     if (terms <= 0) {
       throw new BadRequestException('payment_terms_days must be positive');
     }
+    this.assertExternalKey(input.external_key);
 
     const created = await tx.billingAccount.upsert({
       where: {
@@ -252,11 +264,11 @@ export class BillingControlService {
     });
 
     await this.ensureBillingPolicy(tx, created.id, {
-      billing_mode: 'postpaid',
       payment_terms_days: terms,
       currency: 'INR',
       is_enabled: true
     });
+    await this.ensureCreditBalance(tx, created.id, created.tenantId);
 
     return this.getAccountStatus(tx, created.id);
   }
@@ -273,7 +285,6 @@ export class BillingControlService {
   async getAccountStatus(tx: TxClient, accountId: string) {
     const account = await this.getAccountOr404(tx, { accountId });
     const policy = await this.ensureBillingPolicy(tx, account.id, {
-      billing_mode: 'postpaid',
       payment_terms_days: account.defaultPaymentTermsDays,
       currency: 'INR',
       is_enabled: true
@@ -316,7 +327,6 @@ export class BillingControlService {
         const policy =
           account.policy ??
           (await this.ensureBillingPolicy(tx, account.id, {
-            billing_mode: 'postpaid',
             payment_terms_days: account.defaultPaymentTermsDays,
             currency: 'INR',
             is_enabled: true
@@ -418,6 +428,8 @@ export class BillingControlService {
     input: {
       account_id?: string;
       tenant_id?: string;
+      ref_type?: string;
+      ref_id?: string;
       limit?: number;
     }
   ) {
@@ -433,7 +445,11 @@ export class BillingControlService {
 
     const [ledgerRows, usageRows, invoiceRows] = await Promise.all([
       tx.billingCreditLedger.findMany({
-        where,
+        where: {
+          ...where,
+          ...(input.ref_type ? { refType: input.ref_type } : {}),
+          ...(input.ref_id ? { refId: input.ref_id } : {})
+        },
         orderBy: [{ createdAt: 'desc' }],
         take
       }),
@@ -443,7 +459,10 @@ export class BillingControlService {
         take
       }),
       tx.serviceInvoice.findMany({
-        where,
+        where: {
+          ...where,
+          ...(input.ref_type === 'service_invoice' && input.ref_id ? { id: input.ref_id } : {})
+        },
         orderBy: [{ updatedAt: 'desc' }],
         take
       })
@@ -522,6 +541,20 @@ export class BillingControlService {
       return this.getAccountStatus(tx, account.id);
     }
 
+    const balance = await this.lockCreditBalance(tx, account.id, account.tenantId);
+    const wallet = balance.wallet + input.amount;
+    const reserved = balance.reserved;
+    const available = wallet - reserved;
+    if (wallet < 0 || reserved < 0 || available < 0) {
+      throw new ConflictException('CREDIT_BALANCE_INVARIANT_FAILED');
+    }
+
+    await this.updateCreditBalance(tx, account.id, {
+      wallet,
+      reserved,
+      available
+    });
+
     await tx.billingCreditLedger.create({
       data: {
         tenantId: account.tenantId,
@@ -533,6 +566,19 @@ export class BillingControlService {
         idempotencyKey: input.idempotency_key,
         metadataJson: asInputJson(input.metadata_json)
       }
+    });
+
+    await this.ingestUsageEvent(tx, {
+      source_system: 'v2',
+      event_type: 'credits_granted',
+      account_id: account.id,
+      payload_json: {
+        reason: reason.toUpperCase(),
+        amount: input.amount,
+        ref_type: input.ref_type ?? 'manual',
+        ref_id: input.ref_id ?? 'manual-grant'
+      },
+      idempotency_key: `v2:credit_event:${input.idempotency_key}`
     });
     return this.getAccountStatus(tx, account.id);
   }
@@ -548,7 +594,6 @@ export class BillingControlService {
       externalKey: input.external_key
     });
     const policy = await this.ensureBillingPolicy(tx, account.id, {
-      billing_mode: 'postpaid',
       payment_terms_days: account.defaultPaymentTermsDays,
       currency: 'INR',
       is_enabled: true
@@ -573,10 +618,54 @@ export class BillingControlService {
       return this.serializeReservation(existing);
     }
 
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`credit-reserve:${account.id}`}))`;
-    const credit = await this.computeCreditBalances(tx, account.id);
-    if (credit.available < amount) {
+    const balance = await this.lockCreditBalance(tx, account.id, account.tenantId);
+
+    let wallet = balance.wallet;
+    let reserved = balance.reserved;
+    let available = wallet - reserved;
+
+    if (available < amount && !input.operator_override) {
       throw new ConflictException('INSUFFICIENT_CREDITS');
+    }
+
+    if (available < amount && input.operator_override) {
+      const topupDelta = amount - available;
+      wallet += topupDelta;
+      available = wallet - reserved;
+
+      const overrideKey = `${input.idempotency_key}:override`;
+      const overrideLedger = await tx.billingCreditLedger.findUnique({
+        where: {
+          accountId_idempotencyKey: {
+            accountId: account.id,
+            idempotencyKey: overrideKey
+          }
+        }
+      });
+
+      if (!overrideLedger) {
+        await tx.billingCreditLedger.create({
+          data: {
+            tenantId: account.tenantId,
+            accountId: account.id,
+            delta: topupDelta,
+            reason: 'adjustment',
+            refType: 'operator_override',
+            refId: `${input.ref_type}:${input.ref_id}`,
+            idempotencyKey: overrideKey,
+            metadataJson: {
+              reason: 'insufficient_credits_override',
+              reserve_idempotency_key: input.idempotency_key
+            }
+          }
+        });
+      }
+    }
+
+    reserved += amount;
+    available = wallet - reserved;
+    if (wallet < 0 || reserved < 0 || available < 0) {
+      throw new ConflictException('CREDIT_BALANCE_INVARIANT_FAILED');
     }
 
     const reservation = await tx.billingCreditReservation.create({
@@ -589,6 +678,12 @@ export class BillingControlService {
         status: 'active',
         idempotencyKey: input.idempotency_key
       }
+    });
+
+    await this.updateCreditBalance(tx, account.id, {
+      wallet,
+      reserved,
+      available
     });
 
     await tx.billingCreditLedger.create({
@@ -605,6 +700,20 @@ export class BillingControlService {
           event: 'reserve'
         }
       }
+    });
+
+    await this.ingestUsageEvent(tx, {
+      source_system: 'v2',
+      event_type: 'credit_reserved',
+      account_id: account.id,
+      payload_json: {
+        reservation_id: reservation.id,
+        amount,
+        ref_type: input.ref_type,
+        ref_id: input.ref_id,
+        operator_override: Boolean(input.operator_override)
+      },
+      idempotency_key: `v2:credit_event:${input.idempotency_key}`
     });
 
     return this.serializeReservation(reservation);
@@ -628,9 +737,20 @@ export class BillingControlService {
       return existing;
     }
 
+    const balance = await this.lockCreditBalance(tx, account.id, account.tenantId);
     const reservation = await this.getReservationForSettlement(tx, account.id, input.reservation_id, input.ref_type, input.ref_id);
-    if (reservation.status !== 'active') {
-      return reservation;
+    if (reservation.status === 'consumed') {
+      throw new ConflictException('RESERVATION_ALREADY_CONSUMED');
+    }
+    if (reservation.status === 'released') {
+      throw new ConflictException('RESERVATION_ALREADY_RELEASED');
+    }
+
+    const wallet = balance.wallet - reservation.amount;
+    const reserved = balance.reserved - reservation.amount;
+    const available = wallet - reserved;
+    if (wallet < 0 || reserved < 0 || available < 0) {
+      throw new ConflictException('INSUFFICIENT_CREDITS');
     }
 
     await tx.billingCreditReservation.update({
@@ -641,7 +761,13 @@ export class BillingControlService {
       }
     });
 
-    return tx.billingCreditLedger.create({
+    await this.updateCreditBalance(tx, account.id, {
+      wallet,
+      reserved,
+      available
+    });
+
+    const row = await tx.billingCreditLedger.create({
       data: {
         tenantId: reservation.tenantId,
         accountId: reservation.accountId,
@@ -656,6 +782,21 @@ export class BillingControlService {
         }
       }
     });
+
+    await this.ingestUsageEvent(tx, {
+      source_system: 'v2',
+      event_type: 'credit_consumed',
+      account_id: account.id,
+      payload_json: {
+        reservation_id: reservation.id,
+        amount: reservation.amount,
+        ref_type: reservation.refType,
+        ref_id: reservation.refId
+      },
+      idempotency_key: `v2:credit_event:${input.idempotency_key}`
+    });
+
+    return row;
   }
 
   async releaseCredits(tx: TxClient, input: BillingCreditReleaseInput) {
@@ -676,9 +817,20 @@ export class BillingControlService {
       return existing;
     }
 
+    const balance = await this.lockCreditBalance(tx, account.id, account.tenantId);
     const reservation = await this.getReservationForSettlement(tx, account.id, input.reservation_id, input.ref_type, input.ref_id);
-    if (reservation.status !== 'active') {
-      return reservation;
+    if (reservation.status === 'consumed') {
+      throw new ConflictException('RESERVATION_ALREADY_CONSUMED');
+    }
+    if (reservation.status === 'released') {
+      throw new ConflictException('RESERVATION_ALREADY_RELEASED');
+    }
+
+    const wallet = balance.wallet;
+    const reserved = balance.reserved - reservation.amount;
+    const available = wallet - reserved;
+    if (wallet < 0 || reserved < 0 || available < 0) {
+      throw new ConflictException('CREDIT_BALANCE_INVARIANT_FAILED');
     }
 
     await tx.billingCreditReservation.update({
@@ -689,7 +841,13 @@ export class BillingControlService {
       }
     });
 
-    return tx.billingCreditLedger.create({
+    await this.updateCreditBalance(tx, account.id, {
+      wallet,
+      reserved,
+      available
+    });
+
+    const row = await tx.billingCreditLedger.create({
       data: {
         tenantId: reservation.tenantId,
         accountId: reservation.accountId,
@@ -704,6 +862,21 @@ export class BillingControlService {
         }
       }
     });
+
+    await this.ingestUsageEvent(tx, {
+      source_system: 'v2',
+      event_type: 'credit_released',
+      account_id: account.id,
+      payload_json: {
+        reservation_id: reservation.id,
+        amount: reservation.amount,
+        ref_type: reservation.refType,
+        ref_id: reservation.refId
+      },
+      idempotency_key: `v2:credit_event:${input.idempotency_key}`
+    });
+
+    return row;
   }
 
   async ingestUsageEvent(tx: TxClient, input: BillingUsageEventInput) {
@@ -802,9 +975,12 @@ export class BillingControlService {
     };
   }
 
-  async listServiceInvoices(tx: TxClient, tenantId: string) {
+  async listServiceInvoices(tx: TxClient, tenantId: string, accountId?: string) {
     const rows = await tx.serviceInvoice.findMany({
-      where: { tenantId },
+      where: {
+        tenantId,
+        ...(accountId ? { accountId } : {})
+      },
       orderBy: [{ createdAt: 'desc' }],
       include: {
         account: true
@@ -847,7 +1023,6 @@ export class BillingControlService {
   async createServiceInvoice(tx: TxClient, tenantId: string, actorUserId: string | null, input: ServiceInvoiceCreateInput) {
     const account = await this.resolveOrCreateAccountForTenant(tx, tenantId, input.account_id, input.external_key);
     await this.ensureBillingPolicy(tx, account.id, {
-      billing_mode: 'postpaid',
       payment_terms_days: account.defaultPaymentTermsDays,
       currency: input.currency ?? 'INR',
       is_enabled: true
@@ -918,13 +1093,41 @@ export class BillingControlService {
     return this.getServiceInvoice(tx, tenantId, row.id);
   }
 
-  async issueServiceInvoice(tx: TxClient, tenantId: string, invoiceId: string, actorUserId: string | null, issuedDate?: string, dueDate?: string) {
+  async issueServiceInvoice(
+    tx: TxClient,
+    tenantId: string,
+    invoiceId: string,
+    actorUserId: string | null,
+    issuedDate?: string,
+    dueDate?: string,
+    idempotencyKey?: string | null
+  ) {
     const row = await tx.serviceInvoice.findFirst({
       where: { id: invoiceId, tenantId }
     });
     if (!row) {
       throw new NotFoundException(`invoice ${invoiceId} not found`);
     }
+
+    const requestHash = `invoice_issue:${invoiceId}:${issuedDate ?? ''}:${dueDate ?? ''}`;
+    if (idempotencyKey) {
+      const existing = await tx.serviceIdempotencyKey.findUnique({
+        where: {
+          accountId_scope_key: {
+            accountId: row.accountId,
+            scope: 'invoice_issue',
+            key: idempotencyKey
+          }
+        }
+      });
+      if (existing) {
+        if (existing.requestHash !== requestHash) {
+          throw new ConflictException('Idempotency key mismatch');
+        }
+        return this.getServiceInvoice(tx, tenantId, row.id);
+      }
+    }
+
     if (row.status !== 'draft') {
       throw new ConflictException('Invoice already issued');
     }
@@ -955,7 +1158,23 @@ export class BillingControlService {
       },
       idempotency_key: `v2:invoice_issued:${row.id}`
     });
-    return this.getServiceInvoice(tx, tenantId, row.id);
+    const invoice = await this.getServiceInvoice(tx, tenantId, row.id);
+    if (idempotencyKey) {
+      await tx.serviceIdempotencyKey.create({
+        data: {
+          tenantId,
+          accountId: row.accountId,
+          scope: 'invoice_issue',
+          key: idempotencyKey,
+          requestHash,
+          responseJson: {
+            invoice_id: row.id,
+            invoice_number: number
+          }
+        }
+      });
+    }
+    return invoice;
   }
 
   async sendServiceInvoice(tx: TxClient, tenantId: string, invoiceId: string, actorUserId: string | null) {
@@ -1230,10 +1449,9 @@ export class BillingControlService {
       fee_paise?: bigint | null;
     }
   ) {
-    const externalKey = `portal_user:${input.requested_by_user_id}`;
+    const externalKey = `v2:external:${input.requested_by_user_id}`;
     const account = await this.resolveOrCreateAccountForTenant(tx, input.tenant_id, undefined, externalKey, 'external_associate');
     const policy = await this.ensureBillingPolicy(tx, account.id, {
-      billing_mode: 'postpaid',
       payment_terms_days: account.defaultPaymentTermsDays,
       currency: 'INR',
       is_enabled: true
@@ -1397,7 +1615,10 @@ export class BillingControlService {
       }
     }
 
-    const key = externalKey ?? `tenant:${tenantId}`;
+    if (externalKey) {
+      this.assertExternalKey(externalKey);
+    }
+    const key = externalKey ?? (preferredType === 'external_associate' ? `v2:external:${tenantId}` : `v2:tenant:${tenantId}`);
     const created = await tx.billingAccount.upsert({
       where: {
         externalKey: key
@@ -1416,11 +1637,11 @@ export class BillingControlService {
       }
     });
     await this.ensureBillingPolicy(tx, created.id, {
-      billing_mode: 'postpaid',
       payment_terms_days: created.defaultPaymentTermsDays,
       currency: 'INR',
       is_enabled: true
     });
+    await this.ensureCreditBalance(tx, created.id, created.tenantId);
     return created;
   }
 
@@ -1442,6 +1663,14 @@ export class BillingControlService {
     return null;
   }
 
+  private assertExternalKey(externalKey: string) {
+    if (!isKnownExternalKey(externalKey)) {
+      throw new BadRequestException(
+        'external_key must match v1:{partner|client|assignment|invoice}:* or v2:{tenant|external}:*'
+      );
+    }
+  }
+
   private async ensureBillingPolicy(tx: TxClient, accountId: string, input: BillingPolicyUpdateInput) {
     const account = await this.getAccountOr404(tx, { accountId });
     return tx.billingPolicy.upsert({
@@ -1449,7 +1678,7 @@ export class BillingControlService {
         accountId
       },
       update: {
-        billingMode: input.billing_mode,
+        billingMode: input.billing_mode ?? undefined,
         paymentTermsDays: input.payment_terms_days ?? undefined,
         currency: input.currency ?? undefined,
         isEnabled: input.is_enabled ?? undefined
@@ -1457,7 +1686,7 @@ export class BillingControlService {
       create: {
         tenantId: account.tenantId,
         accountId: account.id,
-        billingMode: input.billing_mode,
+        billingMode: input.billing_mode ?? 'postpaid',
         paymentTermsDays: input.payment_terms_days ?? account.defaultPaymentTermsDays,
         creditCostModel: 'flat',
         currency: input.currency ?? 'INR',
@@ -1466,7 +1695,7 @@ export class BillingControlService {
     });
   }
 
-  private async computeCreditBalances(tx: TxClient, accountId: string) {
+  private async aggregateCreditBalances(tx: TxClient, accountId: string) {
     const [walletRows, activeReserved] = await Promise.all([
       tx.billingCreditLedger.aggregate({
         where: {
@@ -1496,6 +1725,74 @@ export class BillingControlService {
       wallet,
       reserved,
       available: wallet - reserved
+    };
+  }
+
+  private async ensureCreditBalance(tx: TxClient, accountId: string, tenantId: string) {
+    const existing = await tx.billingCreditBalance.findUnique({
+      where: { accountId }
+    });
+    if (existing) {
+      return existing;
+    }
+
+    const aggregated = await this.aggregateCreditBalances(tx, accountId);
+    return tx.billingCreditBalance.create({
+      data: {
+        tenantId,
+        accountId,
+        walletBalance: aggregated.wallet,
+        reservedBalance: aggregated.reserved,
+        availableBalance: aggregated.available
+      }
+    });
+  }
+
+  private async lockCreditBalance(tx: TxClient, accountId: string, tenantId: string) {
+    await this.ensureCreditBalance(tx, accountId, tenantId);
+    await tx.$executeRaw`SELECT 1 FROM public.billing_accounts WHERE id = ${accountId}::uuid FOR UPDATE`;
+    const rows = await tx.$queryRaw<
+      Array<{ walletBalance: number; reservedBalance: number; availableBalance: number }>
+    >`SELECT wallet_balance AS "walletBalance", reserved_balance AS "reservedBalance", available_balance AS "availableBalance" FROM public.billing_credit_balances WHERE account_id = ${accountId}::uuid FOR UPDATE`;
+    if (!rows[0]) {
+      throw new ConflictException('CREDIT_BALANCE_NOT_FOUND');
+    }
+    return {
+      wallet: rows[0].walletBalance,
+      reserved: rows[0].reservedBalance,
+      available: rows[0].availableBalance
+    };
+  }
+
+  private async updateCreditBalance(
+    tx: TxClient,
+    accountId: string,
+    next: {
+      wallet: number;
+      reserved: number;
+      available: number;
+    }
+  ) {
+    if (next.wallet < 0 || next.reserved < 0 || next.available < 0 || next.wallet - next.reserved !== next.available) {
+      throw new ConflictException('CREDIT_BALANCE_INVARIANT_FAILED');
+    }
+    await tx.billingCreditBalance.update({
+      where: { accountId },
+      data: {
+        walletBalance: next.wallet,
+        reservedBalance: next.reserved,
+        availableBalance: next.available
+      }
+    });
+  }
+
+  private async computeCreditBalances(tx: TxClient, accountId: string) {
+    const account = await this.getAccountOr404(tx, { accountId });
+    const row = await this.ensureCreditBalance(tx, account.id, account.tenantId);
+    return {
+      wallet: row.walletBalance,
+      reserved: row.reservedBalance,
+      available: row.availableBalance
     };
   }
 

@@ -7,7 +7,8 @@ import {
   Headers,
   Param,
   Patch,
-  Post
+  Post,
+  Query
 } from '@nestjs/common';
 import type { JwtClaims } from '@zenops/auth';
 import { z } from 'zod';
@@ -88,7 +89,7 @@ const parseOrThrow = <T>(schema: z.ZodType<T>, body: unknown): T => {
   return parsed.data;
 };
 
-@Controller('invoices')
+@Controller(['invoices', 'service-invoices'])
 export class ServiceInvoicesController {
   constructor(
     private readonly requestContext: RequestContextService,
@@ -120,13 +121,15 @@ export class ServiceInvoicesController {
   }
 
   @Get()
-  async listInvoices(@Claims() claims: JwtClaims) {
+  async listInvoices(@Claims() claims: JwtClaims, @Query('account_id') accountId?: string) {
     this.assertCanRead(claims);
     const tenantId = this.requestContext.tenantIdForClaims(claims);
     if (!tenantId) {
       throw new ForbiddenException('TENANT_CONTEXT_REQUIRED');
     }
-    return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.listServiceInvoices(tx, tenantId));
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.billingControlService.listServiceInvoices(tx, tenantId, accountId)
+    );
   }
 
   @Post()
@@ -166,7 +169,12 @@ export class ServiceInvoicesController {
   }
 
   @Post(':id/issue')
-  async issueInvoice(@Claims() claims: JwtClaims, @Param('id') id: string, @Body() body: unknown) {
+  async issueInvoice(
+    @Claims() claims: JwtClaims,
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Headers('idempotency-key') idempotencyKey?: string
+  ) {
     this.assertCanWrite(claims);
     const tenantId = this.requestContext.tenantIdForClaims(claims);
     if (!tenantId) {
@@ -174,7 +182,15 @@ export class ServiceInvoicesController {
     }
     const input = parseOrThrow<{ issued_date?: string; due_date?: string }>(ServiceInvoiceIssueSchema, body ?? {});
     return this.requestContext.runWithClaims(claims, (tx) =>
-      this.billingControlService.issueServiceInvoice(tx, tenantId, id, claims.user_id ?? null, input.issued_date, input.due_date)
+      this.billingControlService.issueServiceInvoice(
+        tx,
+        tenantId,
+        id,
+        claims.user_id ?? null,
+        input.issued_date,
+        input.due_date,
+        idempotencyKey ?? null
+      )
     );
   }
 
@@ -214,6 +230,44 @@ export class ServiceInvoicesController {
     return this.requestContext.runWithClaims(claims, (tx) =>
       this.billingControlService.addServiceInvoicePayment(tx, tenantId, id, claims.user_id ?? null, input)
     );
+  }
+
+  @Post(':id/mark-paid')
+  async markPaid(
+    @Claims() claims: JwtClaims,
+    @Param('id') id: string,
+    @Body() body: unknown
+  ) {
+    this.assertCanWrite(claims);
+    const tenantId = this.requestContext.tenantIdForClaims(claims);
+    if (!tenantId) {
+      throw new ForbiddenException('TENANT_CONTEXT_REQUIRED');
+    }
+    const input = parseOrThrow<{
+      amount?: number;
+      mode?: string;
+      reference?: string;
+      notes?: string;
+    }>(
+      z.object({
+        amount: z.number().positive().optional(),
+        mode: z.string().optional(),
+        reference: z.string().optional(),
+        notes: z.string().optional()
+      }),
+      body ?? {}
+    );
+
+    return this.requestContext.runWithClaims(claims, async (tx) => {
+      const invoice = await this.billingControlService.getServiceInvoice(tx, tenantId, id);
+      const amount = input.amount ?? invoice.amount_due;
+      return this.billingControlService.addServiceInvoicePayment(tx, tenantId, id, claims.user_id ?? null, {
+        amount,
+        mode: input.mode ?? 'manual',
+        reference: input.reference,
+        notes: input.notes
+      });
+    });
   }
 
   @Post(':id/adjustments')
