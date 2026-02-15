@@ -57,7 +57,11 @@ model Tenant {
   channels     Channel[]
   assignmentSources AssignmentSourceRecord[]
   assignmentStageTransitions AssignmentStageTransition[]
+  assignmentStatusHistory AssignmentStatusHistory[]
   assignmentSignals AssignmentSignal[]
+  tasks        Task[]
+  channelRequests ChannelRequest[]
+  branchContacts BranchContact[]
 
   @@map("tenants")
 }
@@ -90,6 +94,10 @@ model User {
   reviewedChannels Channel[] @relation("ChannelReviewedBy")
   assignmentSourceRecords AssignmentSourceRecord[] @relation("AssignmentSourceRecordedBy")
   assignmentStageChanges AssignmentStageTransition[] @relation("AssignmentStageChangedBy")
+  assignmentStatusHistoryChanges AssignmentStatusHistory[] @relation("AssignmentStatusHistoryChangedBy")
+  assignedOpsTasks Task[] @relation("TaskAssignedTo")
+  createdOpsTasks  Task[] @relation("TaskCreatedBy")
+  channelRequests ChannelRequest[] @relation("ChannelRequestRequestedBy")
 
   @@map("users")
 }

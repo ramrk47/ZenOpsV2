@@ -41,6 +41,7 @@ model BankBranch {
   reviewedByUser   User?              @relation("BankBranchReviewedBy", fields: [reviewedByUserId], references: [id])
   assignments      Assignment[]
   assignmentSources AssignmentSourceRecord[]
+  contacts         BranchContact[]
 
   @@unique([tenantId, bankId, branchName, city])
   @@unique([tenantId, bankId, ifsc])
@@ -125,6 +126,10 @@ model Channel {
   ownerUserId      String?                 @map("owner_user_id") @db.Uuid
   name             String
   city             String?
+  channelType      ChannelType             @default(other) @map("channel_type")
+  commissionMode   CommissionMode          @default(percent) @map("commission_mode")
+  commissionValue  Decimal                 @default(0) @map("commission_value") @db.Decimal(12, 2)
+  isActive         Boolean                 @default(true) @map("is_active")
   isVerified       Boolean                 @default(false) @map("is_verified")
   reviewedAt       DateTime?               @map("reviewed_at")
   reviewedByUserId String?                 @map("reviewed_by_user_id") @db.Uuid
@@ -135,6 +140,8 @@ model Channel {
   ownerUser        User?                   @relation("ChannelOwner", fields: [ownerUserId], references: [id])
   reviewedByUser   User?                   @relation("ChannelReviewedBy", fields: [reviewedByUserId], references: [id])
   assignmentSources AssignmentSourceRecord[]
+  assignments      Assignment[]
+  requests         ChannelRequest[]
 
   @@unique([tenantId, name, city])
   @@index([tenantId, ownerUserId])

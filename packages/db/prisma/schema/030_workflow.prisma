@@ -25,18 +25,21 @@ model Assignment {
   id                String                @id @default(uuid()) @db.Uuid
   tenantId          String                @map("tenant_id") @db.Uuid
   source            AssignmentSource      @default(tenant)
+  sourceType        AssignmentSourceType  @default(direct) @map("source_type")
   stage             AssignmentStage       @default(draft_created)
   workOrderId       String?               @map("work_order_id") @db.Uuid
   bankId            String?               @map("bank_id") @db.Uuid
   bankBranchId      String?               @map("bank_branch_id") @db.Uuid
   clientOrgId       String?               @map("client_org_id") @db.Uuid
   propertyId        String?               @map("property_id") @db.Uuid
+  channelId         String?               @map("channel_id") @db.Uuid
   primaryContactId  String?               @map("primary_contact_id") @db.Uuid
   title             String
   summary           String?
   feePaise          BigInt?               @map("fee_paise") @db.BigInt
   priority          AssignmentPriority    @default(normal)
   status            AssignmentStatus      @default(requested)
+  dueAt             DateTime?             @map("due_at")
   dueDate           DateTime?             @map("due_date") @db.Date
   createdByUserId   String                @map("created_by_user_id") @db.Uuid
   deletedAt         DateTime?             @map("deleted_at")
@@ -48,6 +51,7 @@ model Assignment {
   bankBranch        BankBranch?           @relation(fields: [bankBranchId], references: [id])
   clientOrg         ClientOrg?            @relation(fields: [clientOrgId], references: [id])
   property          Property?             @relation(fields: [propertyId], references: [id])
+  channel           Channel?              @relation(fields: [channelId], references: [id])
   primaryContact    Contact?              @relation("AssignmentPrimaryContact", fields: [primaryContactId], references: [id])
   createdByUser     User                  @relation("AssignmentCreatedBy", fields: [createdByUserId], references: [id])
   assignees         AssignmentAssignee[]
@@ -57,10 +61,13 @@ model Assignment {
   activities        AssignmentActivity[]
   sourceRecord      AssignmentSourceRecord?
   stageTransitions  AssignmentStageTransition[]
+  statusHistory     AssignmentStatusHistory[]
   signals           AssignmentSignal[]
+  opsTasks          Task[]
   usageEvents       UsageEvent[]
   reportRequests    ReportRequest[]
   documentLinks     DocumentLink[]
+  channelRequests   ChannelRequest[]
 
   @@index([tenantId])
   @@index([workOrderId])
@@ -69,9 +76,11 @@ model Assignment {
   @@index([bankBranchId])
   @@index([clientOrgId])
   @@index([propertyId])
+  @@index([channelId])
   @@index([primaryContactId])
   @@index([status])
   @@index([priority])
+  @@index([dueAt])
   @@index([dueDate])
   @@index([createdByUserId])
   @@map("assignments")

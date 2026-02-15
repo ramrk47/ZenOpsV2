@@ -269,3 +269,33 @@ enum AssignmentSignalKind {
   stuck_in_qc
   billing_pending
 }
+
+enum TaskStatus {
+  open
+  done
+  blocked
+}
+
+enum TaskPriority {
+  low
+  medium
+  high
+}
+
+enum ChannelType {
+  agent
+  advocate
+  builder
+  other
+}
+
+enum CommissionMode {
+  percent
+  flat
+}
+
+enum ChannelRequestStatus {
+  submitted
+  accepted
+  rejected
+}
