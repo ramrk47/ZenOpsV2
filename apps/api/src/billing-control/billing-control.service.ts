@@ -6,6 +6,7 @@ import {
   UnauthorizedException
 } from '@nestjs/common';
 import { Prisma, type TxClient } from '@zenops/db';
+import Stripe from 'stripe';
 
 type AccountType = 'tenant' | 'external_associate';
 type AccountStatus = 'active' | 'suspended';
@@ -13,7 +14,10 @@ type BillingMode = 'postpaid' | 'credit';
 type CreditReason = 'grant' | 'topup' | 'reserve' | 'consume' | 'release' | 'adjustment';
 type ReservationStatus = 'active' | 'consumed' | 'released';
 type ServiceInvoiceStatus = 'draft' | 'issued' | 'sent' | 'partially_paid' | 'paid' | 'void';
-type BillingSubscriptionStatusValue = 'active' | 'paused' | 'past_due' | 'cancelled';
+type BillingSubscriptionStatusValue = 'active' | 'paused' | 'past_due' | 'suspended' | 'cancelled';
+type PaymentProviderValue = 'stripe' | 'razorpay';
+type PaymentPurposeValue = 'topup' | 'invoice';
+type PaymentObjectStatusValue = 'pending' | 'requires_action' | 'paid' | 'failed' | 'cancelled' | 'expired';
 
 export interface BillingAccountCreateInput {
   tenant_id: string;
@@ -70,6 +74,8 @@ export interface BillingCreditReleaseInput {
 
 export interface BillingCreditReconcileInput {
   tenant_id?: string;
+  account_id?: string;
+  ref_type?: string;
   limit?: number;
   timeout_minutes?: number;
   dry_run?: boolean;
@@ -107,9 +113,44 @@ export interface BillingSubscriptionWebhookInput {
   provider: 'stripe' | 'razorpay';
   event_id: string;
   event_type: string;
+  signature_ok?: boolean;
+  payload_hash?: string;
+  received_at?: string;
   payload_json: Record<string, unknown>;
   external_subscription_id?: string | null;
   tenant_id?: string | null;
+}
+
+export interface PaymentCheckoutLinkInput {
+  account_id?: string;
+  external_key?: string;
+  amount: number;
+  currency?: string;
+  purpose: PaymentPurposeValue;
+  provider: PaymentProviderValue;
+  ref_type?: string;
+  ref_id?: string;
+  service_invoice_id?: string;
+  credits_amount?: number;
+  idempotency_key: string;
+}
+
+export interface PaymentTopupInput {
+  account_id?: string;
+  external_key?: string;
+  credits_amount: number;
+  provider: PaymentProviderValue;
+  idempotency_key: string;
+}
+
+export interface PaymentWebhookInput {
+  provider: PaymentProviderValue;
+  event_id: string;
+  event_type: string;
+  signature_ok: boolean;
+  payload_json: Record<string, unknown>;
+  payload_hash: string;
+  received_at?: string;
 }
 
 export interface BillingUsageEventInput {
@@ -236,6 +277,7 @@ const isKnownExternalKey = (value: string): boolean => {
 @Injectable()
 export class BillingControlService {
   private studioServiceToken = process.env.STUDIO_SERVICE_TOKEN ?? '';
+  private stripeClient: Stripe | null | undefined;
 
   requireStudioServiceToken(token?: string | null): void {
     if (!this.studioServiceToken) {
@@ -244,6 +286,107 @@ export class BillingControlService {
     if (!token || token !== this.studioServiceToken) {
       throw new UnauthorizedException('INVALID_STUDIO_SERVICE_TOKEN');
     }
+  }
+
+  private reservationTimeoutMinutes(): number {
+    const parsed = Number.parseInt(process.env.BILLING_RESERVATION_TIMEOUT_MINUTES ?? '1440', 10);
+    return Number.isFinite(parsed) ? Math.max(parsed, 5) : 1440;
+  }
+
+  private subscriptionGraceDays(): number {
+    const parsed = Number.parseInt(process.env.BILLING_SUBSCRIPTION_GRACE_DAYS ?? '7', 10);
+    return Number.isFinite(parsed) ? Math.max(parsed, 1) : 7;
+  }
+
+  private paymentDevBypassEnabled(): boolean {
+    return (process.env.PAYMENT_WEBHOOK_DEV_BYPASS ?? '').toLowerCase() === 'true';
+  }
+
+  private getStripeClient(): Stripe {
+    if (this.stripeClient) {
+      return this.stripeClient;
+    }
+    const secret = process.env.STRIPE_SECRET_KEY;
+    if (!secret) {
+      throw new BadRequestException('STRIPE_SECRET_KEY is not configured');
+    }
+    this.stripeClient = new Stripe(secret);
+    return this.stripeClient;
+  }
+
+  private paymentSuccessUrl(orderId: string): string {
+    const base = process.env.PAYMENT_SUCCESS_URL ?? process.env.WEB_APP_BASE_URL ?? 'https://app.local/payment-success';
+    const separator = base.includes('?') ? '&' : '?';
+    return `${base}${separator}payment_order_id=${encodeURIComponent(orderId)}`;
+  }
+
+  private paymentCancelUrl(orderId: string): string {
+    const base = process.env.PAYMENT_CANCEL_URL ?? process.env.WEB_APP_BASE_URL ?? 'https://app.local/payment-cancelled';
+    const separator = base.includes('?') ? '&' : '?';
+    return `${base}${separator}payment_order_id=${encodeURIComponent(orderId)}`;
+  }
+
+  private async createOrResolvePaymentCustomer(
+    tx: TxClient,
+    input: { tenantId: string; accountId: string; provider: PaymentProviderValue; email?: string | null }
+  ): Promise<{ id: string; provider_customer_id: string }> {
+    const existing = await tx.paymentCustomer.findUnique({
+      where: {
+        accountId_provider: {
+          accountId: input.accountId,
+          provider: input.provider
+        }
+      }
+    });
+    if (existing) {
+      return {
+        id: existing.id,
+        provider_customer_id: existing.providerCustomerId
+      };
+    }
+
+    let providerCustomerId: string;
+    if (input.provider === 'stripe') {
+      if (this.paymentDevBypassEnabled()) {
+        providerCustomerId = `cus_dev_${input.accountId.slice(0, 12)}`;
+      } else {
+        const stripe = this.getStripeClient();
+        const customer = await stripe.customers.create({
+          email: input.email ?? undefined,
+          metadata: {
+            tenant_id: input.tenantId,
+            account_id: input.accountId
+          }
+        });
+        providerCustomerId = customer.id;
+      }
+    } else {
+      const keyId = process.env.RAZORPAY_KEY_ID;
+      if (!keyId) {
+        if (!this.paymentDevBypassEnabled()) {
+          throw new BadRequestException('RAZORPAY_KEY_ID is not configured');
+        }
+        providerCustomerId = `cust_dev_${input.accountId.slice(0, 12)}`;
+      } else {
+        providerCustomerId = `cust_${input.accountId.slice(0, 8)}_${Date.now().toString(36)}`;
+      }
+    }
+
+    const created = await tx.paymentCustomer.create({
+      data: {
+        tenantId: input.tenantId,
+        accountId: input.accountId,
+        provider: input.provider,
+        providerCustomerId,
+        metadataJson: asInputJson({
+          email: input.email ?? null
+        })
+      }
+    });
+    return {
+      id: created.id,
+      provider_customer_id: created.providerCustomerId
+    };
   }
 
   async listAccounts(tx: TxClient, search?: string) {
@@ -748,7 +891,8 @@ export class BillingControlService {
         refId: input.ref_id,
         amount,
         status: 'active',
-        idempotencyKey: input.idempotency_key
+        idempotencyKey: input.idempotency_key,
+        expiresAt: new Date(Date.now() + this.reservationTimeoutMinutes() * 60 * 1000)
       }
     });
 
@@ -1146,47 +1290,129 @@ export class BillingControlService {
   async processDueSubscriptionRefills(tx: TxClient, input: BillingSubscriptionDueRefillInput = {}) {
     const limit = Math.min(Math.max(input.limit ?? 100, 1), 500);
     const now = new Date();
+    const graceDays = this.subscriptionGraceDays();
     const due = await tx.billingSubscription.findMany({
       where: {
-        status: 'active',
-        nextRefillAt: {
-          lte: now
+        status: {
+          in: ['active', 'past_due', 'suspended']
         }
       },
       include: {
         plan: true,
         account: true
       },
-      orderBy: [{ nextRefillAt: 'asc' }],
+      orderBy: [{ updatedAt: 'asc' }],
       take: limit
     });
 
     if (input.dry_run) {
+      const dryRunRefill = due.filter((row) => row.status === 'active' && row.nextRefillAt && row.nextRefillAt <= now).length;
       return {
         dry_run: true,
         scanned: due.length,
-        refilled: due.length,
+        refilled: dryRunRefill,
         skipped: 0,
+        past_due: 0,
+        suspended: 0,
+        reactivated: 0,
         errors: [] as Array<{ subscription_id: string; error: string }>
       };
     }
 
     let refilled = 0;
+    let movedPastDue = 0;
+    let suspended = 0;
+    let reactivated = 0;
     let skipped = 0;
     const errors: Array<{ subscription_id: string; error: string }> = [];
 
     for (const row of due) {
       try {
-        const result = await this.applySubscriptionRefill(
-          tx,
-          row,
-          undefined,
-          'scheduled'
-        );
-        if (result.duplicate) {
-          skipped += 1;
-        } else {
-          refilled += 1;
+        if (row.status === 'active' && row.nextRefillAt && row.nextRefillAt <= now) {
+          const result = await this.applySubscriptionRefill(tx, row, undefined, 'scheduled');
+          if (result.duplicate) {
+            skipped += 1;
+          } else {
+            refilled += 1;
+          }
+        }
+
+        const periodEnd = row.currentPeriodEnd;
+        if (periodEnd && periodEnd <= now) {
+          const paidForPeriod = row.lastPaymentAt && row.lastPaymentAt >= periodEnd;
+          if (!paidForPeriod && row.status === 'active') {
+            const graceUntil = row.graceUntil ?? addDaysUtc(periodEnd, graceDays);
+            await tx.billingSubscription.update({
+              where: {
+                id: row.id
+              },
+              data: {
+                status: 'past_due',
+                graceUntil
+              }
+            });
+            movedPastDue += 1;
+            await tx.billingSubscriptionEvent.create({
+              data: {
+                tenantId: row.tenantId,
+                subscriptionId: row.id,
+                provider: 'internal',
+                eventType: 'subscription_past_due',
+                payloadJson: asInputJson({
+                  period_end: periodEnd.toISOString(),
+                  grace_until: graceUntil.toISOString()
+                }),
+                idempotencyKey: `subscription_past_due:${row.id}:${periodEnd.toISOString()}`
+              }
+            });
+          } else if ((row.status === 'past_due' || row.status === 'suspended') && paidForPeriod) {
+            await tx.billingSubscription.update({
+              where: {
+                id: row.id
+              },
+              data: {
+                status: 'active',
+                graceUntil: null
+              }
+            });
+            reactivated += 1;
+            await tx.billingSubscriptionEvent.create({
+              data: {
+                tenantId: row.tenantId,
+                subscriptionId: row.id,
+                provider: 'internal',
+                eventType: 'subscription_reactivated',
+                payloadJson: asInputJson({
+                  period_end: periodEnd.toISOString()
+                }),
+                idempotencyKey: `subscription_reactivated:${row.id}:${periodEnd.toISOString()}`
+              }
+            });
+          }
+        }
+
+        if (row.status === 'past_due' && row.graceUntil && row.graceUntil <= now) {
+          await tx.billingSubscription.update({
+            where: {
+              id: row.id
+            },
+            data: {
+              status: 'suspended'
+            }
+          });
+          suspended += 1;
+          await tx.billingSubscriptionEvent.create({
+            data: {
+              tenantId: row.tenantId,
+              subscriptionId: row.id,
+              provider: 'internal',
+              eventType: 'subscription_suspended',
+              payloadJson: asInputJson({
+                grace_until: row.graceUntil.toISOString()
+              }),
+              idempotencyKey: `subscription_suspended:${row.id}:${row.graceUntil.toISOString()}`
+            }
+          });
         }
       } catch (error) {
         errors.push({
@@ -1201,11 +1427,14 @@ export class BillingControlService {
       scanned: due.length,
       refilled,
       skipped,
+      past_due: movedPastDue,
+      suspended,
+      reactivated,
       errors
     };
   }
 
-  async assignSubscription(tx: TxClient, input: { account_id: string; plan_name: string; monthly_credit_allowance?: number; status?: 'active' | 'paused' | 'past_due' | 'cancelled' }) {
+  async assignSubscription(tx: TxClient, input: { account_id: string; plan_name: string; monthly_credit_allowance?: number; status?: 'active' | 'paused' | 'past_due' | 'suspended' | 'cancelled' }) {
     const account = await this.getAccountOr404(tx, { accountId: input.account_id });
     return this.createSubscription(tx, {
       tenant_id: account.tenantId,
@@ -1214,6 +1443,409 @@ export class BillingControlService {
       monthly_credit_grant: input.monthly_credit_allowance,
       status: input.status
     });
+  }
+
+  async listPaymentOrders(
+    tx: TxClient,
+    input: {
+      tenant_id?: string;
+      account_id?: string;
+      provider?: PaymentProviderValue;
+      purpose?: PaymentPurposeValue;
+      limit?: number;
+    } = {}
+  ) {
+    const rows = await tx.paymentOrder.findMany({
+      where: {
+        ...(input.tenant_id ? { tenantId: input.tenant_id } : {}),
+        ...(input.account_id ? { accountId: input.account_id } : {}),
+        ...(input.provider ? { provider: input.provider } : {}),
+        ...(input.purpose ? { purpose: input.purpose } : {})
+      },
+      include: {
+        account: true,
+        serviceInvoice: true
+      },
+      orderBy: [{ createdAt: 'desc' }],
+      take: Math.min(Math.max(input.limit ?? 200, 1), 500)
+    });
+    return rows.map((row) => this.serializePaymentOrder(row));
+  }
+
+  async listPaymentEvents(
+    tx: TxClient,
+    input: {
+      tenant_id?: string;
+      account_id?: string;
+      provider?: PaymentProviderValue;
+      limit?: number;
+    } = {}
+  ) {
+    const rows = await tx.paymentEvent.findMany({
+      where: {
+        ...(input.tenant_id ? { tenantId: input.tenant_id } : {}),
+        ...(input.account_id ? { accountId: input.account_id } : {}),
+        ...(input.provider ? { provider: input.provider } : {})
+      },
+      include: {
+        paymentOrder: true
+      },
+      orderBy: [{ receivedAt: 'desc' }],
+      take: Math.min(Math.max(input.limit ?? 200, 1), 500)
+    });
+    return rows.map((row) => this.serializePaymentEvent(row));
+  }
+
+  async createPaymentCheckoutLink(tx: TxClient, input: PaymentCheckoutLinkInput) {
+    if (input.amount <= 0) {
+      throw new BadRequestException('amount must be positive');
+    }
+
+    const account = await this.getAccountOr404(tx, {
+      accountId: input.account_id,
+      externalKey: input.external_key
+    });
+
+    const existing = await tx.paymentOrder.findUnique({
+      where: {
+        provider_idempotencyKey: {
+          provider: input.provider,
+          idempotencyKey: input.idempotency_key
+        }
+      },
+      include: {
+        account: true,
+        serviceInvoice: true
+      }
+    });
+    if (existing) {
+      return this.serializePaymentOrder(existing);
+    }
+
+    const currency = (input.currency ?? 'INR').toUpperCase();
+    const customer = await this.createOrResolvePaymentCustomer(tx, {
+      tenantId: account.tenantId,
+      accountId: account.id,
+      provider: input.provider
+    });
+
+    let serviceInvoiceId: string | null = input.service_invoice_id ?? null;
+    if (!serviceInvoiceId && input.ref_type === 'service_invoice' && input.ref_id) {
+      serviceInvoiceId = input.ref_id;
+    }
+
+    if (input.purpose === 'invoice' && serviceInvoiceId) {
+      const invoice = await tx.serviceInvoice.findFirst({
+        where: {
+          id: serviceInvoiceId,
+          tenantId: account.tenantId,
+          accountId: account.id
+        }
+      });
+      if (!invoice) {
+        throw new NotFoundException(`invoice ${serviceInvoiceId} not found for account`);
+      }
+    }
+
+    const draft = await tx.paymentOrder.create({
+      data: {
+        tenantId: account.tenantId,
+        accountId: account.id,
+        provider: input.provider,
+        purpose: input.purpose,
+        status: 'pending',
+        amount: toDecimal(input.amount),
+        currency,
+        creditsAmount: input.credits_amount ?? null,
+        refType: input.ref_type ?? null,
+        refId: input.ref_id ?? null,
+        serviceInvoiceId,
+        idempotencyKey: input.idempotency_key,
+        providerCustomerId: customer.provider_customer_id,
+        metadataJson: asInputJson({
+          external_key: account.externalKey
+        })
+      },
+      include: {
+        account: true,
+        serviceInvoice: true
+      }
+    });
+
+    const providerHandle = await this.createProviderCheckoutHandle({
+      provider: input.provider,
+      order: draft
+    });
+
+    const updated = await tx.paymentOrder.update({
+      where: {
+        id: draft.id
+      },
+      data: {
+        status: providerHandle.status,
+        providerOrderId: providerHandle.provider_order_id,
+        providerPaymentId: providerHandle.provider_payment_id,
+        checkoutUrl: providerHandle.checkout_url,
+        metadataJson: asInputJson({
+          ...(draft.metadataJson as Record<string, unknown>),
+          provider_payload: providerHandle.provider_payload
+        })
+      },
+      include: {
+        account: true,
+        serviceInvoice: true
+      }
+    });
+
+    if (serviceInvoiceId) {
+      await tx.invoicePaymentLink.create({
+        data: {
+          tenantId: account.tenantId,
+          serviceInvoiceId,
+          paymentOrderId: updated.id,
+          provider: updated.provider,
+          purpose: updated.purpose,
+          status: updated.status,
+          amount: updated.amount,
+          currency: updated.currency,
+          checkoutUrl: updated.checkoutUrl ?? null
+        }
+      });
+    }
+
+    await this.ingestUsageEvent(tx, {
+      source_system: 'v2',
+      event_type: 'payment_checkout_created',
+      account_id: account.id,
+      payload_json: {
+        payment_order_id: updated.id,
+        provider: updated.provider.toUpperCase(),
+        purpose: updated.purpose.toUpperCase(),
+        amount: decimalToNumber(updated.amount),
+        currency: updated.currency
+      },
+      idempotency_key: `v2:payment_checkout:${updated.id}`
+    });
+
+    return this.serializePaymentOrder(updated);
+  }
+
+  async createTopupPayment(tx: TxClient, input: PaymentTopupInput) {
+    if (input.credits_amount <= 0) {
+      throw new BadRequestException('credits_amount must be positive');
+    }
+    const unitPrice = Number.parseFloat(process.env.CREDIT_TOPUP_UNIT_PRICE ?? '1');
+    const resolvedUnitPrice = Number.isFinite(unitPrice) && unitPrice > 0 ? unitPrice : 1;
+    const amount = Number((input.credits_amount * resolvedUnitPrice).toFixed(2));
+    return this.createPaymentCheckoutLink(tx, {
+      account_id: input.account_id,
+      external_key: input.external_key,
+      amount,
+      currency: 'INR',
+      purpose: 'topup',
+      provider: input.provider,
+      ref_type: 'credit_topup',
+      ref_id: 'manual',
+      credits_amount: input.credits_amount,
+      idempotency_key: input.idempotency_key
+    });
+  }
+
+  async ingestPaymentWebhook(tx: TxClient, input: PaymentWebhookInput) {
+    if (!input.signature_ok) {
+      throw new UnauthorizedException('WEBHOOK_SIGNATURE_INVALID');
+    }
+
+    const existing = await tx.paymentEvent.findUnique({
+      where: {
+        provider_eventId: {
+          provider: input.provider,
+          eventId: input.event_id
+        }
+      }
+    });
+    if (existing) {
+      return {
+        duplicate: true,
+        event_id: existing.id,
+        processed: Boolean(existing.processedAt)
+      };
+    }
+
+    const paymentMatch = this.resolvePaymentOrderFromWebhook(input.provider, input.payload_json, input.event_type);
+    let paymentOrder = paymentMatch.payment_order_id
+      ? await tx.paymentOrder.findFirst({
+          where: {
+            id: paymentMatch.payment_order_id
+          },
+          include: {
+            serviceInvoice: true
+          }
+        })
+      : null;
+
+    if (!paymentOrder && paymentMatch.provider_order_id) {
+      paymentOrder = await tx.paymentOrder.findFirst({
+        where: {
+          provider: input.provider,
+          providerOrderId: paymentMatch.provider_order_id
+        },
+        include: {
+          serviceInvoice: true
+        }
+      });
+    }
+    if (!paymentOrder && paymentMatch.provider_payment_id) {
+      paymentOrder = await tx.paymentOrder.findFirst({
+        where: {
+          provider: input.provider,
+          providerPaymentId: paymentMatch.provider_payment_id
+        },
+        include: {
+          serviceInvoice: true
+        }
+      });
+    }
+    if (!paymentOrder && paymentMatch.idempotency_key) {
+      paymentOrder = await tx.paymentOrder.findUnique({
+        where: {
+          provider_idempotencyKey: {
+            provider: input.provider,
+            idempotencyKey: paymentMatch.idempotency_key
+          }
+        },
+        include: {
+          serviceInvoice: true
+        }
+      });
+    }
+
+    const event = await tx.paymentEvent.create({
+      data: {
+        tenantId: paymentOrder?.tenantId ?? process.env.ZENOPS_INTERNAL_TENANT_ID ?? '11111111-1111-1111-1111-111111111111',
+        accountId: paymentOrder?.accountId ?? null,
+        paymentOrderId: paymentOrder?.id ?? null,
+        serviceInvoiceId: paymentOrder?.serviceInvoiceId ?? null,
+        provider: input.provider,
+        eventId: input.event_id,
+        eventType: input.event_type,
+        idempotencyKey: paymentMatch.idempotency_key ?? null,
+        signatureOk: input.signature_ok,
+        payloadHash: input.payload_hash,
+        payloadJson: asInputJson(input.payload_json),
+        receivedAt: input.received_at ? new Date(input.received_at) : new Date()
+      }
+    });
+
+    if (!paymentOrder) {
+      return {
+        duplicate: false,
+        event_id: event.id,
+        processed: false
+      };
+    }
+
+    const nextStatus: PaymentObjectStatusValue =
+      paymentMatch.status === 'paid'
+        ? 'paid'
+        : paymentMatch.status === 'failed'
+          ? 'failed'
+          : paymentMatch.status === 'cancelled'
+            ? 'cancelled'
+            : paymentOrder.status;
+
+    const settledAt = nextStatus === 'paid' ? new Date() : paymentOrder.settledAt;
+    paymentOrder = await tx.paymentOrder.update({
+      where: {
+        id: paymentOrder.id
+      },
+      data: {
+        status: nextStatus,
+        providerOrderId: paymentMatch.provider_order_id ?? paymentOrder.providerOrderId,
+        providerPaymentId: paymentMatch.provider_payment_id ?? paymentOrder.providerPaymentId,
+        settledAt
+      },
+      include: {
+        serviceInvoice: true
+      }
+    });
+
+    if (paymentOrder.serviceInvoiceId) {
+      await tx.invoicePaymentLink.updateMany({
+        where: {
+          paymentOrderId: paymentOrder.id
+        },
+        data: {
+          status: nextStatus,
+          checkoutUrl: paymentOrder.checkoutUrl ?? null
+        }
+      });
+    }
+
+    if (nextStatus === 'paid') {
+      if (paymentOrder.purpose === 'topup') {
+        const creditsAmount = paymentOrder.creditsAmount ?? 0;
+        if (creditsAmount > 0) {
+          await this.grantCredits(tx, paymentOrder.accountId, {
+            amount: creditsAmount,
+            reason: 'topup',
+            ref_type: 'payment_topup',
+            ref_id: paymentOrder.id,
+            idempotency_key: `payment_topup:${paymentOrder.id}`,
+            metadata_json: {
+              provider: paymentOrder.provider.toUpperCase(),
+              provider_order_id: paymentOrder.providerOrderId,
+              event_id: input.event_id
+            }
+          });
+        }
+      } else if (paymentOrder.purpose === 'invoice' && paymentOrder.serviceInvoiceId) {
+        await this.addServiceInvoicePayment(
+          tx,
+          paymentOrder.tenantId,
+          paymentOrder.serviceInvoiceId,
+          null,
+          {
+            amount: decimalToNumber(paymentOrder.amount),
+            mode: paymentOrder.provider,
+            reference: paymentOrder.providerPaymentId ?? paymentOrder.providerOrderId ?? input.event_id,
+            notes: `Settled by ${paymentOrder.provider.toUpperCase()} webhook`
+          },
+          `payment_invoice:${paymentOrder.id}`
+        );
+      }
+    }
+
+    await this.ingestUsageEvent(tx, {
+      source_system: 'v2',
+      event_type: nextStatus === 'paid' ? 'payment_settled' : 'payment_updated',
+      account_id: paymentOrder.accountId,
+      payload_json: {
+        payment_order_id: paymentOrder.id,
+        provider: paymentOrder.provider.toUpperCase(),
+        status: nextStatus.toUpperCase(),
+        purpose: paymentOrder.purpose.toUpperCase(),
+        service_invoice_id: paymentOrder.serviceInvoiceId
+      },
+      idempotency_key: `v2:payment_event:${event.id}`
+    });
+
+    await tx.paymentEvent.update({
+      where: {
+        id: event.id
+      },
+      data: {
+        processedAt: new Date()
+      }
+    });
+
+    return {
+      duplicate: false,
+      event_id: event.id,
+      processed: true,
+      payment_order_id: paymentOrder.id,
+      status: nextStatus.toUpperCase()
+    };
   }
 
   async listServiceInvoices(tx: TxClient, tenantId: string, accountId?: string) {
@@ -1910,15 +2542,16 @@ export class BillingControlService {
 
   async reconcileCredits(tx: TxClient, input: BillingCreditReconcileInput = {}) {
     const limit = Math.min(Math.max(input.limit ?? 100, 1), 500);
-    const configuredTimeout = Number.parseInt(process.env.BILLING_RESERVATION_TIMEOUT_MINUTES ?? '1440', 10);
-    const timeoutMinutes = Math.max(input.timeout_minutes ?? (Number.isFinite(configuredTimeout) ? configuredTimeout : 1440), 5);
+    const timeoutMinutes = Math.max(input.timeout_minutes ?? this.reservationTimeoutMinutes(), 5);
     const now = new Date();
+    const reconcileRefType = input.ref_type ?? 'channel_request';
 
     const reservations = await tx.billingCreditReservation.findMany({
       where: {
         status: 'active',
         ...(input.tenant_id ? { tenantId: input.tenant_id } : {}),
-        refType: 'channel_request'
+        ...(input.account_id ? { accountId: input.account_id } : {}),
+        refType: reconcileRefType
       },
       orderBy: [{ createdAt: 'asc' }],
       take: limit
@@ -1975,15 +2608,20 @@ export class BillingControlService {
 
     for (const reservation of reservations) {
       const channel = channelById.get(reservation.refId);
-      const ageMinutes = Math.floor((now.getTime() - reservation.createdAt.getTime()) / 60_000);
-      const isTimedOut = ageMinutes >= timeoutMinutes;
+      const timeoutAt = reservation.expiresAt ?? new Date(reservation.createdAt.getTime() + timeoutMinutes * 60_000);
+      const isTimedOut = timeoutAt.getTime() <= now.getTime();
       const assignment = channel?.assignmentId ? assignmentById.get(channel.assignmentId) : undefined;
       const assignmentStatus = assignment?.status ?? null;
 
       let action: 'consume' | 'release' | 'skip' = 'skip';
       let reason: 'delivered' | 'cancelled' | 'rejected' | 'timeout' | 'orphan' | 'pending' = 'pending';
 
-      if (!channel) {
+      if (reservation.refType !== 'channel_request') {
+        if (isTimedOut) {
+          action = 'release';
+          reason = 'timeout';
+        }
+      } else if (!channel) {
         if (isTimedOut) {
           action = 'release';
           reason = 'orphan';
@@ -2073,7 +2711,7 @@ export class BillingControlService {
       where: {
         tenantId,
         status: {
-          in: ['active', 'paused', 'past_due']
+          in: ['active', 'paused', 'past_due', 'suspended']
         }
       },
       include: {
@@ -2278,11 +2916,29 @@ export class BillingControlService {
             nextRefillAt: null
           }
         });
+      } else if (eventType.includes('past_due') || eventType.includes('payment_failed')) {
+        const graceUntil = addDaysUtc(new Date(), this.subscriptionGraceDays());
+        await tx.billingSubscription.update({
+          where: { id: subscription.id },
+          data: {
+            status: 'past_due',
+            graceUntil
+          }
+        });
+      } else if (eventType.includes('suspend')) {
+        await tx.billingSubscription.update({
+          where: { id: subscription.id },
+          data: {
+            status: 'suspended'
+          }
+        });
       } else if (eventType.includes('resume') || eventType.includes('activated')) {
         await tx.billingSubscription.update({
           where: { id: subscription.id },
           data: {
-            status: 'active'
+            status: 'active',
+            graceUntil: null,
+            lastPaymentAt: new Date()
           }
         });
       }
@@ -2294,6 +2950,10 @@ export class BillingControlService {
         subscriptionId: subscription?.id ?? null,
         provider: input.provider,
         eventType: input.event_type,
+        signatureOk: input.signature_ok ?? null,
+        payloadHash: input.payload_hash ?? null,
+        receivedAt: input.received_at ? new Date(input.received_at) : new Date(),
+        processedAt: new Date(),
         payloadJson: asInputJson(input.payload_json),
         idempotencyKey: input.event_id
       }
@@ -2473,6 +3133,251 @@ export class BillingControlService {
       duplicate: false,
       status: 'refilled',
       amount: grantAmount
+    };
+  }
+
+  private async createProviderCheckoutHandle(input: {
+    provider: PaymentProviderValue;
+    order: {
+      id: string;
+      amount: Prisma.Decimal;
+      currency: string;
+      purpose: PaymentPurposeValue;
+      tenantId: string;
+      accountId: string;
+      providerCustomerId: string | null;
+      refType: string | null;
+      refId: string | null;
+      serviceInvoiceId: string | null;
+      creditsAmount: number | null;
+    };
+  }): Promise<{
+    status: PaymentObjectStatusValue;
+    provider_order_id: string;
+    provider_payment_id: string | null;
+    checkout_url: string | null;
+    provider_payload: Record<string, unknown>;
+  }> {
+    const amountMinor = Math.round(decimalToNumber(input.order.amount) * 100);
+    if (amountMinor <= 0) {
+      throw new BadRequestException('payment amount must be positive');
+    }
+
+    if (input.provider === 'stripe') {
+      if (this.paymentDevBypassEnabled()) {
+        return {
+          status: 'pending',
+          provider_order_id: `cs_dev_${input.order.id.slice(0, 18)}`,
+          provider_payment_id: null,
+          checkout_url: `${this.paymentSuccessUrl(input.order.id)}&dev_bypass=1`,
+          provider_payload: {
+            provider: 'stripe',
+            mode: 'dev_bypass'
+          }
+        };
+      }
+
+      const stripe = this.getStripeClient();
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        success_url: this.paymentSuccessUrl(input.order.id),
+        cancel_url: this.paymentCancelUrl(input.order.id),
+        customer: input.order.providerCustomerId ?? undefined,
+        metadata: {
+          payment_order_id: input.order.id,
+          tenant_id: input.order.tenantId,
+          account_id: input.order.accountId,
+          purpose: input.order.purpose,
+          ref_type: input.order.refType ?? '',
+          ref_id: input.order.refId ?? '',
+          service_invoice_id: input.order.serviceInvoiceId ?? '',
+          credits_amount: String(input.order.creditsAmount ?? 0)
+        },
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: input.order.currency.toLowerCase(),
+              unit_amount: amountMinor,
+              product_data: {
+                name: input.order.purpose === 'topup' ? 'Credits Topup' : 'Invoice Payment',
+                metadata: {
+                  payment_order_id: input.order.id
+                }
+              }
+            }
+          }
+        ]
+      });
+
+      return {
+        status: 'requires_action',
+        provider_order_id: session.id,
+        provider_payment_id:
+          typeof session.payment_intent === 'string'
+            ? session.payment_intent
+            : session.payment_intent?.id ?? null,
+        checkout_url: session.url ?? null,
+        provider_payload: session as unknown as Record<string, unknown>
+      };
+    }
+
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if ((!keyId || !keySecret) && !this.paymentDevBypassEnabled()) {
+      throw new BadRequestException('RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are required');
+    }
+    if (this.paymentDevBypassEnabled()) {
+      const orderId = `order_dev_${input.order.id.slice(0, 18)}`;
+      return {
+        status: 'pending',
+        provider_order_id: orderId,
+        provider_payment_id: null,
+        checkout_url: `${process.env.RAZORPAY_CHECKOUT_URL ?? 'https://checkout.razorpay.com/v1/checkout.js'}?order_id=${encodeURIComponent(orderId)}`,
+        provider_payload: {
+          provider: 'razorpay',
+          mode: 'dev_bypass',
+          key_id: keyId ?? 'rzp_test_dev'
+        }
+      };
+    }
+
+    const response = await fetch('https://api.razorpay.com/v1/orders', {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        amount: amountMinor,
+        currency: input.order.currency,
+        receipt: input.order.id.slice(0, 40),
+        notes: {
+          payment_order_id: input.order.id,
+          tenant_id: input.order.tenantId,
+          account_id: input.order.accountId,
+          purpose: input.order.purpose,
+          ref_type: input.order.refType ?? '',
+          ref_id: input.order.refId ?? '',
+          service_invoice_id: input.order.serviceInvoiceId ?? '',
+          credits_amount: String(input.order.creditsAmount ?? 0)
+        }
+      })
+    });
+    if (!response.ok) {
+      const body = await response.text();
+      throw new BadRequestException(`razorpay_order_create_failed:${response.status}:${body}`);
+    }
+    const order = (await response.json()) as Record<string, unknown>;
+    const orderId = typeof order.id === 'string' ? order.id : `order_${input.order.id.slice(0, 16)}`;
+    const checkoutBase = process.env.RAZORPAY_CHECKOUT_URL ?? 'https://checkout.razorpay.com/v1/checkout.js';
+    return {
+      status: 'requires_action',
+      provider_order_id: orderId,
+      provider_payment_id: null,
+      checkout_url: `${checkoutBase}?order_id=${encodeURIComponent(orderId)}&key_id=${encodeURIComponent(keyId ?? '')}`,
+      provider_payload: order
+    };
+  }
+
+  private resolvePaymentOrderFromWebhook(
+    provider: PaymentProviderValue,
+    payload: Record<string, unknown>,
+    fallbackEventType: string
+  ): {
+    status: PaymentObjectStatusValue;
+    provider_order_id?: string;
+    provider_payment_id?: string;
+    payment_order_id?: string;
+    idempotency_key?: string;
+    external_subscription_id?: string;
+  } {
+    if (provider === 'stripe') {
+      const eventType =
+        typeof payload.type === 'string' && payload.type.length > 0
+          ? payload.type
+          : fallbackEventType;
+      const data = typeof payload.data === 'object' && payload.data ? (payload.data as Record<string, unknown>) : {};
+      const obj = typeof data.object === 'object' && data.object ? (data.object as Record<string, unknown>) : {};
+      const metadata =
+        typeof obj.metadata === 'object' && obj.metadata ? (obj.metadata as Record<string, unknown>) : {};
+      const status: PaymentObjectStatusValue =
+        eventType.includes('completed') || eventType.includes('succeeded')
+          ? 'paid'
+          : eventType.includes('failed')
+            ? 'failed'
+            : eventType.includes('expired')
+              ? 'expired'
+              : 'pending';
+
+      const providerOrderId =
+        typeof obj.id === 'string' && obj.id.length > 0 ? obj.id : undefined;
+      const providerPaymentId =
+        typeof obj.payment_intent === 'string' && obj.payment_intent.length > 0
+          ? obj.payment_intent
+          : typeof obj.id === 'string' && obj.id.startsWith('pi_')
+            ? obj.id
+            : undefined;
+      const paymentOrderId =
+        typeof metadata.payment_order_id === 'string' && metadata.payment_order_id.length > 0
+          ? metadata.payment_order_id
+          : undefined;
+      const idempotencyKey =
+        typeof metadata.idempotency_key === 'string' && metadata.idempotency_key.length > 0
+          ? metadata.idempotency_key
+          : undefined;
+      const externalSubscriptionId =
+        typeof metadata.external_subscription_id === 'string' && metadata.external_subscription_id.length > 0
+          ? metadata.external_subscription_id
+          : typeof obj.subscription === 'string' && obj.subscription.length > 0
+            ? obj.subscription
+            : undefined;
+
+      return {
+        status,
+        provider_order_id: providerOrderId,
+        provider_payment_id: providerPaymentId,
+        payment_order_id: paymentOrderId,
+        idempotency_key: idempotencyKey,
+        external_subscription_id: externalSubscriptionId
+      };
+    }
+
+    const eventType =
+      typeof payload.event === 'string' && payload.event.length > 0
+        ? payload.event
+        : fallbackEventType;
+    const payloadRecord =
+      typeof payload.payload === 'object' && payload.payload ? (payload.payload as Record<string, unknown>) : {};
+    const paymentWrapper =
+      typeof payloadRecord.payment === 'object' && payloadRecord.payment
+        ? (payloadRecord.payment as Record<string, unknown>)
+        : {};
+    const paymentEntity =
+      typeof paymentWrapper.entity === 'object' && paymentWrapper.entity
+        ? (paymentWrapper.entity as Record<string, unknown>)
+        : {};
+    const notes =
+      typeof paymentEntity.notes === 'object' && paymentEntity.notes
+        ? (paymentEntity.notes as Record<string, unknown>)
+        : {};
+
+    const status: PaymentObjectStatusValue =
+      eventType.includes('captured') || eventType.includes('authorized')
+        ? 'paid'
+        : eventType.includes('failed')
+          ? 'failed'
+          : eventType.includes('cancel')
+            ? 'cancelled'
+            : 'pending';
+    return {
+      status,
+      provider_order_id: typeof paymentEntity.order_id === 'string' ? paymentEntity.order_id : undefined,
+      provider_payment_id: typeof paymentEntity.id === 'string' ? paymentEntity.id : undefined,
+      payment_order_id: typeof notes.payment_order_id === 'string' ? notes.payment_order_id : undefined,
+      idempotency_key: typeof notes.idempotency_key === 'string' ? notes.idempotency_key : undefined,
+      external_subscription_id:
+        typeof notes.external_subscription_id === 'string' ? notes.external_subscription_id : undefined
     };
   }
 
@@ -2681,6 +3586,7 @@ export class BillingControlService {
     refId: string;
     idempotencyKey: string;
     createdAt: Date;
+    expiresAt: Date | null;
     consumedAt: Date | null;
     releasedAt: Date | null;
   }) {
@@ -2694,6 +3600,7 @@ export class BillingControlService {
       ref_id: row.refId,
       idempotency_key: row.idempotencyKey,
       created_at: row.createdAt.toISOString(),
+      expires_at: row.expiresAt?.toISOString() ?? null,
       consumed_at: row.consumedAt?.toISOString() ?? null,
       released_at: row.releasedAt?.toISOString() ?? null
     };
@@ -2889,6 +3796,92 @@ export class BillingControlService {
         diffJson: diff as Prisma.InputJsonValue
       }
     });
+  }
+
+  private serializePaymentOrder(row: {
+    id: string;
+    tenantId: string;
+    accountId: string;
+    provider: PaymentProviderValue;
+    purpose: PaymentPurposeValue;
+    status: PaymentObjectStatusValue;
+    amount: Prisma.Decimal;
+    currency: string;
+    creditsAmount: number | null;
+    refType: string | null;
+    refId: string | null;
+    idempotencyKey: string;
+    providerOrderId: string | null;
+    providerPaymentId: string | null;
+    checkoutUrl: string | null;
+    serviceInvoiceId: string | null;
+    settledAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+    account?: { displayName: string; externalKey: string } | null;
+    serviceInvoice?: { invoiceNumber: string | null; status: ServiceInvoiceStatus } | null;
+  }) {
+    return {
+      id: row.id,
+      tenant_id: row.tenantId,
+      account_id: row.accountId,
+      account_display_name: row.account?.displayName ?? null,
+      external_key: row.account?.externalKey ?? null,
+      provider: row.provider.toUpperCase(),
+      purpose: row.purpose.toUpperCase(),
+      status: row.status.toUpperCase(),
+      amount: decimalToNumber(row.amount),
+      currency: row.currency,
+      credits_amount: row.creditsAmount,
+      ref_type: row.refType,
+      ref_id: row.refId,
+      idempotency_key: row.idempotencyKey,
+      provider_order_id: row.providerOrderId,
+      provider_payment_id: row.providerPaymentId,
+      checkout_url: row.checkoutUrl,
+      service_invoice_id: row.serviceInvoiceId,
+      service_invoice_number: row.serviceInvoice?.invoiceNumber ?? null,
+      service_invoice_status: row.serviceInvoice ? invoiceStatusOut(row.serviceInvoice.status) : null,
+      settled_at: row.settledAt?.toISOString() ?? null,
+      created_at: row.createdAt.toISOString(),
+      updated_at: row.updatedAt.toISOString()
+    };
+  }
+
+  private serializePaymentEvent(row: {
+    id: string;
+    tenantId: string;
+    accountId: string | null;
+    paymentOrderId: string | null;
+    serviceInvoiceId: string | null;
+    provider: PaymentProviderValue;
+    eventId: string;
+    eventType: string;
+    idempotencyKey: string | null;
+    signatureOk: boolean;
+    payloadHash: string;
+    receivedAt: Date;
+    processedAt: Date | null;
+    createdAt: Date;
+    paymentOrder?: { status: PaymentObjectStatusValue } | null;
+  }) {
+    return {
+      id: row.id,
+      tenant_id: row.tenantId,
+      account_id: row.accountId,
+      payment_order_id: row.paymentOrderId,
+      service_invoice_id: row.serviceInvoiceId,
+      provider: row.provider.toUpperCase(),
+      event_id: row.eventId,
+      event_type: row.eventType,
+      idempotency_key: row.idempotencyKey,
+      signature_ok: row.signatureOk,
+      payload_hash: row.payloadHash,
+      payment_status: row.paymentOrder?.status?.toUpperCase() ?? null,
+      received_at: row.receivedAt.toISOString(),
+      processed_at: row.processedAt?.toISOString() ?? null,
+      created_at: row.createdAt.toISOString()
+    };
   }
 
   private serializeInvoiceSummary(row: {

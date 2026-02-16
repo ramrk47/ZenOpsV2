@@ -23,6 +23,7 @@ import { BillingControlController } from './billing-control/billing-control.cont
 import { ServiceInvoicesController } from './billing-control/service-invoices.controller.js';
 import { BillingControlService } from './billing-control/billing-control.service.js';
 import { PaymentWebhooksController } from './billing-control/payment-webhooks.controller.js';
+import { PaymentsController } from './billing-control/payments.controller.js';
 
 @Module({
   controllers: [
@@ -34,7 +35,8 @@ import { PaymentWebhooksController } from './billing-control/payment-webhooks.co
     ControlController,
     BillingControlController,
     ServiceInvoicesController,
-    PaymentWebhooksController
+    PaymentWebhooksController,
+    PaymentsController
   ],
   providers: [
     {

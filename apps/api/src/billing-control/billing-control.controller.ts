@@ -48,6 +48,15 @@ const DueRefillSchema = z.object({
   dry_run: z.boolean().optional()
 });
 
+const CreditReconcileSchema = z.object({
+  tenant_id: z.string().uuid().optional(),
+  account_id: z.string().uuid().optional(),
+  ref_type: z.string().min(1).optional(),
+  limit: z.number().int().positive().max(500).optional(),
+  timeout_minutes: z.number().int().positive().optional(),
+  dry_run: z.boolean().optional()
+});
+
 const parseOrThrow = <T>(schema: z.ZodType<T>, body: unknown): T => {
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
@@ -165,6 +174,26 @@ export class BillingControlController {
     this.billingControlService.requireStudioServiceToken(token);
     const input = parseOrThrow<BillingSubscriptionDueRefillInput>(DueRefillSchema, body ?? {});
     return this.requestContext.runService((tx) => this.billingControlService.processDueSubscriptionRefills(tx, input));
+  }
+
+  @Post('credits/reconcile')
+  @Public()
+  async reconcileCredits(
+    @Body() body: unknown,
+    @Headers('x-service-token') serviceToken: string | undefined,
+    @Headers('authorization') authorization: string | undefined
+  ) {
+    const token = this.extractServiceToken(serviceToken, authorization);
+    this.billingControlService.requireStudioServiceToken(token);
+    const input = parseOrThrow<{
+      tenant_id?: string;
+      account_id?: string;
+      ref_type?: string;
+      limit?: number;
+      timeout_minutes?: number;
+      dry_run?: boolean;
+    }>(CreditReconcileSchema, body ?? {});
+    return this.requestContext.runService((tx) => this.billingControlService.reconcileCredits(tx, input));
   }
 
   @Get('subscription')

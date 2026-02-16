@@ -69,6 +69,8 @@ const CreditSettleSchema = z.object({
 
 const CreditReconcileSchema = z.object({
   tenant_id: z.string().uuid().optional(),
+  account_id: z.string().uuid().optional(),
+  ref_type: z.string().min(1).optional(),
   limit: z.number().int().positive().max(500).optional(),
   timeout_minutes: z.number().int().positive().optional(),
   dry_run: z.boolean().optional()
@@ -78,7 +80,7 @@ const SubscriptionAssignSchema = z.object({
   account_id: z.string().uuid(),
   plan_name: z.string().min(1),
   monthly_credit_allowance: z.number().int().positive().optional(),
-  status: z.enum(['active', 'paused', 'past_due', 'cancelled']).optional()
+  status: z.enum(['active', 'paused', 'past_due', 'suspended', 'cancelled']).optional()
 });
 
 const SubscriptionCreateSchema = z.object({
@@ -89,13 +91,13 @@ const SubscriptionCreateSchema = z.object({
   cycle_days: z.number().int().positive().optional(),
   currency: z.string().min(1).optional(),
   price_monthly: z.number().nonnegative().optional(),
-  status: z.enum(['active', 'paused', 'past_due', 'cancelled']).optional(),
+  status: z.enum(['active', 'paused', 'past_due', 'suspended', 'cancelled']).optional(),
   external_provider: z.string().optional(),
   external_subscription_id: z.string().optional()
 });
 
 const SubscriptionUpdateSchema = z.object({
-  status: z.enum(['active', 'paused', 'past_due', 'cancelled']).optional(),
+  status: z.enum(['active', 'paused', 'past_due', 'suspended', 'cancelled']).optional(),
   external_provider: z.string().nullable().optional(),
   external_subscription_id: z.string().nullable().optional()
 });
@@ -217,7 +219,7 @@ export class ControlController {
       account_id: string;
       plan_name: string;
       monthly_credit_allowance?: number;
-      status?: 'active' | 'paused' | 'past_due' | 'cancelled';
+      status?: 'active' | 'paused' | 'past_due' | 'suspended' | 'cancelled';
     }>(SubscriptionAssignSchema, body);
     return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.assignSubscription(tx, input));
   }
@@ -227,6 +229,50 @@ export class ControlController {
   @RequireCapabilities(Capabilities.masterDataRead)
   listCredits(@Claims() claims: JwtClaims, @Query('account_id') accountId?: string) {
     return this.requestContext.runWithClaims(claims, (tx) => this.billingControlService.listCreditLedger(tx, accountId));
+  }
+
+  @Get('payments/orders')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.masterDataRead)
+  listPaymentOrders(
+    @Claims() claims: JwtClaims,
+    @Query('tenant_id') tenantId?: string,
+    @Query('account_id') accountId?: string,
+    @Query('provider') provider?: 'stripe' | 'razorpay',
+    @Query('purpose') purpose?: 'topup' | 'invoice',
+    @Query('limit') limit?: string
+  ) {
+    const parsedLimit = limit ? Number.parseInt(limit, 10) : undefined;
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.billingControlService.listPaymentOrders(tx, {
+        tenant_id: tenantId,
+        account_id: accountId,
+        provider,
+        purpose,
+        limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined
+      })
+    );
+  }
+
+  @Get('payments/events')
+  @RequireAudience('studio')
+  @RequireCapabilities(Capabilities.masterDataRead)
+  listPaymentEvents(
+    @Claims() claims: JwtClaims,
+    @Query('tenant_id') tenantId?: string,
+    @Query('account_id') accountId?: string,
+    @Query('provider') provider?: 'stripe' | 'razorpay',
+    @Query('limit') limit?: string
+  ) {
+    const parsedLimit = limit ? Number.parseInt(limit, 10) : undefined;
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.billingControlService.listPaymentEvents(tx, {
+        tenant_id: tenantId,
+        account_id: accountId,
+        provider,
+        limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined
+      })
+    );
   }
 
   @Get('credits/tenant/:tenantId')
@@ -310,6 +356,8 @@ export class ControlController {
   reconcileCredits(@Claims() claims: JwtClaims, @Body() body: unknown) {
     const input = parseOrThrow<{
       tenant_id?: string;
+      account_id?: string;
+      ref_type?: string;
       limit?: number;
       timeout_minutes?: number;
       dry_run?: boolean;

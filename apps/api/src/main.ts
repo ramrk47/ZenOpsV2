@@ -2,12 +2,19 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import cors from '@fastify/cors';
+import rawBody from 'fastify-raw-body';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
   await app.register(cors, { origin: true });
+  await app.register(rawBody, {
+    global: true,
+    field: 'rawBody',
+    encoding: 'utf8',
+    runFirst: true
+  });
 
   app.setGlobalPrefix('v1');
 
