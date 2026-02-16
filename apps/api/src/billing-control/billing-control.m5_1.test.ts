@@ -29,7 +29,12 @@ const buildSubscriptionTx = (subscriptionOverrides: Partial<any> = {}) => {
     billingSubscription: {
       findFirst: vi.fn().mockResolvedValue(subscription),
       findMany: vi.fn().mockImplementation(async ({ where }: any) => {
-        const matchesStatus = where?.status ? subscription.status === where.status : true;
+        const statusFilter = where?.status;
+        const matchesStatus = Array.isArray(statusFilter?.in)
+          ? statusFilter.in.includes(subscription.status)
+          : statusFilter
+            ? subscription.status === statusFilter
+            : true;
         const cutoff = where?.nextRefillAt?.lte as Date | undefined;
         const matchesDue = cutoff ? subscription.nextRefillAt <= cutoff : true;
         return matchesStatus && matchesDue ? [subscription] : [];
