@@ -27,6 +27,7 @@ interface ChannelRequestRow {
 
 interface ServiceInvoiceDetail {
   id: string;
+  account_id: string;
   invoice_number: string | null;
   status: 'DRAFT' | 'ISSUED' | 'SENT' | 'PARTIALLY_PAID' | 'PAID' | 'VOID';
   currency: string;
@@ -35,6 +36,11 @@ interface ServiceInvoiceDetail {
   amount_paid: number;
   due_date: string | null;
   created_at: string;
+}
+
+interface PaymentOrderHandle {
+  id: string;
+  checkout_url: string | null;
 }
 
 export default function App() {
@@ -49,6 +55,8 @@ export default function App() {
   const [channels, setChannels] = useState<ChannelRow[]>([]);
   const [requests, setRequests] = useState<ChannelRequestRow[]>([]);
   const [invoices, setInvoices] = useState<Record<string, ServiceInvoiceDetail>>({});
+  const [payProvider, setPayProvider] = useState<'stripe' | 'razorpay'>('razorpay');
+  const [payLinks, setPayLinks] = useState<Record<string, string>>({});
   const [proofRefByInvoice, setProofRefByInvoice] = useState<Record<string, string>>({});
   const [proofNameByInvoice, setProofNameByInvoice] = useState<Record<string, string>>({});
   const [message, setMessage] = useState('');
@@ -178,6 +186,48 @@ export default function App() {
     await load();
   };
 
+  const createPayLink = async (invoice: ServiceInvoiceDetail) => {
+    if (!token) {
+      setMessage('Paste portal JWT first.');
+      return;
+    }
+    const amount = invoice.amount_due > 0 ? invoice.amount_due : invoice.total_amount;
+    setMessage(`Creating ${payProvider} checkout for ${invoice.invoice_number ?? invoice.id}...`);
+    const response = await fetch(`${API}/payments/checkout-link`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        account_id: invoice.account_id,
+        amount,
+        currency: invoice.currency,
+        purpose: 'invoice',
+        provider: payProvider,
+        ref_type: 'service_invoice',
+        ref_id: invoice.id,
+        service_invoice_id: invoice.id,
+        idempotency_key: `portal:invoice_checkout:${invoice.id}:${payProvider}`
+      })
+    });
+    if (!response.ok) {
+      setMessage(`Pay link failed: ${await response.text()}`);
+      return;
+    }
+    const created = (await response.json()) as PaymentOrderHandle;
+    if (created.checkout_url) {
+      setPayLinks((current) => ({
+        ...current,
+        [invoice.id]: created.checkout_url as string
+      }));
+      window.open(created.checkout_url, '_blank', 'noopener,noreferrer');
+      setMessage(`Checkout link ready for ${invoice.invoice_number ?? invoice.id}.`);
+    } else {
+      setMessage(`Checkout created for ${invoice.invoice_number ?? invoice.id}, but no redirect URL returned.`);
+    }
+  };
+
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <section className="shell p-6">
@@ -257,6 +307,14 @@ export default function App() {
         <div className="mt-4 flex items-center gap-3">
           <Button onClick={submitChannelRequest}>Submit Referral Request</Button>
           <Button onClick={() => void load()}>Refresh</Button>
+          <select
+            className="rounded-lg border border-[var(--zen-border)] bg-white px-2 py-1 text-sm"
+            value={payProvider}
+            onChange={(event) => setPayProvider(event.target.value as 'stripe' | 'razorpay')}
+          >
+            <option value="razorpay">Razorpay</option>
+            <option value="stripe">Stripe</option>
+          </select>
           <span className="text-sm text-[var(--zen-muted)]">{message}</span>
         </div>
 
@@ -313,6 +371,14 @@ export default function App() {
                       }
                     />
                     <Button onClick={() => void submitPaymentProof(invoice.id)}>Upload Payment Proof</Button>
+                    {invoice.status !== 'PAID' && invoice.status !== 'VOID' ? (
+                      <Button onClick={() => void createPayLink(invoice)}>Pay Now</Button>
+                    ) : null}
+                    {payLinks[invoice.id] ? (
+                      <a className="inline-flex items-center rounded-lg border border-[var(--zen-border)] px-3 py-2 text-sm" href={payLinks[invoice.id]} target="_blank" rel="noreferrer">
+                        Open Link
+                      </a>
+                    ) : null}
                   </div>
                 </li>
               ))}

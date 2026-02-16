@@ -6,7 +6,7 @@ const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/v1';
 type BillingMode = 'POSTPAID' | 'CREDIT';
 type ReservationStatus = 'ACTIVE' | 'CONSUMED' | 'RELEASED';
 
-type StudioTab = 'credits' | 'invoices';
+type StudioTab = 'credits' | 'invoices' | 'payments' | 'subscriptions';
 
 interface BillingAccountRow {
   id: string;
@@ -117,6 +117,59 @@ interface ServiceInvoiceRow {
   created_at: string;
 }
 
+interface PaymentOrderRow {
+  id: string;
+  tenant_id: string;
+  account_id: string;
+  account_external_key: string;
+  provider: 'STRIPE' | 'RAZORPAY';
+  purpose: 'TOPUP' | 'INVOICE';
+  status: string;
+  amount: number;
+  currency: string;
+  credits_amount: number | null;
+  checkout_url: string | null;
+  provider_order_id: string | null;
+  provider_payment_id: string | null;
+  idempotency_key: string;
+  service_invoice_id: string | null;
+  service_invoice_number: string | null;
+  settled_at: string | null;
+  created_at: string;
+}
+
+interface PaymentEventRow {
+  id: string;
+  tenant_id: string;
+  account_id: string | null;
+  provider: 'STRIPE' | 'RAZORPAY';
+  event_id: string;
+  event_type: string;
+  signature_ok: boolean;
+  payload_hash: string | null;
+  received_at: string;
+  processed_at: string | null;
+  payment_order_id: string | null;
+}
+
+interface SubscriptionRow {
+  id: string;
+  tenant_id: string;
+  account_id: string;
+  account_display_name: string;
+  plan_name: string;
+  monthly_credit_grant: number;
+  cycle_days: number;
+  currency: string;
+  price_monthly: number;
+  status: 'ACTIVE' | 'PAUSED' | 'PAST_DUE' | 'SUSPENDED' | 'CANCELLED';
+  current_period_start: string | null;
+  current_period_end: string | null;
+  next_refill_at: string | null;
+  external_provider: string | null;
+  external_subscription_id: string | null;
+}
+
 const makeIdempotencyKey = (scope: string, accountId: string, suffix = ''): string => {
   const stamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
   const extra = suffix ? `:${suffix}` : '';
@@ -177,6 +230,9 @@ export default function App() {
   const [reservations, setReservations] = useState<CreditReservationRow[]>([]);
   const [timeline, setTimeline] = useState<BillingTimelineRow[]>([]);
   const [serviceInvoices, setServiceInvoices] = useState<ServiceInvoiceRow[]>([]);
+  const [paymentOrders, setPaymentOrders] = useState<PaymentOrderRow[]>([]);
+  const [paymentEvents, setPaymentEvents] = useState<PaymentEventRow[]>([]);
+  const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [working, setWorking] = useState(false);
@@ -201,6 +257,25 @@ export default function App() {
   const [invoiceDescription, setInvoiceDescription] = useState('Commissioned service');
   const [invoiceAmount, setInvoiceAmount] = useState('1000');
   const [invoiceDueDate, setInvoiceDueDate] = useState('');
+
+  const [paymentProvider, setPaymentProvider] = useState<'stripe' | 'razorpay'>('razorpay');
+  const [paymentPurpose, setPaymentPurpose] = useState<'topup' | 'invoice'>('invoice');
+  const [paymentAmount, setPaymentAmount] = useState('1000');
+  const [paymentCurrency, setPaymentCurrency] = useState('INR');
+  const [paymentCreditsAmount, setPaymentCreditsAmount] = useState('1');
+  const [paymentRefType, setPaymentRefType] = useState('manual_checkout');
+  const [paymentRefId, setPaymentRefId] = useState('');
+  const [paymentInvoiceId, setPaymentInvoiceId] = useState('');
+  const [latestCheckoutUrl, setLatestCheckoutUrl] = useState('');
+
+  const [subscriptionPlanName, setSubscriptionPlanName] = useState('starter');
+  const [subscriptionGrant, setSubscriptionGrant] = useState('30');
+  const [subscriptionCycleDays, setSubscriptionCycleDays] = useState('30');
+  const [subscriptionPrice, setSubscriptionPrice] = useState('0');
+  const [subscriptionCurrency, setSubscriptionCurrency] = useState('INR');
+  const [subscriptionStatus, setSubscriptionStatus] = useState<'active' | 'paused' | 'past_due' | 'suspended' | 'cancelled'>(
+    'active'
+  );
 
   const filteredAccounts = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -256,12 +331,15 @@ export default function App() {
       if (timelineRefType.trim()) timelineQuery.set('ref_type', timelineRefType.trim());
       if (timelineRefId.trim()) timelineQuery.set('ref_id', timelineRefId.trim());
 
-      const [ledgerRows, reservationRows, timelineRows, tenant, invoices] = await Promise.all([
+      const [ledgerRows, reservationRows, timelineRows, tenant, invoices, orders, events, subscriptionRows] = await Promise.all([
         apiRequest<CreditLedgerRow[]>(token, `/control/credits?account_id=${encodeURIComponent(accountId)}`),
         apiRequest<CreditReservationRow[]>(token, `/control/credits/reservations?account_id=${encodeURIComponent(accountId)}&limit=200`),
         apiRequest<BillingTimelineRow[]>(token, `/control/credits/timeline?${timelineQuery.toString()}`),
         apiRequest<TenantCreditSummary>(token, `/control/credits/tenant/${encodeURIComponent(status.tenant_id)}`),
-        apiRequest<ServiceInvoiceRow[]>(token, `/service-invoices?account_id=${encodeURIComponent(accountId)}`)
+        apiRequest<ServiceInvoiceRow[]>(token, `/service-invoices?account_id=${encodeURIComponent(accountId)}`),
+        apiRequest<PaymentOrderRow[]>(token, `/control/payments/orders?account_id=${encodeURIComponent(accountId)}&limit=80`),
+        apiRequest<PaymentEventRow[]>(token, `/control/payments/events?account_id=${encodeURIComponent(accountId)}&limit=120`),
+        apiRequest<SubscriptionRow[]>(token, `/control/subscriptions?tenant_id=${encodeURIComponent(status.tenant_id)}`)
       ]);
 
       setSelected(status);
@@ -270,6 +348,14 @@ export default function App() {
       setTimeline(timelineRows);
       setTenantSummary(tenant);
       setServiceInvoices(invoices);
+      setPaymentOrders(orders);
+      setPaymentEvents(events);
+      setSubscriptions(subscriptionRows.filter((row) => row.account_id === accountId));
+      const firstOpenInvoice = invoices.find((row) => row.status !== 'PAID' && row.status !== 'VOID');
+      setPaymentInvoiceId((current) => current || firstOpenInvoice?.id || '');
+      if (firstOpenInvoice) {
+        setPaymentAmount(String(firstOpenInvoice.amount_due > 0 ? firstOpenInvoice.amount_due : firstOpenInvoice.total_amount));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load account details');
       setSelected(null);
@@ -278,6 +364,9 @@ export default function App() {
       setTimeline([]);
       setTenantSummary(null);
       setServiceInvoices([]);
+      setPaymentOrders([]);
+      setPaymentEvents([]);
+      setSubscriptions([]);
     } finally {
       setLoading(false);
     }
@@ -491,6 +580,163 @@ export default function App() {
     });
   };
 
+  const createCheckoutLink = async () => {
+    const amount = Number.parseFloat(paymentAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError('Payment amount must be positive.');
+      return;
+    }
+
+    const invoiceId = paymentPurpose === 'invoice' ? paymentInvoiceId.trim() : undefined;
+    const creditsAmount = Number.parseInt(paymentCreditsAmount, 10);
+    if (!selectedAccountId) {
+      setError('Select an account first.');
+      return;
+    }
+
+    setWorking(true);
+    setError('');
+    setNotice('');
+    try {
+      const created = await apiRequest<PaymentOrderRow>(token, '/payments/checkout-link', {
+        method: 'POST',
+        body: JSON.stringify({
+          account_id: selectedAccountId,
+          amount,
+          currency: paymentCurrency.trim() || 'INR',
+          purpose: paymentPurpose,
+          provider: paymentProvider,
+          ref_type: paymentRefType.trim() || undefined,
+          ref_id: paymentRefId.trim() || undefined,
+          service_invoice_id: invoiceId || undefined,
+          credits_amount: Number.isFinite(creditsAmount) && creditsAmount > 0 ? creditsAmount : undefined,
+          idempotency_key: makeIdempotencyKey('checkout', selectedAccountId, `${paymentProvider}:${paymentPurpose}`)
+        })
+      });
+      if (created.checkout_url) {
+        setLatestCheckoutUrl(created.checkout_url);
+      }
+      await Promise.all([loadAccounts(), loadAccountDetails(selectedAccountId)]);
+      setNotice('Checkout link created.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Checkout link failed');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const createTopupOrder = async () => {
+    const creditsAmount = Number.parseInt(paymentCreditsAmount, 10);
+    if (!Number.isFinite(creditsAmount) || creditsAmount <= 0) {
+      setError('Topup credits amount must be a positive integer.');
+      return;
+    }
+    if (!selectedAccountId) {
+      setError('Select an account first.');
+      return;
+    }
+
+    setWorking(true);
+    setError('');
+    setNotice('');
+    try {
+      const created = await apiRequest<PaymentOrderRow>(token, '/payments/topup', {
+        method: 'POST',
+        body: JSON.stringify({
+          account_id: selectedAccountId,
+          credits_amount: creditsAmount,
+          provider: paymentProvider,
+          idempotency_key: makeIdempotencyKey('topup', selectedAccountId, paymentProvider)
+        })
+      });
+      if (created.checkout_url) {
+        setLatestCheckoutUrl(created.checkout_url);
+      }
+      await Promise.all([loadAccounts(), loadAccountDetails(selectedAccountId)]);
+      setNotice('Topup checkout created.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Topup checkout failed');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const copyCheckoutUrl = async () => {
+    if (!latestCheckoutUrl) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(latestCheckoutUrl);
+      setNotice('Latest checkout URL copied.');
+    } catch {
+      setError('Unable to copy checkout URL in this browser context.');
+    }
+  };
+
+  const assignSubscription = async () => {
+    if (!selected) {
+      setError('Select an account first.');
+      return;
+    }
+    const grant = Number.parseInt(subscriptionGrant, 10);
+    const cycleDays = Number.parseInt(subscriptionCycleDays, 10);
+    const priceMonthly = Number.parseFloat(subscriptionPrice);
+    if (!subscriptionPlanName.trim()) {
+      setError('Plan name is required.');
+      return;
+    }
+    if (!Number.isFinite(grant) || grant < 0) {
+      setError('Monthly credit grant must be zero or positive.');
+      return;
+    }
+    if (!Number.isFinite(cycleDays) || cycleDays <= 0) {
+      setError('Cycle days must be a positive integer.');
+      return;
+    }
+    if (!Number.isFinite(priceMonthly) || priceMonthly < 0) {
+      setError('Price monthly must be zero or positive.');
+      return;
+    }
+
+    await runAction(`Subscription plan ${subscriptionPlanName} assigned.`, async () => {
+      await apiRequest(token, '/control/subscriptions', {
+        method: 'POST',
+        body: JSON.stringify({
+          tenant_id: selected.tenant_id,
+          account_id: selectedAccountId,
+          plan_name: subscriptionPlanName.trim(),
+          monthly_credit_grant: grant,
+          cycle_days: cycleDays,
+          currency: subscriptionCurrency.trim() || 'INR',
+          price_monthly: priceMonthly,
+          status: subscriptionStatus
+        })
+      });
+    });
+  };
+
+  const updateSubscriptionStatus = async (subscriptionId: string, status: 'active' | 'paused' | 'past_due' | 'suspended' | 'cancelled') => {
+    await runAction(`Subscription ${subscriptionId} set to ${status}.`, async () => {
+      await apiRequest(token, `/control/subscriptions/${subscriptionId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status
+        })
+      });
+    });
+  };
+
+  const refillSubscriptionNow = async (subscriptionId: string) => {
+    await runAction(`Subscription ${subscriptionId} refilled.`, async () => {
+      await apiRequest(token, `/control/subscriptions/${subscriptionId}/refill`, {
+        method: 'POST',
+        body: JSON.stringify({
+          idempotency_key: makeIdempotencyKey('sub_refill', selectedAccountId, subscriptionId)
+        })
+      });
+    });
+  };
+
   const applyTimelineFilter = async () => {
     if (!selectedAccountId) return;
     await loadAccountDetails(selectedAccountId);
@@ -628,6 +874,20 @@ export default function App() {
                     onClick={() => setActiveTab('invoices')}
                   >
                     Invoices
+                  </button>
+                  <button
+                    type="button"
+                    className={`rounded px-3 py-1 text-sm ${activeTab === 'payments' ? 'bg-white font-semibold' : 'text-[var(--zen-muted)]'}`}
+                    onClick={() => setActiveTab('payments')}
+                  >
+                    Payments
+                  </button>
+                  <button
+                    type="button"
+                    className={`rounded px-3 py-1 text-sm ${activeTab === 'subscriptions' ? 'bg-white font-semibold' : 'text-[var(--zen-muted)]'}`}
+                    onClick={() => setActiveTab('subscriptions')}
+                  >
+                    Subscriptions
                   </button>
                 </div>
               </section>
@@ -827,7 +1087,7 @@ export default function App() {
                     </article>
                   </section>
                 </>
-              ) : (
+              ) : activeTab === 'invoices' ? (
                 <section className="panel p-4">
                   <h2 className="mt-0 text-lg">Service Invoices</h2>
                   <p className="text-sm text-[var(--zen-muted)]">Standard postpaid billing capability in V2 (draft → issue → paid).</p>
@@ -856,7 +1116,9 @@ export default function App() {
                         onChange={(event) => setInvoiceDueDate(event.target.value)}
                         type="date"
                       />
-                      <Button disabled={working} onClick={() => void createInvoiceDraft()}>Create Draft</Button>
+                      <Button disabled={working} onClick={() => void createInvoiceDraft()}>
+                        Create Draft
+                      </Button>
                     </div>
                   </article>
 
@@ -882,7 +1144,9 @@ export default function App() {
                             <td className="border-b border-[var(--zen-border)] p-2">{invoice.issued_date ?? '—'}</td>
                             <td className="border-b border-[var(--zen-border)] p-2 text-right">
                               {invoice.status === 'DRAFT' ? (
-                                <Button disabled={working} onClick={() => void issueInvoice(invoice.id)}>Issue</Button>
+                                <Button disabled={working} onClick={() => void issueInvoice(invoice.id)}>
+                                  Issue
+                                </Button>
                               ) : invoice.status !== 'PAID' && invoice.status !== 'VOID' ? (
                                 <Button disabled={working || invoice.amount_due <= 0} onClick={() => void markInvoicePaid(invoice.id, invoice.amount_due)}>
                                   Mark Paid
@@ -897,6 +1161,270 @@ export default function App() {
                     </table>
                   </div>
                   {serviceInvoices.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No service invoices for this account.</p> : null}
+                </section>
+              ) : activeTab === 'payments' ? (
+                <section className="space-y-4">
+                  <article className="panel p-4">
+                    <h2 className="mt-0 text-lg">Payments</h2>
+                    <p className="text-sm text-[var(--zen-muted)]">
+                      Create provider checkout links for invoice settlement or credit topup. Credits are granted only after verified webhook settlement.
+                    </p>
+                    <div className="grid gap-2 md:grid-cols-3">
+                      <select
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2"
+                        value={paymentProvider}
+                        onChange={(event) => setPaymentProvider(event.target.value as 'stripe' | 'razorpay')}
+                      >
+                        <option value="razorpay">Razorpay</option>
+                        <option value="stripe">Stripe</option>
+                      </select>
+                      <select
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2"
+                        value={paymentPurpose}
+                        onChange={(event) => setPaymentPurpose(event.target.value as 'topup' | 'invoice')}
+                      >
+                        <option value="invoice">Invoice</option>
+                        <option value="topup">Topup</option>
+                      </select>
+                      <input
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2"
+                        type="number"
+                        min={1}
+                        step="0.01"
+                        value={paymentAmount}
+                        onChange={(event) => setPaymentAmount(event.target.value)}
+                        placeholder="Amount"
+                      />
+                      <input
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2"
+                        value={paymentCurrency}
+                        onChange={(event) => setPaymentCurrency(event.target.value)}
+                        placeholder="Currency"
+                      />
+                      <input
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2"
+                        type="number"
+                        min={1}
+                        value={paymentCreditsAmount}
+                        onChange={(event) => setPaymentCreditsAmount(event.target.value)}
+                        placeholder="Credits amount"
+                      />
+                      <select
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2"
+                        value={paymentInvoiceId}
+                        onChange={(event) => setPaymentInvoiceId(event.target.value)}
+                      >
+                        <option value="">Select invoice (optional)</option>
+                        {serviceInvoices
+                          .filter((row) => row.status !== 'PAID' && row.status !== 'VOID')
+                          .map((row) => (
+                            <option key={row.id} value={row.id}>
+                              {(row.invoice_number ?? row.id) + ` · due ${row.amount_due}`}
+                            </option>
+                          ))}
+                      </select>
+                      <input
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2"
+                        value={paymentRefType}
+                        onChange={(event) => setPaymentRefType(event.target.value)}
+                        placeholder="ref_type"
+                      />
+                      <input
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2"
+                        value={paymentRefId}
+                        onChange={(event) => setPaymentRefId(event.target.value)}
+                        placeholder="ref_id"
+                      />
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button disabled={working} onClick={() => void createCheckoutLink()}>
+                        Create Checkout Link
+                      </Button>
+                      <Button disabled={working} onClick={() => void createTopupOrder()}>
+                        Create Topup Checkout
+                      </Button>
+                      {latestCheckoutUrl ? (
+                        <>
+                          <a className="inline-flex items-center rounded-lg border border-[var(--zen-border)] px-3 py-2 text-sm" href={latestCheckoutUrl} target="_blank" rel="noreferrer">
+                            Open Latest Checkout
+                          </a>
+                          <Button onClick={() => void copyCheckoutUrl()}>Copy Link</Button>
+                        </>
+                      ) : null}
+                    </div>
+                  </article>
+
+                  <article className="panel p-4">
+                    <h3 className="mt-0 text-base">Payment Orders</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-sm">
+                        <thead>
+                          <tr>
+                            <th className="border-b border-[var(--zen-border)] p-2 text-left">Provider</th>
+                            <th className="border-b border-[var(--zen-border)] p-2 text-left">Purpose</th>
+                            <th className="border-b border-[var(--zen-border)] p-2 text-left">Status</th>
+                            <th className="border-b border-[var(--zen-border)] p-2 text-left">Amount</th>
+                            <th className="border-b border-[var(--zen-border)] p-2 text-left">Handle</th>
+                            <th className="border-b border-[var(--zen-border)] p-2 text-left">Created</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paymentOrders.map((row) => (
+                            <tr key={row.id}>
+                              <td className="border-b border-[var(--zen-border)] p-2">{row.provider}</td>
+                              <td className="border-b border-[var(--zen-border)] p-2">{row.purpose}</td>
+                              <td className="border-b border-[var(--zen-border)] p-2">{row.status}</td>
+                              <td className="border-b border-[var(--zen-border)] p-2">
+                                {row.amount} {row.currency}
+                              </td>
+                              <td className="border-b border-[var(--zen-border)] p-2">
+                                {row.checkout_url ? (
+                                  <a className="underline" href={row.checkout_url} target="_blank" rel="noreferrer">
+                                    checkout
+                                  </a>
+                                ) : (
+                                  row.provider_order_id ?? row.provider_payment_id ?? '-'
+                                )}
+                              </td>
+                              <td className="border-b border-[var(--zen-border)] p-2">{new Date(row.created_at).toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {paymentOrders.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No payment orders for this account yet.</p> : null}
+                  </article>
+
+                  <article className="panel p-4">
+                    <h3 className="mt-0 text-base">Webhook Events</h3>
+                    <ul className="m-0 list-none space-y-2 p-0 text-sm">
+                      {paymentEvents.slice(0, 40).map((row) => (
+                        <li key={row.id} className="rounded-md border border-[var(--zen-border)] p-2">
+                          <strong>{row.provider}</strong> · {row.event_type}
+                          <div className="text-xs text-[var(--zen-muted)]">
+                            signature={row.signature_ok ? 'ok' : 'invalid'} · processed={row.processed_at ? 'yes' : 'no'} ·{' '}
+                            {new Date(row.received_at).toLocaleString()}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    {paymentEvents.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No payment events yet.</p> : null}
+                  </article>
+                </section>
+              ) : (
+                <section className="space-y-4">
+                  <article className="panel p-4">
+                    <h2 className="mt-0 text-lg">Subscriptions</h2>
+                    <p className="text-sm text-[var(--zen-muted)]">Assign or override subscription lifecycle for the selected billing account.</p>
+                    <div className="grid gap-2 md:grid-cols-3">
+                      <input
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2"
+                        value={subscriptionPlanName}
+                        onChange={(event) => setSubscriptionPlanName(event.target.value)}
+                        placeholder="plan_name"
+                      />
+                      <input
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2"
+                        type="number"
+                        min={0}
+                        value={subscriptionGrant}
+                        onChange={(event) => setSubscriptionGrant(event.target.value)}
+                        placeholder="monthly_credit_grant"
+                      />
+                      <input
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2"
+                        type="number"
+                        min={1}
+                        value={subscriptionCycleDays}
+                        onChange={(event) => setSubscriptionCycleDays(event.target.value)}
+                        placeholder="cycle_days"
+                      />
+                      <input
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2"
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={subscriptionPrice}
+                        onChange={(event) => setSubscriptionPrice(event.target.value)}
+                        placeholder="price_monthly"
+                      />
+                      <input
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2"
+                        value={subscriptionCurrency}
+                        onChange={(event) => setSubscriptionCurrency(event.target.value)}
+                        placeholder="currency"
+                      />
+                      <select
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2"
+                        value={subscriptionStatus}
+                        onChange={(event) => setSubscriptionStatus(event.target.value as 'active' | 'paused' | 'past_due' | 'suspended' | 'cancelled')}
+                      >
+                        <option value="active">ACTIVE</option>
+                        <option value="paused">PAUSED</option>
+                        <option value="past_due">PAST_DUE</option>
+                        <option value="suspended">SUSPENDED</option>
+                        <option value="cancelled">CANCELLED</option>
+                      </select>
+                    </div>
+                    <div className="mt-3">
+                      <Button disabled={working} onClick={() => void assignSubscription()}>
+                        Assign Plan
+                      </Button>
+                    </div>
+                  </article>
+
+                  <article className="panel p-4">
+                    <h3 className="mt-0 text-base">Account Subscriptions</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-sm">
+                        <thead>
+                          <tr>
+                            <th className="border-b border-[var(--zen-border)] p-2 text-left">Plan</th>
+                            <th className="border-b border-[var(--zen-border)] p-2 text-left">Status</th>
+                            <th className="border-b border-[var(--zen-border)] p-2 text-left">Period End</th>
+                            <th className="border-b border-[var(--zen-border)] p-2 text-left">Next Refill</th>
+                            <th className="border-b border-[var(--zen-border)] p-2 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {subscriptions.map((row) => (
+                            <tr key={row.id}>
+                              <td className="border-b border-[var(--zen-border)] p-2">
+                                {row.plan_name} · {row.monthly_credit_grant} credits/{row.cycle_days}d
+                              </td>
+                              <td className="border-b border-[var(--zen-border)] p-2">{row.status}</td>
+                              <td className="border-b border-[var(--zen-border)] p-2">
+                                {row.current_period_end ? new Date(row.current_period_end).toLocaleString() : '—'}
+                              </td>
+                              <td className="border-b border-[var(--zen-border)] p-2">
+                                {row.next_refill_at ? new Date(row.next_refill_at).toLocaleString() : '—'}
+                              </td>
+                              <td className="border-b border-[var(--zen-border)] p-2 text-right">
+                                <div className="inline-flex flex-wrap justify-end gap-2">
+                                  <Button disabled={working} onClick={() => void refillSubscriptionNow(row.id)}>
+                                    Refill
+                                  </Button>
+                                  <Button disabled={working} onClick={() => void updateSubscriptionStatus(row.id, 'active')}>
+                                    Activate
+                                  </Button>
+                                  <Button disabled={working} onClick={() => void updateSubscriptionStatus(row.id, 'past_due')}>
+                                    Past Due
+                                  </Button>
+                                  <Button disabled={working} onClick={() => void updateSubscriptionStatus(row.id, 'suspended')}>
+                                    Suspend
+                                  </Button>
+                                  <Button disabled={working} onClick={() => void updateSubscriptionStatus(row.id, 'cancelled')}>
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {subscriptions.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No subscriptions assigned for this account.</p> : null}
+                  </article>
                 </section>
               )}
             </>

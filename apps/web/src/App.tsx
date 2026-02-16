@@ -215,6 +215,13 @@ interface ServiceInvoiceSummary {
   created_at: string;
 }
 
+interface PaymentOrderHandle {
+  id: string;
+  checkout_url: string | null;
+  provider_order_id: string | null;
+  provider_payment_id: string | null;
+}
+
 const EMPTY_ANALYTICS_OVERVIEW: AnalyticsOverview = {
   assignments_total: 0,
   assignments_open: 0,
@@ -1278,6 +1285,8 @@ function ServiceInvoicesPage({ token }: { token: string }) {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [payProvider, setPayProvider] = useState<'stripe' | 'razorpay'>('razorpay');
+  const [payLinks, setPayLinks] = useState<Record<string, string>>({});
 
   const [accountIdFilter, setAccountIdFilter] = useState('');
   const [newAccountId, setNewAccountId] = useState('');
@@ -1381,6 +1390,33 @@ function ServiceInvoicesPage({ token }: { token: string }) {
     });
   };
 
+  const createPayNowLink = async (invoice: ServiceInvoiceSummary) => {
+    const amount = invoice.amount_due > 0 ? invoice.amount_due : invoice.total_amount;
+    await withReload(`Checkout created for ${invoice.invoice_number ?? invoice.id}.`, async () => {
+      const created = await apiRequest<PaymentOrderHandle>(token, '/payments/checkout-link', {
+        method: 'POST',
+        body: JSON.stringify({
+          account_id: invoice.account_id,
+          amount,
+          currency: invoice.currency,
+          purpose: 'invoice',
+          provider: payProvider,
+          ref_type: 'service_invoice',
+          ref_id: invoice.id,
+          service_invoice_id: invoice.id,
+          idempotency_key: `web:invoice_checkout:${invoice.id}:${payProvider}`
+        })
+      });
+      if (created.checkout_url) {
+        setPayLinks((current) => ({
+          ...current,
+          [invoice.id]: created.checkout_url as string
+        }));
+        window.open(created.checkout_url, '_blank', 'noopener,noreferrer');
+      }
+    });
+  };
+
   return (
     <section className="space-y-4">
       <header className="card">
@@ -1401,9 +1437,19 @@ function ServiceInvoicesPage({ token }: { token: string }) {
             value={accountIdFilter}
             onChange={(event) => setAccountIdFilter(event.target.value)}
           />
-          <Button disabled={loading || working} onClick={() => void load()}>
-            Apply Filter
-          </Button>
+          <div className="flex gap-2">
+            <select
+              className="rounded-lg border border-[var(--zen-border)] px-3 py-2"
+              value={payProvider}
+              onChange={(event) => setPayProvider(event.target.value as 'stripe' | 'razorpay')}
+            >
+              <option value="razorpay">Razorpay</option>
+              <option value="stripe">Stripe</option>
+            </select>
+            <Button disabled={loading || working} onClick={() => void load()}>
+              Apply Filter
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -1487,6 +1533,16 @@ function ServiceInvoicesPage({ token }: { token: string }) {
                       <Button disabled={working} onClick={() => void markPaid(row.id, row.amount_due)}>
                         Mark Paid
                       </Button>
+                    ) : null}
+                    {row.status !== 'PAID' && row.status !== 'VOID' ? (
+                      <Button disabled={working} onClick={() => void createPayNowLink(row)}>
+                        Pay Now
+                      </Button>
+                    ) : null}
+                    {payLinks[row.id] ? (
+                      <a className="inline-flex items-center rounded-lg border border-[var(--zen-border)] px-3 py-1 text-sm" href={payLinks[row.id]} target="_blank" rel="noreferrer">
+                        Open Link
+                      </a>
                     ) : null}
                   </div>
                 </td>
