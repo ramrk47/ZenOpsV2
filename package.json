@@ -20,6 +20,7 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "contract_check": "turbo run contract_check",
+    "docker:test": "bash ./scripts/docker-test.sh",
     "reset": "docker compose -p ${COMPOSE_PROJECT_NAME:-zenopsv2} -f infra/docker/compose.dev.yml down -v --remove-orphans && docker compose -p ${COMPOSE_PROJECT_NAME:-zenopsv2} -f infra/docker/compose.dev.yml up --build -d"
   },
   "devDependencies": {
