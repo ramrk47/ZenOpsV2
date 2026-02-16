@@ -72,19 +72,32 @@ V2 subscription tables (`subscription_plans`, `tenant_subscriptions`, `subscript
   - timeline usage event
   - subscription event row (`credits_refilled`)
   - period advancement (`current_period_start`, `current_period_end`, `next_refill_at`).
+- Lifecycle transitions:
+  - `active` -> `past_due` when period closes without payment.
+  - `past_due` -> `suspended` after grace window.
+  - `past_due|suspended` -> `active` on payment/reactivation signals.
 
 Duplicate refill attempts for the same key must be no-op.
 
-## Payment Webhook Ingestion
+## Payment Settlement Rules (Money -> Billing Truth)
+Checkout and topup creation endpoints:
+- `POST /v1/payments/checkout-link`
+- `POST /v1/payments/topup`
+
 Webhook ingress endpoints:
-- `POST /v1/webhooks/stripe`
-- `POST /v1/webhooks/razorpay`
+- `POST /v1/payments/webhooks/stripe`
+- `POST /v1/payments/webhooks/razorpay`
 
 Rules:
-- Verify signature (or allow dev bypass with `PAYMENT_WEBHOOK_DEV_BYPASS=true` in local environments only).
-- Store raw parsed payload in `subscription_events` first.
-- De-duplicate by provider event id (`provider + idempotency_key` unique).
-- Apply minimal subscription status transitions (`cancel`, `resume`/`activate`) after persistence.
+- Signature verification is mandatory in non-dev environments.
+  - Stripe uses raw-body verification with `STRIPE_WEBHOOK_SECRET`.
+  - Razorpay validates `X-Razorpay-Signature` HMAC with `RAZORPAY_WEBHOOK_SECRET`.
+- `PAYMENT_WEBHOOK_DEV_BYPASS=true` is allowed only for local/dev smoke testing.
+- Every accepted webhook is persisted in `payment_events` with `signature_ok`, `payload_hash`, provider `event_id`, and processing timestamp.
+- Duplicate webhook deliveries are deduplicated by `(provider, event_id)` and must never re-apply side effects.
+- Settlement actions:
+  - `purpose=TOPUP` + paid event -> grant credits through the same invariant-safe ledger path as manual grants.
+  - `purpose=INVOICE` + paid event -> mark invoice paid through idempotent invoice payment path.
 
 ## Real Work Triggers
 V2-native channel request flow wiring:

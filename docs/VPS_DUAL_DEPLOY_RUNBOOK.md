@@ -10,6 +10,7 @@ Run V1 and V2 on the same VPS with separate databases and independent subdomains
 - Separate Postgres volumes (never shared).
 - No cross-DB SQL reads/writes.
 - Cross-system integration only via API events and status endpoints.
+- Traefik must terminate TLS and redirect all HTTP traffic to HTTPS.
 
 ## Recommended Hostnames
 - `api.<domain>` -> V2 API
@@ -27,9 +28,15 @@ Run V1 and V2 on the same VPS with separate databases and independent subdomains
 - `DATABASE_URL_API`, `DATABASE_URL_WORKER`, `DATABASE_URL_ROOT`
 - `REDIS_URL`
 - `PAYMENT_WEBHOOK_DEV_BYPASS` (`false` in VPS/prod)
+- `STRIPE_SECRET_KEY` (checkout/session creation)
 - `STRIPE_WEBHOOK_SECRET` (when Stripe webhooks are enabled)
+- `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` (order creation)
 - `RAZORPAY_WEBHOOK_SECRET` (when Razorpay webhooks are enabled)
 - `BILLING_API_BASE_URL` (worker -> API refill call, include `/v1` or bare API host)
+- `BILLING_REFILL_LIMIT` (hourly refill scan limit, default `150`)
+- `BILLING_RECONCILE_LIMIT` (hourly reservation reconcile limit, default `250`)
+- `BILLING_RECONCILE_TIMEOUT_MINUTES` (reservation timeout window, default `90`)
+- `CREDIT_TOPUP_UNIT_PRICE` (used by `/v1/payments/topup`; default `1`)
 
 ## V1 Required Env
 - `STUDIO_BASE_URL=https://api.<domain>`
@@ -41,6 +48,14 @@ Run V1 and V2 on the same VPS with separate databases and independent subdomains
 - Use forward-only Prisma/schema updates.
 - Do not drop volumes during deploy.
 - Take DB backup before schema changes.
+
+Recommended order:
+1. Backup database and export current env file.
+2. Pull new images / git revision.
+3. Run migrations.
+4. Start API + worker first, then web/studio/portal.
+5. Verify `/v1/meta` and `/v1/health` on routed hosts.
+6. Run smoke scripts.
 
 ## Identity Checks
 Before any smoke run, verify routing target:
@@ -72,6 +87,7 @@ What it validates:
 - consume credits
 - reconcile dry-run
 - postpaid service invoice create -> issue -> mark-paid
+- (when `PAYMENT_WEBHOOK_DEV_BYPASS=true`) webhook endpoints + topup settlement flow
 
 ## DNS/Subdomain Migration Safety
 Subdomain moves do not require DB migration:
@@ -88,7 +104,8 @@ Subdomain moves do not require DB migration:
 ## Monthly Refill Operations
 1. Worker queue `billing-subscription-refill` runs hourly.
 2. Worker calls `POST /v1/billing/subscriptions/refill-due` using `x-service-token`.
-3. If worker is paused, operator can run manual refill from Studio or:
+3. Worker also calls `POST /v1/billing/credits/reconcile` in the same run for expiry/cancelled cleanup.
+4. If worker is paused, operator can run manual refill from Studio or:
 
 ```bash
 curl -sS -X POST "https://api.<domain>/v1/control/subscriptions/<subscription_id>/refill" \
