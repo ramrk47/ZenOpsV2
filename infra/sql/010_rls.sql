@@ -93,6 +93,10 @@ DECLARE
     'billing_credit_reservations',
     'billing_credit_ledger',
     'billing_usage_events',
+    'payment_customers',
+    'payment_orders',
+    'payment_events',
+    'invoice_payment_links',
     'service_invoice_sequences',
     'service_invoices',
     'service_invoice_items',
@@ -125,6 +129,10 @@ DECLARE
     'billing_credit_reservations',
     'billing_credit_ledger',
     'billing_usage_events',
+    'payment_customers',
+    'payment_orders',
+    'payment_events',
+    'invoice_payment_links',
     'service_invoice_sequences',
     'service_invoices',
     'service_invoice_items',
@@ -156,6 +164,8 @@ DECLARE
   portal_read_tables text[] := ARRAY[
     'billing_accounts',
     'billing_policies',
+    'payment_orders',
+    'invoice_payment_links',
     'service_invoices',
     'service_invoice_items',
     'service_invoice_payments',
@@ -191,6 +201,10 @@ DECLARE
     'billing_credit_reservations',
     'billing_credit_ledger',
     'billing_usage_events',
+    'payment_customers',
+    'payment_orders',
+    'payment_events',
+    'invoice_payment_links',
     'service_invoice_sequences',
     'service_invoices',
     'service_invoice_items',
@@ -224,6 +238,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS billing_credit_reservations_active_ref_idx
 CREATE UNIQUE INDEX IF NOT EXISTS billing_credit_ledger_account_idempotency_idx
   ON public.billing_credit_ledger (account_id, idempotency_key);
 
+CREATE INDEX IF NOT EXISTS billing_credit_reservations_expiry_idx
+  ON public.billing_credit_reservations (status, expires_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS payment_events_provider_event_id_idx
+  ON public.payment_events (provider, event_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS payment_orders_provider_idempotency_idx
+  ON public.payment_orders (provider, idempotency_key);
+
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'billing_credit_balances') THEN
@@ -237,6 +260,22 @@ BEGIN
         AND available_balance >= 0
         AND wallet_balance - reserved_balance = available_balance
       );
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'payment_orders') THEN
+    ALTER TABLE public.payment_orders
+      DROP CONSTRAINT IF EXISTS payment_orders_amount_positive_check;
+    ALTER TABLE public.payment_orders
+      ADD CONSTRAINT payment_orders_amount_positive_check
+      CHECK (amount > 0 AND (credits_amount IS NULL OR credits_amount >= 0));
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'invoice_payment_links') THEN
+    ALTER TABLE public.invoice_payment_links
+      DROP CONSTRAINT IF EXISTS invoice_payment_links_amount_non_negative_check;
+    ALTER TABLE public.invoice_payment_links
+      ADD CONSTRAINT invoice_payment_links_amount_non_negative_check
+      CHECK (amount >= 0);
   END IF;
 END $$;
 
