@@ -323,6 +323,7 @@ enum BillingSubscriptionStatus {
   active
   paused
   past_due
+  suspended
   cancelled
 }
 
@@ -359,4 +360,23 @@ enum ServiceInvoiceAttachmentKind {
   invoice_document
   payment_proof
   other
+}
+
+enum PaymentProvider {
+  stripe
+  razorpay
+}
+
+enum PaymentPurpose {
+  topup
+  invoice
+}
+
+enum PaymentObjectStatus {
+  pending
+  requires_action
+  paid
+  failed
+  cancelled
+  expired
 }
