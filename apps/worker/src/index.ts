@@ -211,10 +211,17 @@ void ensureRecurringOverdueJobs().catch((error) => {
 });
 
 const ensureRecurringSubscriptionRefill = async () => {
+  const refillLimit = Number.parseInt(process.env.BILLING_REFILL_LIMIT ?? '150', 10);
+  const reconcileLimit = Number.parseInt(process.env.BILLING_RECONCILE_LIMIT ?? '250', 10);
+  const reconcileTimeoutMinutes = Number.parseInt(process.env.BILLING_RECONCILE_TIMEOUT_MINUTES ?? '90', 10);
+
   await subscriptionRefillQueue.add(
     'subscription_refill_due',
     {
-      requestId: 'scheduler'
+      requestId: 'scheduler',
+      limit: Number.isFinite(refillLimit) ? refillLimit : 150,
+      reconcile_limit: Number.isFinite(reconcileLimit) ? reconcileLimit : 250,
+      timeout_minutes: Number.isFinite(reconcileTimeoutMinutes) ? reconcileTimeoutMinutes : 90
     },
     {
       jobId: 'subscription_refill_due:hourly',
