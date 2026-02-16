@@ -272,6 +272,24 @@ const document = {
     '/v1/service-invoices/{id}/payment-proof': {
       post: { summary: 'Attach payment proof to service invoice', responses: { '200': { description: 'OK' } } }
     },
+    '/v1/control/payments/orders': {
+      get: { summary: 'Control-plane payment orders list', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/control/payments/events': {
+      get: { summary: 'Control-plane payment events list', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/payments/checkout-link': {
+      post: { summary: 'Create provider checkout link/order for topup or invoice', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/payments/topup': {
+      post: { summary: 'Create pending credit topup payment order', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/payments/webhooks/stripe': {
+      post: { summary: 'Stripe payment webhook ingestion', responses: { '200': { description: 'Accepted' } } }
+    },
+    '/v1/payments/webhooks/razorpay': {
+      post: { summary: 'Razorpay payment webhook ingestion', responses: { '200': { description: 'Accepted' } } }
+    },
     '/v1/notify/test': {
       post: { summary: 'Studio-only: enqueue a test notification', responses: { '200': { description: 'Queued' } } }
     },
