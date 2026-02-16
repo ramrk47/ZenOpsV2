@@ -33,6 +33,11 @@ fi
 
 AUTH_HEADER=(-H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json")
 
+account_wallet() {
+  local account_id="$1"
+  curl -fsS "${AUTH_HEADER[@]}" "${V2_API_BASE}/control/accounts/${account_id}/status" | jq -r '.credit.wallet // 0'
+}
+
 check_identity() {
   local base="$1"
   local expected_app="$2"
@@ -72,6 +77,58 @@ ACCOUNT_ID="$(printf '%s' "${ACCOUNT_STATUS}" | jq -r '.account_id')"
 if [[ -z "${ACCOUNT_ID}" || "${ACCOUNT_ID}" == "null" ]]; then
   echo "ERROR: unable to resolve account_id from control/accounts response" >&2
   exit 1
+fi
+
+if [[ "${PAYMENT_WEBHOOK_DEV_BYPASS:-false}" == "true" ]]; then
+  echo "[smoke-vps] webhook dev-bypass payment settlement smoke"
+  BEFORE_TOPUP_WALLET="$(account_wallet "${ACCOUNT_ID}")"
+  TOPUP_KEY="vps-smoke-topup-${SUFFIX}"
+  TOPUP_ORDER="$(curl -fsS "${AUTH_HEADER[@]}" -X POST "${V2_API_BASE}/payments/topup" -d "$(jq -n --arg account_id "${ACCOUNT_ID}" --arg key "${TOPUP_KEY}" '{account_id:$account_id, credits_amount:2, provider:"razorpay", idempotency_key:$key}')")"
+  PAYMENT_ORDER_ID="$(printf '%s' "${TOPUP_ORDER}" | jq -r '.id')"
+  PROVIDER_ORDER_ID="$(printf '%s' "${TOPUP_ORDER}" | jq -r '.provider_order_id')"
+  if [[ -z "${PAYMENT_ORDER_ID}" || "${PAYMENT_ORDER_ID}" == "null" ]]; then
+    echo "ERROR: unable to create topup payment order" >&2
+    exit 1
+  fi
+
+  RAZORPAY_WEBHOOK_PAYLOAD="$(jq -n \
+    --arg event_id "evt-vps-topup-${SUFFIX}" \
+    --arg payment_order_id "${PAYMENT_ORDER_ID}" \
+    --arg provider_order_id "${PROVIDER_ORDER_ID}" \
+    --arg idem "${TOPUP_KEY}" \
+    '{
+      event_id: $event_id,
+      event: "payment.captured",
+      payload: {
+        payment: {
+          entity: {
+            id: ("pay_" + $event_id),
+            order_id: $provider_order_id,
+            notes: {
+              payment_order_id: $payment_order_id,
+              idempotency_key: $idem
+            }
+          }
+        }
+      }
+    }'
+  )"
+  curl -fsS -X POST "${V2_API_BASE}/payments/webhooks/razorpay" \
+    -H "Content-Type: application/json" \
+    -d "${RAZORPAY_WEBHOOK_PAYLOAD}" >/dev/null
+  curl -fsS -X POST "${V2_API_BASE}/payments/webhooks/stripe" \
+    -H "Content-Type: application/json" \
+    -d '{"id":"evt-vps-stripe-dev","type":"checkout.session.completed","data":{"object":{"id":"cs_test_dev"}}}' >/dev/null
+  AFTER_TOPUP_WALLET="$(account_wallet "${ACCOUNT_ID}")"
+  EXPECTED_MIN="$(awk "BEGIN {print ${BEFORE_TOPUP_WALLET}+2}")"
+  if awk "BEGIN {exit !(${AFTER_TOPUP_WALLET} >= ${EXPECTED_MIN})}"; then
+    :
+  else
+    echo "ERROR: topup settlement not reflected in wallet (before=${BEFORE_TOPUP_WALLET}, after=${AFTER_TOPUP_WALLET})" >&2
+    exit 1
+  fi
+else
+  echo "[smoke-vps] PAYMENT_WEBHOOK_DEV_BYPASS not enabled; skipping webhook settlement simulation"
 fi
 
 echo "[smoke-vps] grant credits + enable CREDIT mode"

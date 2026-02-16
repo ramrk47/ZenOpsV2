@@ -26,6 +26,11 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.middlewares.zenops-basic-auth.basicauth.users=${BASIC_AUTH_USERS}
+      - traefik.http.middlewares.zenops-https-redirect.redirectscheme.scheme=https
+      - traefik.http.middlewares.zenops-https-redirect.redirectscheme.permanent=true
+      - traefik.http.routers.zenops-http-catchall.rule=HostRegexp(`{host:.+}`)
+      - traefik.http.routers.zenops-http-catchall.entrypoints=web
+      - traefik.http.routers.zenops-http-catchall.middlewares=zenops-https-redirect
       - traefik.http.routers.traefik.rule=Host(`${TRAEFIK_DASHBOARD_HOST}`)
       - traefik.http.routers.traefik.entrypoints=websecure
       - traefik.http.routers.traefik.tls.certresolver=le
@@ -117,7 +122,7 @@ services:
       - traefik.http.routers.api-docs.priority=120
       - traefik.http.routers.api-docs.service=api
 
-      - traefik.http.routers.api-webhooks.rule=Host(`${API_HOST}`) && PathPrefix(`/v1/webhooks`)
+      - traefik.http.routers.api-webhooks.rule=Host(`${API_HOST}`) && (PathPrefix(`/v1/webhooks`) || PathPrefix(`/v1/payments/webhooks`))
       - traefik.http.routers.api-webhooks.entrypoints=websecure
       - traefik.http.routers.api-webhooks.tls.certresolver=le
       - traefik.http.routers.api-webhooks.middlewares=${WEBHOOKS_EDGE_MIDDLEWARES:-zenops-basic-auth}
