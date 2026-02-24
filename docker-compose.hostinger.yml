@@ -1,0 +1,223 @@
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-zenops}
+      POSTGRES_USER: ${POSTGRES_USER:-zenops}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zenops} -d ${POSTGRES_DB:-zenops}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+    logging: *default-logging
+
+  uploads-perms:
+    image: alpine:3.19
+    command: ["sh", "-c", "chown -R 100:101 /uploads"]
+    user: "0:0"
+    restart: "no"
+    volumes:
+      - uploads:/uploads
+    networks:
+      - internal
+    logging: *default-logging
+
+  migrate:
+    image: ${ZENOPS_API_IMAGE:-zenops-api:latest}
+    build:
+      context: ./backend
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    env_file:
+      - .env.backend
+    environment:
+      DB_WAIT_TIMEOUT: "90"
+      DB_WAIT_INTERVAL: "2"
+      UPLOADS_DIR: /tmp/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+    logging: *default-logging
+
+  api:
+    image: ${ZENOPS_API_IMAGE:-zenops-api:latest}
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - .env.backend
+    environment:
+      DB_WAIT_TIMEOUT: "90"
+      DB_WAIT_INTERVAL: "2"
+      UPLOADS_DIR: /app/uploads
+      BACKUP_DIR: /backups
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      uploads-perms:
+        condition: service_completed_successfully
+    volumes:
+      - uploads:/app/uploads
+      - ${BACKUP_HOST_PATH:-./deploy/backups}:/backups
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/readyz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - internal
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-proxy"
+      - "traefik.http.routers.zenops-api.rule=Host(`${ZENOPS_DOMAIN:-zenops.example.com}`) && (PathPrefix(`/api`) || Path(`/readyz`) || Path(`/healthz`) || Path(`/healthz/deps`) || Path(`/metrics`) || Path(`/docs`) || Path(`/openapi.json`))"
+      - "traefik.http.routers.zenops-api.entrypoints=websecure"
+      - "traefik.http.routers.zenops-api.tls=true"
+      - "traefik.http.routers.zenops-api.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      - "traefik.http.routers.zenops-api.priority=100"
+      - "traefik.http.services.zenops-api.loadbalancer.server.port=8000"
+    logging: *default-logging
+
+  email-worker:
+    image: ${ZENOPS_API_IMAGE:-zenops-api:latest}
+    build:
+      context: ./backend
+    restart: unless-stopped
+    command: ["python", "-m", "app.scripts.notification_worker", "--interval", "30"]
+    env_file:
+      - .env.backend
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      uploads-perms:
+        condition: service_completed_successfully
+    volumes:
+      - uploads:/app/uploads
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import os; os.kill(1, 0)' || exit 1"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging: *default-logging
+
+  frontend:
+    image: ${ZENOPS_FRONTEND_IMAGE:-zenops-frontend:latest}
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - internal
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-proxy"
+      - "traefik.http.routers.zenops-web.rule=Host(`${ZENOPS_DOMAIN:-zenops.example.com}`)"
+      - "traefik.http.routers.zenops-web.entrypoints=websecure"
+      - "traefik.http.routers.zenops-web.tls=true"
+      - "traefik.http.routers.zenops-web.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      - "traefik.http.routers.zenops-web.priority=10"
+      - "traefik.http.services.zenops-web.loadbalancer.server.port=80"
+    logging: *default-logging
+
+  backup:
+    image: ${ZENOPS_BACKUP_IMAGE:-zenops-backup:latest}
+    build:
+      context: .
+      dockerfile: deploy/backup/Dockerfile
+    profiles: ["backup"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER:-zenops}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-change_me}
+      PGDATABASE: ${POSTGRES_DB:-zenops}
+      APP_NAME: ${BACKUP_APP_NAME:-zenops}
+      BACKUP_DIR: /backups
+      BACKUP_TIER_DIR: /backups/tiers
+      UPLOADS_DIR: /uploads
+      RETAIN_LOCAL_DAYS: ${RETAIN_LOCAL_DAYS:-21}
+      RETAIN_REMOTE_DAYS: ${RETAIN_REMOTE_DAYS:-30}
+      RCLONE_REMOTE: ${RCLONE_REMOTE:-}
+      RCLONE_UPLOAD_MODE: ${RCLONE_UPLOAD_MODE:-tiers}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
+      DAILY_SLOTS: ${DAILY_SLOTS:-2}
+      WEEKLY_DAY: ${WEEKLY_DAY:-1}
+      FORTNIGHT_DAYS: ${FORTNIGHT_DAYS:-1,15}
+      MONTHLY_DAY: ${MONTHLY_DAY:-1}
+      ASSIGNMENT_ARCHIVE_MODE: ${ASSIGNMENT_ARCHIVE_MODE:-all}
+      ASSIGNMENT_ARCHIVE_DIR: /backups/assignment_archives
+      STRUCTURED_UPLOADS_MODE: ${STRUCTURED_UPLOADS_MODE:-on}
+      STRUCTURED_UPLOADS_ROOT: ${STRUCTURED_UPLOADS_ROOT:-valuations}
+      STRUCTURED_UPLOADS_DIR: /backups/structured_uploads
+      RCLONE_CONFIG: /config/rclone/rclone.conf
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-zenops}:${POSTGRES_PASSWORD:-change_me}@db:5432/${POSTGRES_DB:-zenops}
+    volumes:
+      - ${BACKUP_HOST_PATH:-./deploy/backups}:/backups
+      - uploads:/uploads:ro
+      - ${RCLONE_SECRETS_DIR:-/opt/zenops/secrets}:/config/rclone:ro
+    networks:
+      - internal
+    logging: *default-logging
+
+  rclone:
+    image: rclone/rclone:latest
+    profiles: ["backup"]
+    entrypoint: ["rclone"]
+    volumes:
+      - ${RCLONE_SECRETS_DIR:-/opt/zenops/secrets}:/config/rclone:ro
+      - ${BACKUP_HOST_PATH:-./deploy/backups}:/data
+    networks:
+      - internal
+    logging: *default-logging
+
+volumes:
+  postgres_data:
+  uploads:
+
+networks:
+  internal:
+    driver: bridge
+  traefik-proxy:
+    external: true

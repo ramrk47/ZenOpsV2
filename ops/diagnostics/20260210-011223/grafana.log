@@ -1,0 +1,208 @@
+grafana-1  | logger=settings t=2026-02-09T18:30:39.979541968Z level=info msg="Starting Grafana" version=10.3.3 commit=252761264e22ece57204b327f9130d3b44592c01 branch=HEAD compiled=2026-02-09T18:30:39Z
+grafana-1  | logger=settings t=2026-02-09T18:30:39.979976134Z level=info msg="Config loaded from" file=/usr/share/grafana/conf/defaults.ini
+grafana-1  | logger=settings t=2026-02-09T18:30:39.979996634Z level=info msg="Config loaded from" file=/etc/grafana/grafana.ini
+grafana-1  | logger=settings t=2026-02-09T18:30:39.979998884Z level=info msg="Config overridden from command line" arg="default.paths.data=/var/lib/grafana"
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980000968Z level=info msg="Config overridden from command line" arg="default.paths.logs=/var/log/grafana"
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980002551Z level=info msg="Config overridden from command line" arg="default.paths.plugins=/var/lib/grafana/plugins"
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980004009Z level=info msg="Config overridden from command line" arg="default.paths.provisioning=/etc/grafana/provisioning"
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980005468Z level=info msg="Config overridden from command line" arg="default.log.mode=console"
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980007134Z level=info msg="Config overridden from Environment variable" var="GF_PATHS_DATA=/var/lib/grafana"
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980009259Z level=info msg="Config overridden from Environment variable" var="GF_PATHS_LOGS=/var/log/grafana"
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980010718Z level=info msg="Config overridden from Environment variable" var="GF_PATHS_PLUGINS=/var/lib/grafana/plugins"
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980012509Z level=info msg="Config overridden from Environment variable" var="GF_PATHS_PROVISIONING=/etc/grafana/provisioning"
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980014051Z level=info msg="Config overridden from Environment variable" var="GF_SERVER_ROOT_URL=http://localhost:3000"
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980015676Z level=info msg="Config overridden from Environment variable" var="GF_SECURITY_ADMIN_USER=admin"
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980017176Z level=info msg="Config overridden from Environment variable" var="GF_SECURITY_ADMIN_PASSWORD=*********"
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980018634Z level=info msg="Config overridden from Environment variable" var="GF_USERS_ALLOW_SIGN_UP=false"
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980020093Z level=info msg="Config overridden from Environment variable" var="GF_FEATURE_TOGGLES_ENABLE=traceqlEditor"
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980022176Z level=info msg=Target target=[all]
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980033759Z level=info msg="Path Home" path=/usr/share/grafana
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980035676Z level=info msg="Path Data" path=/var/lib/grafana
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980055801Z level=info msg="Path Logs" path=/var/log/grafana
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980063301Z level=info msg="Path Plugins" path=/var/lib/grafana/plugins
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980064884Z level=info msg="Path Provisioning" path=/etc/grafana/provisioning
+grafana-1  | logger=settings t=2026-02-09T18:30:39.980066426Z level=info msg="App mode production"
+grafana-1  | logger=sqlstore t=2026-02-09T18:30:39.980330509Z level=info msg="Connecting to DB" dbtype=sqlite3
+grafana-1  | logger=migrator t=2026-02-09T18:30:39.980948468Z level=info msg="Starting DB migrations"
+grafana-1  | logger=migrator t=2026-02-09T18:30:39.993316551Z level=info msg="migrations completed" performed=0 skipped=526 duration=332.666µs
+grafana-1  | logger=secrets t=2026-02-09T18:30:39.994378134Z level=info msg="Envelope encryption state" enabled=true currentprovider=secretKey.v1
+grafana-1  | logger=plugin.store t=2026-02-09T18:30:40.004228176Z level=info msg="Loading plugins..."
+grafana-1  | logger=local.finder t=2026-02-09T18:30:40.065694426Z level=warn msg="Skipping finding plugins as directory does not exist" path=/usr/share/grafana/plugins-bundled
+grafana-1  | logger=plugin.store t=2026-02-09T18:30:40.065759009Z level=info msg="Plugins loaded" count=55 duration=61.5315ms
+grafana-1  | logger=query_data t=2026-02-09T18:30:40.071182301Z level=info msg="Query Service initialization"
+grafana-1  | logger=live.push_http t=2026-02-09T18:30:40.081371551Z level=info msg="Live Push Gateway initialization"
+grafana-1  | logger=ngalert.migration t=2026-02-09T18:30:40.085483009Z level=info msg=Starting
+grafana-1  | logger=ngalert.migration CurrentType=UnifiedAlerting DesiredType=UnifiedAlerting CleanOnDowngrade=false CleanOnUpgrade=false t=2026-02-09T18:30:40.085891884Z level=info msg="Migration already complete"
+grafana-1  | logger=infra.usagestats.collector t=2026-02-09T18:30:40.095769634Z level=info msg="registering usage stat providers" usageStatsProvidersLen=2
+grafana-1  | logger=provisioning.plugins t=2026-02-09T18:30:40.141381926Z level=error msg="Failed to read plugin provisioning files from directory" path=/etc/grafana/provisioning/plugins error="open /etc/grafana/provisioning/plugins: no such file or directory"
+grafana-1  | logger=provisioning.notifiers t=2026-02-09T18:30:40.141452009Z level=error msg="Can't read alert notification provisioning files from directory" path=/etc/grafana/provisioning/notifiers error="open /etc/grafana/provisioning/notifiers: no such file or directory"
+grafana-1  | logger=provisioning.alerting t=2026-02-09T18:30:40.141530676Z level=error msg="can't read alerting provisioning files from directory" path=/etc/grafana/provisioning/alerting error="open /etc/grafana/provisioning/alerting: no such file or directory"
+grafana-1  | logger=provisioning.alerting t=2026-02-09T18:30:40.141541051Z level=info msg="starting to provision alerting"
+grafana-1  | logger=provisioning.alerting t=2026-02-09T18:30:40.141550343Z level=info msg="finished to provision alerting"
+grafana-1  | logger=grafanaStorageLogger t=2026-02-09T18:30:40.141686926Z level=info msg="Storage starting"
+grafana-1  | logger=ngalert.state.manager t=2026-02-09T18:30:40.141626384Z level=info msg="Warming state cache for startup"
+grafana-1  | logger=ngalert.multiorg.alertmanager t=2026-02-09T18:30:40.141756134Z level=info msg="Starting MultiOrg Alertmanager"
+grafana-1  | logger=ngalert.state.manager t=2026-02-09T18:30:40.141876426Z level=info msg="State cache has been initialized" states=0 duration=248.917µs
+grafana-1  | logger=ngalert.scheduler t=2026-02-09T18:30:40.141909634Z level=info msg="Starting scheduler" tickInterval=10s
+grafana-1  | logger=ticker t=2026-02-09T18:30:40.141964676Z level=info msg=starting first_tick=2026-02-09T18:30:50Z
+grafana-1  | logger=http.server t=2026-02-09T18:30:40.143296009Z level=info msg="HTTP Server Listen" address=[::]:3000 protocol=http subUrl= socket=
+grafana-1  | logger=grafana-apiserver t=2026-02-09T18:30:40.144888593Z level=info msg="Authentication is disabled"
+grafana-1  | logger=grafana-apiserver t=2026-02-09T18:30:40.147803176Z level=info msg="Adding GroupVersion playlist.grafana.app v0alpha1 to ResourceManager"
+grafana-1  | logger=plugins.update.checker t=2026-02-09T18:30:40.501634176Z level=info msg="Update check succeeded" duration=359.299792ms
+grafana-1  | logger=grafana.update.checker t=2026-02-09T18:30:40.510408593Z level=info msg="Update check succeeded" duration=368.454667ms
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:31:01.33074938Z level=info msg="Request Completed" method=GET path=/ status=302 remote_addr=192.168.65.1 time_ms=1 duration=1.1265ms size=29 referer= handler=/
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T18:31:39.690481676Z level=info msg="Request Completed" method=GET path=/api/live/ws status=-1 remote_addr=192.168.65.1 time_ms=2 duration=2.90975ms size=0 referer= handler=/api/live/ws
+grafana-1  | logger=infra.usagestats t=2026-02-09T18:32:07.183824925Z level=info msg="Usage stats are ready to report"
+grafana-1  | logger=authn.service t=2026-02-09T18:35:43.035616344Z level=info msg="Failed to authenticate request" client=auth.client.basic error="[password-auth.failed] failed to authenticate identity: [password-auth.invalid] invalid password"
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:35:43.036377719Z level=info msg= error="[password-auth.failed] failed to authenticate identity: [password-auth.invalid] invalid password" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:35:43.036704219Z level=info msg="Request Completed" method=GET path=/api/search status=401 remote_addr=192.168.65.1 time_ms=13 duration=13.978833ms size=121 referer= handler=/api/search/
+grafana-1  | logger=authn.service t=2026-02-09T18:35:43.040935594Z level=info msg="Failed to authenticate request" client=auth.client.basic error="[password-auth.failed] failed to authenticate identity: [password-auth.invalid] invalid password"
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:35:43.041024344Z level=info msg= error="[password-auth.failed] failed to authenticate identity: [password-auth.invalid] invalid password" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:35:43.041110302Z level=info msg="Request Completed" method=GET path=/api/datasources status=401 remote_addr=192.168.65.1 time_ms=18 duration=18.498084ms size=121 referer= handler=/api/datasources/
+grafana-1  | logger=authn.service t=2026-02-09T18:35:51.659665084Z level=info msg="Failed to authenticate request" client=auth.client.basic error="[password-auth.failed] failed to authenticate identity: [password-auth.invalid] invalid password"
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:35:51.659739459Z level=info msg= error="[password-auth.failed] failed to authenticate identity: [password-auth.invalid] invalid password" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:35:51.659816376Z level=info msg="Request Completed" method=GET path=/api/datasources status=401 remote_addr=192.168.65.1 time_ms=10 duration=10.80325ms size=121 referer= handler=/api/datasources/
+grafana-1  | logger=authn.service t=2026-02-09T18:35:51.677389834Z level=info msg="Failed to authenticate request" client=auth.client.basic error="[password-auth.failed] failed to authenticate identity: [password-auth.invalid] invalid password"
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:35:51.677472167Z level=info msg= error="[password-auth.failed] failed to authenticate identity: [password-auth.invalid] invalid password" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:35:51.677564376Z level=info msg="Request Completed" method=GET path=/api/search status=401 remote_addr=192.168.65.1 time_ms=9 duration=9.338458ms size=121 referer= handler=/api/search/
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T18:38:07.545185466Z level=info msg="Request Completed" method=GET path=/api/live/ws status=-1 remote_addr=192.168.65.1 time_ms=2 duration=2.502791ms size=0 referer= handler=/api/live/ws
+grafana-1  | logger=http.server t=2026-02-09T18:38:17.118071554Z level=info msg="Successful Logout" userID=1
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T18:38:17.119423346Z level=info msg="Request Completed" method=GET path=/logout status=302 remote_addr=192.168.65.1 time_ms=17 duration=17.954458ms size=29 referer=http://localhost:3000/connections/datasources/edit/a2216af5-8348-408e-b0a5-cd2cf180efbe handler=/logout
+grafana-1  | logger=authn.service t=2026-02-09T18:38:23.223817043Z level=info msg="Failed to authenticate request" client=auth.client.form error="[password-auth.failed] failed to authenticate identity: [password-auth.invalid] invalid password"
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:38:23.22415971Z level=info msg=Unauthorized error="[password-auth.failed] failed to authenticate identity: [password-auth.invalid] invalid password" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:38:23.224307251Z level=info msg="Request Completed" method=POST path=/login status=401 remote_addr=192.168.65.1 time_ms=18 duration=18.577292ms size=107 referer=http://localhost:3000/login handler=/login
+grafana-1  | logger=authn.service t=2026-02-09T18:38:28.975651754Z level=info msg="Failed to authenticate request" client=auth.client.form error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked"
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:38:28.978187087Z level=info msg=Unauthorized error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:38:28.978744254Z level=info msg="Request Completed" method=POST path=/login status=401 remote_addr=192.168.65.1 time_ms=7 duration=7.356958ms size=107 referer=http://localhost:3000/login handler=/login
+grafana-1  | logger=authn.service t=2026-02-09T18:38:35.062862715Z level=info msg="Failed to authenticate request" client=auth.client.form error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked"
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:38:35.063119924Z level=info msg=Unauthorized error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:38:35.063261049Z level=info msg="Request Completed" method=POST path=/login status=401 remote_addr=192.168.65.1 time_ms=2 duration=2.710375ms size=107 referer=http://localhost:3000/login handler=/login
+grafana-1  | logger=authn.service t=2026-02-09T18:38:36.068943924Z level=info msg="Failed to authenticate request" client=auth.client.form error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked"
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:38:36.069150507Z level=info msg=Unauthorized error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:38:36.069323549Z level=info msg="Request Completed" method=POST path=/login status=401 remote_addr=192.168.65.1 time_ms=1 duration=1.777792ms size=107 referer=http://localhost:3000/login handler=/login
+grafana-1  | logger=authn.service t=2026-02-09T18:38:47.595128721Z level=info msg="Failed to authenticate request" client=auth.client.form error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked"
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:38:47.595934471Z level=info msg=Unauthorized error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:38:47.596197263Z level=info msg="Request Completed" method=POST path=/login status=401 remote_addr=192.168.65.1 time_ms=9 duration=9.446ms size=107 referer=http://localhost:3000/login handler=/login
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:39:05.12920834Z level=info msg="Request Completed" method=GET path=/ status=302 remote_addr=192.168.65.1 time_ms=1 duration=1.183875ms size=29 referer= handler=/
+grafana-1  | logger=authn.service t=2026-02-09T18:39:08.911148384Z level=info msg="Failed to authenticate request" client=auth.client.form error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked"
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:39:08.911510259Z level=info msg=Unauthorized error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:39:08.911652342Z level=info msg="Request Completed" method=POST path=/login status=401 remote_addr=192.168.65.1 time_ms=5 duration=5.786625ms size=107 referer=http://localhost:3000/login handler=/login
+grafana-1  | logger=authn.service t=2026-02-09T18:39:15.188573262Z level=info msg="Failed to authenticate request" client=auth.client.form error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked"
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:39:15.189322428Z level=info msg=Unauthorized error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:39:15.189521012Z level=info msg="Request Completed" method=POST path=/login status=401 remote_addr=192.168.65.1 time_ms=5 duration=5.895ms size=107 referer=http://localhost:3000/login handler=/login
+grafana-1  | logger=authn.service t=2026-02-09T18:39:16.414342304Z level=info msg="Failed to authenticate request" client=auth.client.form error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked"
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:39:16.414597596Z level=info msg=Unauthorized error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:39:16.414726762Z level=info msg="Request Completed" method=POST path=/login status=401 remote_addr=192.168.65.1 time_ms=3 duration=3.458792ms size=107 referer=http://localhost:3000/login handler=/login
+grafana-1  | logger=authn.service t=2026-02-09T18:39:16.872198096Z level=info msg="Failed to authenticate request" client=auth.client.form error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked"
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:39:16.872349013Z level=info msg=Unauthorized error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:39:16.872393596Z level=info msg="Request Completed" method=POST path=/login status=401 remote_addr=192.168.65.1 time_ms=1 duration=1.546875ms size=107 referer=http://localhost:3000/login handler=/login
+grafana-1  | logger=authn.service t=2026-02-09T18:39:16.999182804Z level=info msg="Failed to authenticate request" client=auth.client.form error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked"
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:39:16.999339763Z level=info msg=Unauthorized error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:39:16.999444388Z level=info msg="Request Completed" method=POST path=/login status=401 remote_addr=192.168.65.1 time_ms=1 duration=1.63075ms size=107 referer=http://localhost:3000/login handler=/login
+grafana-1  | logger=authn.service t=2026-02-09T18:39:17.186706929Z level=info msg="Failed to authenticate request" client=auth.client.form error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked"
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:39:17.186866096Z level=info msg=Unauthorized error="[password-auth.failed] too many consecutive incorrect login attempts for user - login for user temporarily blocked" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T18:39:17.186926429Z level=info msg="Request Completed" method=POST path=/login status=401 remote_addr=192.168.65.1 time_ms=1 duration=1.562541ms size=107 referer=http://localhost:3000/login handler=/login
+grafana-1  | logger=server t=2026-02-09T18:39:49.592733583Z level=info msg="Shutdown started" reason="System signal: terminated"
+grafana-1  | logger=tracing t=2026-02-09T18:39:49.593457458Z level=info msg="Closing tracing"
+grafana-1  | logger=ticker t=2026-02-09T18:39:49.593464916Z level=info msg=stopped last_tick=2026-02-09T18:39:40Z
+grafana-1  | logger=settings t=2026-02-09T18:39:50.052701583Z level=info msg="Starting Grafana" version=10.3.3 commit=252761264e22ece57204b327f9130d3b44592c01 branch=HEAD compiled=2026-02-09T18:39:50Z
+grafana-1  | logger=settings t=2026-02-09T18:39:50.052982916Z level=info msg="Config loaded from" file=/usr/share/grafana/conf/defaults.ini
+grafana-1  | logger=settings t=2026-02-09T18:39:50.052996041Z level=info msg="Config loaded from" file=/etc/grafana/grafana.ini
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053021666Z level=info msg="Config overridden from command line" arg="default.paths.data=/var/lib/grafana"
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053023791Z level=info msg="Config overridden from command line" arg="default.paths.logs=/var/log/grafana"
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053025291Z level=info msg="Config overridden from command line" arg="default.paths.plugins=/var/lib/grafana/plugins"
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053026791Z level=info msg="Config overridden from command line" arg="default.paths.provisioning=/etc/grafana/provisioning"
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053028416Z level=info msg="Config overridden from command line" arg="default.log.mode=console"
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053030083Z level=info msg="Config overridden from Environment variable" var="GF_PATHS_DATA=/var/lib/grafana"
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053031791Z level=info msg="Config overridden from Environment variable" var="GF_PATHS_LOGS=/var/log/grafana"
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053033166Z level=info msg="Config overridden from Environment variable" var="GF_PATHS_PLUGINS=/var/lib/grafana/plugins"
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053034583Z level=info msg="Config overridden from Environment variable" var="GF_PATHS_PROVISIONING=/etc/grafana/provisioning"
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053049791Z level=info msg="Config overridden from Environment variable" var="GF_SERVER_ROOT_URL=http://localhost:3000"
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053055125Z level=info msg="Config overridden from Environment variable" var="GF_SECURITY_ADMIN_USER=admin"
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053056583Z level=info msg="Config overridden from Environment variable" var="GF_SECURITY_ADMIN_PASSWORD=*********"
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053058Z level=info msg="Config overridden from Environment variable" var="GF_USERS_ALLOW_SIGN_UP=false"
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053059458Z level=info msg="Config overridden from Environment variable" var="GF_FEATURE_TOGGLES_ENABLE=traceqlEditor"
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053061083Z level=info msg=Target target=[all]
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053075541Z level=info msg="Path Home" path=/usr/share/grafana
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053078583Z level=info msg="Path Data" path=/var/lib/grafana
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053080125Z level=info msg="Path Logs" path=/var/log/grafana
+grafana-1  | logger=settings t=2026-02-09T18:39:50.0530815Z level=info msg="Path Plugins" path=/var/lib/grafana/plugins
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053083041Z level=info msg="Path Provisioning" path=/etc/grafana/provisioning
+grafana-1  | logger=settings t=2026-02-09T18:39:50.053084666Z level=info msg="App mode production"
+grafana-1  | logger=sqlstore t=2026-02-09T18:39:50.053435208Z level=info msg="Connecting to DB" dbtype=sqlite3
+grafana-1  | logger=migrator t=2026-02-09T18:39:50.054431541Z level=info msg="Starting DB migrations"
+grafana-1  | logger=migrator t=2026-02-09T18:39:50.071542625Z level=info msg="migrations completed" performed=0 skipped=526 duration=351.916µs
+grafana-1  | logger=secrets t=2026-02-09T18:39:50.0727405Z level=info msg="Envelope encryption state" enabled=true currentprovider=secretKey.v1
+grafana-1  | logger=plugin.store t=2026-02-09T18:39:50.086759291Z level=info msg="Loading plugins..."
+grafana-1  | logger=local.finder t=2026-02-09T18:39:50.141743375Z level=warn msg="Skipping finding plugins as directory does not exist" path=/usr/share/grafana/plugins-bundled
+grafana-1  | logger=plugin.store t=2026-02-09T18:39:50.141842875Z level=info msg="Plugins loaded" count=55 duration=55.084084ms
+grafana-1  | logger=query_data t=2026-02-09T18:39:50.144804792Z level=info msg="Query Service initialization"
+grafana-1  | logger=live.push_http t=2026-02-09T18:39:50.149706625Z level=info msg="Live Push Gateway initialization"
+grafana-1  | logger=ngalert.migration t=2026-02-09T18:39:50.153310167Z level=info msg=Starting
+grafana-1  | logger=ngalert.migration CurrentType=UnifiedAlerting DesiredType=UnifiedAlerting CleanOnDowngrade=false CleanOnUpgrade=false t=2026-02-09T18:39:50.15376Z level=info msg="Migration already complete"
+grafana-1  | logger=infra.usagestats.collector t=2026-02-09T18:39:50.164886083Z level=info msg="registering usage stat providers" usageStatsProvidersLen=2
+grafana-1  | logger=provisioning.plugins t=2026-02-09T18:39:50.201851875Z level=error msg="Failed to read plugin provisioning files from directory" path=/etc/grafana/provisioning/plugins error="open /etc/grafana/provisioning/plugins: no such file or directory"
+grafana-1  | logger=provisioning.notifiers t=2026-02-09T18:39:50.201993958Z level=error msg="Can't read alert notification provisioning files from directory" path=/etc/grafana/provisioning/notifiers error="open /etc/grafana/provisioning/notifiers: no such file or directory"
+grafana-1  | logger=provisioning.alerting t=2026-02-09T18:39:50.202088542Z level=error msg="can't read alerting provisioning files from directory" path=/etc/grafana/provisioning/alerting error="open /etc/grafana/provisioning/alerting: no such file or directory"
+grafana-1  | logger=provisioning.alerting t=2026-02-09T18:39:50.202099Z level=info msg="starting to provision alerting"
+grafana-1  | logger=provisioning.alerting t=2026-02-09T18:39:50.20210525Z level=info msg="finished to provision alerting"
+grafana-1  | logger=grafanaStorageLogger t=2026-02-09T18:39:50.2024655Z level=info msg="Storage starting"
+grafana-1  | logger=ngalert.state.manager t=2026-02-09T18:39:50.202599458Z level=info msg="Warming state cache for startup"
+grafana-1  | logger=ngalert.multiorg.alertmanager t=2026-02-09T18:39:50.202747708Z level=info msg="Starting MultiOrg Alertmanager"
+grafana-1  | logger=http.server t=2026-02-09T18:39:50.204273292Z level=info msg="HTTP Server Listen" address=[::]:3000 protocol=http subUrl= socket=
+grafana-1  | logger=grafana-apiserver t=2026-02-09T18:39:50.206681292Z level=info msg="Authentication is disabled"
+grafana-1  | logger=grafana-apiserver t=2026-02-09T18:39:50.2104045Z level=info msg="Adding GroupVersion playlist.grafana.app v0alpha1 to ResourceManager"
+grafana-1  | logger=ngalert.state.manager t=2026-02-09T18:39:50.238477125Z level=info msg="State cache has been initialized" states=0 duration=35.875291ms
+grafana-1  | logger=ngalert.scheduler t=2026-02-09T18:39:50.238558708Z level=info msg="Starting scheduler" tickInterval=10s
+grafana-1  | logger=ticker t=2026-02-09T18:39:50.23860675Z level=info msg=starting first_tick=2026-02-09T18:40:00Z
+grafana-1  | logger=grafana.update.checker t=2026-02-09T18:39:50.704189Z level=info msg="Update check succeeded" duration=501.413625ms
+grafana-1  | logger=plugins.update.checker t=2026-02-09T18:39:50.706943125Z level=info msg="Update check succeeded" duration=504.336875ms
+grafana-1  | logger=infra.usagestats t=2026-02-09T18:40:27.219297295Z level=info msg="Usage stats are ready to report"
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T18:45:06.108295424Z level=info msg="Request Completed" method=GET path=/api/live/ws status=-1 remote_addr=192.168.65.1 time_ms=11 duration=11.99225ms size=0 referer= handler=/api/live/ws
+grafana-1  | logger=live t=2026-02-09T18:45:43.331526969Z level=info msg="Initialized channel handler" channel=grafana/dashboard/uid/zenops-containers address=grafana/dashboard/uid/zenops-containers
+grafana-1  | logger=sqlstore.transactions t=2026-02-09T18:49:50.228678291Z level=info msg="Database locked, sleeping then retrying" error="database is locked" retry=0 code="database is locked"
+grafana-1  | logger=cleanup t=2026-02-09T18:49:50.251852458Z level=info msg="Completed cleanup jobs" duration=42.202084ms
+grafana-1  | logger=plugins.update.checker t=2026-02-09T18:49:51.071419167Z level=info msg="Update check succeeded" duration=357.097417ms
+grafana-1  | logger=grafana.update.checker t=2026-02-09T18:49:51.084696584Z level=info msg="Update check succeeded" duration=373.426084ms
+grafana-1  | logger=live t=2026-02-09T18:56:26.285745419Z level=info msg="Initialized channel handler" channel=grafana/dashboard/uid/zenops-api address=grafana/dashboard/uid/zenops-api
+grafana-1  | logger=cleanup t=2026-02-09T18:59:50.239384166Z level=info msg="Completed cleanup jobs" duration=26.892292ms
+grafana-1  | logger=plugins.update.checker t=2026-02-09T18:59:51.063988Z level=info msg="Update check succeeded" duration=351.290667ms
+grafana-1  | logger=grafana.update.checker t=2026-02-09T18:59:51.092237875Z level=info msg="Update check succeeded" duration=380.358167ms
+grafana-1  | logger=authn.service t=2026-02-09T19:00:05.119435965Z level=warn msg="Failed to authenticate request" client=auth.client.session error="context canceled"
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T19:00:05.119796215Z level=warn msg=Unauthorized error="context canceled" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=0 orgId=0 uname= t=2026-02-09T19:00:05.119946548Z level=info msg="Request Completed" method=GET path=/api/annotations status=401 remote_addr=192.168.65.1 time_ms=1 duration=1.296708ms size=40 referer="http://localhost:3000/d/zenops-api/zenops-api-performance?orgId=1&refresh=30s" handler=/api/annotations
+grafana-1  | logger=tsdb.postgres t=2026-02-09T19:03:01.318941797Z level=error msg="Check health failed" error="pq: SSL is not enabled on the server"
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T19:03:01.319194505Z level=info msg="Request Completed" method=GET path=/api/datasources/uid/c8c28897-fdbf-4390-b2c6-02b60d0899c1/health status=400 remote_addr=192.168.65.1 time_ms=4 duration=4.8945ms size=67 referer=http://localhost:3000/connections/datasources/edit/c8c28897-fdbf-4390-b2c6-02b60d0899c1 handler=/api/datasources/uid/:uid/health
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T19:03:44.725363178Z level=info msg="Request Completed" method=POST path=/api/ds/query status=400 remote_addr=192.168.65.1 time_ms=23 duration=23.260291ms size=324 referer=http://localhost:3000/connections/datasources/edit/c8c28897-fdbf-4390-b2c6-02b60d0899c1 handler=/api/ds/query
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T19:03:44.731497303Z level=info msg="Request Completed" method=POST path=/api/ds/query status=400 remote_addr=192.168.65.1 time_ms=5 duration=5.875583ms size=324 referer=http://localhost:3000/connections/datasources/edit/c8c28897-fdbf-4390-b2c6-02b60d0899c1 handler=/api/ds/query
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T19:03:47.804717013Z level=info msg="Request Completed" method=POST path=/api/ds/query status=400 remote_addr=192.168.65.1 time_ms=7 duration=7.05325ms size=324 referer=http://localhost:3000/connections/datasources/edit/c8c28897-fdbf-4390-b2c6-02b60d0899c1 handler=/api/ds/query
+grafana-1  | logger=tsdb.postgres t=2026-02-09T19:03:47.805177555Z level=error msg="Check health failed" error="pq: password authentication failed for user \"zenops\""
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T19:03:47.805372971Z level=info msg="Request Completed" method=GET path=/api/datasources/uid/c8c28897-fdbf-4390-b2c6-02b60d0899c1/health status=400 remote_addr=192.168.65.1 time_ms=6 duration=6.865834ms size=85 referer=http://localhost:3000/connections/datasources/edit/c8c28897-fdbf-4390-b2c6-02b60d0899c1 handler=/api/datasources/uid/:uid/health
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T19:04:26.98925292Z level=info msg="Request Completed" method=POST path=/api/ds/query status=400 remote_addr=192.168.65.1 time_ms=39 duration=39.647708ms size=324 referer=http://localhost:3000/connections/datasources/edit/c8c28897-fdbf-4390-b2c6-02b60d0899c1 handler=/api/ds/query
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T19:04:27.064113586Z level=info msg="Request Completed" method=POST path=/api/ds/query status=400 remote_addr=192.168.65.1 time_ms=5 duration=5.727708ms size=324 referer=http://localhost:3000/connections/datasources/edit/c8c28897-fdbf-4390-b2c6-02b60d0899c1 handler=/api/ds/query
+grafana-1  | logger=tsdb.postgres t=2026-02-09T19:04:27.06649042Z level=error msg="Check health failed" error="pq: password authentication failed for user \"zenops\""
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T19:04:27.066651961Z level=info msg="Request Completed" method=GET path=/api/datasources/uid/c8c28897-fdbf-4390-b2c6-02b60d0899c1/health status=400 remote_addr=192.168.65.1 time_ms=6 duration=6.999417ms size=85 referer=http://localhost:3000/connections/datasources/edit/c8c28897-fdbf-4390-b2c6-02b60d0899c1 handler=/api/datasources/uid/:uid/health
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T19:05:33.253548798Z level=info msg="Request Completed" method=POST path=/api/ds/query status=400 remote_addr=192.168.65.1 time_ms=29 duration=29.280375ms size=324 referer=http://localhost:3000/connections/datasources/edit/c8c28897-fdbf-4390-b2c6-02b60d0899c1 handler=/api/ds/query
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T19:05:33.364017673Z level=info msg="Request Completed" method=POST path=/api/ds/query status=400 remote_addr=192.168.65.1 time_ms=15 duration=15.706208ms size=324 referer=http://localhost:3000/connections/datasources/edit/c8c28897-fdbf-4390-b2c6-02b60d0899c1 handler=/api/ds/query
+grafana-1  | logger=cleanup t=2026-02-09T19:09:50.231348958Z level=info msg="Completed cleanup jobs" duration=21.603833ms
+grafana-1  | logger=plugins.update.checker t=2026-02-09T19:09:51.353907042Z level=info msg="Update check succeeded" duration=637.860167ms
+grafana-1  | logger=grafana.update.checker t=2026-02-09T19:09:51.354328584Z level=info msg="Update check succeeded" duration=637.868708ms
+grafana-1  | logger=infra.usagestats t=2026-02-09T19:10:27.247060836Z level=info msg="Usage stats are ready to report"
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T19:10:39.428581717Z level=info msg="Request Completed" method=GET path=/api/plugins/grafana-llm-app/settings status=404 remote_addr=192.168.65.1 time_ms=1 duration=1.038084ms size=64 referer=http://localhost:3000/explore handler=/api/plugins/:pluginId/settings
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T19:10:39.430504467Z level=info msg="Request Completed" method=GET path=/api/plugins/grafana-llm-app/settings status=404 remote_addr=192.168.65.1 time_ms=1 duration=1.046042ms size=64 referer=http://localhost:3000/explore handler=/api/plugins/:pluginId/settings
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T19:12:28.032926253Z level=info msg="Request Completed" method=POST path=/api/ds/query status=400 remote_addr=192.168.65.1 time_ms=20 duration=20.096958ms size=398 referer="http://localhost:3000/explore?orgId=1&schemaVersion=1" handler=/api/ds/query
+grafana-1  | logger=cleanup t=2026-02-09T19:19:50.243755083Z level=info msg="Completed cleanup jobs" duration=27.692875ms
+grafana-1  | logger=grafana.update.checker t=2026-02-09T19:19:51.062069042Z level=info msg="Update check succeeded" duration=347.267ms
+grafana-1  | logger=plugins.update.checker t=2026-02-09T19:19:51.088741917Z level=info msg="Update check succeeded" duration=372.315417ms
+grafana-1  | logger=cleanup t=2026-02-09T19:29:50.251261014Z level=info msg="Completed cleanup jobs" duration=36.070791ms
+grafana-1  | logger=plugins.update.checker t=2026-02-09T19:29:51.150578208Z level=info msg="Update check succeeded" duration=432.353917ms
+grafana-1  | logger=grafana.update.checker t=2026-02-09T19:29:51.152070583Z level=info msg="Update check succeeded" duration=434.054792ms
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T19:31:05.11510009Z level=error msg="library element could not be found" error="library element could not be found" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T19:31:05.115406882Z level=info msg="Request Completed" method=GET path="/api/library-elements/name/Contract Mismatches" status=404 remote_addr=192.168.65.1 time_ms=5 duration=5.090416ms size=61 referer="http://localhost:3000/d/zenops-api/zenops-api-performance?orgId=1&refresh=30s&viewPanel=3" handler=/api/library-elements/name/:name
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T19:31:05.66045184Z level=info msg="Not found" error="[publicdashboards.notFound] FindByDashboardUid: Public dashboard not found by orgId: 1 and dashboardUid: zenops-api" remote_addr=192.168.65.1 traceID=
+grafana-1  | logger=context userId=1 orgId=1 uname=admin t=2026-02-09T19:31:05.66054459Z level=info msg="Request Completed" method=GET path=/api/dashboards/uid/zenops-api/public-dashboards status=404 remote_addr=192.168.65.1 time_ms=5 duration=5.376708ms size=110 referer="http://localhost:3000/d/zenops-api/zenops-api-performance?orgId=1&refresh=30s&viewPanel=3" handler=/api/dashboards/uid/:dashboardUid/public-dashboards
+grafana-1  | logger=live t=2026-02-09T19:36:31.728196422Z level=info msg="Initialized channel handler" channel=grafana/dashboard/uid/zenops-database address=grafana/dashboard/uid/zenops-database
+grafana-1  | logger=cleanup t=2026-02-09T19:39:50.245531764Z level=info msg="Completed cleanup jobs" duration=28.903583ms
+grafana-1  | logger=plugins.update.checker t=2026-02-09T19:39:51.091054125Z level=info msg="Update check succeeded" duration=370.923375ms
+grafana-1  | logger=grafana.update.checker t=2026-02-09T19:39:51.098392166Z level=info msg="Update check succeeded" duration=378.868541ms
+grafana-1  | logger=infra.usagestats t=2026-02-09T19:40:27.252028461Z level=info msg="Usage stats are ready to report"

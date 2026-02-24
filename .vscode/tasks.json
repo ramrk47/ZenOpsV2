@@ -1,0 +1,40 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "ZenOps: Collect Docker Logs (2h)",
+      "type": "shell",
+      "command": "./ops/diagnostics/collect_logs.sh",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "ZenOps: Start All Services",
+      "type": "shell",
+      "command": "docker compose --profile observability up -d",
+      "problemMatcher": []
+    },
+    {
+      "label": "ZenOps: Stop All Services",
+      "type": "shell",
+      "command": "docker compose --profile observability down",
+      "problemMatcher": []
+    },
+    {
+      "label": "ZenOps: Restart API",
+      "type": "shell",
+      "command": "docker compose restart api",
+      "problemMatcher": []
+    },
+    {
+      "label": "ZenOps: View API Logs",
+      "type": "shell",
+      "command": "docker compose logs -f api --tail=100",
+      "problemMatcher": [],
+      "isBackground": true
+    }
+  ]
+}

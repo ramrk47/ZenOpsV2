@@ -1,0 +1,37 @@
+alloy-1  | ts=2026-02-09T18:37:14.319876136Z level=info "boringcrypto enabled"=false
+alloy-1  | ts=2026-02-09T18:37:14.319900053Z level=info msg="starting complete graph evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3
+alloy-1  | ts=2026-02-09T18:37:14.319906928Z level=info msg="running usage stats reporter"
+alloy-1  | ts=2026-02-09T18:37:14.31990897Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=otelcol.exporter.otlp.tempo duration=1.526167ms
+alloy-1  | ts=2026-02-09T18:37:14.319912386Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=otelcol.processor.batch.default duration=166.625µs
+alloy-1  | ts=2026-02-09T18:37:14.31991522Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=otelcol.receiver.otlp.default duration=72.458µs
+alloy-1  | ts=2026-02-09T18:37:14.319917928Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=remotecfg duration=21.333µs
+alloy-1  | ts=2026-02-09T18:37:14.319920386Z level=info msg="applying non-TLS config to HTTP server" service=http
+alloy-1  | ts=2026-02-09T18:37:14.31992222Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=http duration=4.333µs
+alloy-1  | ts=2026-02-09T18:37:14.319924636Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=cluster duration=2.666µs
+alloy-1  | ts=2026-02-09T18:37:14.319927178Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=loki.write.loki duration=368.083µs
+alloy-1  | ts=2026-02-09T18:37:14.319929678Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=loki.process.containers duration=352.167µs
+alloy-1  | ts=2026-02-09T18:37:14.319932428Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=logging duration=69.417µs
+alloy-1  | ts=2026-02-09T18:37:14.319942095Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=livedebugging duration=6.375µs
+alloy-1  | ts=2026-02-09T18:37:14.31995022Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=ui duration=3.125µs
+alloy-1  | ts=2026-02-09T18:37:14.322650845Z level=info msg="replaying WAL, this may take a while" component_path=/ component_id=prometheus.remote_write.prometheus subcomponent=wal dir=data-alloy/prometheus.remote_write.prometheus/wal
+alloy-1  | ts=2026-02-09T18:37:14.322815595Z level=info msg="WAL segment loaded" component_path=/ component_id=prometheus.remote_write.prometheus subcomponent=wal segment=0 maxSegment=0
+alloy-1  | ts=2026-02-09T18:37:14.323286595Z level=info msg="Starting WAL watcher" component_path=/ component_id=prometheus.remote_write.prometheus subcomponent=rw remote_name=720e03 url=http://prometheus:9090/api/v1/write queue=720e03
+alloy-1  | ts=2026-02-09T18:37:14.323328053Z level=info msg="Starting scraped metadata watcher" component_path=/ component_id=prometheus.remote_write.prometheus subcomponent=rw remote_name=720e03 url=http://prometheus:9090/api/v1/write
+alloy-1  | ts=2026-02-09T18:37:14.323358095Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=prometheus.remote_write.prometheus duration=3.404084ms
+alloy-1  | ts=2026-02-09T18:37:14.323700928Z level=info msg="Replaying WAL" component_path=/ component_id=prometheus.remote_write.prometheus subcomponent=rw remote_name=720e03 url=http://prometheus:9090/api/v1/write queue=720e03
+alloy-1  | ts=2026-02-09T18:37:14.32406672Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=prometheus.scrape.alloy duration=696.583µs
+alloy-1  | ts=2026-02-09T18:37:14.324149178Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=discovery.docker.containers duration=55.542µs
+alloy-1  | ts=2026-02-09T18:37:14.324225011Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=discovery.relabel.containers duration=62.375µs
+alloy-1  | ts=2026-02-09T18:37:14.324478053Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=loki.source.docker.containers duration=239.542µs
+alloy-1  | ts=2026-02-09T18:37:14.324510303Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=tracing duration=10.666µs
+alloy-1  | ts=2026-02-09T18:37:14.324532136Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=otel duration=17.417µs
+alloy-1  | ts=2026-02-09T18:37:14.324555386Z level=info msg="finished node evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 node_id=labelstore duration=12.625µs
+alloy-1  | ts=2026-02-09T18:37:14.32456072Z level=info msg="finished complete graph evaluation" controller_path=/ controller_id="" trace_id=efccc68ad79ba3a1c12023df38925cf3 duration=7.331958ms
+alloy-1  | ts=2026-02-09T18:37:14.324923386Z level=info msg="scheduling loaded components and services"
+alloy-1  | ts=2026-02-09T18:37:14.325030511Z level=info msg="starting cluster node" service=cluster peers_count=0 peers="" advertise_addr=127.0.0.1:12345
+alloy-1  | ts=2026-02-09T18:37:14.325261511Z level=info msg="peers changed" service=cluster peers_count=1 peers=ce2efada5b53
+alloy-1  | ts=2026-02-09T18:37:14.326181261Z level=info msg="Starting GRPC server" component_path=/ component_id=otelcol.receiver.otlp.default endpoint=0.0.0.0:4317
+alloy-1  | ts=2026-02-09T18:37:14.326294428Z level=info msg="now listening for http traffic" service=http addr=0.0.0.0:12345
+alloy-1  | ts=2026-02-09T18:37:14.326384761Z level=info msg="Starting HTTP server" component_path=/ component_id=otelcol.receiver.otlp.default endpoint=0.0.0.0:4318
+alloy-1  | ts=2026-02-09T18:37:56.87429292Z level=info msg="Done replaying WAL" component_path=/ component_id=prometheus.remote_write.prometheus subcomponent=rw remote_name=720e03 url=http://prometheus:9090/api/v1/write duration=42.549967518s
+alloy-1  | ts=2026-02-09T18:39:49.627473291Z level=info msg="finished transferring logs" component_path=/ component_id=loki.source.docker.containers target=docker/db9423c4eaf90e32a9695d5b4fc5309125d68166b9f9222a82112ed94750cedd written=23193 container=db9423c4eaf90e32a9695d5b4fc5309125d68166b9f9222a82112ed94750cedd

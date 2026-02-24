@@ -1,0 +1,329 @@
+[
+    {
+        "Id": "0614b4e39d3341f2705ccbbca6f708cec5f48a6ba5efe86b096ee782d77dbb4c",
+        "Created": "2026-02-09T18:27:50.738319542Z",
+        "Path": "/app/entrypoint.sh",
+        "Args": [
+            "python",
+            "-m",
+            "app.scripts.notification_worker",
+            "--interval",
+            "30"
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 17025,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-02-09T18:28:03.564154173Z",
+            "FinishedAt": "0001-01-01T00:00:00Z",
+            "Health": {
+                "Status": "healthy",
+                "FailingStreak": 0,
+                "Log": [
+                    {
+                        "Start": "2026-02-09T19:25:13.332703094Z",
+                        "End": "2026-02-09T19:25:13.388120511Z",
+                        "ExitCode": 0,
+                        "Output": ""
+                    },
+                    {
+                        "Start": "2026-02-09T19:26:13.389240886Z",
+                        "End": "2026-02-09T19:26:13.462263386Z",
+                        "ExitCode": 0,
+                        "Output": ""
+                    },
+                    {
+                        "Start": "2026-02-09T19:27:13.463427761Z",
+                        "End": "2026-02-09T19:27:13.545412886Z",
+                        "ExitCode": 0,
+                        "Output": ""
+                    },
+                    {
+                        "Start": "2026-02-09T19:28:13.547747136Z",
+                        "End": "2026-02-09T19:28:13.608649344Z",
+                        "ExitCode": 0,
+                        "Output": ""
+                    },
+                    {
+                        "Start": "2026-02-09T19:29:13.612656636Z",
+                        "End": "2026-02-09T19:29:13.674521636Z",
+                        "ExitCode": 0,
+                        "Output": ""
+                    }
+                ]
+            }
+        },
+        "Image": "sha256:ad0352102e19dc352feb01d06deb10d5c2230efc60fc9fa975926b361f6038e4",
+        "ResolvConfPath": "/var/lib/docker/containers/0614b4e39d3341f2705ccbbca6f708cec5f48a6ba5efe86b096ee782d77dbb4c/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/0614b4e39d3341f2705ccbbca6f708cec5f48a6ba5efe86b096ee782d77dbb4c/hostname",
+        "HostsPath": "/var/lib/docker/containers/0614b4e39d3341f2705ccbbca6f708cec5f48a6ba5efe86b096ee782d77dbb4c/hosts",
+        "LogPath": "/var/lib/docker/containers/0614b4e39d3341f2705ccbbca6f708cec5f48a6ba5efe86b096ee782d77dbb4c/0614b4e39d3341f2705ccbbca6f708cec5f48a6ba5efe86b096ee782d77dbb4c-json.log",
+        "Name": "/zen-ops-email-worker-1",
+        "RestartCount": 0,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "zen-ops_uploads:/app/uploads:rw"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {
+                    "max-file": "3",
+                    "max-size": "10m"
+                }
+            },
+            "NetworkMode": "zen-ops_default",
+            "PortBindings": {},
+            "RestartPolicy": {
+                "Name": "unless-stopped",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": null,
+            "DnsOptions": null,
+            "DnsSearch": null,
+            "ExtraHosts": [],
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": null,
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "Storage": {
+            "RootFS": {
+                "Snapshot": {
+                    "Name": "overlayfs"
+                }
+            }
+        },
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "zen-ops_uploads",
+                "Source": "/var/lib/docker/volumes/zen-ops_uploads/_data",
+                "Destination": "/app/uploads",
+                "Driver": "local",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": ""
+            }
+        ],
+        "Config": {
+            "Hostname": "0614b4e39d33",
+            "Domainname": "",
+            "User": "app",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "ExposedPorts": {
+                "8000/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "EMAIL_RETRY_MINUTES=5",
+                "BUILD_VERSION=",
+                "SMTP_USE_TLS=true",
+                "LOGIN_WINDOW_MINUTES=10",
+                "EMAIL_MAX_ATTEMPTS=3",
+                "DB_POOL_TIMEOUT=30",
+                "EMAIL_DEDUPE_MINUTES=60",
+                "SMTP_USERNAME=",
+                "UPLOADS_DIR=/app/uploads",
+                "EMAIL_FROM=no-reply@zenops.local",
+                "DB_POOL_SIZE=5",
+                "ALLOW_DESTRUCTIVE_ACTIONS=false",
+                "EMAIL_DAILY_LIMIT=20",
+                "WEB_CONCURRENCY=2",
+                "APP_BASE_URL=http://localhost",
+                "ENVIRONMENT=development",
+                "ACCESS_TOKEN_EXPIRE_MINUTES=120",
+                "GUNICORN_GRACEFUL_TIMEOUT=30",
+                "ALLOW_ORIGINS=http://localhost",
+                "SMTP_HOST=",
+                "ALGORITHM=HS256",
+                "SMTP_PORT=587",
+                "BACKUP_DIR=/backups",
+                "GUNICORN_TIMEOUT=120",
+                "EMAIL_PROVIDER=disabled",
+                "LOG_LEVEL=INFO",
+                "LOGIN_MAX_ATTEMPTS=5",
+                "BACKUP_ADMIN_PIN=99828669",
+                "GIT_SHA=",
+                "JWT_SECRET=3E_PHN0ocCmLjNrSUvjK2YrGWvBhckQFiV-XSqgYbDwz1v0RLdXkd6d1V5Z800jF",
+                "DB_MAX_OVERFLOW=10",
+                "EMAIL_API_KEY=",
+                "SMTP_PASSWORD=",
+                "DB_POOL_RECYCLE=1800",
+                "DATABASE_URL=postgresql+psycopg2://zenops:t55KL5YMNGJjkuB67uMma_cgBrIQzzfb@db:5432/zenops",
+                "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "LANG=C.UTF-8",
+                "GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D",
+                "PYTHON_VERSION=3.11.11",
+                "PYTHON_SHA256=2a9920c7a0cd236de33644ed980a13cbbc21058bfdc528febb6081575ed73be3",
+                "PYTHONDONTWRITEBYTECODE=1",
+                "PYTHONUNBUFFERED=1"
+            ],
+            "Cmd": [
+                "python",
+                "-m",
+                "app.scripts.notification_worker",
+                "--interval",
+                "30"
+            ],
+            "Healthcheck": {
+                "Test": [
+                    "CMD-SHELL",
+                    "python -c 'import os; os.kill(1, 0)' || exit 1"
+                ],
+                "Interval": 60000000000,
+                "Timeout": 5000000000,
+                "StartPeriod": 15000000000,
+                "Retries": 3
+            },
+            "Image": "zen-ops-email-worker",
+            "Volumes": null,
+            "WorkingDir": "/app",
+            "Entrypoint": [
+                "/app/entrypoint.sh"
+            ],
+            "Labels": {
+                "com.docker.compose.config-hash": "782ee3afde7ba280725a9efb6ac60e159aa7aad2020fe668163ea79983c31f32",
+                "com.docker.compose.container-number": "1",
+                "com.docker.compose.depends_on": "uploads-perms:service_completed_successfully:false,db:service_healthy:false,migrate:service_completed_successfully:false",
+                "com.docker.compose.image": "sha256:ad0352102e19dc352feb01d06deb10d5c2230efc60fc9fa975926b361f6038e4",
+                "com.docker.compose.oneoff": "False",
+                "com.docker.compose.project": "zen-ops",
+                "com.docker.compose.project.config_files": "/Users/dr.156/zen-ops/docker-compose.yml",
+                "com.docker.compose.project.working_dir": "/Users/dr.156/zen-ops",
+                "com.docker.compose.service": "email-worker",
+                "com.docker.compose.version": "5.0.2"
+            },
+            "StopTimeout": 1
+        },
+        "NetworkSettings": {
+            "SandboxID": "0103ce96a5c783b015a2e76c5df91821116134ca3c54a25e588a9fc7e913ac9d",
+            "SandboxKey": "/var/run/docker/netns/0103ce96a5c7",
+            "Ports": {
+                "8000/tcp": null
+            },
+            "Networks": {
+                "zen-ops_default": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "zen-ops-email-worker-1",
+                        "email-worker"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "a07d4f755728ab4d26e205333eca3fe0c1af8b681b289d6534e44a3b6334de51",
+                    "EndpointID": "ca3f73e418cea4b7a67cefa766fb1335272b4e09570831fe77f9807c6986e2e9",
+                    "Gateway": "172.18.0.1",
+                    "IPAddress": "172.18.0.14",
+                    "MacAddress": "5a:a6:fd:f0:80:0b",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "zen-ops-email-worker-1",
+                        "email-worker",
+                        "0614b4e39d33"
+                    ]
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:89164b0569aa10668efcbd1a392fcd86ed804972343d8d4776cc7752a9036e44",
+            "size": 2956,
+            "platform": {
+                "architecture": "arm64",
+                "os": "linux"
+            }
+        }
+    }
+]

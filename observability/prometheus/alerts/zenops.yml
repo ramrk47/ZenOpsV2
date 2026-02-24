@@ -1,0 +1,188 @@
+groups:
+  - name: zenops_availability
+    rules:
+      # API service down
+      - alert: ApiDown
+        expr: probe_success{job="blackbox_http", instance=~".*api.*readyz.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API service is down"
+          description: "The API /readyz endpoint has been unreachable for more than 1 minute."
+
+      # Frontend down
+      - alert: FrontendDown
+        expr: probe_success{job="blackbox_http", instance=~".*frontend.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Frontend service is down"
+          description: "The frontend has been unreachable for more than 1 minute."
+
+      # Reverse proxy down
+      - alert: ReverseProxyDown
+        expr: probe_success{job="blackbox_http", instance=~".*reverse-proxy.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Reverse proxy is down"
+          description: "The reverse proxy has been unreachable for more than 1 minute."
+
+      # Database down
+      - alert: DatabaseDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "The PostgreSQL database has been unreachable for more than 1 minute."
+
+  - name: zenops_performance
+    rules:
+      # High 5xx error rate
+      - alert: High5xxRate
+        expr: |
+          sum(rate(http_server_requests_total{status=~"5.."}[5m])) 
+          / sum(rate(http_server_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5xx error rate"
+          description: "More than 5% of requests are returning 5xx errors."
+
+      # High P95 latency
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket[5m])) by (le))
+          > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High P95 latency"
+          description: "95th percentile latency is above 2 seconds."
+
+      # Container high CPU
+      - alert: ContainerHighCPU
+        expr: |
+          sum(rate(container_cpu_usage_seconds_total{name!=""}[5m])) by (name) 
+          / sum(container_spec_cpu_quota{name!=""}/container_spec_cpu_period{name!=""}) by (name) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} high CPU usage"
+          description: "Container is using more than 90% of its CPU quota."
+
+      # Container high memory
+      - alert: ContainerHighMemory
+        expr: |
+          container_memory_usage_bytes{name!=""} 
+          / container_spec_memory_limit_bytes{name!=""} > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} high memory usage"
+          description: "Container is using more than 90% of its memory limit."
+
+  - name: zenops_disk
+    rules:
+      # Host disk usage high
+      - alert: HostDiskUsageHigh
+        expr: |
+          (node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} - node_filesystem_free_bytes{fstype!~"tmpfs|overlay"})
+          / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host disk usage high on {{ $labels.mountpoint }}"
+          description: "Disk usage is above 85% on {{ $labels.mountpoint }}."
+
+      # Host disk critical
+      - alert: HostDiskCritical
+        expr: |
+          (node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} - node_filesystem_free_bytes{fstype!~"tmpfs|overlay"})
+          / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} > 0.95
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Host disk critically full on {{ $labels.mountpoint }}"
+          description: "Disk usage is above 95% on {{ $labels.mountpoint }}. Immediate action required."
+
+  - name: zenops_backup
+    rules:
+      # Backup job failed
+      - alert: BackupFailed
+        expr: |
+          zenops_backup_last_success_timestamp_seconds > 0
+          and time() - zenops_backup_last_success_timestamp_seconds > 86400
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backup has not succeeded in 24 hours"
+          description: "The last successful backup was more than 24 hours ago."
+
+      # Backup container unhealthy
+      - alert: BackupContainerDown
+        expr: |
+          absent(container_last_seen{name=~".*backup.*"}) 
+          or time() - container_last_seen{name=~".*backup.*"} > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backup container not seen"
+          description: "A backup-related container has not been seen for 5 minutes."
+
+  - name: zenops_contract
+    rules:
+      # API/Frontend contract mismatch
+      - alert: ContractMismatch
+        expr: zenops_contract_missing_total > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API/Frontend contract mismatch detected"
+          description: "Frontend is calling API endpoints that don't exist. Check watchdog logs."
+
+      # Watchdog smoke test failure
+      - alert: SmokeTestFailed
+        expr: zenops_smoke_test_success == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Watchdog smoke tests failing"
+          description: "One or more smoke tests are failing. Check watchdog logs for details."
+
+  - name: zenops_email
+    rules:
+      # Email queue backlog high
+      - alert: EmailQueueBacklog
+        expr: zenops_email_queue_pending > 100
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Email queue backlog is high"
+          description: "There are more than 100 emails pending in the queue."
+
+      # Email delivery failures
+      - alert: EmailDeliveryFailures
+        expr: zenops_email_queue_failed > 50
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High email delivery failures"
+          description: "There are more than 50 failed email deliveries."

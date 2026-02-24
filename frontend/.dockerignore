@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+dist
+test-results
+playwright-report
+.playwright
+.playwright-cli
+.git
+.DS_Store
+.env
+.env.*

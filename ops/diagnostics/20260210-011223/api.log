@@ -1,0 +1,25 @@
+api-1  | [2026-02-09 19:42:17 +0000] [1] [INFO] Starting gunicorn 25.0.3
+api-1  | [2026-02-09 19:42:17 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+api-1  | [2026-02-09 19:42:17 +0000] [1] [INFO] Using worker: uvicorn.workers.UvicornWorker
+api-1  | [2026-02-09 19:42:17 +0000] [8] [INFO] Booting worker with pid: 8
+api-1  | [2026-02-09 19:42:17 +0000] [9] [INFO] Booting worker with pid: 9
+api-1  | [2026-02-09 19:42:18 +0000] [8] [INFO] Started server process [8]
+api-1  | [2026-02-09 19:42:18 +0000] [8] [INFO] Waiting for application startup.
+api-1  | {"timestamp": "2026-02-09T19:42:18.718126+00:00", "level": "INFO", "logger": "app.core.observability", "message": "OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping OpenTelemetry setup"}
+api-1  | [2026-02-09 19:42:18 +0000] [8] [INFO] Application startup complete.
+api-1  | [2026-02-09 19:42:18 +0000] [9] [INFO] Started server process [9]
+api-1  | [2026-02-09 19:42:18 +0000] [9] [INFO] Waiting for application startup.
+api-1  | {"timestamp": "2026-02-09T19:42:18.740913+00:00", "level": "INFO", "logger": "app.core.observability", "message": "OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping OpenTelemetry setup"}
+api-1  | [2026-02-09 19:42:18 +0000] [9] [INFO] Application startup complete.
+api-1  | {"timestamp": "2026-02-09T19:42:21.348347+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "2ee5350a-3cf6-4df3-b588-c8c8fb28ca37", "user_id": null, "path": "/readyz", "method": "GET", "status_code": 200, "latency_ms": 14.72}
+api-1  | {"timestamp": "2026-02-09T19:42:21.891934+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "af6e93ac-3471-425b-8ee2-53677cd90173", "user_id": null, "path": "/readyz", "method": "GET", "status_code": 200, "latency_ms": 2.08}
+api-1  | /usr/local/lib/python3.11/site-packages/fastapi/openapi/utils.py:255: UserWarning: Duplicate Operation ID preview_document_api_assignments__assignment_id__documents__document_id__preview_head for function preview_document at /app/app/routers/documents.py
+api-1  |   warnings.warn(message, stacklevel=1)
+api-1  | {"timestamp": "2026-02-09T19:42:22.187753+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "08e34183-865b-46e0-8567-a90871e91540", "user_id": null, "path": "/openapi.json", "method": "GET", "status_code": 200, "latency_ms": 669.15}
+api-1  | {"timestamp": "2026-02-09T19:42:22.465409+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "d851cc0c-172a-4f34-9154-1432da83b4f1", "user_id": null, "path": "/api/auth/login", "method": "POST", "status_code": 200, "latency_ms": 393.74}
+api-1  | {"timestamp": "2026-02-09T19:42:22.522038+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "0a6200c3-21da-4578-931f-216fab62b3d0", "user_id": 29, "path": "/api/auth/me", "method": "GET", "status_code": 200, "latency_ms": 30.62}
+api-1  | {"timestamp": "2026-02-09T19:42:22.541927+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "0c495415-a48d-49cf-8d8c-e918870d6f75", "user_id": 29, "path": "/api/assignments/summary", "method": "GET", "status_code": 200, "latency_ms": 32.76}
+api-1  | {"timestamp": "2026-02-09T19:42:22.544770+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "d917e926-e22f-4821-b6df-f33f9b447b75", "user_id": 29, "path": "/api/approvals/inbox-count", "method": "GET", "status_code": 200, "latency_ms": 35.5}
+api-1  | {"timestamp": "2026-02-09T19:42:22.545985+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "7fab3bef-94ff-4d0a-b9eb-3901a6db4303", "user_id": 29, "path": "/api/notifications/unread-count", "method": "GET", "status_code": 200, "latency_ms": 35.69}
+api-1  | {"timestamp": "2026-02-09T19:42:22.731777+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "f69471ad-3601-4a55-976f-12758d2a5e16", "user_id": 29, "path": "/api/auth/capabilities", "method": "GET", "status_code": 200, "latency_ms": 232.91}
+api-1  | {"timestamp": "2026-02-09T19:42:22.757368+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "df4efcb6-88fe-468e-b738-c4965dea48d1", "user_id": 29, "path": "/api/dashboard/overview", "method": "GET", "status_code": 200, "latency_ms": 238.02}

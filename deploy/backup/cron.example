@@ -1,0 +1,1 @@
+0 2 * * * /bin/bash -lc "cd /opt/zen-ops && docker compose --profile backup run --rm backup" >> /var/log/zenops_backup.log 2>&1

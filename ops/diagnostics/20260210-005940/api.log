@@ -1,0 +1,30 @@
+api-1  | [2026-02-09 19:29:08 +0000] [1] [INFO] Starting gunicorn 25.0.3
+api-1  | [2026-02-09 19:29:08 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+api-1  | [2026-02-09 19:29:08 +0000] [1] [INFO] Using worker: uvicorn.workers.UvicornWorker
+api-1  | [2026-02-09 19:29:08 +0000] [8] [INFO] Booting worker with pid: 8
+api-1  | [2026-02-09 19:29:08 +0000] [9] [INFO] Booting worker with pid: 9
+api-1  | [2026-02-09 19:29:09 +0000] [8] [INFO] Started server process [8]
+api-1  | [2026-02-09 19:29:09 +0000] [8] [INFO] Waiting for application startup.
+api-1  | [2026-02-09 19:29:09 +0000] [9] [INFO] Started server process [9]
+api-1  | [2026-02-09 19:29:09 +0000] [9] [INFO] Waiting for application startup.
+api-1  | {"timestamp": "2026-02-09T19:29:09.985107+00:00", "level": "INFO", "logger": "app.core.observability", "message": "OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping OpenTelemetry setup"}
+api-1  | [2026-02-09 19:29:09 +0000] [8] [INFO] Application startup complete.
+api-1  | {"timestamp": "2026-02-09T19:29:09.992745+00:00", "level": "INFO", "logger": "app.core.observability", "message": "OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping OpenTelemetry setup"}
+api-1  | [2026-02-09 19:29:09 +0000] [9] [INFO] Application startup complete.
+api-1  | {"timestamp": "2026-02-09T19:29:10.181816+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "38b60e4f-e803-4958-88a2-541d1c29f557", "user_id": null, "path": "/readyz", "method": "GET", "status_code": 200, "latency_ms": 15.83}
+api-1  | {"timestamp": "2026-02-09T19:29:10.278633+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "4dd0a3b2-6404-43ca-a4c5-354891a3e019", "user_id": null, "path": "/healthz", "method": "GET", "status_code": 200, "latency_ms": 93.51}
+api-1  | /usr/local/lib/python3.11/site-packages/fastapi/openapi/utils.py:255: UserWarning: Duplicate Operation ID preview_document_api_assignments__assignment_id__documents__document_id__preview_get for function preview_document at /app/app/routers/documents.py
+api-1  |   warnings.warn(message, stacklevel=1)
+api-1  | {"timestamp": "2026-02-09T19:29:10.923584+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "4664641f-d775-45d4-aff1-82cfe837e825", "user_id": null, "path": "/openapi.json", "method": "GET", "status_code": 200, "latency_ms": 642.36}
+api-1  | {"timestamp": "2026-02-09T19:29:10.940846+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "44767408-40fa-415f-af1b-468c38bb4720", "user_id": null, "path": "/readyz", "method": "GET", "status_code": 200, "latency_ms": 2.02}
+api-1  | {"timestamp": "2026-02-09T19:29:10.948668+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "3650e898-aa27-4458-bb0b-6be9ccd7154f", "user_id": null, "path": "/openapi.json", "method": "GET", "status_code": 200, "latency_ms": 6.31}
+api-1  | {"timestamp": "2026-02-09T19:29:10.958948+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "873ee532-be3b-4579-825b-748d922e9fdb", "user_id": null, "path": "/version", "method": "GET", "status_code": 200, "latency_ms": 1.28}
+api-1  | {"timestamp": "2026-02-09T19:29:12.687763+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "b856bf44-cc54-44eb-8b08-bf9209ab0050", "user_id": null, "path": "/readyz", "method": "GET", "status_code": 200, "latency_ms": 16.81}
+api-1  | {"timestamp": "2026-02-09T19:29:13.249362+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "ad9f6be7-c8b5-4369-a840-efa2899cd95b", "user_id": null, "path": "/metrics", "method": "GET", "status_code": 200, "latency_ms": 1.8}
+api-1  | {"timestamp": "2026-02-09T19:29:21.890245+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "622d667d-7df8-4835-a610-40d6a1c7d760", "user_id": null, "path": "/readyz", "method": "GET", "status_code": 200, "latency_ms": 3.83}
+api-1  | /usr/local/lib/python3.11/site-packages/fastapi/openapi/utils.py:255: UserWarning: Duplicate Operation ID preview_document_api_assignments__assignment_id__documents__document_id__preview_get for function preview_document at /app/app/routers/documents.py
+api-1  |   warnings.warn(message, stacklevel=1)
+api-1  | {"timestamp": "2026-02-09T19:29:22.192909+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "0982a4e1-da9b-4843-883a-b476d3d10bf6", "user_id": null, "path": "/openapi.json", "method": "GET", "status_code": 200, "latency_ms": 659.98}
+api-1  | {"timestamp": "2026-02-09T19:29:28.247802+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "376436e1-c4aa-4169-844d-f6c2da25097e", "user_id": null, "path": "/metrics", "method": "GET", "status_code": 200, "latency_ms": 3.37}
+api-1  | {"timestamp": "2026-02-09T19:29:36.549644+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "eb137e5e-03a2-428c-b495-47997b123802", "user_id": null, "path": "/openapi.json", "method": "GET", "status_code": 200, "latency_ms": 24.7}
+api-1  | {"timestamp": "2026-02-09T19:29:36.896299+00:00", "level": "INFO", "logger": "request", "message": "request", "request_id": "6aecb2df-e754-45c9-ab98-f1917d019379", "user_id": null, "path": "/readyz", "method": "GET", "status_code": 200, "latency_ms": 12.89}
