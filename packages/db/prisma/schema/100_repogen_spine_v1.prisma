@@ -1,0 +1,119 @@
+model RepogenWorkOrder {
+  id                    String                  @id @default(uuid()) @db.Uuid
+  orgId                 String                  @map("org_id") @db.Uuid
+  sourceType            RepogenWorkOrderSourceType @map("source_type")
+  sourceRefId           String?                 @map("source_ref_id") @db.Uuid
+  assignmentId          String?                 @map("assignment_id") @db.Uuid
+  reportType            RepogenReportType       @map("report_type")
+  bankName              String                  @map("bank_name")
+  bankType              RepogenBankType         @default(OTHER) @map("bank_type")
+  valueSlab             RepogenValueSlab        @default(UNKNOWN) @map("value_slab")
+  templateSelector      RepogenTemplateSelector @default(UNKNOWN) @map("template_selector")
+  status                RepogenWorkOrderStatus  @default(DRAFT)
+  billingModeCache      String?                 @map("billing_mode_cache")
+  billingAccountId      String?                 @map("billing_account_id") @db.Uuid
+  billingReservationId  String?                 @map("billing_reservation_id") @db.Uuid
+  billingServiceInvoiceId String?               @map("billing_service_invoice_id") @db.Uuid
+  billingHooksJson      Json                    @default("{}") @db.JsonB @map("billing_hooks_json")
+  createdByUserId       String?                 @map("created_by_user_id") @db.Uuid
+  createdAt             DateTime                @default(now()) @map("created_at")
+  updatedAt             DateTime                @updatedAt @map("updated_at")
+  snapshots             RepogenContractSnapshot[]
+  evidenceItems         RepogenEvidenceItem[]
+  rulesRuns             RepogenRulesRun[]
+  comments              RepogenComment[]
+
+  @@index([orgId])
+  @@index([status])
+  @@index([reportType, status])
+  @@index([bankType, valueSlab, templateSelector])
+  @@index([sourceType, sourceRefId])
+  @@index([assignmentId])
+  @@index([createdAt])
+  @@map("repogen_work_orders")
+}
+
+model RepogenContractSnapshot {
+  id             String             @id @default(uuid()) @db.Uuid
+  orgId          String             @map("org_id") @db.Uuid
+  workOrderId    String             @map("work_order_id") @db.Uuid
+  version        Int
+  contractJson   Json               @db.JsonB @map("contract_json")
+  derivedJson    Json               @db.JsonB @map("derived_json")
+  readinessJson  Json               @db.JsonB @map("readiness_json")
+  createdByUserId String?           @map("created_by_user_id") @db.Uuid
+  createdAt      DateTime           @default(now()) @map("created_at")
+  workOrder      RepogenWorkOrder   @relation(fields: [workOrderId], references: [id])
+  rulesRunsAsInput  RepogenRulesRun[] @relation("RepogenRulesRunInputSnapshot")
+  rulesRunsAsOutput RepogenRulesRun[] @relation("RepogenRulesRunOutputSnapshot")
+
+  @@unique([workOrderId, version])
+  @@index([orgId])
+  @@index([workOrderId, createdAt])
+  @@map("repogen_contract_snapshots")
+}
+
+model RepogenEvidenceItem {
+  id                   String               @id @default(uuid()) @db.Uuid
+  orgId                String               @map("org_id") @db.Uuid
+  workOrderId          String               @map("work_order_id") @db.Uuid
+  evidenceType         RepogenEvidenceType  @map("evidence_type")
+  docType              RepogenEvidenceDocType? @map("doc_type")
+  classification       DocumentClassification?
+  sensitivity          DocumentSensitivity?
+  source               DocumentSource?
+  documentId           String?              @map("document_id") @db.Uuid
+  fileRef              String?              @map("file_ref")
+  capturedByEmployeeId String?              @map("captured_by_employee_id") @db.Uuid
+  capturedAt           DateTime?            @map("captured_at")
+  annexureOrder        Int?                 @map("annexure_order")
+  tags                 Json?                @db.JsonB
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+  workOrder            RepogenWorkOrder     @relation(fields: [workOrderId], references: [id])
+
+  @@index([orgId])
+  @@index([workOrderId])
+  @@index([evidenceType])
+  @@index([docType])
+  @@index([documentId])
+  @@index([annexureOrder])
+  @@map("repogen_evidence_items")
+}
+
+model RepogenRulesRun {
+  id              String                @id @default(uuid()) @db.Uuid
+  orgId           String                @map("org_id") @db.Uuid
+  workOrderId     String                @map("work_order_id") @db.Uuid
+  inputSnapshotId String                @map("input_snapshot_id") @db.Uuid
+  outputSnapshotId String               @map("output_snapshot_id") @db.Uuid
+  rulesetVersion  String                @map("ruleset_version")
+  warnings        Json                  @default("[]") @db.JsonB
+  errors          Json                  @default("[]") @db.JsonB
+  createdAt       DateTime              @default(now()) @map("created_at")
+  workOrder       RepogenWorkOrder      @relation(fields: [workOrderId], references: [id])
+  inputSnapshot   RepogenContractSnapshot @relation("RepogenRulesRunInputSnapshot", fields: [inputSnapshotId], references: [id])
+  outputSnapshot  RepogenContractSnapshot @relation("RepogenRulesRunOutputSnapshot", fields: [outputSnapshotId], references: [id])
+
+  @@index([orgId])
+  @@index([workOrderId])
+  @@index([inputSnapshotId])
+  @@index([outputSnapshotId])
+  @@map("repogen_rules_runs")
+}
+
+model RepogenComment {
+  id              String             @id @default(uuid()) @db.Uuid
+  orgId           String             @map("org_id") @db.Uuid
+  workOrderId     String             @map("work_order_id") @db.Uuid
+  commentType     RepogenCommentType @map("comment_type")
+  body            String
+  createdByUserId String?            @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime           @default(now()) @map("created_at")
+  workOrder       RepogenWorkOrder   @relation(fields: [workOrderId], references: [id])
+
+  @@index([orgId])
+  @@index([workOrderId])
+  @@index([commentType])
+  @@map("repogen_comments")
+}

@@ -151,6 +151,78 @@ enum ReportGenerationJobStatus {
   cancelled
 }
 
+enum RepogenWorkOrderSourceType {
+  TENANT
+  EXTERNAL
+  CHANNEL
+}
+
+enum RepogenReportType {
+  VALUATION
+  DPR
+  REVALUATION
+  STAGE_PROGRESS
+}
+
+enum RepogenBankType {
+  SBI
+  PSU_GENERIC
+  COOP
+  AGRI
+  OTHER
+}
+
+enum RepogenValueSlab {
+  LT_5CR
+  GT_5CR
+  UNKNOWN
+}
+
+enum RepogenTemplateSelector {
+  SBI_FORMAT_A
+  BOI_PSU_GENERIC
+  COOP_GENERIC
+  AGRI_GENERIC
+  UNKNOWN
+}
+
+enum RepogenWorkOrderStatus {
+  DRAFT
+  EVIDENCE_PENDING
+  DATA_PENDING
+  READY_FOR_RENDER
+  CANCELLED
+  CLOSED
+}
+
+enum RepogenEvidenceType {
+  DOCUMENT
+  PHOTO
+  SCREENSHOT
+  GEO
+  OTHER
+}
+
+enum RepogenEvidenceDocType {
+  SALE_DEED
+  RTC
+  EC
+  KHATA
+  TAX
+  NA_ORDER
+  PLAN
+  ID_PROOF
+  BANK_LETTER
+  OTHER
+}
+
+enum RepogenCommentType {
+  JUSTIFICATION
+  ENCLOSURES
+  CHECKLIST
+  NOTES
+}
+
 enum CreditsLedgerStatus {
   reserved
   consumed
