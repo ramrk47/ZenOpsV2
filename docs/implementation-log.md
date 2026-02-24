@@ -1,8 +1,51 @@
 # ZenOps v2 Implementation Log
 
-Last updated: 2026-02-15
+Last updated: 2026-02-24
 
 ## Scope Completed
+
+### 0.5) M5.4 Repogen Spine v1 (No DOCX Generation)
+- Implemented deterministic Repogen spine in V2 for report prep (no rendering):
+  - `repogen_work_orders`
+  - `repogen_contract_snapshots`
+  - `repogen_evidence_items`
+  - `repogen_rules_runs`
+  - `repogen_comments`
+- Added RLS policies for `repogen_*` tables using `org_id` tenant isolation and portal channel-work-order ownership restrictions.
+- Added repogen canonical contract + API zod schemas and OpenAPI path registration for `/v1/repogen/*`.
+- Added pure rules engine and readiness evaluator:
+  - FMV / realizable / distress calculations
+  - co-op adopted/market inversion
+  - sqft->sqm standardization
+  - co-op round-up-to-next-500 rule
+  - template selector metadata + completeness scoring
+- Added Repogen V1 API surface:
+  - create/list/detail work orders
+  - contract patch => immutable input/output snapshots + rules run row + readiness snapshot
+  - evidence link metadata + annexure ordering
+  - manual comments (justification/enclosures/checklist/notes)
+  - status transitions with readiness gating for `READY_FOR_RENDER`
+  - deterministic export JSON bundle for future renderer input
+- Added billing hooks (without changing existing billing core behavior):
+  - acceptance billing on `DATA_PENDING` via billing-control helper
+  - planned consumption usage event logging on `READY_FOR_RENDER`
+- Added placeholder worker hook:
+  - `repogen-compute-snapshot` queue + processor
+  - idempotent job id based on `work_order_id:snapshot_version`
+- Added minimal operator UI:
+  - Studio Repogen list/detail monitor tab
+  - Web Repogen production queue page with contract/evidence/manual/status actions
+- Added tests for rules, readiness, repogen spine service, worker placeholder, and repogen RLS table isolation.
+- Added documentation:
+  - `docs/REPOGEN_SPINE_V1.md`
+
+### 0.4) M5.3 Repogen Spine Phase 1 (Assignment Report Packs)
+- Implemented assignment-level report-generation foundation (`SBI_UNDER_5CR_V1`) with:
+  - upload-first evidence linkage
+  - template/version registry usage
+  - worker-based placeholder pack/artifact generation
+  - auditability and idempotent generation jobs
+- Added report generation panel in `apps/web` assignment detail for phase-1 testing.
 
 ### 0) M4.7 Billing Spine (Current)
 - Added billing control-plane schema/components:

@@ -1,5 +1,47 @@
 # ZenOps v2 Changelog
 
+## 2026-02-24
+
+### Added (M5.4 Repogen Spine v1 - No DOCX Generation)
+- Repogen v1 deterministic data spine in V2 (no DOCX rendering yet):
+  - `repogen_work_orders`
+  - `repogen_contract_snapshots` (immutable versioned snapshots)
+  - `repogen_evidence_items`
+  - `repogen_rules_runs`
+  - `repogen_comments`
+- RLS coverage for all `repogen_*` tables with `org_id` tenant isolation plus portal ownership policy for channel-sourced work orders.
+- Repogen canonical contract + API zod contracts in `packages/contracts` and OpenAPI path registry entries for `/v1/repogen/*`.
+- Repogen rules engine + readiness evaluator (M5.4-v1):
+  - FMV / 95% / 80%
+  - co-op adopted/market inversion
+  - sqft->sqm standardization
+  - co-op round-up-to-next-500
+  - deterministic template selector metadata and readiness scoring
+- Repogen V1 API endpoints:
+  - create/list/detail work orders
+  - patch contract -> snapshot/rules run/recompute
+  - evidence link
+  - comments
+  - status transitions with readiness gates
+  - deterministic export bundle JSON
+- Worker placeholder hook:
+  - `repogen-compute-snapshot` queue + processor
+  - idempotent `jobId=work_order_id:snapshot_version`
+- Minimal operator UI surfaces:
+  - Studio Repogen read-only monitoring tab (list/detail + JSON inspectors)
+  - Web Tenant #1 Repogen production queue page (create/patch/evidence/comments/status/export preview)
+- M5.4 tests:
+  - rules engine unit tests
+  - readiness evaluator unit tests
+  - repogen spine service flow tests
+  - worker placeholder processor test
+  - RLS integration test coverage for `repogen_*` tables
+
+### Added (M5.3 Repogen Spine Phase 1)
+- Assignment-level report generation spine for `SBI_UNDER_5CR_V1` with worker-based placeholder generation and pack/artifact persistence.
+- Repogen/report-pack data model (`report_packs`, `report_pack_artifacts`, `report_field_values`, `report_evidence_links`, `report_generation_jobs`, `report_audit_logs`).
+- Assignment report-generation UI panel and supporting API/queue/worker paths.
+
 ## 2026-02-15
 
 ### Added (M5.0 Launchable Billing Wiring)
