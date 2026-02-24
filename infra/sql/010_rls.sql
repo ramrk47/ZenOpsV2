@@ -96,7 +96,12 @@ DECLARE
     'repogen_evidence_items',
     'repogen_rules_runs',
     'repogen_comments',
-    'repogen_deliverable_releases'
+    'repogen_deliverable_releases',
+    'repogen_evidence_profiles',
+    'repogen_evidence_profile_items',
+    'repogen_field_defs',
+    'repogen_field_evidence_links',
+    'repogen_ocr_jobs'
   ];
 BEGIN
   FOREACH t IN ARRAY repogen_tables
@@ -115,7 +120,12 @@ DECLARE
     'repogen_evidence_items',
     'repogen_rules_runs',
     'repogen_comments',
-    'repogen_deliverable_releases'
+    'repogen_deliverable_releases',
+    'repogen_evidence_profiles',
+    'repogen_evidence_profile_items',
+    'repogen_field_defs',
+    'repogen_field_evidence_links',
+    'repogen_ocr_jobs'
   ];
 BEGIN
   FOREACH t IN ARRAY repogen_tables
