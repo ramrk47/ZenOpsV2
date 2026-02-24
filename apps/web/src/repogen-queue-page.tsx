@@ -22,7 +22,12 @@ type WorkOrderListRow = {
 type WorkOrderListResponse = { items: WorkOrderListRow[] };
 
 type WorkOrderDetailResponse = {
-  work_order: Record<string, unknown> & { id?: string; status?: string; report_pack_id?: string | null };
+  work_order: Record<string, unknown> & {
+    id?: string;
+    status?: string;
+    report_pack_id?: string | null;
+    evidence_profile_id?: string | null;
+  };
   latest_snapshot: {
     id: string;
     version: number;
@@ -34,11 +39,144 @@ type WorkOrderDetailResponse = {
     completeness_score: number;
     missing_fields: string[];
     missing_evidence: string[];
+    missing_field_evidence_links?: string[];
     warnings: string[];
   };
-  evidence_items: Array<Record<string, unknown>>;
+  evidence_items: Array<
+    Record<string, unknown> & {
+      id: string;
+      evidence_type?: string;
+      doc_type?: string | null;
+      annexure_order?: number | null;
+      tags?: Record<string, unknown> | null;
+      document_id?: string | null;
+      file_ref?: string | null;
+    }
+  >;
+  field_evidence_links?: Array<
+    Record<string, unknown> & {
+      id: string;
+      snapshot_id: string;
+      field_key: string;
+      evidence_item_id: string;
+    }
+  >;
+  ocr_jobs?: Array<
+    Record<string, unknown> & {
+      id: string;
+      evidence_item_id: string;
+      status: string;
+      requested_at: string;
+      finished_at: string | null;
+      result_json?: Record<string, unknown> | null;
+      error?: string | null;
+    }
+  >;
   comments: Array<Record<string, unknown>>;
   rules_runs: Array<Record<string, unknown>>;
+};
+
+type EvidenceChecklistItem = {
+  id: string;
+  label: string;
+  evidence_type: string;
+  doc_type: string | null;
+  min_count: number;
+  is_required: boolean;
+  tags_json: Record<string, unknown> | null;
+  order_hint: number | null;
+  field_key_hint: string | null;
+  current_count: number;
+  missing_count: number;
+  satisfied: boolean;
+  matching_evidence_item_ids: string[];
+};
+
+type RepogenEvidenceProfileItem = {
+  id: string;
+  evidence_type: string;
+  doc_type: string | null;
+  min_count: number;
+  is_required: boolean;
+  tags_json: Record<string, unknown> | null;
+  order_hint: number | null;
+  label: string | null;
+  field_key_hint: string | null;
+};
+
+type RepogenEvidenceProfile = {
+  id: string;
+  name: string;
+  report_type: string;
+  bank_type: string;
+  value_slab: string;
+  is_default: boolean;
+  metadata_json: Record<string, unknown>;
+  items?: RepogenEvidenceProfileItem[];
+};
+
+type RepogenFieldDef = {
+  id: string;
+  field_key: string;
+  label: string;
+  data_type: string;
+  required_by_default: boolean;
+  unit: string | null;
+};
+
+type RepogenFieldEvidenceLinkRow = {
+  id: string;
+  snapshot_id: string;
+  field_key: string;
+  evidence_item_id: string;
+  confidence: number | null;
+  note: string | null;
+  created_by_user_id: string | null;
+  created_at: string;
+};
+
+type RepogenEvidenceProfilesResponse = {
+  work_order_id: string;
+  selected_profile_id: string | null;
+  selected_profile: RepogenEvidenceProfile | null;
+  profiles: RepogenEvidenceProfile[];
+  checklist: EvidenceChecklistItem[];
+  suggested_evidence_for_missing_fields: Array<{
+    field_key: string;
+    suggested_items: Array<{
+      profile_item_id: string;
+      label: string;
+      current_count: number;
+      min_count: number;
+      satisfied: boolean;
+      is_required: boolean;
+    }>;
+  }>;
+  field_defs: RepogenFieldDef[];
+  readiness: WorkOrderDetailResponse['readiness'];
+};
+
+type RepogenFieldEvidenceLinksResponse = {
+  work_order_id: string;
+  latest_snapshot_id: string | null;
+  latest_snapshot_version: number | null;
+  field_defs: RepogenFieldDef[];
+  links: RepogenFieldEvidenceLinkRow[];
+  readiness?: WorkOrderDetailResponse['readiness'];
+};
+
+type RepogenOcrEnqueueResponse = {
+  work_order_id: string;
+  queue_enqueued: boolean;
+  ocr_job: {
+    id: string;
+    evidence_item_id: string;
+    status: string;
+    requested_at: string;
+    finished_at: string | null;
+    result_json: Record<string, unknown> | null;
+    error: string | null;
+  };
 };
 
 type RepogenPackArtifact = {
@@ -149,6 +287,29 @@ const readErrorBody = async (response: Response): Promise<string> => {
 const makeRepogenIdempotencyKey = (scope: string, workOrderId: string): string =>
   `web:${scope}:${workOrderId}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
 
+const getEvidenceCategory = (row: WorkOrderDetailResponse['evidence_items'][number]): string => {
+  const tags = row.tags;
+  if (tags && typeof tags === 'object' && !Array.isArray(tags) && typeof (tags as any).category === 'string') {
+    return ((tags as any).category as string).toLowerCase();
+  }
+  return '';
+};
+
+const annexureRank = (row: WorkOrderDetailResponse['evidence_items'][number]): number => {
+  const category = getEvidenceCategory(row);
+  if (category === 'exterior') return 10;
+  if (category === 'interior') return 20;
+  if (category === 'surroundings') return 30;
+  if (category === 'gps') return 40;
+  if (category === 'google_map') return 50;
+  if (category === 'route_map') return 60;
+  if ((row.evidence_type ?? '') === 'SCREENSHOT') return 70;
+  if ((row.evidence_type ?? '') === 'GEO') return 80;
+  if ((row.evidence_type ?? '') === 'PHOTO') return 90;
+  if ((row.evidence_type ?? '') === 'DOCUMENT') return 100;
+  return 200;
+};
+
 async function apiRequest<T>(token: string, path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API}${path}`, {
     ...init,
@@ -197,6 +358,8 @@ export function RepogenQueuePage({ token }: { token: string }) {
   const [detail, setDetail] = useState<WorkOrderDetailResponse | null>(null);
   const [exportBundle, setExportBundle] = useState<Record<string, unknown> | null>(null);
   const [packLink, setPackLink] = useState<RepogenPackLinkResponse | null>(null);
+  const [evidenceProfilesView, setEvidenceProfilesView] = useState<RepogenEvidenceProfilesResponse | null>(null);
+  const [fieldEvidenceLinksView, setFieldEvidenceLinksView] = useState<RepogenFieldEvidenceLinksResponse | null>(null);
   const [documents, setDocuments] = useState<DocumentsListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [working, setWorking] = useState(false);
@@ -223,6 +386,11 @@ export function RepogenQueuePage({ token }: { token: string }) {
   const [releaseOverride, setReleaseOverride] = useState(false);
   const [releaseOverrideReason, setReleaseOverrideReason] = useState('');
   const [releaseIdempotencyKey, setReleaseIdempotencyKey] = useState('');
+  const [selectedEvidenceProfileId, setSelectedEvidenceProfileId] = useState('');
+  const [fieldLinkFieldKey, setFieldLinkFieldKey] = useState('');
+  const [fieldLinkEvidenceItemId, setFieldLinkEvidenceItemId] = useState('');
+  const [fieldLinkConfidence, setFieldLinkConfidence] = useState('1');
+  const [fieldLinkNote, setFieldLinkNote] = useState('');
 
   const setErrorMessage = (value: string) => {
     setError(value);
@@ -284,6 +452,41 @@ export function RepogenQueuePage({ token }: { token: string }) {
     }
   };
 
+  const loadEvidenceProfilesView = async (id: string) => {
+    if (!token || !id) {
+      setEvidenceProfilesView(null);
+      return;
+    }
+    try {
+      const data = await apiRequest<RepogenEvidenceProfilesResponse>(token, `/repogen/work-orders/${id}/evidence-profiles`);
+      setEvidenceProfilesView(data);
+      setSelectedEvidenceProfileId(data.selected_profile_id ?? '');
+      if (!fieldLinkFieldKey && data.field_defs[0]) {
+        setFieldLinkFieldKey(data.field_defs[0].field_key);
+      }
+    } catch (err) {
+      setEvidenceProfilesView(null);
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to load evidence profile checklist');
+    }
+  };
+
+  const loadFieldEvidenceLinksView = async (id: string) => {
+    if (!token || !id) {
+      setFieldEvidenceLinksView(null);
+      return;
+    }
+    try {
+      const data = await apiRequest<RepogenFieldEvidenceLinksResponse>(token, `/repogen/work-orders/${id}/field-evidence-links`);
+      setFieldEvidenceLinksView(data);
+      if (!fieldLinkFieldKey && data.field_defs[0]) {
+        setFieldLinkFieldKey(data.field_defs[0].field_key);
+      }
+    } catch (err) {
+      setFieldEvidenceLinksView(null);
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to load field evidence links');
+    }
+  };
+
   const loadDocuments = async () => {
     if (!token) {
       setDocuments([]);
@@ -324,6 +527,8 @@ export function RepogenQueuePage({ token }: { token: string }) {
       void loadDetail(selectedId);
       void loadExport(selectedId);
       void loadPackLink(selectedId);
+      void loadEvidenceProfilesView(selectedId);
+      void loadFieldEvidenceLinksView(selectedId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, token]);
@@ -378,6 +583,8 @@ export function RepogenQueuePage({ token }: { token: string }) {
       await loadDetail(selectedId);
       await loadExport(selectedId);
       await loadPackLink(selectedId);
+      await loadEvidenceProfilesView(selectedId);
+      await loadFieldEvidenceLinksView(selectedId);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to patch contract');
     } finally {
@@ -411,8 +618,194 @@ export function RepogenQueuePage({ token }: { token: string }) {
       await loadExport(selectedId);
       await loadList();
       await loadPackLink(selectedId);
+      await loadEvidenceProfilesView(selectedId);
+      await loadFieldEvidenceLinksView(selectedId);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to link evidence');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const selectEvidenceProfile = async () => {
+    if (!token || !selectedId) return;
+    setWorking(true);
+    setErrorMessage('');
+    try {
+      const payload =
+        selectedEvidenceProfileId.trim().length > 0
+          ? { profile_id: selectedEvidenceProfileId.trim() }
+          : { use_default: true };
+      const response = await apiRequest<RepogenEvidenceProfilesResponse>(token, `/repogen/work-orders/${selectedId}/evidence-profile`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      setEvidenceProfilesView(response);
+      setSelectedEvidenceProfileId(response.selected_profile_id ?? '');
+      setNotice('Evidence profile updated');
+      await loadList();
+      await loadDetail(selectedId);
+      await loadFieldEvidenceLinksView(selectedId);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to select evidence profile');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const upsertFieldEvidenceLink = async () => {
+    if (!token || !selectedId) return;
+    if (!fieldLinkFieldKey.trim() || !fieldLinkEvidenceItemId.trim()) {
+      setErrorMessage('Select a field and an evidence item');
+      return;
+    }
+    setWorking(true);
+    setErrorMessage('');
+    try {
+      const response = await apiRequest<RepogenFieldEvidenceLinksResponse>(token, `/repogen/work-orders/${selectedId}/field-evidence-links`, {
+        method: 'POST',
+        body: JSON.stringify({
+          links: [
+            {
+              snapshot_id: fieldEvidenceLinksView?.latest_snapshot_id ?? undefined,
+              field_key: fieldLinkFieldKey.trim(),
+              evidence_item_id: fieldLinkEvidenceItemId.trim(),
+              confidence: fieldLinkConfidence.trim() ? Number(fieldLinkConfidence) : undefined,
+              note: fieldLinkNote.trim() || undefined
+            }
+          ]
+        })
+      });
+      setFieldEvidenceLinksView(response);
+      setNotice('Field linked to evidence');
+      setFieldLinkNote('');
+      await loadDetail(selectedId);
+      await loadEvidenceProfilesView(selectedId);
+      await loadList();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to link field to evidence');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const removeFieldEvidenceLink = async (link: RepogenFieldEvidenceLinkRow) => {
+    if (!token || !selectedId) return;
+    setWorking(true);
+    setErrorMessage('');
+    try {
+      const response = await apiRequest<RepogenFieldEvidenceLinksResponse>(token, `/repogen/work-orders/${selectedId}/field-evidence-links`, {
+        method: 'POST',
+        body: JSON.stringify({
+          links: [
+            {
+              id: link.id,
+              snapshot_id: link.snapshot_id,
+              field_key: link.field_key,
+              evidence_item_id: link.evidence_item_id,
+              remove: true
+            }
+          ]
+        })
+      });
+      setFieldEvidenceLinksView(response);
+      setNotice('Field-evidence link removed');
+      await loadDetail(selectedId);
+      await loadEvidenceProfilesView(selectedId);
+      await loadList();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to remove field-evidence link');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const enqueueOcrPlaceholder = async (evidenceItemId: string) => {
+    if (!token || !selectedId || !evidenceItemId) return;
+    setWorking(true);
+    setErrorMessage('');
+    try {
+      const result = await apiRequest<RepogenOcrEnqueueResponse>(token, `/repogen/work-orders/${selectedId}/ocr/enqueue`, {
+        method: 'POST',
+        body: JSON.stringify({ evidence_item_id: evidenceItemId })
+      });
+      setNotice(result.queue_enqueued ? `OCR placeholder queued (${result.ocr_job.id})` : `OCR job created (${result.ocr_job.id})`);
+      await loadDetail(selectedId);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to enqueue OCR placeholder');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const autoOrderAnnexure = async () => {
+    if (!token || !selectedId || !detail?.evidence_items?.length) return;
+    const sorted = detail.evidence_items
+      .slice()
+      .sort((a, b) => {
+        const byRank = annexureRank(a) - annexureRank(b);
+        if (byRank !== 0) return byRank;
+        const byExisting = (typeof a.annexure_order === 'number' ? a.annexure_order : Number.MAX_SAFE_INTEGER) -
+          (typeof b.annexure_order === 'number' ? b.annexure_order : Number.MAX_SAFE_INTEGER);
+        if (byExisting !== 0) return byExisting;
+        return String(a.id).localeCompare(String(b.id));
+      });
+
+    setWorking(true);
+    setErrorMessage('');
+    try {
+      await apiRequest(token, `/repogen/work-orders/${selectedId}/evidence/link`, {
+        method: 'POST',
+        body: JSON.stringify({
+          items: sorted.map((row, index) => ({
+            id: row.id,
+            evidence_type: row.evidence_type ?? 'OTHER',
+            doc_type: row.doc_type ?? 'OTHER',
+            document_id: row.document_id ?? undefined,
+            file_ref: row.file_ref ?? undefined,
+            annexure_order: index + 1,
+            tags: row.tags ?? undefined
+          }))
+        })
+      });
+      setNotice('Annexure order auto-updated (editable)');
+      await loadDetail(selectedId);
+      await loadExport(selectedId);
+      await loadEvidenceProfilesView(selectedId);
+      await loadList();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to auto-order annexure');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const markChecklistItemReceived = async (item: EvidenceChecklistItem) => {
+    if (!token || !selectedId) return;
+    setWorking(true);
+    setErrorMessage('');
+    try {
+      await apiRequest(token, `/repogen/work-orders/${selectedId}/evidence/link`, {
+        method: 'POST',
+        body: JSON.stringify({
+          items: [
+            {
+              evidence_type: item.evidence_type,
+              doc_type: item.doc_type ?? 'OTHER',
+              file_ref: `received://manual/${item.id}/${Date.now()}`,
+              tags: item.tags_json ?? undefined,
+              annexure_order: null
+            }
+          ]
+        })
+      });
+      setNotice(`Marked received: ${item.label}`);
+      await loadDetail(selectedId);
+      await loadEvidenceProfilesView(selectedId);
+      await loadExport(selectedId);
+      await loadList();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to mark checklist item as received');
     } finally {
       setWorking(false);
     }
@@ -431,6 +824,8 @@ export function RepogenQueuePage({ token }: { token: string }) {
       setCommentBody('');
       await loadDetail(selectedId);
       await loadPackLink(selectedId);
+      await loadEvidenceProfilesView(selectedId);
+      await loadFieldEvidenceLinksView(selectedId);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to add comment');
     } finally {
@@ -452,6 +847,8 @@ export function RepogenQueuePage({ token }: { token: string }) {
       await loadDetail(selectedId);
       await loadExport(selectedId);
       await loadPackLink(selectedId);
+      await loadEvidenceProfilesView(selectedId);
+      await loadFieldEvidenceLinksView(selectedId);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to transition status');
     } finally {
@@ -472,6 +869,8 @@ export function RepogenQueuePage({ token }: { token: string }) {
       setNotice(result.idempotent ? 'Existing pack linkage returned' : 'Pack created and generation queued');
       await loadList();
       await loadDetail(selectedId);
+      await loadEvidenceProfilesView(selectedId);
+      await loadFieldEvidenceLinksView(selectedId);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to create pack');
     } finally {
@@ -522,6 +921,8 @@ export function RepogenQueuePage({ token }: { token: string }) {
           : `Deliverables released (${result.release.billing_gate_result})`
       );
       await loadDetail(selectedId);
+      await loadEvidenceProfilesView(selectedId);
+      await loadFieldEvidenceLinksView(selectedId);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to release deliverables');
     } finally {
@@ -648,8 +1049,227 @@ export function RepogenQueuePage({ token }: { token: string }) {
                 {detail.readiness.warnings.map((value, index) => <li key={`warn-${index}`}>{value}</li>)}
                 {detail.readiness.missing_fields.map((value, index) => <li key={`field-${index}`}>Missing field: {value}</li>)}
                 {detail.readiness.missing_evidence.map((value, index) => <li key={`evidence-${index}`}>Missing evidence: {value}</li>)}
-                {detail.readiness.warnings.length === 0 && detail.readiness.missing_fields.length === 0 && detail.readiness.missing_evidence.length === 0 ? <li>None</li> : null}
+                {(detail.readiness.missing_field_evidence_links ?? []).map((value, index) => (
+                  <li key={`field-link-${index}`}>Field missing evidence link: {value}</li>
+                ))}
+                {detail.readiness.warnings.length === 0 &&
+                detail.readiness.missing_fields.length === 0 &&
+                detail.readiness.missing_evidence.length === 0 &&
+                (detail.readiness.missing_field_evidence_links ?? []).length === 0 ? <li>None</li> : null}
               </ul>
+            </section>
+
+            <section className="grid gap-3 lg:grid-cols-2">
+              <article className="rounded-lg border border-[var(--zen-border)] p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="m-0 text-sm">Evidence Checklist Panel</h3>
+                    <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
+                      Profile-based requirements (M5.6). Missing evidence blocks READY_FOR_RENDER.
+                    </p>
+                  </div>
+                  <Button className="h-8 px-3" disabled={working || !selectedId} onClick={() => selectedId && void loadEvidenceProfilesView(selectedId)}>
+                    Reload
+                  </Button>
+                </div>
+
+                <div className="mt-2 grid gap-2 md:grid-cols-[1fr_auto]">
+                  <select
+                    className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                    value={selectedEvidenceProfileId}
+                    onChange={(event) => setSelectedEvidenceProfileId(event.target.value)}
+                  >
+                    <option value="">Use default profile</option>
+                    {(evidenceProfilesView?.profiles ?? []).map((profile) => (
+                      <option key={profile.id} value={profile.id}>
+                        {profile.name} ({profile.bank_type}/{profile.value_slab}){profile.is_default ? ' [default]' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <Button className="h-10 px-3" disabled={working || !selectedId} onClick={() => void selectEvidenceProfile()}>
+                    Save Profile
+                  </Button>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Button className="h-8 px-3" disabled={working || !detail.evidence_items.length} onClick={() => void autoOrderAnnexure()}>
+                    Auto-order Annexure
+                  </Button>
+                  <span className="text-xs text-[var(--zen-muted)]">
+                    Annexure rule order: exterior → interior → surroundings → GPS → screenshots (editable after auto-order).
+                  </span>
+                </div>
+
+                <div className="mt-3 max-h-72 space-y-2 overflow-auto">
+                  {(evidenceProfilesView?.checklist ?? []).map((item) => (
+                    <div key={item.id} className={`rounded border p-2 ${item.satisfied ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="m-0 text-sm font-semibold">{item.label}</p>
+                          <p className="m-0 text-xs text-[var(--zen-muted)]">
+                            {item.evidence_type}{item.doc_type ? `/${item.doc_type}` : ''} · min {item.min_count} · current {item.current_count}
+                            {item.field_key_hint ? ` · field ${item.field_key_hint}` : ''}
+                          </p>
+                        </div>
+                        <span className="text-xs">{item.satisfied ? 'OK' : `Missing ${item.missing_count}`}</span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button
+                          className="h-7 px-2 text-xs"
+                          disabled={working}
+                          onClick={() => {
+                            setEvidenceType(item.evidence_type as (typeof evidenceTypeOptions)[number]);
+                            setEvidenceDocType(((item.doc_type ?? 'OTHER') as (typeof docTypeOptions)[number]));
+                            setNotice(`Prefilled evidence form for ${item.label}`);
+                          }}
+                        >
+                          Add Doc Link
+                        </Button>
+                        <Button className="h-7 px-2 text-xs" disabled={working} onClick={() => void markChecklistItemReceived(item)}>
+                          Mark as Received
+                        </Button>
+                        <Button
+                          className="h-7 px-2 text-xs"
+                          disabled={working || item.matching_evidence_item_ids.length === 0}
+                          onClick={() => {
+                            const target = detail.evidence_items.find((row) => item.matching_evidence_item_ids.includes(row.id));
+                            if (target) setAnnexureOrder(String(target.annexure_order ?? ''));
+                          }}
+                        >
+                          Set Annexure Order
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {(evidenceProfilesView?.checklist ?? []).length === 0 ? (
+                    <p className="text-sm text-[var(--zen-muted)]">No evidence profile/checklist loaded yet.</p>
+                  ) : null}
+                </div>
+
+                <div className="mt-3 rounded-lg border border-[var(--zen-border)] p-2">
+                  <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Suggested Evidence For Missing Fields</p>
+                  <div className="mt-2 space-y-2">
+                    {(evidenceProfilesView?.suggested_evidence_for_missing_fields ?? []).map((row) => (
+                      <div key={row.field_key} className="rounded border border-[var(--zen-border)] bg-white p-2">
+                        <p className="m-0 text-xs font-semibold">{row.field_key}</p>
+                        <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
+                          {row.suggested_items.map((item) => `${item.label} (${item.current_count}/${item.min_count})`).join(' · ')}
+                        </p>
+                      </div>
+                    ))}
+                    {(evidenceProfilesView?.suggested_evidence_for_missing_fields ?? []).length === 0 ? (
+                      <p className="text-xs text-[var(--zen-muted)]">No suggestions pending.</p>
+                    ) : null}
+                  </div>
+                </div>
+              </article>
+
+              <article className="rounded-lg border border-[var(--zen-border)] p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="m-0 text-sm">Field ↔ Evidence Links (Audit)</h3>
+                    <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
+                      Manual operator linking for current snapshot. Missing links warn in readiness.
+                    </p>
+                  </div>
+                  <Button className="h-8 px-3" disabled={working || !selectedId} onClick={() => selectedId && void loadFieldEvidenceLinksView(selectedId)}>
+                    Reload
+                  </Button>
+                </div>
+
+                <div className="mt-2 grid gap-2">
+                  <select
+                    className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                    value={fieldLinkFieldKey}
+                    onChange={(event) => setFieldLinkFieldKey(event.target.value)}
+                  >
+                    <option value="">Select field</option>
+                    {(fieldEvidenceLinksView?.field_defs ?? evidenceProfilesView?.field_defs ?? []).map((field) => (
+                      <option key={field.id} value={field.field_key}>
+                        {field.label} ({field.field_key})
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                    value={fieldLinkEvidenceItemId}
+                    onChange={(event) => setFieldLinkEvidenceItemId(event.target.value)}
+                  >
+                    <option value="">Select evidence item</option>
+                    {detail.evidence_items.map((row) => (
+                      <option key={row.id} value={row.id}>
+                        {row.id} · {String(row.evidence_type ?? 'OTHER')} {row.doc_type ? `/${String(row.doc_type)}` : ''} · annex {row.annexure_order ?? 'NA'}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <input
+                      className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                      value={fieldLinkConfidence}
+                      onChange={(event) => setFieldLinkConfidence(event.target.value)}
+                      type="number"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      placeholder="confidence 0..1"
+                    />
+                    <input
+                      className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                      value={fieldLinkNote}
+                      onChange={(event) => setFieldLinkNote(event.target.value)}
+                      placeholder="link note (optional)"
+                    />
+                  </div>
+                  <Button disabled={working || !fieldEvidenceLinksView?.latest_snapshot_id} onClick={() => void upsertFieldEvidenceLink()}>
+                    Link Field to Evidence
+                  </Button>
+                  {!fieldEvidenceLinksView?.latest_snapshot_id ? (
+                    <p className="m-0 text-xs text-[var(--zen-muted)]">Create/compute a contract snapshot first; field links are snapshot-scoped.</p>
+                  ) : null}
+                </div>
+
+                <div className="mt-3 max-h-56 space-y-2 overflow-auto">
+                  {(fieldEvidenceLinksView?.links ?? []).map((link) => (
+                    <div key={link.id} className="rounded border border-[var(--zen-border)] bg-white p-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="m-0 text-xs font-semibold">{link.field_key}</p>
+                          <p className="m-0 text-xs text-[var(--zen-muted)]">
+                            evidence {link.evidence_item_id} · confidence {link.confidence ?? 'NA'} · {new Date(link.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                        <Button className="h-7 px-2 text-xs" disabled={working} onClick={() => void removeFieldEvidenceLink(link)}>
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {(fieldEvidenceLinksView?.links ?? []).length === 0 ? <p className="text-xs text-[var(--zen-muted)]">No field-evidence links for current snapshot.</p> : null}
+                </div>
+
+                <div className="mt-3 rounded-lg border border-[var(--zen-border)] p-2">
+                  <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">OCR Placeholder Queue</p>
+                  <div className="mt-2 max-h-44 space-y-2 overflow-auto">
+                    {detail.evidence_items.map((row) => {
+                      const latestOcr = (detail.ocr_jobs ?? []).find((job) => job.evidence_item_id === row.id);
+                      return (
+                        <div key={`ocr-${row.id}`} className="flex flex-wrap items-center justify-between gap-2 rounded border border-[var(--zen-border)] bg-white p-2">
+                          <div>
+                            <p className="m-0 text-xs font-semibold">{row.id}</p>
+                            <p className="m-0 text-xs text-[var(--zen-muted)]">
+                              {String(row.evidence_type ?? 'OTHER')}{row.doc_type ? `/${String(row.doc_type)}` : ''} · OCR {latestOcr?.status ?? 'NOT_QUEUED'}
+                            </p>
+                          </div>
+                          <Button className="h-7 px-2 text-xs" disabled={working} onClick={() => void enqueueOcrPlaceholder(row.id)}>
+                            OCR Enqueue
+                          </Button>
+                        </div>
+                      );
+                    })}
+                    {detail.evidence_items.length === 0 ? <p className="text-xs text-[var(--zen-muted)]">No evidence items yet.</p> : null}
+                  </div>
+                </div>
+              </article>
             </section>
 
             <section className="rounded-lg border border-[var(--zen-border)] p-3">

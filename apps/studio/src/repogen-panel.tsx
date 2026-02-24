@@ -26,7 +26,7 @@ interface RepogenListResponse {
 }
 
 interface RepogenDetailResponse {
-  work_order: Record<string, unknown> & { org_id?: string; report_pack_id?: string | null };
+  work_order: Record<string, unknown> & { org_id?: string; report_pack_id?: string | null; evidence_profile_id?: string | null };
   latest_snapshot: {
     id: string;
     version: number;
@@ -39,11 +39,73 @@ interface RepogenDetailResponse {
     completeness_score: number;
     missing_fields: string[];
     missing_evidence: string[];
+    missing_field_evidence_links?: string[];
     warnings: string[];
   };
-  evidence_items: Array<Record<string, unknown>>;
+  evidence_items: Array<
+    Record<string, unknown> & {
+      id: string;
+      evidence_type?: string;
+      doc_type?: string | null;
+      annexure_order?: number | null;
+    }
+  >;
+  field_evidence_links?: Array<Record<string, unknown>>;
+  ocr_jobs?: Array<Record<string, unknown> & { evidence_item_id?: string; status?: string }>;
   comments: Array<Record<string, unknown>>;
   rules_runs: Array<Record<string, unknown>>;
+}
+
+interface RepogenFieldDef {
+  id: string;
+  field_key: string;
+  label: string;
+}
+
+interface EvidenceChecklistItem {
+  id: string;
+  label: string;
+  evidence_type: string;
+  doc_type: string | null;
+  min_count: number;
+  current_count: number;
+  missing_count: number;
+  satisfied: boolean;
+  field_key_hint: string | null;
+}
+
+interface RepogenEvidenceProfilesResponse {
+  work_order_id: string;
+  selected_profile_id: string | null;
+  profiles: Array<{
+    id: string;
+    name: string;
+    bank_type: string;
+    value_slab: string;
+    is_default: boolean;
+  }>;
+  checklist: EvidenceChecklistItem[];
+  suggested_evidence_for_missing_fields: Array<{
+    field_key: string;
+    suggested_items: Array<{ label: string; current_count: number; min_count: number }>;
+  }>;
+  field_defs: RepogenFieldDef[];
+}
+
+interface RepogenFieldEvidenceLinksResponse {
+  work_order_id: string;
+  latest_snapshot_id: string | null;
+  latest_snapshot_version: number | null;
+  field_defs: RepogenFieldDef[];
+  links: Array<{
+    id: string;
+    snapshot_id: string;
+    field_key: string;
+    evidence_item_id: string;
+    confidence: number | null;
+    note: string | null;
+    created_at: string;
+  }>;
 }
 
 interface RepogenPackLinkResponse {
@@ -104,10 +166,18 @@ export function RepogenStudioPanel({ token }: { token: string }) {
   const [selectedId, setSelectedId] = useState('');
   const [detail, setDetail] = useState<RepogenDetailResponse | null>(null);
   const [packLink, setPackLink] = useState<RepogenPackLinkResponse | null>(null);
+  const [evidenceProfilesView, setEvidenceProfilesView] = useState<RepogenEvidenceProfilesResponse | null>(null);
+  const [fieldLinksView, setFieldLinksView] = useState<RepogenFieldEvidenceLinksResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [tenantFilter, setTenantFilter] = useState('');
   const [accountFilter, setAccountFilter] = useState('');
+  const [selectedProfileId, setSelectedProfileId] = useState('');
+  const [fieldLinkFieldKey, setFieldLinkFieldKey] = useState('');
+  const [fieldLinkEvidenceId, setFieldLinkEvidenceId] = useState('');
+  const [fieldLinkConfidence, setFieldLinkConfidence] = useState('1');
+  const [fieldLinkNote, setFieldLinkNote] = useState('');
 
   const loadList = async () => {
     if (!token) {
@@ -164,6 +234,125 @@ export function RepogenStudioPanel({ token }: { token: string }) {
     }
   };
 
+  const loadEvidenceProfiles = async (id: string) => {
+    if (!token || !id) {
+      setEvidenceProfilesView(null);
+      return;
+    }
+    try {
+      const data = await apiRequest<RepogenEvidenceProfilesResponse>(token, `/repogen/work-orders/${id}/evidence-profiles`);
+      setEvidenceProfilesView(data);
+      setSelectedProfileId(data.selected_profile_id ?? '');
+      if (!fieldLinkFieldKey && data.field_defs[0]) {
+        setFieldLinkFieldKey(data.field_defs[0].field_key);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load evidence profiles');
+    }
+  };
+
+  const loadFieldLinks = async (id: string) => {
+    if (!token || !id) {
+      setFieldLinksView(null);
+      return;
+    }
+    try {
+      const data = await apiRequest<RepogenFieldEvidenceLinksResponse>(token, `/repogen/work-orders/${id}/field-evidence-links`);
+      setFieldLinksView(data);
+      if (!fieldLinkFieldKey && data.field_defs[0]) {
+        setFieldLinkFieldKey(data.field_defs[0].field_key);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load field-evidence links');
+    }
+  };
+
+  const selectEvidenceProfile = async () => {
+    if (!token || !selectedId) return;
+    setLoading(true);
+    setError('');
+    try {
+      const payload = selectedProfileId ? { profile_id: selectedProfileId } : { use_default: true };
+      const data = await apiRequest<RepogenEvidenceProfilesResponse>(token, `/repogen/work-orders/${selectedId}/evidence-profile`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      setEvidenceProfilesView(data);
+      setSelectedProfileId(data.selected_profile_id ?? '');
+      setNotice('Evidence profile updated');
+      await loadDetail(selectedId);
+      await loadFieldLinks(selectedId);
+      await loadList();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update evidence profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const upsertFieldLink = async () => {
+    if (!token || !selectedId || !fieldLinkFieldKey || !fieldLinkEvidenceId) return;
+    setLoading(true);
+    setError('');
+    try {
+      const data = await apiRequest<RepogenFieldEvidenceLinksResponse>(token, `/repogen/work-orders/${selectedId}/field-evidence-links`, {
+        method: 'POST',
+        body: JSON.stringify({
+          links: [
+            {
+              snapshot_id: fieldLinksView?.latest_snapshot_id ?? undefined,
+              field_key: fieldLinkFieldKey,
+              evidence_item_id: fieldLinkEvidenceId,
+              confidence: fieldLinkConfidence.trim() ? Number(fieldLinkConfidence) : undefined,
+              note: fieldLinkNote.trim() || undefined
+            }
+          ]
+        })
+      });
+      setFieldLinksView(data);
+      setFieldLinkNote('');
+      setNotice('Field linked to evidence');
+      await loadDetail(selectedId);
+      await loadEvidenceProfiles(selectedId);
+      await loadList();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to link field evidence');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const removeFieldLink = async (linkId: string, snapshotId: string, fieldKey: string, evidenceItemId: string) => {
+    if (!token || !selectedId) return;
+    setLoading(true);
+    setError('');
+    try {
+      const data = await apiRequest<RepogenFieldEvidenceLinksResponse>(token, `/repogen/work-orders/${selectedId}/field-evidence-links`, {
+        method: 'POST',
+        body: JSON.stringify({
+          links: [
+            {
+              id: linkId,
+              snapshot_id: snapshotId,
+              field_key: fieldKey,
+              evidence_item_id: evidenceItemId,
+              remove: true
+            }
+          ]
+        })
+      });
+      setFieldLinksView(data);
+      setNotice('Field-evidence link removed');
+      await loadDetail(selectedId);
+      await loadEvidenceProfiles(selectedId);
+      await loadList();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove field-evidence link');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredRows = rows.filter((row) => {
     const matchesTenant = tenantFilter.trim()
       ? (row.org_id ?? '').toLowerCase().includes(tenantFilter.trim().toLowerCase())
@@ -183,6 +372,8 @@ export function RepogenStudioPanel({ token }: { token: string }) {
     if (selectedId) {
       void loadDetail(selectedId);
       void loadPackLink(selectedId);
+      void loadEvidenceProfiles(selectedId);
+      void loadFieldLinks(selectedId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, token]);
@@ -248,6 +439,7 @@ export function RepogenStudioPanel({ token }: { token: string }) {
             </Button>
           ) : null}
         </div>
+        {notice ? <p className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{notice}</p> : null}
         {!detail ? (
           <p className="text-sm text-[var(--zen-muted)]">Select a work order to inspect snapshots, derived values, evidence, and comments.</p>
         ) : (
@@ -287,9 +479,13 @@ export function RepogenStudioPanel({ token }: { token: string }) {
                   {detail.readiness.missing_evidence.map((item, idx) => (
                     <li key={`evidence-${idx}`}>Missing evidence: {item}</li>
                   ))}
+                  {(detail.readiness.missing_field_evidence_links ?? []).map((item, idx) => (
+                    <li key={`field-link-${idx}`}>Field missing evidence link: {item}</li>
+                  ))}
                   {detail.readiness.warnings.length === 0 &&
                   detail.readiness.missing_fields.length === 0 &&
-                  detail.readiness.missing_evidence.length === 0 ? (
+                  detail.readiness.missing_evidence.length === 0 &&
+                  (detail.readiness.missing_field_evidence_links ?? []).length === 0 ? (
                     <li>None</li>
                   ) : null}
                 </ul>
@@ -299,8 +495,143 @@ export function RepogenStudioPanel({ token }: { token: string }) {
                 <p className="m-0 mt-2 text-sm">Evidence items: {detail.evidence_items.length}</p>
                 <p className="m-0 mt-1 text-sm">Manual comments: {detail.comments.length}</p>
                 <p className="m-0 mt-1 text-sm">Rules runs: {detail.rules_runs.length}</p>
+                <p className="m-0 mt-1 text-sm">OCR jobs: {detail.ocr_jobs?.length ?? 0}</p>
               </section>
             </div>
+
+            <section className="grid gap-3 md:grid-cols-2">
+              <section className="rounded-lg border border-[var(--zen-border)] p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h4 className="m-0 text-sm">Evidence Profile + Checklist</h4>
+                    <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">M5.6 profile-based missing evidence and field-link suggestions.</p>
+                  </div>
+                  <Button className="h-8 px-3" onClick={() => selectedId && void loadEvidenceProfiles(selectedId)} disabled={loading || !selectedId}>
+                    Reload
+                  </Button>
+                </div>
+                <div className="mt-2 grid gap-2 md:grid-cols-[1fr_auto]">
+                  <select
+                    className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                    value={selectedProfileId}
+                    onChange={(event) => setSelectedProfileId(event.target.value)}
+                  >
+                    <option value="">Use default profile</option>
+                    {(evidenceProfilesView?.profiles ?? []).map((profile) => (
+                      <option key={profile.id} value={profile.id}>
+                        {profile.name} ({profile.bank_type}/{profile.value_slab}){profile.is_default ? ' [default]' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <Button className="h-10 px-3" onClick={() => void selectEvidenceProfile()} disabled={loading || !selectedId}>
+                    Save
+                  </Button>
+                </div>
+                <div className="mt-3 max-h-52 space-y-2 overflow-auto">
+                  {(evidenceProfilesView?.checklist ?? []).map((item) => (
+                    <div key={item.id} className={`rounded border p-2 ${item.satisfied ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+                      <p className="m-0 text-xs font-semibold">{item.label}</p>
+                      <p className="m-0 text-xs text-[var(--zen-muted)]">
+                        {item.evidence_type}{item.doc_type ? `/${item.doc_type}` : ''} · {item.current_count}/{item.min_count}
+                        {item.field_key_hint ? ` · ${item.field_key_hint}` : ''}
+                      </p>
+                    </div>
+                  ))}
+                  {(evidenceProfilesView?.checklist ?? []).length === 0 ? <p className="text-xs text-[var(--zen-muted)]">No checklist data loaded.</p> : null}
+                </div>
+                <div className="mt-3 rounded-lg border border-[var(--zen-border)] p-2">
+                  <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Suggested Evidence For Missing Fields</p>
+                  <div className="mt-2 space-y-2">
+                    {(evidenceProfilesView?.suggested_evidence_for_missing_fields ?? []).map((row) => (
+                      <div key={row.field_key} className="rounded border border-[var(--zen-border)] bg-white p-2">
+                        <p className="m-0 text-xs font-semibold">{row.field_key}</p>
+                        <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
+                          {row.suggested_items.map((item) => `${item.label} (${item.current_count}/${item.min_count})`).join(' · ')}
+                        </p>
+                      </div>
+                    ))}
+                    {(evidenceProfilesView?.suggested_evidence_for_missing_fields ?? []).length === 0 ? <p className="text-xs text-[var(--zen-muted)]">None</p> : null}
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-lg border border-[var(--zen-border)] p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h4 className="m-0 text-sm">Field ↔ Evidence Linking</h4>
+                    <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">Manual dropdown linking, audit-visible via notes timeline.</p>
+                  </div>
+                  <Button className="h-8 px-3" onClick={() => selectedId && void loadFieldLinks(selectedId)} disabled={loading || !selectedId}>
+                    Reload
+                  </Button>
+                </div>
+                <div className="mt-2 grid gap-2">
+                  <select
+                    className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                    value={fieldLinkFieldKey}
+                    onChange={(event) => setFieldLinkFieldKey(event.target.value)}
+                  >
+                    <option value="">Select field</option>
+                    {(fieldLinksView?.field_defs ?? evidenceProfilesView?.field_defs ?? []).map((field) => (
+                      <option key={field.id} value={field.field_key}>
+                        {field.label} ({field.field_key})
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                    value={fieldLinkEvidenceId}
+                    onChange={(event) => setFieldLinkEvidenceId(event.target.value)}
+                  >
+                    <option value="">Select evidence item</option>
+                    {detail.evidence_items.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.id} · {String(item.evidence_type ?? 'OTHER')}{item.doc_type ? `/${String(item.doc_type)}` : ''} · annex {item.annexure_order ?? 'NA'}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <input
+                      className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                      value={fieldLinkConfidence}
+                      onChange={(event) => setFieldLinkConfidence(event.target.value)}
+                      type="number"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      placeholder="confidence 0..1"
+                    />
+                    <input
+                      className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                      value={fieldLinkNote}
+                      onChange={(event) => setFieldLinkNote(event.target.value)}
+                      placeholder="note"
+                    />
+                  </div>
+                  <Button disabled={loading || !fieldLinksView?.latest_snapshot_id} onClick={() => void upsertFieldLink()}>
+                    Link Field
+                  </Button>
+                </div>
+                <div className="mt-3 max-h-52 space-y-2 overflow-auto">
+                  {(fieldLinksView?.links ?? []).map((link) => (
+                    <div key={link.id} className="rounded border border-[var(--zen-border)] bg-white p-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="m-0 text-xs font-semibold">{link.field_key}</p>
+                          <p className="m-0 text-xs text-[var(--zen-muted)]">
+                            evidence {link.evidence_item_id} · confidence {link.confidence ?? 'NA'}
+                          </p>
+                        </div>
+                        <Button className="h-7 px-2 text-xs" disabled={loading} onClick={() => void removeFieldLink(link.id, link.snapshot_id, link.field_key, link.evidence_item_id)}>
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {(fieldLinksView?.links ?? []).length === 0 ? <p className="text-xs text-[var(--zen-muted)]">No links for current snapshot.</p> : null}
+                </div>
+              </section>
+            </section>
 
             <section className="rounded-lg border border-[var(--zen-border)] p-3">
               <h4 className="m-0 text-sm">Latest Snapshot JSON</h4>
