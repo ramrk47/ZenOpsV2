@@ -2,6 +2,10 @@
 
 Last updated: 2026-02-24 (Asia/Kolkata)
 
+> Update: V1 has since been imported into this repo as a controlled subtree on branch
+> `codex/m5-3-monorepo-bridge`. See `/Users/dr.156/ZenOpsV2/docs/handoff-m5.3-monorepo-bridge.md`
+> and `/Users/dr.156/ZenOpsV2/docs/BOUNDARIES_V1_V2.md` for the current repo layout and operating rules.
+
 ## Branch and commit state
 - V2 repo: `/Users/dr.156/ZenOpsV2`
 - Current branch: `codex/m4-6-masterdata-lifecycle`
@@ -211,3 +215,31 @@ PORTAL_BIND_PORT=5275 \
 docker compose -f infra/docker/compose.dev.yml up -d --build
 ```
 
+## Post-handoff repo layout change (Monorepo Bridge)
+
+This handoff was originally written before the V1 subtree import. The repo now also contains:
+- `legacy/v1/` (squashed subtree import of `/Users/dr.156/zen-ops` branch `ai/work`)
+
+Checkpoint tags created before import:
+- V2: `m5.2-handoff`
+- V1: `v1-billing-monitor-handoff`
+
+Bridge branch created for import (keeps `main` untouched):
+- `codex/m5-3-monorepo-bridge`
+
+Bridge commits:
+- `6ea7202` squashed subtree content import
+- `590598c` subtree merge wrapper commit
+- `ddc1a9f` monorepo wrapper scripts + boundaries doc
+
+Additional docs/scripts introduced in bridge branch:
+- `/Users/dr.156/ZenOpsV2/docs/BOUNDARIES_V1_V2.md`
+- `/Users/dr.156/ZenOpsV2/scripts/dev-v1.sh`
+- `/Users/dr.156/ZenOpsV2/scripts/dev-v2.sh`
+- `/Users/dr.156/ZenOpsV2/scripts/smoke-v1.sh`
+
+Validation completed after import:
+- `pnpm docker:test`
+- `bash legacy/v1/scripts/docker-test.sh`
+- `bash scripts/dev-v1.sh config -q`
+- `bash scripts/dev-v2.sh config -q`
