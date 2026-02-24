@@ -20,6 +20,11 @@ import {
   type RepogenComputeSnapshotQueuePayload
 } from './repogen-compute-snapshot.processor.js';
 import {
+  REPOGEN_OCR_QUEUE,
+  processRepogenOcrPlaceholderJob,
+  type RepogenOcrQueuePayload
+} from './repogen-ocr.processor.js';
+import {
   TASK_OVERDUE_QUEUE,
   processTaskOverdueJob,
   type RecomputeOverduePayload
@@ -139,6 +144,22 @@ const repogenComputeSnapshotWorker = new Worker<RepogenComputeSnapshotQueuePaylo
   REPOGEN_COMPUTE_SNAPSHOT_QUEUE,
   async (job) => {
     await processRepogenComputeSnapshotJob({
+      prisma,
+      logger,
+      payload: job.data,
+      fallbackTenantId: defaultTenantId
+    });
+  },
+  {
+    connection: redisConnection,
+    concurrency: Math.max(1, Math.min(2, concurrency))
+  }
+);
+
+const repogenOcrWorker = new Worker<RepogenOcrQueuePayload>(
+  REPOGEN_OCR_QUEUE,
+  async (job) => {
+    await processRepogenOcrPlaceholderJob({
       prisma,
       logger,
       payload: job.data,
@@ -302,6 +323,13 @@ repogenComputeSnapshotWorker.on('ready', () => {
   });
 });
 
+repogenOcrWorker.on('ready', () => {
+  logger.info('worker_ready', {
+    queue: REPOGEN_OCR_QUEUE,
+    concurrency: Math.max(1, Math.min(2, concurrency))
+  });
+});
+
 notificationsWorker.on('ready', () => {
   logger.info('worker_ready', {
     queue: NOTIFICATIONS_QUEUE,
@@ -351,6 +379,13 @@ repogenComputeSnapshotWorker.on('error', (error) => {
   });
 });
 
+repogenOcrWorker.on('error', (error) => {
+  logger.error('worker_error', {
+    queue: REPOGEN_OCR_QUEUE,
+    error: error.message
+  });
+});
+
 notificationsWorker.on('error', (error) => {
   logger.error('worker_error', {
     queue: NOTIFICATIONS_QUEUE,
@@ -384,6 +419,7 @@ const shutdown = async () => {
   await worker.close();
   await repogenWorker.close();
   await repogenComputeSnapshotWorker.close();
+  await repogenOcrWorker.close();
   await notificationsWorker.close();
   await assignmentSignalsWorker.close();
   await taskOverdueWorker.close();
