@@ -103,6 +103,7 @@ export const RepogenReadinessSummarySchema = z.object({
   completeness_score: z.number().int().min(0).max(100),
   missing_fields: z.array(z.string()),
   missing_evidence: z.array(z.string()),
+  missing_field_evidence_links: z.array(z.string()).default([]),
   warnings: z.array(z.string()),
   required_evidence_minimums: z.record(z.number().int().nonnegative()).default({})
 });
@@ -116,6 +117,33 @@ export const RepogenWorkOrderStatusHistoryEntrySchema = z.object({
 
 export const RepogenDemoSeedContractSchema = z.object({
   report_date: RepogenDateOnlySchema.optional()
+});
+
+export const RepogenEvidenceProfileSelectSchema = z
+  .object({
+    profile_id: RepogenUuidSchema.optional(),
+    use_default: z.boolean().optional()
+  })
+  .refine((value) => Boolean(value.profile_id) || value.use_default === true, {
+    message: 'profile_id or use_default=true is required'
+  });
+
+export const RepogenFieldEvidenceLinkUpsertSchema = z.object({
+  id: RepogenUuidSchema.optional(),
+  snapshot_id: RepogenUuidSchema.optional(),
+  field_key: z.string().min(1),
+  evidence_item_id: RepogenUuidSchema,
+  confidence: z.number().min(0).max(1).optional(),
+  note: z.string().min(1).optional(),
+  remove: z.boolean().optional()
+});
+
+export const RepogenFieldEvidenceLinksUpsertSchema = z.object({
+  links: z.array(RepogenFieldEvidenceLinkUpsertSchema).min(1)
+});
+
+export const RepogenOcrEnqueueRequestSchema = z.object({
+  evidence_item_id: RepogenUuidSchema
 });
 
 export const RepogenReportPackArtifactSchema = z.object({
@@ -229,3 +257,6 @@ export type RepogenDeliverablesReleaseRequest = z.infer<typeof RepogenDeliverabl
 export type RepogenWorkOrderPackLink = z.infer<typeof RepogenWorkOrderPackLinkSchema>;
 export type RepogenCreatePackResponse = z.infer<typeof RepogenCreatePackResponseSchema>;
 export type RepogenReleaseDeliverablesResponse = z.infer<typeof RepogenReleaseDeliverablesResponseSchema>;
+export type RepogenEvidenceProfileSelect = z.infer<typeof RepogenEvidenceProfileSelectSchema>;
+export type RepogenFieldEvidenceLinksUpsert = z.infer<typeof RepogenFieldEvidenceLinksUpsertSchema>;
+export type RepogenOcrEnqueueRequest = z.infer<typeof RepogenOcrEnqueueRequestSchema>;

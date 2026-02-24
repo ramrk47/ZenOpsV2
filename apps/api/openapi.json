@@ -1299,6 +1299,54 @@
         }
       }
     },
+    "/v1/repogen/work-orders/{id}/evidence-profiles": {
+      "get": {
+        "summary": "List/selectable Repogen evidence profiles for work order",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/repogen/work-orders/{id}/evidence-profile": {
+      "post": {
+        "summary": "Select Repogen evidence profile for work order",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/repogen/work-orders/{id}/field-evidence-links": {
+      "get": {
+        "summary": "List field-to-evidence links for Repogen work order",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "summary": "Upsert field-to-evidence links for Repogen work order",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/repogen/work-orders/{id}/ocr/enqueue": {
+      "post": {
+        "summary": "Enqueue Repogen OCR placeholder job for an evidence item",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/v1/repogen/work-orders/{id}/export": {
       "get": {
         "summary": "Export deterministic Repogen snapshot JSON bundle",
