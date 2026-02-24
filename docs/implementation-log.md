@@ -948,3 +948,63 @@ Proposed M4.6 high-value scope:
   - completed M4.6 and M4.6.1 summary
   - current local deltas and validation checklist
   - exact next-chat continuation commands
+
+## 20) Detailed M5.6 Record (Repogen Evidence Intelligence v1)
+
+### Objective
+- Increase Repogen operator throughput by replacing ad-hoc evidence guessing with explicit evidence profiles/checklists.
+- Add audit-grade field-to-evidence linking and an OCR placeholder pipeline without introducing OCR complexity.
+- Keep M5.4 readiness/rules and M5.5 factory/billing release semantics intact.
+
+### What was added
+- Evidence intelligence DB spine (V2 only):
+  - `repogen_evidence_profiles`
+  - `repogen_evidence_profile_items`
+  - `repogen_field_defs`
+  - `repogen_field_evidence_links`
+  - `repogen_ocr_jobs`
+- RLS coverage for all new `repogen_*` tables in `/Users/dr.156/ZenOpsV2/infra/sql/010_rls.sql`.
+- Seed/default evidence profiles derived from requirements doc:
+  - valuation baseline docs/photos/screenshots
+  - co-op metadata/checklist note
+  - agri profile baseline
+  - minimal DPR/revaluation/stage-progress profiles
+
+### API / readiness integration
+- Added `RepogenEvidenceIntelligenceService`:
+  - profile list/select endpoints
+  - field-evidence link list/upsert/remove endpoints
+  - OCR enqueue endpoint (placeholder pipeline)
+- `RepogenSpineService` now:
+  - auto-assigns default evidence profile on work-order creation (when resolvable)
+  - evaluates readiness using selected profile requirements
+  - includes `missing_field_evidence_links` warnings
+  - exposes `field_evidence_links` and `ocr_jobs` in work-order detail payload
+
+### Worker pipeline
+- Added `repogen-ocr-placeholder` worker processor:
+  - consumes queued OCR jobs
+  - writes deterministic placeholder `result_json`
+  - marks job `DONE`
+  - idempotent skip for already-completed jobs
+
+### UI changes
+- Web queue page:
+  - evidence checklist panel + profile selector
+  - suggested evidence for missing fields
+  - field-to-evidence linking controls
+  - OCR enqueue buttons
+  - annexure auto-order action
+- Studio panel:
+  - checklist visibility + suggestions
+  - profile selector
+  - field-to-evidence linking controls and removal
+
+### Testing and safety
+- Added unit tests for:
+  - checklist/profile evaluation helpers
+  - profile-based readiness and field-link warning behavior
+  - field-evidence link audit-note behavior
+  - OCR placeholder worker processing
+- RLS integration fixture/assertion coverage extended to include all new M5.6 repogen tables.
+- No changes under `/Users/dr.156/ZenOpsV2/legacy/v1`.

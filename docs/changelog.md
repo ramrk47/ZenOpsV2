@@ -316,3 +316,28 @@
 ### Added
 - M4.6 continuation handoff for next chat:
   - `/Users/dr.156/ZenOpsV2/docs/handoff-m4.6-takeover.md`
+
+## 2026-02-24
+
+### Added
+- M5.6 Repogen Evidence Intelligence v1 (no template rendering / no OCR engine):
+  - evidence requirement profiles + profile items (`repogen_evidence_profiles`, `repogen_evidence_profile_items`)
+  - canonical field definitions + snapshot-scoped field-evidence links (`repogen_field_defs`, `repogen_field_evidence_links`)
+  - OCR placeholder jobs pipeline (`repogen_ocr_jobs`) with worker queue `repogen-ocr-placeholder`
+- New Repogen API endpoints for:
+  - evidence profile listing/selection
+  - field-evidence link list/upsert/remove
+  - OCR placeholder enqueue
+- Web + Studio Repogen UI panels for evidence checklist, missing evidence visibility, suggestions, and manual field linking.
+- Tests for evidence profile/checklist logic, profile-aware readiness, field-link audit note behavior, OCR placeholder worker processing.
+- Repogen evidence intelligence runbook:
+  - `/Users/dr.156/ZenOpsV2/docs/REPOGEN_EVIDENCE_INTELLIGENCE_M5_6.md`
+
+### Changed
+- Repogen readiness evaluator now supports profile-driven evidence requirements and `missing_field_evidence_links` warnings.
+- Repogen work-order detail endpoint now returns field-evidence links and OCR jobs for operator visibility.
+- RLS integration fixtures/assertions expanded to cover new repogen evidence-intelligence tables.
+
+### Notes
+- DOCX rendering and OCR extraction remain intentionally out of scope in M5.6.
+- Billing/release semantics from M5.5 remain unchanged.
