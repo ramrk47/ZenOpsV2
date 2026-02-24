@@ -11,6 +11,7 @@ model RepogenWorkOrder {
   templateSelector      RepogenTemplateSelector @default(UNKNOWN) @map("template_selector")
   status                RepogenWorkOrderStatus  @default(DRAFT)
   reportPackId          String?                 @unique @map("report_pack_id") @db.Uuid
+  evidenceProfileId     String?                 @map("evidence_profile_id") @db.Uuid
   billingModeCache      String?                 @map("billing_mode_cache")
   billingAccountId      String?                 @map("billing_account_id") @db.Uuid
   billingReservationId  String?                 @map("billing_reservation_id") @db.Uuid
@@ -23,6 +24,9 @@ model RepogenWorkOrder {
   evidenceItems         RepogenEvidenceItem[]
   rulesRuns             RepogenRulesRun[]
   comments              RepogenComment[]
+  evidenceProfile       RepogenEvidenceProfile? @relation(fields: [evidenceProfileId], references: [id])
+  fieldEvidenceLinks    RepogenFieldEvidenceLink[]
+  ocrJobs               RepogenOcrJob[]
   reportPack            ReportPack?             @relation("RepogenWorkOrderPrimaryPack", fields: [reportPackId], references: [id])
   factoryReportPack     ReportPack?             @relation("ReportPackWorkOrder")
   deliverableReleases   RepogenDeliverableRelease[]
@@ -32,6 +36,7 @@ model RepogenWorkOrder {
   @@index([reportType, status])
   @@index([bankType, valueSlab, templateSelector])
   @@index([reportPackId])
+  @@index([evidenceProfileId])
   @@index([sourceType, sourceRefId])
   @@index([assignmentId])
   @@index([createdAt])
@@ -51,6 +56,7 @@ model RepogenContractSnapshot {
   workOrder      RepogenWorkOrder   @relation(fields: [workOrderId], references: [id])
   rulesRunsAsInput  RepogenRulesRun[] @relation("RepogenRulesRunInputSnapshot")
   rulesRunsAsOutput RepogenRulesRun[] @relation("RepogenRulesRunOutputSnapshot")
+  fieldEvidenceLinks RepogenFieldEvidenceLink[]
 
   @@unique([workOrderId, version])
   @@index([orgId])
@@ -76,6 +82,8 @@ model RepogenEvidenceItem {
   createdAt            DateTime             @default(now()) @map("created_at")
   updatedAt            DateTime             @updatedAt @map("updated_at")
   workOrder            RepogenWorkOrder     @relation(fields: [workOrderId], references: [id])
+  fieldEvidenceLinks   RepogenFieldEvidenceLink[]
+  ocrJobs              RepogenOcrJob[]
 
   @@index([orgId])
   @@index([workOrderId])

@@ -235,6 +235,12 @@ enum RepogenDeliverableReleaseGateResult {
   BLOCKED
 }
 
+enum RepogenOcrJobStatus {
+  QUEUED
+  DONE
+  FAILED
+}
+
 enum CreditsLedgerStatus {
   reserved
   consumed

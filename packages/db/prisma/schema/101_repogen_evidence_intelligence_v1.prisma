@@ -1,0 +1,110 @@
+model RepogenEvidenceProfile {
+  id         String             @id @default(uuid()) @db.Uuid
+  orgId      String             @map("org_id") @db.Uuid
+  reportType RepogenReportType  @map("report_type")
+  bankType   RepogenBankType    @map("bank_type")
+  valueSlab  RepogenValueSlab   @map("value_slab")
+  name       String
+  isDefault  Boolean            @default(false) @map("is_default")
+  metadataJson Json             @default("{}") @db.JsonB @map("metadata_json")
+  createdAt  DateTime           @default(now()) @map("created_at")
+  updatedAt  DateTime           @updatedAt @map("updated_at")
+  items      RepogenEvidenceProfileItem[]
+  workOrders RepogenWorkOrder[]
+
+  @@unique([orgId, reportType, bankType, valueSlab, name])
+  @@index([orgId])
+  @@index([orgId, reportType, bankType, valueSlab])
+  @@index([orgId, isDefault])
+  @@map("repogen_evidence_profiles")
+}
+
+model RepogenEvidenceProfileItem {
+  id          String                 @id @default(uuid()) @db.Uuid
+  orgId       String                 @map("org_id") @db.Uuid
+  profileId   String                 @map("profile_id") @db.Uuid
+  evidenceType RepogenEvidenceType   @map("evidence_type")
+  docType     RepogenEvidenceDocType? @map("doc_type")
+  minCount    Int                    @default(1) @map("min_count")
+  isRequired  Boolean                @default(true) @map("is_required")
+  tagsJson    Json?                  @db.JsonB @map("tags_json")
+  orderHint   Int?                   @map("order_hint")
+  label       String?                @map("label")
+  fieldKeyHint String?               @map("field_key_hint")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+  profile     RepogenEvidenceProfile @relation(fields: [profileId], references: [id])
+
+  @@index([orgId])
+  @@index([profileId])
+  @@index([evidenceType, docType])
+  @@index([orderHint])
+  @@map("repogen_evidence_profile_items")
+}
+
+model RepogenFieldDef {
+  id                String    @id @default(uuid()) @db.Uuid
+  orgId             String    @map("org_id") @db.Uuid
+  fieldKey          String    @map("field_key")
+  label             String
+  dataType          String    @map("data_type")
+  requiredByDefault Boolean   @default(false) @map("required_by_default")
+  unit              String?
+  metadataJson      Json      @default("{}") @db.JsonB @map("metadata_json")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@unique([orgId, fieldKey])
+  @@index([orgId])
+  @@index([requiredByDefault])
+  @@map("repogen_field_defs")
+}
+
+model RepogenFieldEvidenceLink {
+  id            String                @id @default(uuid()) @db.Uuid
+  orgId         String                @map("org_id") @db.Uuid
+  workOrderId   String                @map("work_order_id") @db.Uuid
+  snapshotId    String                @map("snapshot_id") @db.Uuid
+  fieldKey      String                @map("field_key")
+  evidenceItemId String               @map("evidence_item_id") @db.Uuid
+  confidence    Float?
+  note          String?
+  createdByUserId String?             @map("created_by_user_id") @db.Uuid
+  createdAt     DateTime              @default(now()) @map("created_at")
+  workOrder     RepogenWorkOrder      @relation(fields: [workOrderId], references: [id])
+  snapshot      RepogenContractSnapshot @relation(fields: [snapshotId], references: [id])
+  evidenceItem   RepogenEvidenceItem   @relation(fields: [evidenceItemId], references: [id])
+
+  @@unique([workOrderId, snapshotId, fieldKey, evidenceItemId])
+  @@index([orgId])
+  @@index([workOrderId])
+  @@index([snapshotId])
+  @@index([fieldKey])
+  @@index([evidenceItemId])
+  @@map("repogen_field_evidence_links")
+}
+
+model RepogenOcrJob {
+  id            String             @id @default(uuid()) @db.Uuid
+  orgId         String             @map("org_id") @db.Uuid
+  workOrderId   String             @map("work_order_id") @db.Uuid
+  evidenceItemId String            @map("evidence_item_id") @db.Uuid
+  status        RepogenOcrJobStatus @default(QUEUED)
+  requestedAt   DateTime           @default(now()) @map("requested_at")
+  finishedAt    DateTime?          @map("finished_at")
+  resultJson    Json?              @db.JsonB @map("result_json")
+  error         String?
+  createdByUserId String?          @map("created_by_user_id") @db.Uuid
+  workerTrace   String?            @map("worker_trace")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+  workOrder     RepogenWorkOrder   @relation(fields: [workOrderId], references: [id])
+  evidenceItem  RepogenEvidenceItem @relation(fields: [evidenceItemId], references: [id])
+
+  @@index([orgId])
+  @@index([workOrderId])
+  @@index([evidenceItemId])
+  @@index([status, requestedAt])
+  @@map("repogen_ocr_jobs")
+}
+
