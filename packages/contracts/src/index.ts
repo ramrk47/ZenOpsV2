@@ -445,6 +445,68 @@ export const ReportDataBundlePatchSchema = z.object({
   expected_schema_version: z.number().int().positive().optional()
 });
 
+export const RepogenTemplateKeySchema = z.enum(['SBI_UNDER_5CR_V1']);
+export const RepogenReportFamilySchema = z.enum(['valuation', 'dpr', 'stage_progress', 'tev', 'annexure']);
+export const RepogenFieldSourceSchema = z.enum(['manual', 'ocr', 'derived']);
+export const RepogenOcrPlaceholderSchema = z.object({
+  status: z.enum(['pending', 'extracted', 'failed', 'not_applicable']).default('pending'),
+  provider: z.string().min(1).optional(),
+  raw_text: z.string().optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  notes: z.string().min(1).optional(),
+  extracted_at: z.string().datetime().optional()
+});
+
+export const RepogenDraftFieldValueInputSchema = z.object({
+  section_key: z.string().min(1).optional(),
+  field_key: z.string().min(1),
+  value: z.any(),
+  normalized_text: z.string().optional(),
+  source: RepogenFieldSourceSchema.default('manual'),
+  source_document_id: UuidSchema.optional(),
+  ocr: RepogenOcrPlaceholderSchema.optional(),
+  derived_from: z.record(z.any()).optional()
+});
+
+export const RepogenDraftUpsertSchema = z.object({
+  template_key: RepogenTemplateKeySchema.default('SBI_UNDER_5CR_V1'),
+  report_family: RepogenReportFamilySchema.default('valuation'),
+  fields: z.array(RepogenDraftFieldValueInputSchema).min(1)
+});
+
+export const RepogenEvidenceLinkInputSchema = z.object({
+  section_key: z.string().min(1).optional(),
+  field_key: z.string().min(1).optional(),
+  document_id: UuidSchema,
+  label: z.string().min(1).optional(),
+  sort_order: z.number().int().nonnegative().optional(),
+  metadata_json: z.record(z.any()).optional(),
+  ocr: RepogenOcrPlaceholderSchema.optional()
+});
+
+export const RepogenEvidenceLinksUpsertSchema = z.object({
+  template_key: RepogenTemplateKeySchema.default('SBI_UNDER_5CR_V1'),
+  links: z.array(RepogenEvidenceLinkInputSchema).min(1),
+  replace_for_target: z.boolean().default(false)
+});
+
+export const RepogenGenerateTriggerSchema = z.object({
+  template_key: RepogenTemplateKeySchema.default('SBI_UNDER_5CR_V1'),
+  template_version: z.number().int().positive().default(1),
+  report_family: RepogenReportFamilySchema.default('valuation'),
+  idempotency_key: z.string().min(1),
+  notes: z.string().min(1).optional()
+});
+
+export const RepogenDraftContextQuerySchema = z.object({
+  template_key: RepogenTemplateKeySchema.default('SBI_UNDER_5CR_V1')
+});
+
+export const RepogenPacksListQuerySchema = z.object({
+  template_key: RepogenTemplateKeySchema.optional(),
+  limit: z.coerce.number().int().positive().max(50).default(10)
+});
+
 export const BillingInvoiceMarkPaidSchema = z.object({
   amount_paise: z.number().int().positive().optional(),
   reference: z.string().min(1).optional(),
@@ -554,6 +616,11 @@ export type ChannelRequestCreate = z.infer<typeof ChannelRequestCreateSchema>;
 export type ChannelRequestUpdate = z.infer<typeof ChannelRequestUpdateSchema>;
 export type AnalyticsOverview = z.infer<typeof AnalyticsOverviewSchema>;
 export type ReportDataBundlePatch = z.infer<typeof ReportDataBundlePatchSchema>;
+export type RepogenDraftUpsert = z.infer<typeof RepogenDraftUpsertSchema>;
+export type RepogenEvidenceLinksUpsert = z.infer<typeof RepogenEvidenceLinksUpsertSchema>;
+export type RepogenGenerateTrigger = z.infer<typeof RepogenGenerateTriggerSchema>;
+export type RepogenDraftContextQuery = z.infer<typeof RepogenDraftContextQuerySchema>;
+export type RepogenPacksListQuery = z.infer<typeof RepogenPacksListQuerySchema>;
 export type BillingInvoiceMarkPaid = z.infer<typeof BillingInvoiceMarkPaidSchema>;
 export type EmployeeCreate = z.infer<typeof EmployeeCreateSchema>;
 export type AttendanceMark = z.infer<typeof AttendanceMarkSchema>;
