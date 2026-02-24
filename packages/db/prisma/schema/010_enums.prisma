@@ -107,6 +107,50 @@ enum ReportJobStatus {
   failed
 }
 
+enum RepogenReportFamily {
+  valuation
+  dpr
+  stage_progress
+  tev
+  annexure
+}
+
+enum RepogenTemplateStatus {
+  draft
+  active
+  deprecated
+  archived
+}
+
+enum ReportFieldValueSource {
+  manual
+  ocr
+  derived
+}
+
+enum ReportPackStatus {
+  generating
+  generated
+  failed
+  superseded
+}
+
+enum ReportPackArtifactKind {
+  docx
+  pdf
+  annexure
+  debug_json
+}
+
+enum ReportGenerationJobStatus {
+  pending
+  queued
+  processing
+  completed
+  failed
+  cancelled
+}
+
 enum CreditsLedgerStatus {
   reserved
   consumed

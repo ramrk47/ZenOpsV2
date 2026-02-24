@@ -23,6 +23,8 @@ model Document {
   documentLinks    DocumentLink[]
   documentTagMap   DocumentTagMap[]
   extractionRuns   ExtractionRun[]
+  reportFieldSourceValues ReportFieldValue[]
+  reportEvidenceLinks ReportEvidenceLink[]
 
   @@unique([storageKey])
   @@index([tenantId])

@@ -67,6 +67,11 @@ model Assignment {
   usageEvents       UsageEvent[]
   reportRequests    ReportRequest[]
   documentLinks     DocumentLink[]
+  reportPacks       ReportPack[]
+  reportFieldValues ReportFieldValue[]
+  reportEvidenceLinks ReportEvidenceLink[]
+  repogenGenerationJobs ReportGenerationJob[]
+  reportAuditLogs   ReportAuditLog[]
   channelRequests   ChannelRequest[]
 
   @@index([tenantId])

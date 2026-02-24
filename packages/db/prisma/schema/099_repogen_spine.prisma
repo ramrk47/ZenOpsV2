@@ -1,0 +1,170 @@
+model ReportPack {
+  id                String            @id @default(uuid()) @db.Uuid
+  tenantId          String            @map("tenant_id") @db.Uuid
+  assignmentId      String            @map("assignment_id") @db.Uuid
+  templateVersionId String?           @map("template_version_id") @db.Uuid
+  templateKey       String            @map("template_key")
+  reportFamily      RepogenReportFamily @map("report_family")
+  version           Int
+  status            ReportPackStatus  @default(generating)
+  createdByUserId   String?           @map("created_by_user_id") @db.Uuid
+  warningsJson      Json              @default("[]") @db.JsonB @map("warnings_json")
+  contextSnapshotJson Json?           @db.JsonB @map("context_snapshot_json")
+  generatedAt       DateTime?         @map("generated_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  tenant            Tenant            @relation(fields: [tenantId], references: [id])
+  assignment        Assignment        @relation(fields: [assignmentId], references: [id])
+  templateVersion   TemplateVersion?  @relation(fields: [templateVersionId], references: [id])
+  generationJob     ReportGenerationJob? @relation("RepogenJobPack")
+  artifacts         ReportPackArtifact[]
+  auditLogs         ReportAuditLog[]
+
+  @@unique([assignmentId, templateKey, version])
+  @@index([tenantId])
+  @@index([assignmentId, templateKey, createdAt])
+  @@index([status])
+  @@map("report_packs")
+}
+
+model ReportPackArtifact {
+  id           String               @id @default(uuid()) @db.Uuid
+  tenantId     String               @map("tenant_id") @db.Uuid
+  reportPackId String               @map("report_pack_id") @db.Uuid
+  kind         ReportPackArtifactKind
+  filename     String
+  storageRef   String               @map("storage_ref")
+  mimeType     String               @map("mime_type")
+  sizeBytes    BigInt               @default(0) @map("size_bytes") @db.BigInt
+  checksumSha256 String?            @map("checksum_sha256")
+  metadataJson Json                 @default("{}") @db.JsonB @map("metadata_json")
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+  tenant       Tenant               @relation(fields: [tenantId], references: [id])
+  reportPack   ReportPack           @relation(fields: [reportPackId], references: [id])
+
+  @@index([tenantId])
+  @@index([reportPackId])
+  @@index([kind])
+  @@map("report_pack_artifacts")
+}
+
+model ReportFieldValue {
+  id              String                @id @default(uuid()) @db.Uuid
+  tenantId        String                @map("tenant_id") @db.Uuid
+  assignmentId    String                @map("assignment_id") @db.Uuid
+  templateKey     String                @map("template_key")
+  sectionKey      String                @default("") @map("section_key")
+  fieldKey        String                @map("field_key")
+  source          ReportFieldValueSource @default(manual)
+  valueJson       Json                  @db.JsonB @map("value_json")
+  normalizedText  String?               @map("normalized_text")
+  sourceDocumentId String?              @map("source_document_id") @db.Uuid
+  ocrJson         Json?                 @db.JsonB @map("ocr_json")
+  derivedFromJson Json?                 @db.JsonB @map("derived_from_json")
+  updatedByUserId String?               @map("updated_by_user_id") @db.Uuid
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+  tenant          Tenant                @relation(fields: [tenantId], references: [id])
+  assignment      Assignment            @relation(fields: [assignmentId], references: [id])
+  sourceDocument  Document?             @relation(fields: [sourceDocumentId], references: [id])
+  auditLogs       ReportAuditLog[]
+
+  @@unique([assignmentId, templateKey, sectionKey, fieldKey])
+  @@index([tenantId])
+  @@index([assignmentId, templateKey])
+  @@index([sourceDocumentId])
+  @@map("report_field_values")
+}
+
+model ReportEvidenceLink {
+  id             String        @id @default(uuid()) @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  assignmentId   String        @map("assignment_id") @db.Uuid
+  templateKey    String        @map("template_key")
+  sectionKey     String        @default("") @map("section_key")
+  fieldKey       String?       @map("field_key")
+  documentId     String        @map("document_id") @db.Uuid
+  label          String?
+  sortOrder      Int           @default(0) @map("sort_order")
+  metadataJson   Json          @default("{}") @db.JsonB @map("metadata_json")
+  ocrJson        Json?         @db.JsonB @map("ocr_json")
+  createdByUserId String?      @map("created_by_user_id") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  assignment     Assignment    @relation(fields: [assignmentId], references: [id])
+  document       Document      @relation(fields: [documentId], references: [id])
+  auditLogs      ReportAuditLog[]
+
+  @@index([tenantId])
+  @@index([assignmentId, templateKey, sectionKey, fieldKey])
+  @@index([documentId])
+  @@map("report_evidence_links")
+}
+
+model ReportGenerationJob {
+  id              String                  @id @default(uuid()) @db.Uuid
+  tenantId        String                  @map("tenant_id") @db.Uuid
+  assignmentId    String                  @map("assignment_id") @db.Uuid
+  templateVersionId String?               @map("template_version_id") @db.Uuid
+  templateKey     String                  @map("template_key")
+  reportFamily    RepogenReportFamily     @map("report_family")
+  idempotencyKey  String                  @map("idempotency_key")
+  status          ReportGenerationJobStatus @default(pending)
+  attempts        Int                     @default(0)
+  errorMessage    String?                 @map("error_message")
+  workerTrace     String?                 @map("worker_trace")
+  requestedByUserId String?               @map("requested_by_user_id") @db.Uuid
+  requestPayloadJson Json                 @default("{}") @db.JsonB @map("request_payload_json")
+  warningsJson    Json                    @default("[]") @db.JsonB @map("warnings_json")
+  reportPackId    String?                 @unique @map("report_pack_id") @db.Uuid
+  queuedAt        DateTime?               @map("queued_at")
+  startedAt       DateTime?               @map("started_at")
+  finishedAt      DateTime?               @map("finished_at")
+  createdAt       DateTime                @default(now()) @map("created_at")
+  updatedAt       DateTime                @updatedAt @map("updated_at")
+  tenant          Tenant                  @relation(fields: [tenantId], references: [id])
+  assignment      Assignment              @relation(fields: [assignmentId], references: [id])
+  templateVersion TemplateVersion?        @relation(fields: [templateVersionId], references: [id])
+  reportPack      ReportPack?             @relation("RepogenJobPack", fields: [reportPackId], references: [id])
+  auditLogs       ReportAuditLog[]
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId])
+  @@index([assignmentId, templateKey, createdAt])
+  @@index([status])
+  @@map("report_generation_jobs")
+}
+
+model ReportAuditLog {
+  id                   String              @id @default(uuid()) @db.Uuid
+  tenantId             String              @map("tenant_id") @db.Uuid
+  assignmentId         String              @map("assignment_id") @db.Uuid
+  reportPackId         String?             @map("report_pack_id") @db.Uuid
+  reportGenerationJobId String?            @map("report_generation_job_id") @db.Uuid
+  fieldValueId         String?             @map("field_value_id") @db.Uuid
+  evidenceLinkId       String?             @map("evidence_link_id") @db.Uuid
+  actorUserId          String?             @map("actor_user_id") @db.Uuid
+  action               String
+  entityType           String              @map("entity_type")
+  entityId             String?             @map("entity_id")
+  beforeJson           Json?               @db.JsonB @map("before_json")
+  afterJson            Json?               @db.JsonB @map("after_json")
+  metadataJson         Json                @default("{}") @db.JsonB @map("metadata_json")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  tenant               Tenant              @relation(fields: [tenantId], references: [id])
+  assignment           Assignment          @relation(fields: [assignmentId], references: [id])
+  reportPack           ReportPack?         @relation(fields: [reportPackId], references: [id])
+  reportGenerationJob  ReportGenerationJob? @relation(fields: [reportGenerationJobId], references: [id])
+  fieldValue           ReportFieldValue?   @relation(fields: [fieldValueId], references: [id])
+  evidenceLink         ReportEvidenceLink? @relation(fields: [evidenceLinkId], references: [id])
+
+  @@index([tenantId])
+  @@index([assignmentId, createdAt])
+  @@index([reportPackId])
+  @@index([reportGenerationJobId])
+  @@index([fieldValueId])
+  @@index([evidenceLinkId])
+  @@map("report_audit_logs")
+}
