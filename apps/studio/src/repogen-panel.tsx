@@ -5,6 +5,7 @@ const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/v1';
 
 interface RepogenListRow {
   id: string;
+  org_id?: string;
   report_type: string;
   bank_type: string;
   bank_name: string;
@@ -12,6 +13,11 @@ interface RepogenListRow {
   template_selector: string;
   status: string;
   readiness_score: number | null;
+  report_pack_id?: string | null;
+  billing?: {
+    account_id?: string | null;
+    mode_cache?: string | null;
+  };
   created_at: string;
 }
 
@@ -20,7 +26,7 @@ interface RepogenListResponse {
 }
 
 interface RepogenDetailResponse {
-  work_order: Record<string, unknown>;
+  work_order: Record<string, unknown> & { org_id?: string; report_pack_id?: string | null };
   latest_snapshot: {
     id: string;
     version: number;
@@ -38,6 +44,37 @@ interface RepogenDetailResponse {
   evidence_items: Array<Record<string, unknown>>;
   comments: Array<Record<string, unknown>>;
   rules_runs: Array<Record<string, unknown>>;
+}
+
+interface RepogenPackLinkResponse {
+  work_order_id: string;
+  pack: {
+    id: string;
+    assignment_id: string;
+    template_key: string;
+    version: number;
+    status: string;
+    artifacts: Array<Record<string, unknown>>;
+    context_snapshot: Record<string, unknown> | null;
+  } | null;
+  generation_job: {
+    id: string;
+    status: string;
+    attempts: number;
+    error_message: string | null;
+    queued_at: string | null;
+    started_at: string | null;
+    finished_at: string | null;
+  } | null;
+  deliverable_releases: Array<Record<string, unknown>>;
+  billing_gate_status: {
+    mode: string | null;
+    reservation_id_present: boolean;
+    service_invoice_id: string | null;
+    service_invoice_status: string | null;
+    service_invoice_is_paid: boolean | null;
+    releasable_without_override: boolean;
+  } | null;
 }
 
 const readError = async (response: Response): Promise<string> => {
@@ -66,13 +103,17 @@ export function RepogenStudioPanel({ token }: { token: string }) {
   const [rows, setRows] = useState<RepogenListRow[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [detail, setDetail] = useState<RepogenDetailResponse | null>(null);
+  const [packLink, setPackLink] = useState<RepogenPackLinkResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [tenantFilter, setTenantFilter] = useState('');
+  const [accountFilter, setAccountFilter] = useState('');
 
   const loadList = async () => {
     if (!token) {
       setRows([]);
       setDetail(null);
+      setPackLink(null);
       setSelectedId('');
       return;
     }
@@ -94,6 +135,7 @@ export function RepogenStudioPanel({ token }: { token: string }) {
   const loadDetail = async (id: string) => {
     if (!token || !id) {
       setDetail(null);
+      setPackLink(null);
       return;
     }
     setLoading(true);
@@ -108,6 +150,30 @@ export function RepogenStudioPanel({ token }: { token: string }) {
     }
   };
 
+  const loadPackLink = async (id: string) => {
+    if (!token || !id) {
+      setPackLink(null);
+      return;
+    }
+    try {
+      const data = await apiRequest<RepogenPackLinkResponse>(token, `/repogen/work-orders/${id}/pack`);
+      setPackLink(data);
+    } catch (err) {
+      setPackLink(null);
+      setError(err instanceof Error ? err.message : 'Failed to load pack linkage');
+    }
+  };
+
+  const filteredRows = rows.filter((row) => {
+    const matchesTenant = tenantFilter.trim()
+      ? (row.org_id ?? '').toLowerCase().includes(tenantFilter.trim().toLowerCase())
+      : true;
+    const matchesAccount = accountFilter.trim()
+      ? (row.billing?.account_id ?? '').toLowerCase().includes(accountFilter.trim().toLowerCase())
+      : true;
+    return matchesTenant && matchesAccount;
+  });
+
   useEffect(() => {
     void loadList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -116,6 +182,7 @@ export function RepogenStudioPanel({ token }: { token: string }) {
   useEffect(() => {
     if (selectedId) {
       void loadDetail(selectedId);
+      void loadPackLink(selectedId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, token]);
@@ -126,15 +193,29 @@ export function RepogenStudioPanel({ token }: { token: string }) {
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <h3 className="m-0 text-base">Repogen Work Orders</h3>
-            <p className="m-0 text-xs text-[var(--zen-muted)]">Studio read-only monitor for M5.4 spine readiness.</p>
+            <p className="m-0 text-xs text-[var(--zen-muted)]">Studio monitor for M5.5 factory flow: readiness, pack linkage, jobs, and release events.</p>
           </div>
           <Button className="h-9 px-3" onClick={() => void loadList()} disabled={loading || !token}>
             Refresh
           </Button>
         </div>
+        <div className="mb-3 grid gap-2 md:grid-cols-2">
+          <input
+            className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+            value={tenantFilter}
+            onChange={(event) => setTenantFilter(event.target.value)}
+            placeholder="Filter by tenant org_id"
+          />
+          <input
+            className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+            value={accountFilter}
+            onChange={(event) => setAccountFilter(event.target.value)}
+            placeholder="Filter by billing account_id"
+          />
+        </div>
         {error ? <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
         <div className="max-h-[70vh] space-y-2 overflow-auto">
-          {rows.map((row) => (
+          {filteredRows.map((row) => (
             <button
               key={row.id}
               type="button"
@@ -150,11 +231,11 @@ export function RepogenStudioPanel({ token }: { token: string }) {
                 {row.bank_type} · {row.value_slab} · {row.template_selector}
               </p>
               <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
-                Readiness: {row.readiness_score ?? 'NA'} · {new Date(row.created_at).toLocaleString()}
+                Tenant: {row.org_id ?? 'NA'} · Account: {row.billing?.account_id ?? 'NA'} · {row.report_pack_id ? 'Pack linked' : 'No pack'} · Readiness: {row.readiness_score ?? 'NA'} · {new Date(row.created_at).toLocaleString()}
               </p>
             </button>
           ))}
-          {rows.length === 0 && !loading ? <p className="text-sm text-[var(--zen-muted)]">No repogen work orders yet.</p> : null}
+          {filteredRows.length === 0 && !loading ? <p className="text-sm text-[var(--zen-muted)]">No repogen work orders match the filters.</p> : null}
         </div>
       </section>
 
@@ -171,7 +252,7 @@ export function RepogenStudioPanel({ token }: { token: string }) {
           <p className="text-sm text-[var(--zen-muted)]">Select a work order to inspect snapshots, derived values, evidence, and comments.</p>
         ) : (
           <div className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-4">
               <div className="rounded-lg border border-[var(--zen-border)] p-3">
                 <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Status</p>
                 <p className="m-0 mt-1 font-semibold">{String(detail.work_order.status ?? '')}</p>
@@ -183,6 +264,13 @@ export function RepogenStudioPanel({ token }: { token: string }) {
               <div className="rounded-lg border border-[var(--zen-border)] p-3">
                 <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Snapshot</p>
                 <p className="m-0 mt-1 font-semibold">{detail.latest_snapshot ? `v${detail.latest_snapshot.version}` : 'None'}</p>
+              </div>
+              <div className="rounded-lg border border-[var(--zen-border)] p-3">
+                <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Pack / Job</p>
+                <p className="m-0 mt-1 font-semibold">
+                  {packLink?.pack ? `${packLink.pack.status} · v${packLink.pack.version}` : 'No pack'}
+                </p>
+                <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">{packLink?.generation_job?.status ?? 'No job'}</p>
               </div>
             </div>
 
@@ -222,13 +310,33 @@ export function RepogenStudioPanel({ token }: { token: string }) {
               <h4 className="m-0 text-sm">Derived Values</h4>
               <pre className="mt-2 max-h-72 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">{JSON.stringify(detail.latest_snapshot?.derived_json ?? {}, null, 2)}</pre>
             </section>
+            <section className="grid gap-3 md:grid-cols-2">
+              <section className="rounded-lg border border-[var(--zen-border)] p-3">
+                <h4 className="m-0 text-sm">Factory Pack / Billing Gate</h4>
+                <pre className="mt-2 max-h-72 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">{JSON.stringify(packLink, null, 2)}</pre>
+              </section>
+              <section className="rounded-lg border border-[var(--zen-border)] p-3">
+                <h4 className="m-0 text-sm">Release Events</h4>
+                <pre className="mt-2 max-h-72 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">{JSON.stringify(packLink?.deliverable_releases ?? [], null, 2)}</pre>
+              </section>
+            </section>
             <section className="rounded-lg border border-[var(--zen-border)] p-3">
               <h4 className="m-0 text-sm">Evidence List</h4>
               <pre className="mt-2 max-h-64 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">{JSON.stringify(detail.evidence_items, null, 2)}</pre>
             </section>
             <section className="rounded-lg border border-[var(--zen-border)] p-3">
-              <h4 className="m-0 text-sm">Manual Comments</h4>
-              <pre className="mt-2 max-h-64 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">{JSON.stringify(detail.comments, null, 2)}</pre>
+              <h4 className="m-0 text-sm">Audit Timeline (Rules + Comments + Releases)</h4>
+              <pre className="mt-2 max-h-64 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">
+                {JSON.stringify(
+                  [
+                    ...detail.comments.map((item) => ({ type: 'comment', ...item })),
+                    ...detail.rules_runs.map((item) => ({ type: 'rules_run', ...item })),
+                    ...(packLink?.deliverable_releases ?? []).map((item) => ({ type: 'deliverable_release', ...item }))
+                  ],
+                  null,
+                  2
+                )}
+              </pre>
             </section>
           </div>
         )}

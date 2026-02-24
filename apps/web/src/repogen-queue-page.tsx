@@ -14,13 +14,15 @@ type WorkOrderListRow = {
   template_selector: string;
   status: RepogenStatus;
   readiness_score: number | null;
+  report_pack_id?: string | null;
+  evidence_count?: number;
   created_at: string;
 };
 
 type WorkOrderListResponse = { items: WorkOrderListRow[] };
 
 type WorkOrderDetailResponse = {
-  work_order: Record<string, unknown> & { id?: string; status?: string };
+  work_order: Record<string, unknown> & { id?: string; status?: string; report_pack_id?: string | null };
   latest_snapshot: {
     id: string;
     version: number;
@@ -37,6 +39,90 @@ type WorkOrderDetailResponse = {
   evidence_items: Array<Record<string, unknown>>;
   comments: Array<Record<string, unknown>>;
   rules_runs: Array<Record<string, unknown>>;
+};
+
+type RepogenPackArtifact = {
+  id: string;
+  kind: string;
+  filename: string;
+  storage_ref: string;
+  mime_type: string;
+  size_bytes: number;
+  checksum_sha256: string | null;
+  metadata_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+type RepogenPackLinkResponse = {
+  work_order_id: string;
+  work_order_status: RepogenStatus;
+  readiness_score: number | null;
+  value_slab: string;
+  template_selector: string;
+  pack: {
+    id: string;
+    assignment_id: string;
+    work_order_id: string | null;
+    template_key: string;
+    report_family: string;
+    version: number;
+    status: string;
+    context_snapshot: Record<string, unknown> | null;
+    artifacts: RepogenPackArtifact[];
+    created_at: string;
+    updated_at: string;
+    generated_at: string | null;
+  } | null;
+  generation_job: {
+    id: string;
+    report_pack_id: string | null;
+    status: 'pending' | 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled' | string;
+    attempts: number;
+    error_message: string | null;
+    request_payload: Record<string, unknown>;
+    created_at: string;
+    updated_at: string;
+    queued_at: string | null;
+    started_at: string | null;
+    finished_at: string | null;
+  } | null;
+  deliverable_releases: Array<{
+    id: string;
+    released_at: string;
+    billing_gate_result: 'PAID' | 'CREDIT_CONSUMED' | 'OVERRIDE' | 'BLOCKED';
+    billing_mode_at_release: 'POSTPAID' | 'CREDIT';
+    override_reason: string | null;
+    idempotency_key: string;
+    metadata_json: Record<string, unknown>;
+  }>;
+  billing_gate_status: {
+    mode: 'POSTPAID' | 'CREDIT' | null;
+    reservation_id_present: boolean;
+    service_invoice_id: string | null;
+    service_invoice_status: string | null;
+    service_invoice_is_paid: boolean | null;
+    releasable_without_override: boolean;
+  } | null;
+};
+
+type RepogenCreatePackResponse = {
+  idempotent: boolean;
+  queue_enqueued: boolean;
+  pack_link: RepogenPackLinkResponse;
+};
+
+type RepogenReleaseDeliverablesResponse = {
+  idempotent: boolean;
+  blocked: boolean;
+  pack_link: RepogenPackLinkResponse;
+  release: {
+    id: string;
+    billing_gate_result: string;
+    billing_mode_at_release: string;
+    released_at: string;
+    override_reason: string | null;
+  };
 };
 
 type DocumentsListItem = {
@@ -59,6 +145,9 @@ const readErrorBody = async (response: Response): Promise<string> => {
   const body = await response.text();
   return body || `HTTP ${response.status}`;
 };
+
+const makeRepogenIdempotencyKey = (scope: string, workOrderId: string): string =>
+  `web:${scope}:${workOrderId}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
 
 async function apiRequest<T>(token: string, path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API}${path}`, {
@@ -107,6 +196,7 @@ export function RepogenQueuePage({ token }: { token: string }) {
   const [selectedId, setSelectedId] = useState('');
   const [detail, setDetail] = useState<WorkOrderDetailResponse | null>(null);
   const [exportBundle, setExportBundle] = useState<Record<string, unknown> | null>(null);
+  const [packLink, setPackLink] = useState<RepogenPackLinkResponse | null>(null);
   const [documents, setDocuments] = useState<DocumentsListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [working, setWorking] = useState(false);
@@ -130,6 +220,9 @@ export function RepogenQueuePage({ token }: { token: string }) {
   const [commentBody, setCommentBody] = useState('');
   const [nextStatus, setNextStatus] = useState<RepogenStatus>('EVIDENCE_PENDING');
   const [statusNote, setStatusNote] = useState('');
+  const [releaseOverride, setReleaseOverride] = useState(false);
+  const [releaseOverrideReason, setReleaseOverrideReason] = useState('');
+  const [releaseIdempotencyKey, setReleaseIdempotencyKey] = useState('');
 
   const setErrorMessage = (value: string) => {
     setError(value);
@@ -162,6 +255,7 @@ export function RepogenQueuePage({ token }: { token: string }) {
     if (!token || !id) {
       setDetail(null);
       setExportBundle(null);
+      setPackLink(null);
       return;
     }
     setLoading(true);
@@ -173,6 +267,20 @@ export function RepogenQueuePage({ token }: { token: string }) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to load repogen work order');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPackLink = async (id: string) => {
+    if (!token || !id) {
+      setPackLink(null);
+      return;
+    }
+    try {
+      const data = await apiRequest<RepogenPackLinkResponse>(token, `/repogen/work-orders/${id}/pack`);
+      setPackLink(data);
+    } catch (err) {
+      setPackLink(null);
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to load pack linkage');
     }
   };
 
@@ -215,6 +323,7 @@ export function RepogenQueuePage({ token }: { token: string }) {
     if (selectedId) {
       void loadDetail(selectedId);
       void loadExport(selectedId);
+      void loadPackLink(selectedId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, token]);
@@ -268,6 +377,7 @@ export function RepogenQueuePage({ token }: { token: string }) {
       await loadList();
       await loadDetail(selectedId);
       await loadExport(selectedId);
+      await loadPackLink(selectedId);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to patch contract');
     } finally {
@@ -300,6 +410,7 @@ export function RepogenQueuePage({ token }: { token: string }) {
       await loadDetail(selectedId);
       await loadExport(selectedId);
       await loadList();
+      await loadPackLink(selectedId);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to link evidence');
     } finally {
@@ -319,6 +430,7 @@ export function RepogenQueuePage({ token }: { token: string }) {
       setNotice(`${commentType} comment added`);
       setCommentBody('');
       await loadDetail(selectedId);
+      await loadPackLink(selectedId);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to add comment');
     } finally {
@@ -339,8 +451,79 @@ export function RepogenQueuePage({ token }: { token: string }) {
       await loadList();
       await loadDetail(selectedId);
       await loadExport(selectedId);
+      await loadPackLink(selectedId);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to transition status');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const createPack = async () => {
+    if (!token || !selectedId) return;
+    setWorking(true);
+    setErrorMessage('');
+    try {
+      const result = await apiRequest<RepogenCreatePackResponse>(token, `/repogen/work-orders/${selectedId}/create-pack`, {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
+      setPackLink(result.pack_link);
+      setNotice(result.idempotent ? 'Existing pack linkage returned' : 'Pack created and generation queued');
+      await loadList();
+      await loadDetail(selectedId);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to create pack');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const releaseDeliverables = async () => {
+    if (!token || !selectedId || !packLink?.pack) return;
+    if (releaseOverride && !releaseOverrideReason.trim()) {
+      setErrorMessage('Override reason is required when override is selected');
+      return;
+    }
+
+    const predictedGate = packLink.billing_gate_status?.releasable_without_override
+      ? 'Expected: release allowed'
+      : releaseOverride
+        ? 'Expected: override release (audited)'
+        : 'Expected: blocked by billing gate';
+    if (!window.confirm(`Release deliverables for this pack?\n${predictedGate}`)) {
+      return;
+    }
+
+    const idempotencyKey = releaseIdempotencyKey.trim() || makeRepogenIdempotencyKey('release', selectedId);
+    if (!releaseIdempotencyKey.trim()) {
+      setReleaseIdempotencyKey(idempotencyKey);
+    }
+
+    setWorking(true);
+    setErrorMessage('');
+    try {
+      const result = await apiRequest<RepogenReleaseDeliverablesResponse>(
+        token,
+        `/repogen/work-orders/${selectedId}/release-deliverables`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            idempotency_key: idempotencyKey,
+            override: releaseOverride || undefined,
+            override_reason: releaseOverride ? releaseOverrideReason.trim() : undefined
+          })
+        }
+      );
+      setPackLink(result.pack_link);
+      setNotice(
+        result.blocked
+          ? `Release blocked by billing gate (${result.release.billing_mode_at_release})`
+          : `Deliverables released (${result.release.billing_gate_result})`
+      );
+      await loadDetail(selectedId);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to release deliverables');
     } finally {
       setWorking(false);
     }
@@ -400,7 +583,9 @@ export function RepogenQueuePage({ token }: { token: string }) {
               </div>
               <div className="mt-1 text-sm">{row.bank_name}</div>
               <div className="mt-1 text-xs text-[var(--zen-muted)]">{row.bank_type} · {row.value_slab} · {row.template_selector}</div>
-              <div className="mt-1 text-xs text-[var(--zen-muted)]">Readiness {row.readiness_score ?? 'NA'} · {new Date(row.created_at).toLocaleString()}</div>
+              <div className="mt-1 text-xs text-[var(--zen-muted)]">
+                Readiness {row.readiness_score ?? 'NA'} · Evidence {row.evidence_count ?? 'NA'} · {row.report_pack_id ? 'Pack linked' : 'No pack'} · {new Date(row.created_at).toLocaleString()}
+              </div>
             </button>
           ))}
           {rows.length === 0 && !loading ? <p className="text-sm text-[var(--zen-muted)]">No work orders yet.</p> : null}
@@ -447,6 +632,18 @@ export function RepogenQueuePage({ token }: { token: string }) {
 
             <section className="rounded-lg border border-[var(--zen-border)] p-3">
               <h3 className="m-0 text-sm">Warnings / Missing Inputs</h3>
+              <p className="m-0 mt-2 text-xs text-[var(--zen-muted)]">
+                Next action:{' '}
+                {detail.work_order.status !== 'READY_FOR_RENDER'
+                  ? `Move to READY_FOR_RENDER after clearing missing items (${detail.readiness.missing_fields.length + detail.readiness.missing_evidence.length} missing)`
+                  : !packLink?.pack
+                    ? 'Create Pack'
+                    : packLink.generation_job?.status !== 'completed'
+                      ? `Wait for generation (${packLink?.generation_job?.status ?? 'unknown'})`
+                      : packLink.deliverable_releases.some((row) => row.billing_gate_result !== 'BLOCKED')
+                        ? 'Delivered / released'
+                        : 'Release Deliverables'}
+              </p>
               <ul className="mt-2 space-y-1 pl-4 text-sm">
                 {detail.readiness.warnings.map((value, index) => <li key={`warn-${index}`}>{value}</li>)}
                 {detail.readiness.missing_fields.map((value, index) => <li key={`field-${index}`}>Missing field: {value}</li>)}
@@ -509,6 +706,122 @@ export function RepogenQueuePage({ token }: { token: string }) {
                   <Button disabled={working} onClick={() => void transitionStatus()}>Move Status</Button>
                 </div>
               </article>
+            </section>
+
+            <section className="rounded-lg border border-[var(--zen-border)] p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="m-0 text-sm">Factory Pack + Deliverables Release</h3>
+                  <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
+                    M5.5 bridge: READY_FOR_RENDER auto-creates pack/job. Release is manual and billing-gated.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    disabled={working || detail.work_order.status !== 'READY_FOR_RENDER' || Boolean(packLink?.pack)}
+                    onClick={() => void createPack()}
+                  >
+                    Create Pack
+                  </Button>
+                  <Button disabled={working || !selectedId} onClick={() => selectedId && void loadPackLink(selectedId)}>
+                    Reload Pack
+                  </Button>
+                </div>
+              </div>
+
+              {!packLink ? (
+                <p className="mt-3 text-sm text-[var(--zen-muted)]">Pack linkage not loaded.</p>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  <div className="grid gap-3 md:grid-cols-4">
+                    <div className="rounded-lg border border-[var(--zen-border)] p-3">
+                      <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Template</p>
+                      <p className="m-0 mt-1 text-sm font-semibold">{packLink.template_selector}</p>
+                      <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">{packLink.value_slab}</p>
+                    </div>
+                    <div className="rounded-lg border border-[var(--zen-border)] p-3">
+                      <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Pack</p>
+                      <p className="m-0 mt-1 text-sm font-semibold">{packLink.pack ? `${packLink.pack.status} · v${packLink.pack.version}` : 'Not created'}</p>
+                      <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">{packLink.pack?.id ?? '—'}</p>
+                    </div>
+                    <div className="rounded-lg border border-[var(--zen-border)] p-3">
+                      <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Generation Job</p>
+                      <p className="m-0 mt-1 text-sm font-semibold">{packLink.generation_job?.status ?? 'None'}</p>
+                      <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
+                        Attempts {packLink.generation_job?.attempts ?? 0} · Artifacts {packLink.pack?.artifacts.length ?? 0}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-[var(--zen-border)] p-3">
+                      <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Billing Gate</p>
+                      <p className="m-0 mt-1 text-sm font-semibold">{packLink.billing_gate_status?.mode ?? 'Unknown'}</p>
+                      <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
+                        {packLink.billing_gate_status?.mode === 'CREDIT'
+                          ? `Reservation ${packLink.billing_gate_status.reservation_id_present ? 'present' : 'missing'}`
+                          : packLink.billing_gate_status?.mode === 'POSTPAID'
+                            ? `Invoice ${packLink.billing_gate_status.service_invoice_status ?? 'missing'}`
+                            : 'No billing hook yet'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-[var(--zen-border)] p-3">
+                    <h4 className="m-0 text-sm">Release Deliverables (Manual)</h4>
+                    <div className="mt-2 grid gap-2 md:grid-cols-[auto_1fr] md:items-center">
+                      <label className="inline-flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={releaseOverride}
+                          onChange={(event) => setReleaseOverride(event.target.checked)}
+                        />
+                        Override billing gate
+                      </label>
+                      <input
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                        value={releaseOverrideReason}
+                        onChange={(event) => setReleaseOverrideReason(event.target.value)}
+                        placeholder="Override reason (required if override checked)"
+                      />
+                      <span className="text-xs text-[var(--zen-muted)] md:col-span-1">Idempotency key</span>
+                      <input
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                        value={releaseIdempotencyKey}
+                        onChange={(event) => setReleaseIdempotencyKey(event.target.value)}
+                        placeholder="Optional; auto-generated if blank"
+                      />
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <Button
+                        disabled={working || !packLink.pack || packLink.generation_job?.status !== 'completed'}
+                        onClick={() => void releaseDeliverables()}
+                      >
+                        Release Deliverables
+                      </Button>
+                      <span className="text-xs text-[var(--zen-muted)]">
+                        {packLink.generation_job?.status === 'completed'
+                          ? packLink.billing_gate_status?.releasable_without_override
+                            ? 'Release allowed without override'
+                            : 'Billing gate will block unless override'
+                          : 'Generation must complete before release'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <article className="rounded-lg border border-[var(--zen-border)] p-3">
+                      <h4 className="m-0 text-sm">Artifacts</h4>
+                      <pre className="mt-2 max-h-64 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">
+                        {JSON.stringify(packLink.pack?.artifacts ?? [], null, 2)}
+                      </pre>
+                    </article>
+                    <article className="rounded-lg border border-[var(--zen-border)] p-3">
+                      <h4 className="m-0 text-sm">Release Events</h4>
+                      <pre className="mt-2 max-h-64 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">
+                        {JSON.stringify(packLink.deliverable_releases ?? [], null, 2)}
+                      </pre>
+                    </article>
+                  </div>
+                </div>
+              )}
             </section>
 
             <section className="grid gap-3 lg:grid-cols-2">
