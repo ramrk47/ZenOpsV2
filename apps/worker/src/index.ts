@@ -3,6 +3,11 @@ import { createJsonLogger } from '@zenops/common';
 import { loadEnv } from '@zenops/config';
 import { createPrismaClient } from '@zenops/db';
 import { processDraftJob, type QueueDraftPayload } from './processor.js';
+import {
+  REPOGEN_GENERATION_QUEUE,
+  processRepogenGenerationJob,
+  type RepogenQueuePayload
+} from './repogen.processor.js';
 import { NOTIFICATIONS_QUEUE, processNotificationJob, type NotificationQueuePayload } from './notifications.processor.js';
 import {
   ASSIGNMENT_SIGNALS_QUEUE,
@@ -105,6 +110,23 @@ const worker = new Worker<QueueDraftPayload>(
   {
     connection: redisConnection,
     concurrency
+  }
+);
+
+const repogenWorker = new Worker<RepogenQueuePayload>(
+  REPOGEN_GENERATION_QUEUE,
+  async (job) => {
+    await processRepogenGenerationJob({
+      prisma,
+      logger,
+      payload: job.data,
+      artifactsRoot,
+      fallbackTenantId: defaultTenantId
+    });
+  },
+  {
+    connection: redisConnection,
+    concurrency: Math.max(1, Math.min(2, concurrency))
   }
 );
 
@@ -245,6 +267,13 @@ worker.on('ready', () => {
   });
 });
 
+repogenWorker.on('ready', () => {
+  logger.info('worker_ready', {
+    queue: REPOGEN_GENERATION_QUEUE,
+    concurrency: Math.max(1, Math.min(2, concurrency))
+  });
+});
+
 notificationsWorker.on('ready', () => {
   logger.info('worker_ready', {
     queue: NOTIFICATIONS_QUEUE,
@@ -280,6 +309,13 @@ worker.on('error', (error) => {
   });
 });
 
+repogenWorker.on('error', (error) => {
+  logger.error('worker_error', {
+    queue: REPOGEN_GENERATION_QUEUE,
+    error: error.message
+  });
+});
+
 notificationsWorker.on('error', (error) => {
   logger.error('worker_error', {
     queue: NOTIFICATIONS_QUEUE,
@@ -311,6 +347,7 @@ subscriptionRefillWorker.on('error', (error) => {
 const shutdown = async () => {
   logger.info('worker_shutdown');
   await worker.close();
+  await repogenWorker.close();
   await notificationsWorker.close();
   await assignmentSignalsWorker.close();
   await taskOverdueWorker.close();
