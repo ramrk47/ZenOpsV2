@@ -149,6 +149,7 @@ export class RepogenSpineService {
     valueSlab: string;
     templateSelector: string;
     status: string;
+    reportPackId: string | null;
     billingModeCache: string | null;
     billingAccountId: string | null;
     billingReservationId: string | null;
@@ -170,6 +171,7 @@ export class RepogenSpineService {
       value_slab: row.valueSlab,
       template_selector: row.templateSelector,
       status: row.status,
+      report_pack_id: row.reportPackId,
       billing: {
         mode_cache: row.billingModeCache,
         account_id: row.billingAccountId,
@@ -388,6 +390,7 @@ export class RepogenSpineService {
         valueSlab: true,
         templateSelector: true,
         status: true,
+        reportPackId: true,
         billingModeCache: true,
         billingAccountId: true,
         billingReservationId: true,
@@ -518,6 +521,7 @@ export class RepogenSpineService {
         valueSlab: true,
         templateSelector: true,
         status: true,
+        reportPackId: true,
         billingModeCache: true,
         billingAccountId: true,
         billingReservationId: true,
@@ -591,6 +595,7 @@ export class RepogenSpineService {
         valueSlab: true,
         templateSelector: true,
         status: true,
+        reportPackId: true,
         billingModeCache: true,
         billingAccountId: true,
         billingReservationId: true,

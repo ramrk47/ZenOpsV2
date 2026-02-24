@@ -30,6 +30,7 @@ import { RepogenController } from './repogen/repogen.controller.js';
 import { RepogenService } from './repogen/repogen.service.js';
 import { RepogenSpineController } from './repogen/repogen-spine.controller.js';
 import { RepogenSpineService } from './repogen/repogen-spine.service.js';
+import { RepogenFactoryService } from './repogen/factory/repogen-factory.service.js';
 
 @Module({
   controllers: [
@@ -145,6 +146,7 @@ import { RepogenSpineService } from './repogen/repogen-spine.service.js';
     DomainService,
     RepogenService,
     RepogenSpineService,
+    RepogenFactoryService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard
