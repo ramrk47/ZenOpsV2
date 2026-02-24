@@ -9,6 +9,7 @@ import { PrismaService } from './db/prisma.service.js';
 import { RequestContextService } from './db/request-context.service.js';
 import { DomainService } from './domain/domain.service.js';
 import { ReportQueueService } from './queue/report-queue.service.js';
+import { RepogenQueueService } from './queue/repogen-queue.service.js';
 import { AssignmentSignalsQueueService } from './queue/assignment-signals-queue.service.js';
 import { RequestIdMiddleware } from './common/request-id.middleware.js';
 import { loadLaunchModeConfig } from './common/launch-mode.js';
@@ -24,6 +25,8 @@ import { ServiceInvoicesController } from './billing-control/service-invoices.co
 import { BillingControlService } from './billing-control/billing-control.service.js';
 import { PaymentWebhooksController } from './billing-control/payment-webhooks.controller.js';
 import { PaymentsController } from './billing-control/payments.controller.js';
+import { RepogenController } from './repogen/repogen.controller.js';
+import { RepogenService } from './repogen/repogen.service.js';
 
 @Module({
   controllers: [
@@ -36,7 +39,8 @@ import { PaymentsController } from './billing-control/payments.controller.js';
     BillingControlController,
     ServiceInvoicesController,
     PaymentWebhooksController,
-    PaymentsController
+    PaymentsController,
+    RepogenController
   ],
   providers: [
     {
@@ -47,6 +51,14 @@ import { PaymentsController } from './billing-control/payments.controller.js';
       provide: ReportQueueService,
       useFactory: () =>
         new ReportQueueService(
+          process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
+          process.env.DISABLE_QUEUE === 'true'
+        )
+    },
+    {
+      provide: RepogenQueueService,
+      useFactory: () =>
+        new RepogenQueueService(
           process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
           process.env.DISABLE_QUEUE === 'true'
         )
@@ -119,6 +131,7 @@ import { PaymentsController } from './billing-control/payments.controller.js';
     BillingControlService,
     NotificationsService,
     DomainService,
+    RepogenService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard
