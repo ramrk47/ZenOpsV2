@@ -95,7 +95,8 @@ DECLARE
     'repogen_contract_snapshots',
     'repogen_evidence_items',
     'repogen_rules_runs',
-    'repogen_comments'
+    'repogen_comments',
+    'repogen_deliverable_releases'
   ];
 BEGIN
   FOREACH t IN ARRAY repogen_tables
@@ -113,7 +114,8 @@ DECLARE
     'repogen_contract_snapshots',
     'repogen_evidence_items',
     'repogen_rules_runs',
-    'repogen_comments'
+    'repogen_comments',
+    'repogen_deliverable_releases'
   ];
 BEGIN
   FOREACH t IN ARRAY repogen_tables
