@@ -343,4 +343,67 @@ describe('processRepogenGenerationJob', () => {
     expect(state.packs.map((row) => row.version)).toEqual([1, 2]);
     expect(state.jobs.find((row) => row.id === 'repogen-job-2')?.status).toBe('completed');
   });
+
+  it('propagates factory bridge export hash metadata into placeholder artifacts', async () => {
+    const { tx, state } = makeStatefulTx([
+      {
+        id: 'repogen-job-factory',
+        tenantId: 'tenant-1',
+        assignmentId: 'assignment-1',
+        templateVersionId: null,
+        templateKey: 'SBI_UNDER_5CR_V1',
+        reportFamily: 'valuation',
+        idempotencyKey: 'idem-factory',
+        status: 'queued',
+        attempts: 0,
+        errorMessage: null,
+        workerTrace: null,
+        requestedByUserId: 'user-1',
+        requestPayloadJson: {
+          repogen_factory: true,
+          work_order_id: 'wo-1',
+          snapshot_version: 4,
+          template_selector: 'SBI_FORMAT_A',
+          export_bundle_hash: 'hash-123',
+          export_bundle: {
+            work_order_id: 'wo-1',
+            snapshot_version: 4,
+            contract_json: {},
+            derived_json: {},
+            readiness_json: {},
+            evidence_manifest: []
+          }
+        },
+        warningsJson: [],
+        queuedAt: new Date(),
+        startedAt: null,
+        finishedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        reportPackId: null
+      }
+    ]);
+    const artifactsRoot = await mkdtemp(join(tmpdir(), 'zenops-repogen-worker-factory-'));
+
+    await processRepogenGenerationJob({
+      prisma: {} as any,
+      logger: createJsonLogger(),
+      payload: {
+        reportGenerationJobId: 'repogen-job-factory',
+        assignmentId: 'assignment-1',
+        tenantId: 'tenant-1',
+        requestId: 'req-factory'
+      },
+      artifactsRoot,
+      fallbackTenantId: 'tenant-1',
+      runWithContext: async (_prisma, _ctx, fn) => fn(tx)
+    });
+
+    expect(state.artifacts).toHaveLength(1);
+    expect(state.artifacts[0]?.metadataJson?.repogen_factory).toBe(true);
+    expect(state.artifacts[0]?.metadataJson?.work_order_id).toBe('wo-1');
+    expect(state.artifacts[0]?.metadataJson?.snapshot_version).toBe(4);
+    expect(state.artifacts[0]?.metadataJson?.template_selector).toBe('SBI_FORMAT_A');
+    expect(state.artifacts[0]?.metadataJson?.export_bundle_hash).toBe('hash-123');
+  });
 });

@@ -52,6 +52,10 @@ const setupFixtures = async () => {
   const repogenRulesRunExternal = randomUUID();
   const repogenCommentInternal = randomUUID();
   const repogenCommentExternal = randomUUID();
+  const repogenReportPackInternal = randomUUID();
+  const repogenReportPackExternal = randomUUID();
+  const repogenReleaseInternal = randomUUID();
+  const repogenReleaseExternal = randomUUID();
 
   await rootClient.query(
     `INSERT INTO users (id, email, name, created_at, updated_at)
@@ -211,6 +215,55 @@ const setupFixtures = async () => {
       ($2, $4, 'external_portal', $6, 'External Assignment', 'External lane test assignment', 'high', 'requested', $7, NOW(), NOW())
      ON CONFLICT (id) DO NOTHING`,
     [internalAssignmentId, externalAssignmentId, cfg.tenantInternal, cfg.tenantExternal, internalWorkOrderId, externalWorkOrderId, userA]
+  );
+
+  await rootClient.query(
+    `INSERT INTO report_packs (
+      id, tenant_id, assignment_id, work_order_id, template_key, report_family, version, status, warnings_json, created_at, updated_at
+    ) VALUES
+      ($1, $3, $5, $7, 'SBI_UNDER_5CR_V1', 'valuation', 1, 'generated', '[]'::jsonb, NOW(), NOW()),
+      ($2, $4, $6, $8, 'PSU_GENERIC_OVER_5CR_V1', 'dpr', 1, 'generated', '[]'::jsonb, NOW(), NOW())
+    ON CONFLICT (id) DO NOTHING`,
+    [
+      repogenReportPackInternal,
+      repogenReportPackExternal,
+      cfg.tenantInternal,
+      cfg.tenantExternal,
+      internalAssignmentId,
+      externalAssignmentId,
+      repogenWorkOrderInternal,
+      repogenWorkOrderExternal
+    ]
+  );
+
+  await rootClient.query(
+    `UPDATE repogen_work_orders
+     SET report_pack_id = CASE
+       WHEN id = $1 THEN $3
+       WHEN id = $2 THEN $4
+       ELSE report_pack_id
+     END
+     WHERE id IN ($1, $2)`,
+    [repogenWorkOrderInternal, repogenWorkOrderExternal, repogenReportPackInternal, repogenReportPackExternal]
+  );
+
+  await rootClient.query(
+    `INSERT INTO repogen_deliverable_releases (
+      id, org_id, work_order_id, report_pack_id, billing_mode_at_release, billing_gate_result, idempotency_key, metadata_json, released_at, created_at, updated_at
+    ) VALUES
+      ($1, $5, $3, $7, 'CREDIT', 'CREDIT_CONSUMED', 'rls:repogen:internal', '{}'::jsonb, NOW(), NOW(), NOW()),
+      ($2, $6, $4, $8, 'POSTPAID', 'BLOCKED', 'rls:repogen:external', '{}'::jsonb, NOW(), NOW(), NOW())
+    ON CONFLICT (id) DO NOTHING`,
+    [
+      repogenReleaseInternal,
+      repogenReleaseExternal,
+      repogenWorkOrderInternal,
+      repogenWorkOrderExternal,
+      cfg.tenantInternal,
+      cfg.tenantExternal,
+      repogenReportPackInternal,
+      repogenReportPackExternal
+    ]
   );
 
   await rootClient.query(
@@ -408,6 +461,7 @@ describe('RLS integration', () => {
     const internalEvidence = await webClient.query('SELECT org_id FROM repogen_evidence_items');
     const internalRulesRuns = await webClient.query('SELECT org_id FROM repogen_rules_runs');
     const internalComments = await webClient.query('SELECT org_id FROM repogen_comments');
+    const internalReleases = await webClient.query('SELECT org_id FROM repogen_deliverable_releases');
     await webClient.query('COMMIT');
 
     await webClient.query('BEGIN');
@@ -419,6 +473,7 @@ describe('RLS integration', () => {
     const externalEvidence = await webClient.query('SELECT org_id FROM repogen_evidence_items');
     const externalRulesRuns = await webClient.query('SELECT org_id FROM repogen_rules_runs');
     const externalComments = await webClient.query('SELECT org_id FROM repogen_comments');
+    const externalReleases = await webClient.query('SELECT org_id FROM repogen_deliverable_releases');
     await webClient.query('COMMIT');
 
     await webClient.end();
@@ -428,23 +483,27 @@ describe('RLS integration', () => {
     expect(internalEvidence.rows.length).toBeGreaterThan(0);
     expect(internalRulesRuns.rows.length).toBeGreaterThan(0);
     expect(internalComments.rows.length).toBeGreaterThan(0);
+    expect(internalReleases.rows.length).toBeGreaterThan(0);
     expect(externalWorkOrders.rows.length).toBeGreaterThan(0);
     expect(externalSnapshots.rows.length).toBeGreaterThan(0);
     expect(externalEvidence.rows.length).toBeGreaterThan(0);
     expect(externalRulesRuns.rows.length).toBeGreaterThan(0);
     expect(externalComments.rows.length).toBeGreaterThan(0);
+    expect(externalReleases.rows.length).toBeGreaterThan(0);
 
     expect(internalWorkOrders.rows.every((row) => row.org_id === cfg.tenantInternal)).toBe(true);
     expect(internalSnapshots.rows.every((row) => row.org_id === cfg.tenantInternal)).toBe(true);
     expect(internalEvidence.rows.every((row) => row.org_id === cfg.tenantInternal)).toBe(true);
     expect(internalRulesRuns.rows.every((row) => row.org_id === cfg.tenantInternal)).toBe(true);
     expect(internalComments.rows.every((row) => row.org_id === cfg.tenantInternal)).toBe(true);
+    expect(internalReleases.rows.every((row) => row.org_id === cfg.tenantInternal)).toBe(true);
 
     expect(externalWorkOrders.rows.every((row) => row.org_id === cfg.tenantExternal)).toBe(true);
     expect(externalSnapshots.rows.every((row) => row.org_id === cfg.tenantExternal)).toBe(true);
     expect(externalEvidence.rows.every((row) => row.org_id === cfg.tenantExternal)).toBe(true);
     expect(externalRulesRuns.rows.every((row) => row.org_id === cfg.tenantExternal)).toBe(true);
     expect(externalComments.rows.every((row) => row.org_id === cfg.tenantExternal)).toBe(true);
+    expect(externalReleases.rows.every((row) => row.org_id === cfg.tenantExternal)).toBe(true);
   });
 
   it.skipIf(!ready)('enforces tenant isolation for assignments on zen_web', async () => {
