@@ -11,6 +11,8 @@
   },
   "scripts": {
     "dev": "docker compose -p ${COMPOSE_PROJECT_NAME:-zenopsv2} -f infra/docker/compose.dev.yml up --build",
+    "dev:v1": "bash ./scripts/dev-v1.sh",
+    "dev:v2": "bash ./scripts/dev-v2.sh",
     "dev:down": "docker compose -p ${COMPOSE_PROJECT_NAME:-zenopsv2} -f infra/docker/compose.dev.yml down -v",
     "infra:up": "docker compose -p ${COMPOSE_PROJECT_NAME:-zenopsv2-infra} -f infra/docker/compose.infra.yml up -d",
     "infra:down": "docker compose -p ${COMPOSE_PROJECT_NAME:-zenopsv2-infra} -f infra/docker/compose.infra.yml down -v",
@@ -19,8 +21,11 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "smoke:v1": "bash ./scripts/smoke-v1.sh",
+    "smoke:v2": "bash ./scripts/smoke-v2.sh",
     "contract_check": "turbo run contract_check",
     "docker:test": "bash ./scripts/docker-test.sh",
+    "docker:test:v1": "bash ./legacy/v1/scripts/docker-test.sh",
     "reset": "docker compose -p ${COMPOSE_PROJECT_NAME:-zenopsv2} -f infra/docker/compose.dev.yml down -v --remove-orphans && docker compose -p ${COMPOSE_PROJECT_NAME:-zenopsv2} -f infra/docker/compose.dev.yml up --build -d"
   },
   "devDependencies": {
