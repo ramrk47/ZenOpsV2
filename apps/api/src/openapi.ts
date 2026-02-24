@@ -363,6 +363,15 @@ const document = {
     '/v1/repogen/work-orders/{id}/status': {
       post: { summary: 'Transition Repogen work order status with readiness gates', responses: { '200': { description: 'OK' } } }
     },
+    '/v1/repogen/work-orders/{id}/create-pack': {
+      post: { summary: 'Create or return linked Repogen report pack and generation job', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/repogen/work-orders/{id}/pack': {
+      get: { summary: 'Get linked Repogen report pack, generation job, artifacts, and releases', responses: { '200': { description: 'OK' } } }
+    },
+    '/v1/repogen/work-orders/{id}/release-deliverables': {
+      post: { summary: 'Manual Repogen deliverables release with billing gate enforcement', responses: { '200': { description: 'OK' } } }
+    },
     '/v1/repogen/work-orders/{id}/comments': {
       get: { summary: 'List Repogen manual comments', responses: { '200': { description: 'OK' } } },
       post: { summary: 'Add Repogen manual comment', responses: { '201': { description: 'Created' } } }
