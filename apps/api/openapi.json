@@ -1251,6 +1251,92 @@
         }
       }
     },
+    "/v1/repogen/work-orders": {
+      "get": {
+        "summary": "List Repogen work orders",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Repogen work order",
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
+    },
+    "/v1/repogen/work-orders/{id}": {
+      "get": {
+        "summary": "Get Repogen work order detail",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/repogen/work-orders/{id}/contract": {
+      "patch": {
+        "summary": "Patch Repogen contract and persist computed snapshot",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/repogen/work-orders/{id}/evidence/link": {
+      "post": {
+        "summary": "Link evidence items to Repogen work order",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/repogen/work-orders/{id}/export": {
+      "get": {
+        "summary": "Export deterministic Repogen snapshot JSON bundle",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/repogen/work-orders/{id}/status": {
+      "post": {
+        "summary": "Transition Repogen work order status with readiness gates",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/repogen/work-orders/{id}/comments": {
+      "get": {
+        "summary": "List Repogen manual comments",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add Repogen manual comment",
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
+    },
     "/v1/report-requests/{id}/data-bundle": {
       "get": {
         "summary": "Get report data bundle",
