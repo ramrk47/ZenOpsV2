@@ -27,6 +27,8 @@ import { PaymentWebhooksController } from './billing-control/payment-webhooks.co
 import { PaymentsController } from './billing-control/payments.controller.js';
 import { RepogenController } from './repogen/repogen.controller.js';
 import { RepogenService } from './repogen/repogen.service.js';
+import { RepogenSpineController } from './repogen/repogen-spine.controller.js';
+import { RepogenSpineService } from './repogen/repogen-spine.service.js';
 
 @Module({
   controllers: [
@@ -40,7 +42,8 @@ import { RepogenService } from './repogen/repogen.service.js';
     ServiceInvoicesController,
     PaymentWebhooksController,
     PaymentsController,
-    RepogenController
+    RepogenController,
+    RepogenSpineController
   ],
   providers: [
     {
@@ -132,6 +135,7 @@ import { RepogenService } from './repogen/repogen.service.js';
     NotificationsService,
     DomainService,
     RepogenService,
+    RepogenSpineService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard

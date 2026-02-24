@@ -2483,6 +2483,102 @@ export class BillingControlService {
     };
   }
 
+  async ensureRepogenAcceptanceBilling(
+    tx: TxClient,
+    input: {
+      tenant_id: string;
+      repogen_work_order_id: string;
+      assignment_id?: string | null;
+      report_type: 'VALUATION' | 'DPR' | 'REVALUATION' | 'STAGE_PROGRESS';
+      bank_name: string;
+    }
+  ) {
+    const account = await this.resolveOrCreateAccountForTenant(tx, input.tenant_id, undefined, undefined, 'tenant');
+    const policy = await this.ensureBillingPolicy(tx, account.id, {
+      payment_terms_days: account.defaultPaymentTermsDays,
+      currency: 'INR',
+      is_enabled: true
+    });
+
+    const usageEventIdempotency = `repogen_accept:${input.repogen_work_order_id}`;
+    if (policy.billingMode === 'credit') {
+      const reservation = await this.reserveCredits(tx, {
+        account_id: account.id,
+        amount: 1,
+        ref_type: 'repogen_work_order',
+        ref_id: input.repogen_work_order_id,
+        idempotency_key: `repogen_accept_reserve:${input.repogen_work_order_id}`
+      });
+
+      await this.ingestUsageEvent(tx, {
+        source_system: 'v2',
+        event_type: 'repogen_work_accepted',
+        account_id: account.id,
+        payload_json: {
+          repogen_work_order_id: input.repogen_work_order_id,
+          assignment_id: input.assignment_id ?? null,
+          report_type: input.report_type,
+          bank_name: input.bank_name
+        },
+        idempotency_key: usageEventIdempotency
+      });
+
+      return {
+        mode: 'CREDIT' as const,
+        account_id: account.id,
+        reservation_id: reservation.id,
+        service_invoice_id: null
+      };
+    }
+
+    const marker = `[REPOGEN_WO:${input.repogen_work_order_id}]`;
+    const existing = await tx.serviceInvoice.findFirst({
+      where: {
+        tenantId: input.tenant_id,
+        notes: {
+          contains: marker
+        }
+      }
+    });
+
+    const invoice = existing
+      ? await this.getServiceInvoice(tx, input.tenant_id, existing.id)
+      : await this.createServiceInvoice(tx, input.tenant_id, null, {
+          account_id: account.id,
+          assignment_id: input.assignment_id ?? undefined,
+          notes: `${marker} Repogen ${input.report_type} work order for ${input.bank_name}`,
+          items: [
+            {
+              description: `Repogen ${input.report_type} work order`,
+              quantity: 1,
+              unit_price: 100,
+              order_index: 0
+            }
+          ]
+        });
+
+    await this.ingestUsageEvent(tx, {
+      source_system: 'v2',
+      event_type: 'repogen_work_accepted',
+      account_id: account.id,
+      payload_json: {
+        repogen_work_order_id: input.repogen_work_order_id,
+        assignment_id: input.assignment_id ?? null,
+        report_type: input.report_type,
+        bank_name: input.bank_name,
+        service_invoice_id: invoice.id
+      },
+      idempotency_key: usageEventIdempotency
+    });
+
+    return {
+      mode: 'POSTPAID' as const,
+      account_id: account.id,
+      reservation_id: null,
+      service_invoice_id: invoice.id
+    };
+  }
+
   async markChannelDeliveredBillingSatisfied(
     tx: TxClient,
     input: {
