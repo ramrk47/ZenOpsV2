@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { Logger } from '@zenops/common';
@@ -24,6 +25,24 @@ export interface ProcessRepogenJobParams {
     fn: (tx: any) => Promise<T>
   ) => Promise<T>;
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const stableStringify = (value: unknown): string => {
+  const normalize = (input: unknown): unknown => {
+    if (Array.isArray(input)) return input.map(normalize);
+    if (!isRecord(input)) return input;
+    return Object.fromEntries(
+      Object.keys(input)
+        .sort()
+        .map((key) => [key, normalize(input[key])])
+    );
+  };
+  return JSON.stringify(normalize(value));
+};
+
+const sha256Hex = (value: string): string => createHash('sha256').update(value).digest('hex');
 
 export const processRepogenGenerationJob = async ({
   prisma,
@@ -130,6 +149,25 @@ export const processRepogenGenerationJob = async ({
         })
       ]);
 
+      const requestPayload = isRecord(job.requestPayloadJson) ? job.requestPayloadJson : {};
+      const factoryPayload =
+        requestPayload.repogen_factory === true && isRecord(requestPayload.export_bundle)
+          ? {
+              workOrderId: typeof requestPayload.work_order_id === 'string' ? requestPayload.work_order_id : null,
+              snapshotVersion:
+                typeof requestPayload.snapshot_version === 'number' && Number.isFinite(requestPayload.snapshot_version)
+                  ? Math.trunc(requestPayload.snapshot_version)
+                  : null,
+              templateSelector:
+                typeof requestPayload.template_selector === 'string' ? requestPayload.template_selector : null,
+              exportBundle: requestPayload.export_bundle,
+              exportBundleHash:
+                typeof requestPayload.export_bundle_hash === 'string'
+                  ? requestPayload.export_bundle_hash
+                  : sha256Hex(stableStringify(requestPayload.export_bundle))
+            }
+          : null;
+
       let reportPackId = job.reportPackId;
       let packVersion = 1;
 
@@ -215,7 +253,7 @@ export const processRepogenGenerationJob = async ({
         await mkdir(dirname(artifactPath), { recursive: true });
 
         const fieldLines = fieldValues
-          .slice(0, 40)
+          .slice(0, factoryPayload ? 12 : 40)
           .map((field: any) => {
             const key = field.sectionKey ? `${field.sectionKey}.${field.fieldKey}` : field.fieldKey;
             const value =
@@ -225,8 +263,20 @@ export const processRepogenGenerationJob = async ({
             return `${key}: ${value}`;
           });
         const evidenceLines = evidenceLinks
-          .slice(0, 20)
+          .slice(0, factoryPayload ? 12 : 20)
           .map((link: any) => `${link.sectionKey || link.fieldKey || 'evidence'} -> ${link.document.originalFilename ?? link.document.id}`);
+
+        const factoryLines = factoryPayload
+          ? [
+              '',
+              'Factory Bridge (M5.5)',
+              `Work Order: ${factoryPayload.workOrderId ?? 'NA'}`,
+              `Snapshot Version: ${factoryPayload.snapshotVersion ?? 'NA'}`,
+              `Template Selector: ${factoryPayload.templateSelector ?? 'NA'}`,
+              `Export Bundle Hash: ${factoryPayload.exportBundleHash}`,
+              `Export Bundle Keys: ${Object.keys(factoryPayload.exportBundle).sort().join(', ')}`
+            ]
+          : [];
 
         const content = [
           'ZenOps Repogen Placeholder DOCX',
@@ -234,6 +284,7 @@ export const processRepogenGenerationJob = async ({
           `Assignment: ${assignment.id}`,
           `Template: ${job.templateKey}`,
           `Pack Version: ${packVersion}`,
+          ...factoryLines,
           '',
           'Fields',
           ...fieldLines,
@@ -256,7 +307,16 @@ export const processRepogenGenerationJob = async ({
             metadataJson: {
               placeholder: true,
               generated_by: 'repogen_worker_phase1',
-              request_id: payload.requestId
+              request_id: payload.requestId,
+              ...(factoryPayload
+                ? {
+                    repogen_factory: true,
+                    work_order_id: factoryPayload.workOrderId,
+                    snapshot_version: factoryPayload.snapshotVersion,
+                    template_selector: factoryPayload.templateSelector,
+                    export_bundle_hash: factoryPayload.exportBundleHash
+                  }
+                : {})
             }
           }
         });
