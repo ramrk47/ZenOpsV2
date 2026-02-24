@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from './components/ui/button';
+import { RepogenStudioPanel } from './repogen-panel';
 
 const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/v1';
 
 type BillingMode = 'POSTPAID' | 'CREDIT';
 type ReservationStatus = 'ACTIVE' | 'CONSUMED' | 'RELEASED';
 
-type StudioTab = 'credits' | 'invoices' | 'payments' | 'subscriptions';
+type StudioTab = 'credits' | 'invoices' | 'payments' | 'subscriptions' | 'repogen';
 
 interface BillingAccountRow {
   id: string;
@@ -889,6 +890,13 @@ export default function App() {
                   >
                     Subscriptions
                   </button>
+                  <button
+                    type="button"
+                    className={`rounded px-3 py-1 text-sm ${activeTab === 'repogen' ? 'bg-white font-semibold' : 'text-[var(--zen-muted)]'}`}
+                    onClick={() => setActiveTab('repogen')}
+                  >
+                    Repogen
+                  </button>
                 </div>
               </section>
 
@@ -1311,6 +1319,8 @@ export default function App() {
                     {paymentEvents.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No payment events yet.</p> : null}
                   </article>
                 </section>
+              ) : activeTab === 'repogen' ? (
+                <RepogenStudioPanel token={token} />
               ) : (
                 <section className="space-y-4">
                   <article className="panel p-4">

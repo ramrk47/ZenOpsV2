@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import { Button } from './components/ui/button';
+import { RepogenQueuePage } from './repogen-queue-page';
 
 const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/v1';
 
@@ -2178,6 +2179,7 @@ function AppShell({ token, setToken }: { token: string; setToken: (token: string
         <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/assignments">Assignments</NavLink>
         <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/assignments/new">New</NavLink>
         <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/invoices">Invoices</NavLink>
+        <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/repogen">Repogen</NavLink>
         <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/analytics">Analytics</NavLink>
         <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/employees">Employees</NavLink>
       </nav>
@@ -2187,6 +2189,7 @@ function AppShell({ token, setToken }: { token: string; setToken: (token: string
         <Route path="/assignments/new" element={<NewAssignmentPage token={token} />} />
         <Route path="/assignments/:id" element={<AssignmentDetailPage token={token} />} />
         <Route path="/invoices" element={<ServiceInvoicesPage token={token} />} />
+        <Route path="/repogen" element={<RepogenQueuePage token={token} />} />
         <Route path="/analytics" element={<AnalyticsPage token={token} />} />
         <Route path="/employees" element={<EmployeesPage token={token} />} />
         <Route path="*" element={<Navigate to="/assignments" replace />} />
