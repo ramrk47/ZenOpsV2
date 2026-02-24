@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import {
   RepogenCommentCreateSchema,
   RepogenContractPatchRequestSchema,
@@ -18,6 +18,8 @@ import {
 import type { JwtClaims } from '@zenops/auth';
 import { Claims } from '../auth/claims.decorator.js';
 import { RequestContextService } from '../db/request-context.service.js';
+import type { AuthenticatedRequest } from '../types.js';
+import { RepogenComputeSnapshotQueueService } from '../queue/repogen-compute-queue.service.js';
 import { RepogenSpineService } from './repogen-spine.service.js';
 
 const parseOrThrow = <T>(schema: { safeParse: (input: unknown) => { success: boolean; data?: T; error?: unknown } }, input: unknown): T => {
@@ -39,7 +41,8 @@ const requireUserId = (claims: JwtClaims): string => {
 export class RepogenSpineController {
   constructor(
     private readonly requestContext: RequestContextService,
-    private readonly repogenSpineService: RepogenSpineService
+    private readonly repogenSpineService: RepogenSpineService,
+    private readonly repogenComputeSnapshotQueueService: RepogenComputeSnapshotQueueService
   ) {}
 
   @Get('work-orders')
@@ -67,12 +70,31 @@ export class RepogenSpineController {
   }
 
   @Patch('work-orders/:id/contract')
-  async patchContract(@Claims() claims: JwtClaims, @Param('id') workOrderId: string, @Body() body: unknown) {
+  async patchContract(
+    @Claims() claims: JwtClaims,
+    @Param('id') workOrderId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest
+  ) {
     const parsed = parseOrThrow<RepogenContractPatchRequest>(RepogenContractPatchRequestSchema, body);
     const userId = requireUserId(claims);
-    return this.requestContext.runWithClaims(claims, (tx) =>
+    const tenantId = this.requestContext.tenantIdForClaims(claims);
+    if (!tenantId) {
+      throw new BadRequestException('TENANT_CONTEXT_REQUIRED');
+    }
+    const result = await this.requestContext.runWithClaims(claims, (tx) =>
       this.repogenSpineService.patchContract(tx, workOrderId, userId, parsed)
     );
+    const snapshotVersion = result.output_snapshot?.version;
+    if (typeof snapshotVersion === 'number' && Number.isFinite(snapshotVersion)) {
+      await this.repogenComputeSnapshotQueueService.enqueueSnapshotCompute({
+        workOrderId,
+        snapshotVersion,
+        tenantId,
+        requestId: req.requestId
+      });
+    }
+    return result;
   }
 
   @Post('work-orders/:id/evidence/link')

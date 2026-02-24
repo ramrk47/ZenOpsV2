@@ -11,6 +11,7 @@ import { DomainService } from './domain/domain.service.js';
 import { ReportQueueService } from './queue/report-queue.service.js';
 import { RepogenQueueService } from './queue/repogen-queue.service.js';
 import { AssignmentSignalsQueueService } from './queue/assignment-signals-queue.service.js';
+import { RepogenComputeSnapshotQueueService } from './queue/repogen-compute-queue.service.js';
 import { RequestIdMiddleware } from './common/request-id.middleware.js';
 import { loadLaunchModeConfig } from './common/launch-mode.js';
 import { loadEnv } from '@zenops/config';
@@ -62,6 +63,14 @@ import { RepogenSpineService } from './repogen/repogen-spine.service.js';
       provide: RepogenQueueService,
       useFactory: () =>
         new RepogenQueueService(
+          process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
+          process.env.DISABLE_QUEUE === 'true'
+        )
+    },
+    {
+      provide: RepogenComputeSnapshotQueueService,
+      useFactory: () =>
+        new RepogenComputeSnapshotQueueService(
           process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
           process.env.DISABLE_QUEUE === 'true'
         )
