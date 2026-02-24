@@ -172,6 +172,149 @@ interface AssignmentDetail {
   }>;
 }
 
+type AssignmentDocumentLink = AssignmentDetail['documents'][number];
+
+interface RepogenWarning {
+  code: string;
+  severity: 'info' | 'warn' | 'error';
+  message: string;
+  field_key?: string;
+  section_key?: string | null;
+}
+
+interface RepogenFieldRow {
+  id: string;
+  section_key: string | null;
+  field_key: string;
+  source: 'manual' | 'ocr' | 'derived';
+  value: unknown;
+  normalized_text: string | null;
+  source_document_id: string | null;
+  ocr: Record<string, unknown> | null;
+  derived_from: Record<string, unknown> | null;
+  updated_by_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface RepogenEvidenceRow {
+  id: string;
+  section_key: string | null;
+  field_key: string | null;
+  label: string | null;
+  sort_order: number;
+  metadata_json: Record<string, unknown>;
+  ocr: Record<string, unknown> | null;
+  created_by_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+  document: {
+    id: string;
+    original_filename: string | null;
+    content_type: string | null;
+    size_bytes: number | null;
+    status: string;
+    classification: string;
+    source: string;
+    storage_key: string;
+    presign_download_endpoint: string;
+  };
+}
+
+interface RepogenArtifactRow {
+  id: string;
+  kind: string;
+  filename: string;
+  storage_ref: string;
+  mime_type: string;
+  size_bytes: number;
+  checksum_sha256: string | null;
+  metadata_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+interface RepogenPackRow {
+  id: string;
+  template_key: string;
+  report_family: string;
+  version: number;
+  status: string;
+  created_by_user_id: string | null;
+  warnings: RepogenWarning[];
+  context_snapshot: Record<string, unknown> | null;
+  generated_at: string | null;
+  created_at: string;
+  updated_at: string;
+  template_version: { id: string; version: number; label: string | null } | null;
+  artifacts: RepogenArtifactRow[];
+}
+
+interface RepogenJobRow {
+  id: string;
+  assignment_id: string;
+  template_key: string;
+  report_family: string;
+  idempotency_key: string;
+  status: 'pending' | 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  attempts: number;
+  error_message: string | null;
+  worker_trace: string | null;
+  requested_by_user_id: string | null;
+  request_payload: Record<string, unknown>;
+  warnings: RepogenWarning[];
+  queued_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+  updated_at: string;
+  template_version: { id: string; version: number; label: string | null } | null;
+  report_pack: RepogenPackRow | null;
+}
+
+interface RepogenContextResponse {
+  assignment: {
+    id: string;
+    title: string;
+    status: string;
+    stage: string;
+  };
+  template: {
+    key: 'SBI_UNDER_5CR_V1';
+    family: string;
+    registry: {
+      template_id: string;
+      status: string;
+      versions: Array<{
+        id: string;
+        version: number;
+        label: string | null;
+        status: string;
+        storage_ref: string | null;
+      }>;
+    } | null;
+  };
+  fields: RepogenFieldRow[];
+  evidence_links: RepogenEvidenceRow[];
+  warnings: RepogenWarning[];
+  computed_preview: {
+    fmv: number;
+    realizable: number;
+    distress: number;
+    book_value: number | null;
+    depreciation_pct: number | null;
+  } | null;
+  latest_job: RepogenJobRow | null;
+  audit_timeline: Array<{
+    id: string;
+    action: string;
+    entity_type: string;
+    entity_id: string | null;
+    metadata_json: Record<string, unknown>;
+    created_at: string;
+  }>;
+}
+
 interface MasterDataOption {
   id: string;
   name?: string;
@@ -611,7 +754,7 @@ function NewAssignmentPage({ token }: { token: string }) {
 
 function AssignmentDetailPage({ token }: { token: string }) {
   const { id = '' } = useParams();
-  const [tab, setTab] = useState<'overview' | 'tasks' | 'messages' | 'documents' | 'activity'>('overview');
+  const [tab, setTab] = useState<'overview' | 'tasks' | 'messages' | 'documents' | 'repogen' | 'activity'>('overview');
   const [assignment, setAssignment] = useState<AssignmentDetail | null>(null);
   const [taskRows, setTaskRows] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -862,7 +1005,7 @@ function AssignmentDetailPage({ token }: { token: string }) {
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
-          {(['overview', 'tasks', 'messages', 'documents', 'activity'] as const).map((next) => (
+          {(['overview', 'tasks', 'messages', 'documents', 'repogen', 'activity'] as const).map((next) => (
             <button
               key={next}
               className={`rounded-lg border px-3 py-1 text-sm ${tab === next ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`}
@@ -1079,6 +1222,463 @@ function AssignmentDetailPage({ token }: { token: string }) {
           {assignment.activities.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No activity yet.</p> : null}
         </section>
       ) : null}
+
+      {assignment && tab === 'repogen' ? (
+        <ReportGenerationPanel token={token} assignmentId={assignment.id} documents={assignment.documents} />
+      ) : null}
+    </section>
+  );
+}
+
+const repogenFieldEditorConfig = [
+  { key: 'property.address', label: 'Property Address', type: 'text' as const },
+  { key: 'inspection_date', label: 'Inspection Date', type: 'date' as const },
+  { key: 'assignment_date', label: 'Assignment Date', type: 'date' as const },
+  { key: 'guideline_value_total', label: 'Guideline Value Total', type: 'number' as const },
+  { key: 'land_value', label: 'Land Value', type: 'number' as const },
+  { key: 'building_value', label: 'Building Value', type: 'number' as const },
+  { key: 'building.age_years', label: 'Building Age (Years)', type: 'number' as const },
+  { key: 'building.total_life_years', label: 'Building Total Life (Years)', type: 'number' as const }
+];
+
+const repogenEvidenceSections = [
+  'guideline_screenshot',
+  'gps_photos',
+  'site_photos',
+  'google_map',
+  'route_map'
+] as const;
+
+const readFieldDraftValue = (field: RepogenFieldRow | undefined): string => {
+  if (!field) return '';
+  if (typeof field.value === 'string') return field.value;
+  if (typeof field.value === 'number') return String(field.value);
+  if (field.value === null || field.value === undefined) return '';
+  return JSON.stringify(field.value);
+};
+
+function ReportGenerationPanel({
+  token,
+  assignmentId,
+  documents
+}: {
+  token: string;
+  assignmentId: string;
+  documents: AssignmentDocumentLink[];
+}) {
+  const [context, setContext] = useState<RepogenContextResponse | null>(null);
+  const [packs, setPacks] = useState<RepogenPackRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [attaching, setAttaching] = useState(false);
+  const [triggering, setTriggering] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [fieldDrafts, setFieldDrafts] = useState<Record<string, string>>({});
+  const [selectedDocumentId, setSelectedDocumentId] = useState('');
+  const [evidenceSectionKey, setEvidenceSectionKey] = useState<(typeof repogenEvidenceSections)[number]>('site_photos');
+  const [evidenceFieldKey, setEvidenceFieldKey] = useState('');
+  const [evidenceLabel, setEvidenceLabel] = useState('');
+  const [replaceForTarget, setReplaceForTarget] = useState(false);
+  const [idempotencyKey, setIdempotencyKey] = useState('');
+  const [activeJob, setActiveJob] = useState<RepogenJobRow | null>(null);
+
+  const hydrateFieldDrafts = (ctx: RepogenContextResponse) => {
+    const byKey = new Map<string, RepogenFieldRow>();
+    for (const row of ctx.fields) {
+      const compoundKey = row.section_key ? `${row.section_key}.${row.field_key}` : row.field_key;
+      byKey.set(compoundKey, row);
+      if (!row.section_key) {
+        byKey.set(row.field_key, row);
+      }
+    }
+
+    const next: Record<string, string> = {};
+    for (const spec of repogenFieldEditorConfig) {
+      next[spec.key] = readFieldDraftValue(byKey.get(spec.key));
+    }
+    setFieldDrafts(next);
+  };
+
+  const loadRepogen = async (preserveDrafts = false) => {
+    if (!token || !assignmentId) return;
+    setLoading(true);
+    setError('');
+    try {
+      const [ctx, packResponse] = await Promise.all([
+        apiRequest<RepogenContextResponse>(token, `/assignments/${assignmentId}/report-generation/context?template_key=SBI_UNDER_5CR_V1`),
+        apiRequest<{ assignment_id: string; packs: RepogenPackRow[] }>(
+          token,
+          `/assignments/${assignmentId}/report-generation/packs?template_key=SBI_UNDER_5CR_V1&limit=10`
+        )
+      ]);
+      setContext(ctx);
+      setPacks(packResponse.packs);
+      setActiveJob(ctx.latest_job);
+      if (!preserveDrafts) {
+        hydrateFieldDrafts(ctx);
+      }
+      if (!selectedDocumentId && documents.length > 0) {
+        setSelectedDocumentId(documents[0]?.id ?? '');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load report generation context.');
+      setContext(null);
+      setPacks([]);
+      setActiveJob(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadRepogen();
+  }, [token, assignmentId]);
+
+  useEffect(() => {
+    if (!activeJob) return;
+    if (activeJob.status !== 'queued' && activeJob.status !== 'processing' && activeJob.status !== 'pending') return;
+
+    const timer = window.setInterval(() => {
+      void (async () => {
+        try {
+          const latest = await apiRequest<RepogenJobRow>(token, `/report-generation/jobs/${activeJob.id}`);
+          setActiveJob(latest);
+          setContext((current) => (current ? { ...current, latest_job: latest } : current));
+          if (latest.status === 'completed' || latest.status === 'failed' || latest.status === 'cancelled') {
+            window.clearInterval(timer);
+            await loadRepogen(true);
+          }
+        } catch {
+          window.clearInterval(timer);
+        }
+      })();
+    }, 2000);
+
+    return () => window.clearInterval(timer);
+  }, [activeJob?.id, activeJob?.status, assignmentId, token]);
+
+  const onFieldChange = (key: string, value: string) => {
+    setFieldDrafts((current) => ({
+      ...current,
+      [key]: value
+    }));
+  };
+
+  const saveDraft = async () => {
+    if (!token || !assignmentId) return;
+    setSaving(true);
+    setError('');
+    setNotice('');
+    try {
+      const fields = repogenFieldEditorConfig.map((spec) => {
+        const raw = (fieldDrafts[spec.key] ?? '').trim();
+        let value: string | number | null = raw;
+        if (!raw) {
+          value = null;
+        } else if (spec.type === 'number') {
+          const parsed = Number(raw);
+          value = Number.isFinite(parsed) ? parsed : raw;
+        }
+        return {
+          field_key: spec.key,
+          value,
+          source: 'manual' as const
+        };
+      });
+
+      const next = await apiRequest<RepogenContextResponse>(token, `/assignments/${assignmentId}/report-generation/draft`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          template_key: 'SBI_UNDER_5CR_V1',
+          report_family: 'valuation',
+          fields
+        })
+      });
+
+      setContext(next);
+      setActiveJob(next.latest_job);
+      setNotice('Draft fields saved.');
+      await loadRepogen(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save draft fields.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const attachEvidence = async () => {
+    if (!selectedDocumentId || !token || !assignmentId) return;
+    setAttaching(true);
+    setError('');
+    setNotice('');
+    try {
+      const next = await apiRequest<RepogenContextResponse>(token, `/assignments/${assignmentId}/report-generation/evidence`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          template_key: 'SBI_UNDER_5CR_V1',
+          replace_for_target: replaceForTarget,
+          links: [
+            {
+              section_key: evidenceSectionKey,
+              field_key: evidenceFieldKey || undefined,
+              document_id: selectedDocumentId,
+              label: evidenceLabel || undefined,
+              metadata_json: {
+                ui_source: 'assignment_report_generation_panel'
+              }
+            }
+          ]
+        })
+      });
+      setContext(next);
+      setActiveJob(next.latest_job);
+      setNotice('Evidence link attached.');
+      setEvidenceFieldKey('');
+      setEvidenceLabel('');
+      await loadRepogen(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to attach evidence.');
+    } finally {
+      setAttaching(false);
+    }
+  };
+
+  const triggerGenerate = async () => {
+    if (!token || !assignmentId) return;
+    setTriggering(true);
+    setError('');
+    setNotice('');
+    try {
+      const key =
+        idempotencyKey.trim() ||
+        `web:repogen:${assignmentId}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
+      setIdempotencyKey(key);
+      const response = await apiRequest<{ idempotent: boolean; job: RepogenJobRow }>(
+        token,
+        `/assignments/${assignmentId}/report-generation/generate`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            template_key: 'SBI_UNDER_5CR_V1',
+            template_version: 1,
+            report_family: 'valuation',
+            idempotency_key: key
+          })
+        }
+      );
+      setActiveJob(response.job);
+      setContext((current) => (current ? { ...current, latest_job: response.job } : current));
+      setNotice(response.idempotent ? 'Existing generation job returned (idempotent).' : 'Generation queued.');
+      await loadRepogen(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to trigger report generation.');
+    } finally {
+      setTriggering(false);
+    }
+  };
+
+  const refreshJob = async () => {
+    if (!activeJob || !token) return;
+    try {
+      const latest = await apiRequest<RepogenJobRow>(token, `/report-generation/jobs/${activeJob.id}`);
+      setActiveJob(latest);
+      setContext((current) => (current ? { ...current, latest_job: latest } : current));
+      await loadRepogen(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to refresh job status.');
+    }
+  };
+
+  return (
+    <section className="card space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="m-0 text-lg">Report Generation</h2>
+          <p className="m-0 text-sm text-[var(--zen-muted)]">
+            Upload-first draft + evidence linkage for <strong>SBI_UNDER_5CR_V1</strong> (Repogen spine phase 1).
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={() => void loadRepogen(true)} disabled={loading}>{loading ? 'Refreshing...' : 'Refresh'}</Button>
+          <Button onClick={() => void triggerGenerate()} disabled={triggering}>
+            {triggering ? 'Queueing...' : 'Generate Report'}
+          </Button>
+        </div>
+      </div>
+
+      {error ? <p className="m-0 text-sm text-red-700">{error}</p> : null}
+      {notice ? <p className="m-0 text-sm text-emerald-700">{notice}</p> : null}
+
+      <article className="rounded-lg border border-[var(--zen-border)] bg-white p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="m-0 text-base">Generation Status</h3>
+          <Button onClick={() => void refreshJob()} disabled={!activeJob}>Refresh Job</Button>
+        </div>
+        {activeJob ? (
+          <div className="mt-2 grid gap-2 md:grid-cols-2 text-sm">
+            <p className="m-0">Job: <strong>{activeJob.id}</strong></p>
+            <p className="m-0">Status: <strong>{activeJob.status}</strong></p>
+            <p className="m-0">Attempts: <strong>{activeJob.attempts}</strong></p>
+            <p className="m-0">Queued: <strong>{activeJob.queued_at ? new Date(activeJob.queued_at).toLocaleString() : '-'}</strong></p>
+            <p className="m-0 md:col-span-2">Idempotency: <code>{activeJob.idempotency_key}</code></p>
+            {activeJob.error_message ? <p className="m-0 md:col-span-2 text-red-700">Error: {activeJob.error_message}</p> : null}
+          </div>
+        ) : (
+          <p className="m-0 mt-2 text-sm text-[var(--zen-muted)]">No generation jobs yet.</p>
+        )}
+      </article>
+
+      <article className="rounded-lg border border-[var(--zen-border)] bg-white p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="m-0 text-base">Draft Fields (Minimal)</h3>
+          <Button onClick={() => void saveDraft()} disabled={saving}>{saving ? 'Saving...' : 'Save Draft'}</Button>
+        </div>
+        <div className="mt-3 grid gap-2 md:grid-cols-2">
+          {repogenFieldEditorConfig.map((spec) => (
+            <label key={spec.key} className="flex flex-col gap-1 text-sm">
+              {spec.label}
+              <input
+                className="rounded-lg border border-[var(--zen-border)] px-3 py-2"
+                type={spec.type === 'date' ? 'date' : spec.type === 'number' ? 'number' : 'text'}
+                value={fieldDrafts[spec.key] ?? ''}
+                onChange={(event) => onFieldChange(spec.key, event.target.value)}
+                placeholder={spec.key}
+              />
+              <span className="text-xs text-[var(--zen-muted)]">{spec.key}</span>
+            </label>
+          ))}
+        </div>
+        {context?.computed_preview ? (
+          <div className="mt-3 grid gap-2 rounded-lg border border-[var(--zen-border)] bg-slate-50 p-3 text-sm md:grid-cols-4">
+            <p className="m-0">FMV: <strong>{context.computed_preview.fmv}</strong></p>
+            <p className="m-0">Realisable: <strong>{context.computed_preview.realizable}</strong></p>
+            <p className="m-0">Distress: <strong>{context.computed_preview.distress}</strong></p>
+            <p className="m-0">Depreciation %: <strong>{context.computed_preview.depreciation_pct ?? '-'}</strong></p>
+          </div>
+        ) : null}
+      </article>
+
+      <article className="rounded-lg border border-[var(--zen-border)] bg-white p-3 space-y-3">
+        <h3 className="m-0 text-base">Evidence Attachment (Reuse Assignment Documents)</h3>
+        <div className="grid gap-2 md:grid-cols-2">
+          <label className="flex flex-col gap-1 text-sm">
+            Assignment Document
+            <select
+              className="rounded-lg border border-[var(--zen-border)] px-3 py-2"
+              value={selectedDocumentId}
+              onChange={(event) => setSelectedDocumentId(event.target.value)}
+            >
+              <option value="">Select document</option>
+              {documents.map((doc) => (
+                <option key={doc.id} value={doc.id}>
+                  {doc.metadata.original_filename ?? doc.id} ({doc.purpose})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Evidence Section
+            <select
+              className="rounded-lg border border-[var(--zen-border)] px-3 py-2"
+              value={evidenceSectionKey}
+              onChange={(event) => setEvidenceSectionKey(event.target.value as (typeof repogenEvidenceSections)[number])}
+            >
+              {repogenEvidenceSections.map((section) => (
+                <option key={section} value={section}>{section}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Field Key (optional)
+            <input
+              className="rounded-lg border border-[var(--zen-border)] px-3 py-2"
+              value={evidenceFieldKey}
+              onChange={(event) => setEvidenceFieldKey(event.target.value)}
+              placeholder="geo.lat or guideline_value_total"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Label (optional)
+            <input
+              className="rounded-lg border border-[var(--zen-border)] px-3 py-2"
+              value={evidenceLabel}
+              onChange={(event) => setEvidenceLabel(event.target.value)}
+              placeholder="Front elevation / GPS overlay / guideline screenshot"
+            />
+          </label>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={replaceForTarget} onChange={(event) => setReplaceForTarget(event.target.checked)} />
+            Replace existing links for same section/field target
+          </label>
+          <Button onClick={() => void attachEvidence()} disabled={attaching || !selectedDocumentId}>
+            {attaching ? 'Attaching...' : 'Attach Evidence'}
+          </Button>
+        </div>
+
+        <ul className="m-0 list-none space-y-2 p-0">
+          {(context?.evidence_links ?? []).map((row) => (
+            <li key={row.id} className="rounded-lg border border-[var(--zen-border)] px-3 py-2 text-sm">
+              <p className="m-0">
+                <strong>{row.section_key ?? row.field_key ?? 'evidence'}</strong>
+                {row.field_key ? ` · ${row.field_key}` : ''}
+                {row.label ? ` · ${row.label}` : ''}
+              </p>
+              <p className="m-0 text-xs text-[var(--zen-muted)]">
+                {row.document.original_filename ?? row.document.id} · {row.document.content_type ?? 'unknown'} · {row.document.size_bytes ?? 0} bytes
+              </p>
+            </li>
+          ))}
+        </ul>
+        {(context?.evidence_links.length ?? 0) === 0 ? <p className="m-0 text-sm text-[var(--zen-muted)]">No evidence links attached yet.</p> : null}
+      </article>
+
+      <article className="rounded-lg border border-[var(--zen-border)] bg-white p-3">
+        <h3 className="m-0 text-base">Warnings</h3>
+        <ul className="mt-2 m-0 list-none space-y-2 p-0">
+          {(context?.warnings ?? []).map((warning, index) => (
+            <li
+              key={`${warning.code}-${index}`}
+              className={`rounded-lg border px-3 py-2 text-sm ${
+                warning.severity === 'error'
+                  ? 'border-red-300 bg-red-50 text-red-900'
+                  : warning.severity === 'warn'
+                    ? 'border-amber-300 bg-amber-50 text-amber-900'
+                    : 'border-slate-300 bg-slate-50 text-slate-800'
+              }`}
+            >
+              <strong>{warning.code}</strong> · {warning.message}
+            </li>
+          ))}
+        </ul>
+        {(context?.warnings.length ?? 0) === 0 ? <p className="m-0 mt-2 text-sm text-[var(--zen-muted)]">No warnings.</p> : null}
+      </article>
+
+      <article className="rounded-lg border border-[var(--zen-border)] bg-white p-3">
+        <h3 className="m-0 text-base">Generated Report Packs</h3>
+        <ul className="mt-2 m-0 list-none space-y-2 p-0">
+          {packs.map((pack) => (
+            <li key={pack.id} className="rounded-lg border border-[var(--zen-border)] px-3 py-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <p className="m-0">
+                  <strong>v{pack.version}</strong> · {pack.status} · {pack.template_key}
+                </p>
+                <span className="text-xs text-[var(--zen-muted)]">{new Date(pack.created_at).toLocaleString()}</span>
+              </div>
+              <ul className="m-0 mt-2 list-none space-y-1 p-0">
+                {pack.artifacts.map((artifact) => (
+                  <li key={artifact.id} className="text-xs text-[var(--zen-muted)]">
+                    {artifact.kind} · {artifact.filename} · {artifact.size_bytes} bytes
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+        {packs.length === 0 ? <p className="m-0 mt-2 text-sm text-[var(--zen-muted)]">No generated packs yet.</p> : null}
+      </article>
     </section>
   );
 }
