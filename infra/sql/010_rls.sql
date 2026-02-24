@@ -84,6 +84,102 @@ BEGIN
 END $$;
 
 -- ============================================================================
+-- M5.4 Repogen Spine v1 (org_id-based RLS)
+-- ============================================================================
+
+DO $$
+DECLARE
+  t text;
+  repogen_tables text[] := ARRAY[
+    'repogen_work_orders',
+    'repogen_contract_snapshots',
+    'repogen_evidence_items',
+    'repogen_rules_runs',
+    'repogen_comments'
+  ];
+BEGIN
+  FOREACH t IN ARRAY repogen_tables
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY', t);
+  END LOOP;
+END $$;
+
+DO $$
+DECLARE
+  t text;
+  repogen_tables text[] := ARRAY[
+    'repogen_work_orders',
+    'repogen_contract_snapshots',
+    'repogen_evidence_items',
+    'repogen_rules_runs',
+    'repogen_comments'
+  ];
+BEGIN
+  FOREACH t IN ARRAY repogen_tables
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS repogen_web_rw ON public.%I', t);
+    EXECUTE format(
+      'CREATE POLICY repogen_web_rw ON public.%I FOR ALL TO zen_web USING (org_id = app.current_tenant_id()) WITH CHECK (org_id = app.current_tenant_id())',
+      t
+    );
+
+    EXECUTE format('DROP POLICY IF EXISTS repogen_studio_rw ON public.%I', t);
+    EXECUTE format(
+      'CREATE POLICY repogen_studio_rw ON public.%I FOR ALL TO zen_studio USING (current_setting(''app.aud'', true) = ''studio'' AND org_id = app.current_tenant_id()) WITH CHECK (current_setting(''app.aud'', true) = ''studio'' AND org_id = app.current_tenant_id())',
+      t
+    );
+
+    EXECUTE format('DROP POLICY IF EXISTS repogen_worker_rw ON public.%I', t);
+    EXECUTE format(
+      'CREATE POLICY repogen_worker_rw ON public.%I FOR ALL TO zen_worker USING (current_setting(''app.aud'', true) IN (''worker'', ''service'') AND org_id = app.current_tenant_id()) WITH CHECK (current_setting(''app.aud'', true) IN (''worker'', ''service'') AND org_id = app.current_tenant_id())',
+      t
+    );
+  END LOOP;
+END $$;
+
+-- Portal users can create/view only their own channel-sourced repogen work orders.
+DROP POLICY IF EXISTS repogen_portal_select ON public.repogen_work_orders;
+CREATE POLICY repogen_portal_select ON public.repogen_work_orders
+  FOR SELECT TO zen_portal
+  USING (
+    org_id = app.current_tenant_id()
+    AND source_type = 'CHANNEL'::"RepogenWorkOrderSourceType"
+    AND source_ref_id IS NOT NULL
+    AND EXISTS (
+      SELECT 1
+      FROM public.channel_requests cr
+      JOIN public.channels ch ON ch.id = cr.channel_id
+      WHERE cr.id = repogen_work_orders.source_ref_id
+        AND cr.tenant_id = repogen_work_orders.org_id
+        AND ch.id = cr.channel_id
+        AND ch.tenant_id = cr.tenant_id
+        AND ch.owner_user_id = app.current_user_id()
+        AND ch.deleted_at IS NULL
+    )
+  );
+
+DROP POLICY IF EXISTS repogen_portal_insert ON public.repogen_work_orders;
+CREATE POLICY repogen_portal_insert ON public.repogen_work_orders
+  FOR INSERT TO zen_portal
+  WITH CHECK (
+    org_id = app.current_tenant_id()
+    AND source_type = 'CHANNEL'::"RepogenWorkOrderSourceType"
+    AND source_ref_id IS NOT NULL
+    AND EXISTS (
+      SELECT 1
+      FROM public.channel_requests cr
+      JOIN public.channels ch ON ch.id = cr.channel_id
+      WHERE cr.id = repogen_work_orders.source_ref_id
+        AND cr.tenant_id = repogen_work_orders.org_id
+        AND ch.id = cr.channel_id
+        AND ch.tenant_id = cr.tenant_id
+        AND ch.owner_user_id = app.current_user_id()
+        AND ch.deleted_at IS NULL
+    )
+  );
+
+-- ============================================================================
 -- M4.7 Billing control plane + service invoicing RLS policies
 -- ============================================================================
 
