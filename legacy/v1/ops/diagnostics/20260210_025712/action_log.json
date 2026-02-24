@@ -1,0 +1,5294 @@
+{
+  "actions": [
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/006-notifications-tooltip-notifications14.png",
+      "time": "2026-02-10T04:25:33.986Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/007-notifications-click-notifications14.png",
+      "time": "2026-02-10T04:25:34.711Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/008-notifications-tooltip-approvals.png",
+      "time": "2026-02-10T04:25:35.149Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/009-notifications-click-approvals.png",
+      "time": "2026-02-10T04:25:35.762Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/010-notifications-tooltip-overdue10.png",
+      "time": "2026-02-10T04:25:36.128Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/011-notifications-click-overdue10.png",
+      "time": "2026-02-10T04:25:36.878Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/012-notifications-tooltip-payments10.png",
+      "time": "2026-02-10T04:25:37.295Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/013-notifications-click-payments10.png",
+      "time": "2026-02-10T04:25:37.963Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/014-notifications-tooltip-my-day.png",
+      "time": "2026-02-10T04:25:38.333Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/015-notifications-click-my-day.png",
+      "time": "2026-02-10T04:25:39.085Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/016-notifications-tooltip-assignments.png",
+      "time": "2026-02-10T04:25:39.516Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/017-notifications-click-assignments.png",
+      "time": "2026-02-10T04:25:40.249Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/018-notifications-tooltip-requests.png",
+      "time": "2026-02-10T04:25:40.652Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/019-notifications-click-requests.png",
+      "time": "2026-02-10T04:25:41.297Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/020-notifications-tooltip-calendar.png",
+      "time": "2026-02-10T04:25:41.652Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/021-notifications-click-calendar.png",
+      "time": "2026-02-10T04:25:42.367Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/022-notifications-tooltip-invoices.png",
+      "time": "2026-02-10T04:25:42.769Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/023-notifications-click-invoices.png",
+      "time": "2026-02-10T04:25:43.454Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/024-notifications-tooltip-notifications.png",
+      "time": "2026-02-10T04:25:43.807Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/025-notifications-click-notifications.png",
+      "time": "2026-02-10T04:25:44.549Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/026-notifications-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:25:44.972Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/027-notifications-click-new-assignment.png",
+      "time": "2026-02-10T04:25:45.669Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/028-notifications-tooltip-control-tower.png",
+      "time": "2026-02-10T04:25:46.028Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/029-notifications-click-control-tower.png",
+      "time": "2026-02-10T04:25:46.654Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/030-notifications-tooltip-open-queue.png",
+      "time": "2026-02-10T04:25:46.980Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/031-notifications-click-open-queue.png",
+      "time": "2026-02-10T04:25:47.580Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/032-notifications-tooltip-workload.png",
+      "time": "2026-02-10T04:25:47.875Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/033-notifications-click-workload.png",
+      "time": "2026-02-10T04:25:48.495Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/034-notifications-tooltip-analytics.png",
+      "time": "2026-02-10T04:25:48.812Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/035-notifications-click-analytics.png",
+      "time": "2026-02-10T04:25:49.509Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/038-approvals-tooltip-notifications14.png",
+      "time": "2026-02-10T04:25:51.826Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/039-approvals-click-notifications14.png",
+      "time": "2026-02-10T04:25:52.552Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/040-approvals-tooltip-approvals.png",
+      "time": "2026-02-10T04:25:52.986Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/041-approvals-click-approvals.png",
+      "time": "2026-02-10T04:25:53.605Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/042-approvals-tooltip-overdue10.png",
+      "time": "2026-02-10T04:25:53.926Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/043-approvals-click-overdue10.png",
+      "time": "2026-02-10T04:25:54.645Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/044-approvals-tooltip-payments10.png",
+      "time": "2026-02-10T04:25:55.070Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/045-approvals-click-payments10.png",
+      "time": "2026-02-10T04:25:55.757Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/046-approvals-tooltip-my-day.png",
+      "time": "2026-02-10T04:25:56.104Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/047-approvals-click-my-day.png",
+      "time": "2026-02-10T04:25:56.834Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/048-approvals-tooltip-assignments.png",
+      "time": "2026-02-10T04:25:57.252Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/049-approvals-click-assignments.png",
+      "time": "2026-02-10T04:25:57.974Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/050-approvals-tooltip-requests.png",
+      "time": "2026-02-10T04:25:58.374Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/051-approvals-click-requests.png",
+      "time": "2026-02-10T04:25:59.012Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/052-approvals-tooltip-calendar.png",
+      "time": "2026-02-10T04:25:59.347Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/053-approvals-click-calendar.png",
+      "time": "2026-02-10T04:26:00.056Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/054-approvals-tooltip-invoices.png",
+      "time": "2026-02-10T04:26:00.452Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/055-approvals-click-invoices.png",
+      "time": "2026-02-10T04:26:01.131Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/056-approvals-tooltip-notifications.png",
+      "time": "2026-02-10T04:26:01.509Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/057-approvals-click-notifications.png",
+      "time": "2026-02-10T04:26:02.259Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/058-approvals-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:26:02.687Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/059-approvals-click-new-assignment.png",
+      "time": "2026-02-10T04:26:03.345Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/060-approvals-tooltip-control-tower.png",
+      "time": "2026-02-10T04:26:03.689Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/061-approvals-click-control-tower.png",
+      "time": "2026-02-10T04:26:04.317Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/062-approvals-tooltip-open-queue.png",
+      "time": "2026-02-10T04:26:04.625Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/063-approvals-click-open-queue.png",
+      "time": "2026-02-10T04:26:05.222Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/064-approvals-tooltip-workload.png",
+      "time": "2026-02-10T04:26:05.503Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/065-approvals-click-workload.png",
+      "time": "2026-02-10T04:26:06.109Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/066-approvals-tooltip-analytics.png",
+      "time": "2026-02-10T04:26:06.419Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/067-approvals-click-analytics.png",
+      "time": "2026-02-10T04:26:07.111Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/070-overdue-tooltip-notifications14.png",
+      "time": "2026-02-10T04:26:09.388Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/071-overdue-click-notifications14.png",
+      "time": "2026-02-10T04:26:10.125Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/072-overdue-tooltip-approvals.png",
+      "time": "2026-02-10T04:26:10.547Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/073-overdue-click-approvals.png",
+      "time": "2026-02-10T04:26:11.163Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/074-overdue-tooltip-overdue10.png",
+      "time": "2026-02-10T04:26:11.504Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/075-overdue-click-overdue10.png",
+      "time": "2026-02-10T04:26:12.217Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/076-overdue-tooltip-payments10.png",
+      "time": "2026-02-10T04:26:12.620Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/077-overdue-click-payments10.png",
+      "time": "2026-02-10T04:26:13.305Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/078-overdue-tooltip-my-day.png",
+      "time": "2026-02-10T04:26:13.674Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/079-overdue-click-my-day.png",
+      "time": "2026-02-10T04:26:14.402Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/080-overdue-tooltip-assignments.png",
+      "time": "2026-02-10T04:26:14.847Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/081-overdue-click-assignments.png",
+      "time": "2026-02-10T04:26:15.577Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/082-overdue-tooltip-requests.png",
+      "time": "2026-02-10T04:26:15.974Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/083-overdue-click-requests.png",
+      "time": "2026-02-10T04:26:16.614Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/084-overdue-tooltip-calendar.png",
+      "time": "2026-02-10T04:26:16.951Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/085-overdue-click-calendar.png",
+      "time": "2026-02-10T04:26:17.663Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/086-overdue-tooltip-invoices.png",
+      "time": "2026-02-10T04:26:18.068Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/087-overdue-click-invoices.png",
+      "time": "2026-02-10T04:26:18.757Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/088-overdue-tooltip-notifications.png",
+      "time": "2026-02-10T04:26:19.117Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/089-overdue-click-notifications.png",
+      "time": "2026-02-10T04:26:19.850Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/090-overdue-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:26:20.267Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/091-overdue-click-new-assignment.png",
+      "time": "2026-02-10T04:26:20.915Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/092-overdue-tooltip-control-tower.png",
+      "time": "2026-02-10T04:26:21.247Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/093-overdue-click-control-tower.png",
+      "time": "2026-02-10T04:26:21.878Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/094-overdue-tooltip-open-queue.png",
+      "time": "2026-02-10T04:26:22.198Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/095-overdue-click-open-queue.png",
+      "time": "2026-02-10T04:26:22.806Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/096-overdue-tooltip-workload.png",
+      "time": "2026-02-10T04:26:23.109Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/097-overdue-click-workload.png",
+      "time": "2026-02-10T04:26:23.723Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/098-overdue-tooltip-analytics.png",
+      "time": "2026-02-10T04:26:24.041Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/099-overdue-click-analytics.png",
+      "time": "2026-02-10T04:26:24.735Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/102-payments-tooltip-notifications14.png",
+      "time": "2026-02-10T04:26:26.876Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/103-payments-click-notifications14.png",
+      "time": "2026-02-10T04:26:27.621Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/104-payments-tooltip-approvals.png",
+      "time": "2026-02-10T04:26:28.040Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/105-payments-click-approvals.png",
+      "time": "2026-02-10T04:26:28.665Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/106-payments-tooltip-overdue10.png",
+      "time": "2026-02-10T04:26:28.988Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/107-payments-click-overdue10.png",
+      "time": "2026-02-10T04:26:29.692Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/108-payments-tooltip-payments10.png",
+      "time": "2026-02-10T04:26:30.122Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/109-payments-click-payments10.png",
+      "time": "2026-02-10T04:26:30.798Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/110-payments-tooltip-my-day.png",
+      "time": "2026-02-10T04:26:31.155Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/111-payments-click-my-day.png",
+      "time": "2026-02-10T04:26:31.902Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/112-payments-tooltip-assignments.png",
+      "time": "2026-02-10T04:26:32.323Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/113-payments-click-assignments.png",
+      "time": "2026-02-10T04:26:33.028Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/114-payments-tooltip-requests.png",
+      "time": "2026-02-10T04:26:33.441Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/115-payments-click-requests.png",
+      "time": "2026-02-10T04:26:34.089Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/116-payments-tooltip-calendar.png",
+      "time": "2026-02-10T04:26:34.431Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/117-payments-click-calendar.png",
+      "time": "2026-02-10T04:26:35.139Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/118-payments-tooltip-invoices.png",
+      "time": "2026-02-10T04:26:35.543Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/119-payments-click-invoices.png",
+      "time": "2026-02-10T04:26:36.227Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/120-payments-tooltip-notifications.png",
+      "time": "2026-02-10T04:26:36.580Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/121-payments-click-notifications.png",
+      "time": "2026-02-10T04:26:37.322Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/122-payments-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:26:37.742Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/123-payments-click-new-assignment.png",
+      "time": "2026-02-10T04:26:38.392Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/124-payments-tooltip-control-tower.png",
+      "time": "2026-02-10T04:26:38.730Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/125-payments-click-control-tower.png",
+      "time": "2026-02-10T04:26:39.351Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/126-payments-tooltip-open-queue.png",
+      "time": "2026-02-10T04:26:39.671Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/127-payments-click-open-queue.png",
+      "time": "2026-02-10T04:26:40.286Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/128-payments-tooltip-workload.png",
+      "time": "2026-02-10T04:26:40.583Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/129-payments-click-workload.png",
+      "time": "2026-02-10T04:26:41.195Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/130-payments-tooltip-analytics.png",
+      "time": "2026-02-10T04:26:41.506Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/131-payments-click-analytics.png",
+      "time": "2026-02-10T04:26:42.203Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/134-my-day-tooltip-notifications14.png",
+      "time": "2026-02-10T04:26:44.541Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/135-my-day-click-notifications14.png",
+      "time": "2026-02-10T04:26:45.260Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/136-my-day-tooltip-approvals.png",
+      "time": "2026-02-10T04:26:45.679Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/137-my-day-click-approvals.png",
+      "time": "2026-02-10T04:26:46.287Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/138-my-day-tooltip-overdue10.png",
+      "time": "2026-02-10T04:26:46.605Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/139-my-day-click-overdue10.png",
+      "time": "2026-02-10T04:26:47.327Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/140-my-day-tooltip-payments10.png",
+      "time": "2026-02-10T04:26:47.748Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/141-my-day-click-payments10.png",
+      "time": "2026-02-10T04:26:48.430Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/142-my-day-tooltip-my-day.png",
+      "time": "2026-02-10T04:26:48.814Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/143-my-day-click-my-day.png",
+      "time": "2026-02-10T04:26:49.546Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/144-my-day-tooltip-assignments.png",
+      "time": "2026-02-10T04:26:49.964Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/145-my-day-click-assignments.png",
+      "time": "2026-02-10T04:26:50.675Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/146-my-day-tooltip-requests.png",
+      "time": "2026-02-10T04:26:51.075Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/147-my-day-click-requests.png",
+      "time": "2026-02-10T04:26:51.715Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/148-my-day-tooltip-calendar.png",
+      "time": "2026-02-10T04:26:52.051Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/149-my-day-click-calendar.png",
+      "time": "2026-02-10T04:26:52.759Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/150-my-day-tooltip-invoices.png",
+      "time": "2026-02-10T04:26:53.155Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/151-my-day-click-invoices.png",
+      "time": "2026-02-10T04:26:53.843Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/152-my-day-tooltip-notifications.png",
+      "time": "2026-02-10T04:26:54.212Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/153-my-day-click-notifications.png",
+      "time": "2026-02-10T04:26:55.009Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/154-my-day-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:26:55.450Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/155-my-day-click-new-assignment.png",
+      "time": "2026-02-10T04:26:56.095Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/156-my-day-tooltip-control-tower.png",
+      "time": "2026-02-10T04:26:56.427Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/157-my-day-click-control-tower.png",
+      "time": "2026-02-10T04:26:57.067Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/158-my-day-tooltip-open-queue.png",
+      "time": "2026-02-10T04:26:57.387Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/159-my-day-click-open-queue.png",
+      "time": "2026-02-10T04:26:58.015Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/160-my-day-tooltip-workload.png",
+      "time": "2026-02-10T04:26:58.330Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/161-my-day-click-workload.png",
+      "time": "2026-02-10T04:26:58.947Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/162-my-day-tooltip-analytics.png",
+      "time": "2026-02-10T04:26:59.257Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/163-my-day-click-analytics.png",
+      "time": "2026-02-10T04:26:59.955Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/166-assignments-tooltip-notifications14.png",
+      "time": "2026-02-10T04:27:02.260Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/167-assignments-click-notifications14.png",
+      "time": "2026-02-10T04:27:02.992Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/168-assignments-tooltip-approvals.png",
+      "time": "2026-02-10T04:27:03.425Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/169-assignments-click-approvals.png",
+      "time": "2026-02-10T04:27:04.063Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/170-assignments-tooltip-overdue10.png",
+      "time": "2026-02-10T04:27:04.396Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/171-assignments-click-overdue10.png",
+      "time": "2026-02-10T04:27:05.115Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/172-assignments-tooltip-payments10.png",
+      "time": "2026-02-10T04:27:05.526Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/173-assignments-click-payments10.png",
+      "time": "2026-02-10T04:27:06.192Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/174-assignments-tooltip-my-day.png",
+      "time": "2026-02-10T04:27:06.542Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/175-assignments-click-my-day.png",
+      "time": "2026-02-10T04:27:07.281Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/176-assignments-tooltip-assignments.png",
+      "time": "2026-02-10T04:27:07.703Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/177-assignments-click-assignments.png",
+      "time": "2026-02-10T04:27:08.437Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/178-assignments-tooltip-requests.png",
+      "time": "2026-02-10T04:27:08.866Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/179-assignments-click-requests.png",
+      "time": "2026-02-10T04:27:09.509Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/180-assignments-tooltip-calendar.png",
+      "time": "2026-02-10T04:27:09.834Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/181-assignments-click-calendar.png",
+      "time": "2026-02-10T04:27:10.554Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/182-assignments-tooltip-invoices.png",
+      "time": "2026-02-10T04:27:10.958Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/183-assignments-click-invoices.png",
+      "time": "2026-02-10T04:27:11.640Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/184-assignments-tooltip-notifications.png",
+      "time": "2026-02-10T04:27:11.992Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/185-assignments-click-notifications.png",
+      "time": "2026-02-10T04:27:12.728Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/186-assignments-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:27:13.144Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/187-assignments-click-new-assignment.png",
+      "time": "2026-02-10T04:27:13.786Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/188-assignments-tooltip-control-tower.png",
+      "time": "2026-02-10T04:27:14.124Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/189-assignments-click-control-tower.png",
+      "time": "2026-02-10T04:27:14.744Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/190-assignments-tooltip-open-queue.png",
+      "time": "2026-02-10T04:27:15.071Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/191-assignments-click-open-queue.png",
+      "time": "2026-02-10T04:27:15.666Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/192-assignments-tooltip-workload.png",
+      "time": "2026-02-10T04:27:15.963Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/193-assignments-click-workload.png",
+      "time": "2026-02-10T04:27:16.578Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/194-assignments-tooltip-analytics.png",
+      "time": "2026-02-10T04:27:16.919Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/195-assignments-click-analytics.png",
+      "time": "2026-02-10T04:27:17.612Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/198-requests-tooltip-notifications14.png",
+      "time": "2026-02-10T04:27:19.653Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/199-requests-click-notifications14.png",
+      "time": "2026-02-10T04:27:20.382Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/200-requests-tooltip-approvals.png",
+      "time": "2026-02-10T04:27:20.800Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/201-requests-click-approvals.png",
+      "time": "2026-02-10T04:27:21.420Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/202-requests-tooltip-overdue10.png",
+      "time": "2026-02-10T04:27:21.738Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/203-requests-click-overdue10.png",
+      "time": "2026-02-10T04:27:22.451Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/204-requests-tooltip-payments10.png",
+      "time": "2026-02-10T04:27:22.864Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/205-requests-click-payments10.png",
+      "time": "2026-02-10T04:27:23.557Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/206-requests-tooltip-my-day.png",
+      "time": "2026-02-10T04:27:23.921Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/207-requests-click-my-day.png",
+      "time": "2026-02-10T04:27:24.656Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/208-requests-tooltip-assignments.png",
+      "time": "2026-02-10T04:27:25.092Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/209-requests-click-assignments.png",
+      "time": "2026-02-10T04:27:25.798Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/210-requests-tooltip-requests.png",
+      "time": "2026-02-10T04:27:26.204Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/211-requests-click-requests.png",
+      "time": "2026-02-10T04:27:26.847Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/212-requests-tooltip-calendar.png",
+      "time": "2026-02-10T04:27:27.183Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/213-requests-click-calendar.png",
+      "time": "2026-02-10T04:27:27.910Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/214-requests-tooltip-invoices.png",
+      "time": "2026-02-10T04:27:28.305Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/215-requests-click-invoices.png",
+      "time": "2026-02-10T04:27:28.984Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/216-requests-tooltip-notifications.png",
+      "time": "2026-02-10T04:27:29.343Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/217-requests-click-notifications.png",
+      "time": "2026-02-10T04:27:30.101Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/218-requests-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:27:30.521Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/219-requests-click-new-assignment.png",
+      "time": "2026-02-10T04:27:31.173Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/220-requests-tooltip-control-tower.png",
+      "time": "2026-02-10T04:27:31.511Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/221-requests-click-control-tower.png",
+      "time": "2026-02-10T04:27:32.141Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/222-requests-tooltip-open-queue.png",
+      "time": "2026-02-10T04:27:32.471Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/223-requests-click-open-queue.png",
+      "time": "2026-02-10T04:27:33.080Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/224-requests-tooltip-workload.png",
+      "time": "2026-02-10T04:27:33.369Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/225-requests-click-workload.png",
+      "time": "2026-02-10T04:27:33.985Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/226-requests-tooltip-analytics.png",
+      "time": "2026-02-10T04:27:34.294Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/227-requests-click-analytics.png",
+      "time": "2026-02-10T04:27:34.991Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/230-calendar-tooltip-notifications14.png",
+      "time": "2026-02-10T04:27:37.222Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/231-calendar-click-notifications14.png",
+      "time": "2026-02-10T04:27:37.966Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/232-calendar-tooltip-approvals.png",
+      "time": "2026-02-10T04:27:38.390Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/233-calendar-click-approvals.png",
+      "time": "2026-02-10T04:27:39.011Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/234-calendar-tooltip-overdue10.png",
+      "time": "2026-02-10T04:27:39.309Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/235-calendar-click-overdue10.png",
+      "time": "2026-02-10T04:27:40.029Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/236-calendar-tooltip-payments10.png",
+      "time": "2026-02-10T04:27:40.448Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/237-calendar-click-payments10.png",
+      "time": "2026-02-10T04:27:41.115Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/238-calendar-tooltip-my-day.png",
+      "time": "2026-02-10T04:27:41.464Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/239-calendar-click-my-day.png",
+      "time": "2026-02-10T04:27:42.216Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/240-calendar-tooltip-assignments.png",
+      "time": "2026-02-10T04:27:42.635Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/241-calendar-click-assignments.png",
+      "time": "2026-02-10T04:27:43.340Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/242-calendar-tooltip-requests.png",
+      "time": "2026-02-10T04:27:43.735Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/243-calendar-click-requests.png",
+      "time": "2026-02-10T04:27:44.375Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/244-calendar-tooltip-calendar.png",
+      "time": "2026-02-10T04:27:44.699Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/245-calendar-click-calendar.png",
+      "time": "2026-02-10T04:27:45.401Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/246-calendar-tooltip-invoices.png",
+      "time": "2026-02-10T04:27:45.794Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/247-calendar-click-invoices.png",
+      "time": "2026-02-10T04:27:46.479Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/248-calendar-tooltip-notifications.png",
+      "time": "2026-02-10T04:27:46.849Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/249-calendar-click-notifications.png",
+      "time": "2026-02-10T04:27:47.590Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/250-calendar-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:27:48.012Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/251-calendar-click-new-assignment.png",
+      "time": "2026-02-10T04:27:48.645Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/252-calendar-tooltip-control-tower.png",
+      "time": "2026-02-10T04:27:48.988Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/253-calendar-click-control-tower.png",
+      "time": "2026-02-10T04:27:49.629Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/254-calendar-tooltip-open-queue.png",
+      "time": "2026-02-10T04:27:49.943Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/255-calendar-click-open-queue.png",
+      "time": "2026-02-10T04:27:50.540Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/256-calendar-tooltip-workload.png",
+      "time": "2026-02-10T04:27:50.835Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/257-calendar-click-workload.png",
+      "time": "2026-02-10T04:27:51.442Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/258-calendar-tooltip-analytics.png",
+      "time": "2026-02-10T04:27:51.749Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/259-calendar-click-analytics.png",
+      "time": "2026-02-10T04:27:52.441Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/262-invoices-tooltip-notifications14.png",
+      "time": "2026-02-10T04:27:54.597Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/263-invoices-click-notifications14.png",
+      "time": "2026-02-10T04:27:55.340Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/264-invoices-tooltip-approvals.png",
+      "time": "2026-02-10T04:27:55.780Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/265-invoices-click-approvals.png",
+      "time": "2026-02-10T04:27:56.406Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/266-invoices-tooltip-overdue10.png",
+      "time": "2026-02-10T04:27:56.729Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/267-invoices-click-overdue10.png",
+      "time": "2026-02-10T04:27:57.441Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/268-invoices-tooltip-payments10.png",
+      "time": "2026-02-10T04:27:57.850Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/269-invoices-click-payments10.png",
+      "time": "2026-02-10T04:27:58.526Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/270-invoices-tooltip-my-day.png",
+      "time": "2026-02-10T04:27:58.897Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/271-invoices-click-my-day.png",
+      "time": "2026-02-10T04:27:59.633Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/272-invoices-tooltip-assignments.png",
+      "time": "2026-02-10T04:28:00.054Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/273-invoices-click-assignments.png",
+      "time": "2026-02-10T04:28:00.762Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/274-invoices-tooltip-requests.png",
+      "time": "2026-02-10T04:28:01.172Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/275-invoices-click-requests.png",
+      "time": "2026-02-10T04:28:01.823Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/276-invoices-tooltip-calendar.png",
+      "time": "2026-02-10T04:28:02.161Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/277-invoices-click-calendar.png",
+      "time": "2026-02-10T04:28:02.889Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/278-invoices-tooltip-invoices.png",
+      "time": "2026-02-10T04:28:03.298Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/279-invoices-click-invoices.png",
+      "time": "2026-02-10T04:28:03.978Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/280-invoices-tooltip-notifications.png",
+      "time": "2026-02-10T04:28:04.339Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/281-invoices-click-notifications.png",
+      "time": "2026-02-10T04:28:05.067Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/282-invoices-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:28:05.474Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/283-invoices-click-new-assignment.png",
+      "time": "2026-02-10T04:28:06.113Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/284-invoices-tooltip-control-tower.png",
+      "time": "2026-02-10T04:28:06.442Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/285-invoices-click-control-tower.png",
+      "time": "2026-02-10T04:28:07.075Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/286-invoices-tooltip-open-queue.png",
+      "time": "2026-02-10T04:28:07.389Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/287-invoices-click-open-queue.png",
+      "time": "2026-02-10T04:28:07.984Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/288-invoices-tooltip-workload.png",
+      "time": "2026-02-10T04:28:08.288Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/289-invoices-click-workload.png",
+      "time": "2026-02-10T04:28:08.903Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/290-invoices-tooltip-analytics.png",
+      "time": "2026-02-10T04:28:09.231Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/291-invoices-click-analytics.png",
+      "time": "2026-02-10T04:28:09.923Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/294-new-assignment-tooltip-notifications14.png",
+      "time": "2026-02-10T04:28:12.005Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/295-new-assignment-click-notifications14.png",
+      "time": "2026-02-10T04:28:12.732Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/296-new-assignment-tooltip-approvals.png",
+      "time": "2026-02-10T04:28:13.182Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/297-new-assignment-click-approvals.png",
+      "time": "2026-02-10T04:28:13.812Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/298-new-assignment-tooltip-overdue10.png",
+      "time": "2026-02-10T04:28:14.136Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/299-new-assignment-click-overdue10.png",
+      "time": "2026-02-10T04:28:14.859Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/300-new-assignment-tooltip-payments10.png",
+      "time": "2026-02-10T04:28:15.274Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/301-new-assignment-click-payments10.png",
+      "time": "2026-02-10T04:28:15.954Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/302-new-assignment-tooltip-my-day.png",
+      "time": "2026-02-10T04:28:16.318Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/303-new-assignment-click-my-day.png",
+      "time": "2026-02-10T04:28:17.053Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/304-new-assignment-tooltip-assignments.png",
+      "time": "2026-02-10T04:28:17.477Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/305-new-assignment-click-assignments.png",
+      "time": "2026-02-10T04:28:18.190Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/306-new-assignment-tooltip-requests.png",
+      "time": "2026-02-10T04:28:18.602Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/307-new-assignment-click-requests.png",
+      "time": "2026-02-10T04:28:19.247Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/308-new-assignment-tooltip-calendar.png",
+      "time": "2026-02-10T04:28:19.577Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/309-new-assignment-click-calendar.png",
+      "time": "2026-02-10T04:28:20.281Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/310-new-assignment-tooltip-invoices.png",
+      "time": "2026-02-10T04:28:20.670Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/311-new-assignment-click-invoices.png",
+      "time": "2026-02-10T04:28:21.364Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/312-new-assignment-tooltip-notifications.png",
+      "time": "2026-02-10T04:28:21.718Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/313-new-assignment-click-notifications.png",
+      "time": "2026-02-10T04:28:22.460Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/314-new-assignment-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:28:22.900Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/315-new-assignment-click-new-assignment.png",
+      "time": "2026-02-10T04:28:23.553Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/316-new-assignment-tooltip-control-tower.png",
+      "time": "2026-02-10T04:28:23.889Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/317-new-assignment-click-control-tower.png",
+      "time": "2026-02-10T04:28:24.508Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/318-new-assignment-tooltip-open-queue.png",
+      "time": "2026-02-10T04:28:24.815Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/319-new-assignment-click-open-queue.png",
+      "time": "2026-02-10T04:28:25.417Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/320-new-assignment-tooltip-workload.png",
+      "time": "2026-02-10T04:28:25.728Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/321-new-assignment-click-workload.png",
+      "time": "2026-02-10T04:28:26.342Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/322-new-assignment-tooltip-analytics.png",
+      "time": "2026-02-10T04:28:26.651Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/323-new-assignment-click-analytics.png",
+      "time": "2026-02-10T04:28:27.345Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/326-control-tower-tooltip-notifications14.png",
+      "time": "2026-02-10T04:28:29.352Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/327-control-tower-click-notifications14.png",
+      "time": "2026-02-10T04:28:30.082Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/328-control-tower-tooltip-approvals.png",
+      "time": "2026-02-10T04:28:30.506Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/329-control-tower-click-approvals.png",
+      "time": "2026-02-10T04:28:31.127Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/330-control-tower-tooltip-overdue10.png",
+      "time": "2026-02-10T04:28:31.466Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/331-control-tower-click-overdue10.png",
+      "time": "2026-02-10T04:28:32.198Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/332-control-tower-tooltip-payments10.png",
+      "time": "2026-02-10T04:28:32.623Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/333-control-tower-click-payments10.png",
+      "time": "2026-02-10T04:28:33.301Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/334-control-tower-tooltip-my-day.png",
+      "time": "2026-02-10T04:28:33.664Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/335-control-tower-click-my-day.png",
+      "time": "2026-02-10T04:28:34.411Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/336-control-tower-tooltip-assignments.png",
+      "time": "2026-02-10T04:28:34.835Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/337-control-tower-click-assignments.png",
+      "time": "2026-02-10T04:28:35.555Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/338-control-tower-tooltip-requests.png",
+      "time": "2026-02-10T04:28:35.950Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/339-control-tower-click-requests.png",
+      "time": "2026-02-10T04:28:36.590Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/340-control-tower-tooltip-calendar.png",
+      "time": "2026-02-10T04:28:36.919Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/341-control-tower-click-calendar.png",
+      "time": "2026-02-10T04:28:37.635Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/342-control-tower-tooltip-invoices.png",
+      "time": "2026-02-10T04:28:38.037Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/343-control-tower-click-invoices.png",
+      "time": "2026-02-10T04:28:38.729Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/344-control-tower-tooltip-notifications.png",
+      "time": "2026-02-10T04:28:39.090Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/345-control-tower-click-notifications.png",
+      "time": "2026-02-10T04:28:39.820Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/346-control-tower-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:28:40.234Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/347-control-tower-click-new-assignment.png",
+      "time": "2026-02-10T04:28:40.879Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/348-control-tower-tooltip-control-tower.png",
+      "time": "2026-02-10T04:28:41.202Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/349-control-tower-click-control-tower.png",
+      "time": "2026-02-10T04:28:41.835Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/350-control-tower-tooltip-open-queue.png",
+      "time": "2026-02-10T04:28:42.159Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/351-control-tower-click-open-queue.png",
+      "time": "2026-02-10T04:28:42.770Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/352-control-tower-tooltip-workload.png",
+      "time": "2026-02-10T04:28:43.068Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/353-control-tower-click-workload.png",
+      "time": "2026-02-10T04:28:43.685Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/354-control-tower-tooltip-analytics.png",
+      "time": "2026-02-10T04:28:43.997Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/355-control-tower-click-analytics.png",
+      "time": "2026-02-10T04:28:44.693Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/358-open-queue-tooltip-notifications14.png",
+      "time": "2026-02-10T04:28:46.653Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/359-open-queue-click-notifications14.png",
+      "time": "2026-02-10T04:28:47.387Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/360-open-queue-tooltip-approvals.png",
+      "time": "2026-02-10T04:28:47.817Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/361-open-queue-click-approvals.png",
+      "time": "2026-02-10T04:28:48.441Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/362-open-queue-tooltip-overdue10.png",
+      "time": "2026-02-10T04:28:48.755Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/363-open-queue-click-overdue10.png",
+      "time": "2026-02-10T04:28:49.460Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/364-open-queue-tooltip-payments10.png",
+      "time": "2026-02-10T04:28:49.870Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/365-open-queue-click-payments10.png",
+      "time": "2026-02-10T04:28:50.582Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/366-open-queue-tooltip-my-day.png",
+      "time": "2026-02-10T04:28:50.945Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/367-open-queue-click-my-day.png",
+      "time": "2026-02-10T04:28:51.684Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/368-open-queue-tooltip-assignments.png",
+      "time": "2026-02-10T04:28:52.112Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/369-open-queue-click-assignments.png",
+      "time": "2026-02-10T04:28:52.841Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/370-open-queue-tooltip-requests.png",
+      "time": "2026-02-10T04:28:53.261Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/371-open-queue-click-requests.png",
+      "time": "2026-02-10T04:28:53.904Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/372-open-queue-tooltip-calendar.png",
+      "time": "2026-02-10T04:28:54.242Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/373-open-queue-click-calendar.png",
+      "time": "2026-02-10T04:28:54.957Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/374-open-queue-tooltip-invoices.png",
+      "time": "2026-02-10T04:28:55.348Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/375-open-queue-click-invoices.png",
+      "time": "2026-02-10T04:28:56.031Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/376-open-queue-tooltip-notifications.png",
+      "time": "2026-02-10T04:28:56.388Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/377-open-queue-click-notifications.png",
+      "time": "2026-02-10T04:28:57.134Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/378-open-queue-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:28:57.548Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/379-open-queue-click-new-assignment.png",
+      "time": "2026-02-10T04:28:58.198Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/380-open-queue-tooltip-control-tower.png",
+      "time": "2026-02-10T04:28:58.537Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/381-open-queue-click-control-tower.png",
+      "time": "2026-02-10T04:28:59.183Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/382-open-queue-tooltip-open-queue.png",
+      "time": "2026-02-10T04:28:59.505Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/383-open-queue-click-open-queue.png",
+      "time": "2026-02-10T04:29:00.120Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/384-open-queue-tooltip-workload.png",
+      "time": "2026-02-10T04:29:00.422Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/385-open-queue-click-workload.png",
+      "time": "2026-02-10T04:29:01.036Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/386-open-queue-tooltip-analytics.png",
+      "time": "2026-02-10T04:29:01.368Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/387-open-queue-click-analytics.png",
+      "time": "2026-02-10T04:29:02.058Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/390-workload-tooltip-notifications14.png",
+      "time": "2026-02-10T04:29:04.064Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/391-workload-click-notifications14.png",
+      "time": "2026-02-10T04:29:04.800Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/392-workload-tooltip-approvals.png",
+      "time": "2026-02-10T04:29:05.232Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/393-workload-click-approvals.png",
+      "time": "2026-02-10T04:29:05.855Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/394-workload-tooltip-overdue10.png",
+      "time": "2026-02-10T04:29:06.197Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/395-workload-click-overdue10.png",
+      "time": "2026-02-10T04:29:07.025Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/396-workload-tooltip-payments10.png",
+      "time": "2026-02-10T04:29:07.507Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/397-workload-click-payments10.png",
+      "time": "2026-02-10T04:29:08.186Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/398-workload-tooltip-my-day.png",
+      "time": "2026-02-10T04:29:08.553Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/399-workload-click-my-day.png",
+      "time": "2026-02-10T04:29:09.296Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/400-workload-tooltip-assignments.png",
+      "time": "2026-02-10T04:29:09.720Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/401-workload-click-assignments.png",
+      "time": "2026-02-10T04:29:10.442Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/402-workload-tooltip-requests.png",
+      "time": "2026-02-10T04:29:10.842Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/403-workload-click-requests.png",
+      "time": "2026-02-10T04:29:11.494Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/404-workload-tooltip-calendar.png",
+      "time": "2026-02-10T04:29:11.828Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/405-workload-click-calendar.png",
+      "time": "2026-02-10T04:29:12.543Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/406-workload-tooltip-invoices.png",
+      "time": "2026-02-10T04:29:12.934Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/407-workload-click-invoices.png",
+      "time": "2026-02-10T04:29:13.614Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/408-workload-tooltip-notifications.png",
+      "time": "2026-02-10T04:29:13.979Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/409-workload-click-notifications.png",
+      "time": "2026-02-10T04:29:14.710Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/410-workload-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:29:15.140Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/411-workload-click-new-assignment.png",
+      "time": "2026-02-10T04:29:15.788Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/412-workload-tooltip-control-tower.png",
+      "time": "2026-02-10T04:29:16.126Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/413-workload-click-control-tower.png",
+      "time": "2026-02-10T04:29:16.752Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/414-workload-tooltip-open-queue.png",
+      "time": "2026-02-10T04:29:17.082Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/415-workload-click-open-queue.png",
+      "time": "2026-02-10T04:29:17.687Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/416-workload-tooltip-workload.png",
+      "time": "2026-02-10T04:29:17.988Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/417-workload-click-workload.png",
+      "time": "2026-02-10T04:29:18.603Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/418-workload-tooltip-analytics.png",
+      "time": "2026-02-10T04:29:18.910Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/419-workload-click-analytics.png",
+      "time": "2026-02-10T04:29:19.603Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/422-analytics-tooltip-notifications14.png",
+      "time": "2026-02-10T04:29:21.820Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/423-analytics-click-notifications14.png",
+      "time": "2026-02-10T04:29:22.562Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/424-analytics-tooltip-approvals.png",
+      "time": "2026-02-10T04:29:23.000Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/425-analytics-click-approvals.png",
+      "time": "2026-02-10T04:29:23.644Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/426-analytics-tooltip-overdue10.png",
+      "time": "2026-02-10T04:29:23.967Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/427-analytics-click-overdue10.png",
+      "time": "2026-02-10T04:29:24.694Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/428-analytics-tooltip-payments10.png",
+      "time": "2026-02-10T04:29:25.116Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/429-analytics-click-payments10.png",
+      "time": "2026-02-10T04:29:25.796Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/430-analytics-tooltip-my-day.png",
+      "time": "2026-02-10T04:29:26.156Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/431-analytics-click-my-day.png",
+      "time": "2026-02-10T04:29:26.905Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/432-analytics-tooltip-assignments.png",
+      "time": "2026-02-10T04:29:27.337Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/433-analytics-click-assignments.png",
+      "time": "2026-02-10T04:29:28.051Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/434-analytics-tooltip-requests.png",
+      "time": "2026-02-10T04:29:28.469Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/435-analytics-click-requests.png",
+      "time": "2026-02-10T04:29:29.117Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/436-analytics-tooltip-calendar.png",
+      "time": "2026-02-10T04:29:29.453Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/437-analytics-click-calendar.png",
+      "time": "2026-02-10T04:29:30.168Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/438-analytics-tooltip-invoices.png",
+      "time": "2026-02-10T04:29:30.555Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/439-analytics-click-invoices.png",
+      "time": "2026-02-10T04:29:31.243Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/440-analytics-tooltip-notifications.png",
+      "time": "2026-02-10T04:29:31.598Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/441-analytics-click-notifications.png",
+      "time": "2026-02-10T04:29:32.339Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/442-analytics-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:29:32.754Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/443-analytics-click-new-assignment.png",
+      "time": "2026-02-10T04:29:33.405Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/444-analytics-tooltip-control-tower.png",
+      "time": "2026-02-10T04:29:33.755Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/445-analytics-click-control-tower.png",
+      "time": "2026-02-10T04:29:34.413Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/446-analytics-tooltip-open-queue.png",
+      "time": "2026-02-10T04:29:34.745Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/447-analytics-click-open-queue.png",
+      "time": "2026-02-10T04:29:35.361Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/448-analytics-tooltip-workload.png",
+      "time": "2026-02-10T04:29:35.662Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/449-analytics-click-workload.png",
+      "time": "2026-02-10T04:29:36.269Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/450-analytics-tooltip-analytics.png",
+      "time": "2026-02-10T04:29:36.586Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/451-analytics-click-analytics.png",
+      "time": "2026-02-10T04:29:37.283Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/454-payroll-runs-tooltip-notifications14.png",
+      "time": "2026-02-10T04:29:39.519Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/455-payroll-runs-click-notifications14.png",
+      "time": "2026-02-10T04:29:40.257Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/456-payroll-runs-tooltip-approvals.png",
+      "time": "2026-02-10T04:29:40.673Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/457-payroll-runs-click-approvals.png",
+      "time": "2026-02-10T04:29:41.297Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/458-payroll-runs-tooltip-overdue10.png",
+      "time": "2026-02-10T04:29:41.610Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/459-payroll-runs-click-overdue10.png",
+      "time": "2026-02-10T04:29:42.334Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/460-payroll-runs-tooltip-payments10.png",
+      "time": "2026-02-10T04:29:42.749Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/461-payroll-runs-click-payments10.png",
+      "time": "2026-02-10T04:29:43.430Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/462-payroll-runs-tooltip-my-day.png",
+      "time": "2026-02-10T04:29:43.799Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/463-payroll-runs-click-my-day.png",
+      "time": "2026-02-10T04:29:44.552Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/464-payroll-runs-tooltip-assignments.png",
+      "time": "2026-02-10T04:29:44.981Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/465-payroll-runs-click-assignments.png",
+      "time": "2026-02-10T04:29:45.696Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/466-payroll-runs-tooltip-requests.png",
+      "time": "2026-02-10T04:29:46.102Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/467-payroll-runs-click-requests.png",
+      "time": "2026-02-10T04:29:46.745Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/468-payroll-runs-tooltip-calendar.png",
+      "time": "2026-02-10T04:29:47.083Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/469-payroll-runs-click-calendar.png",
+      "time": "2026-02-10T04:29:47.789Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/470-payroll-runs-tooltip-invoices.png",
+      "time": "2026-02-10T04:29:48.195Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/471-payroll-runs-click-invoices.png",
+      "time": "2026-02-10T04:29:48.902Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/472-payroll-runs-tooltip-notifications.png",
+      "time": "2026-02-10T04:29:49.255Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/473-payroll-runs-click-notifications.png",
+      "time": "2026-02-10T04:29:49.983Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/474-payroll-runs-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:29:50.406Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/475-payroll-runs-click-new-assignment.png",
+      "time": "2026-02-10T04:29:51.053Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/476-payroll-runs-tooltip-control-tower.png",
+      "time": "2026-02-10T04:29:51.389Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/477-payroll-runs-click-control-tower.png",
+      "time": "2026-02-10T04:29:52.026Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/478-payroll-runs-tooltip-open-queue.png",
+      "time": "2026-02-10T04:29:52.355Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/479-payroll-runs-click-open-queue.png",
+      "time": "2026-02-10T04:29:52.960Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/480-payroll-runs-tooltip-workload.png",
+      "time": "2026-02-10T04:29:53.276Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/481-payroll-runs-click-workload.png",
+      "time": "2026-02-10T04:29:53.896Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/482-payroll-runs-tooltip-analytics.png",
+      "time": "2026-02-10T04:29:54.200Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/483-payroll-runs-click-analytics.png",
+      "time": "2026-02-10T04:29:54.896Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/486-employees-tooltip-notifications14.png",
+      "time": "2026-02-10T04:29:57.111Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/487-employees-click-notifications14.png",
+      "time": "2026-02-10T04:29:57.846Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/488-employees-tooltip-approvals.png",
+      "time": "2026-02-10T04:29:58.270Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/489-employees-click-approvals.png",
+      "time": "2026-02-10T04:29:58.898Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/490-employees-tooltip-overdue10.png",
+      "time": "2026-02-10T04:29:59.251Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/491-employees-click-overdue10.png",
+      "time": "2026-02-10T04:29:59.972Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/492-employees-tooltip-payments10.png",
+      "time": "2026-02-10T04:30:00.385Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/493-employees-click-payments10.png",
+      "time": "2026-02-10T04:30:01.071Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/494-employees-tooltip-my-day.png",
+      "time": "2026-02-10T04:30:01.432Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/495-employees-click-my-day.png",
+      "time": "2026-02-10T04:30:02.200Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/496-employees-tooltip-assignments.png",
+      "time": "2026-02-10T04:30:02.621Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/497-employees-click-assignments.png",
+      "time": "2026-02-10T04:30:03.357Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/498-employees-tooltip-requests.png",
+      "time": "2026-02-10T04:30:03.765Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/499-employees-click-requests.png",
+      "time": "2026-02-10T04:30:04.402Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/500-employees-tooltip-calendar.png",
+      "time": "2026-02-10T04:30:04.737Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/501-employees-click-calendar.png",
+      "time": "2026-02-10T04:30:05.442Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/502-employees-tooltip-invoices.png",
+      "time": "2026-02-10T04:30:05.830Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/503-employees-click-invoices.png",
+      "time": "2026-02-10T04:30:06.510Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/504-employees-tooltip-notifications.png",
+      "time": "2026-02-10T04:30:06.861Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/505-employees-click-notifications.png",
+      "time": "2026-02-10T04:30:07.598Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/506-employees-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:30:08.014Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/507-employees-click-new-assignment.png",
+      "time": "2026-02-10T04:30:08.664Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/508-employees-tooltip-control-tower.png",
+      "time": "2026-02-10T04:30:08.996Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/509-employees-click-control-tower.png",
+      "time": "2026-02-10T04:30:09.632Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/510-employees-tooltip-open-queue.png",
+      "time": "2026-02-10T04:30:09.947Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/511-employees-click-open-queue.png",
+      "time": "2026-02-10T04:30:10.559Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/512-employees-tooltip-workload.png",
+      "time": "2026-02-10T04:30:10.862Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/513-employees-click-workload.png",
+      "time": "2026-02-10T04:30:11.478Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/514-employees-tooltip-analytics.png",
+      "time": "2026-02-10T04:30:11.784Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/515-employees-click-analytics.png",
+      "time": "2026-02-10T04:30:12.478Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/518-reports-tooltip-notifications14.png",
+      "time": "2026-02-10T04:30:14.715Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/519-reports-click-notifications14.png",
+      "time": "2026-02-10T04:30:15.454Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/520-reports-tooltip-approvals.png",
+      "time": "2026-02-10T04:30:15.877Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/521-reports-click-approvals.png",
+      "time": "2026-02-10T04:30:16.495Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/522-reports-tooltip-overdue10.png",
+      "time": "2026-02-10T04:30:16.838Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/523-reports-click-overdue10.png",
+      "time": "2026-02-10T04:30:17.552Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/524-reports-tooltip-payments10.png",
+      "time": "2026-02-10T04:30:17.975Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/525-reports-click-payments10.png",
+      "time": "2026-02-10T04:30:18.647Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/526-reports-tooltip-my-day.png",
+      "time": "2026-02-10T04:30:19.015Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/527-reports-click-my-day.png",
+      "time": "2026-02-10T04:30:19.758Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/528-reports-tooltip-assignments.png",
+      "time": "2026-02-10T04:30:20.182Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/529-reports-click-assignments.png",
+      "time": "2026-02-10T04:30:20.902Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/530-reports-tooltip-requests.png",
+      "time": "2026-02-10T04:30:21.305Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/531-reports-click-requests.png",
+      "time": "2026-02-10T04:30:21.953Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/532-reports-tooltip-calendar.png",
+      "time": "2026-02-10T04:30:22.290Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/533-reports-click-calendar.png",
+      "time": "2026-02-10T04:30:23.012Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/534-reports-tooltip-invoices.png",
+      "time": "2026-02-10T04:30:23.410Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/535-reports-click-invoices.png",
+      "time": "2026-02-10T04:30:24.130Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/536-reports-tooltip-notifications.png",
+      "time": "2026-02-10T04:30:24.487Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/537-reports-click-notifications.png",
+      "time": "2026-02-10T04:30:25.220Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/538-reports-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:30:25.638Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/539-reports-click-new-assignment.png",
+      "time": "2026-02-10T04:30:26.301Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/540-reports-tooltip-control-tower.png",
+      "time": "2026-02-10T04:30:26.637Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/541-reports-click-control-tower.png",
+      "time": "2026-02-10T04:30:27.260Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/542-reports-tooltip-open-queue.png",
+      "time": "2026-02-10T04:30:27.576Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/543-reports-click-open-queue.png",
+      "time": "2026-02-10T04:30:28.191Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/544-reports-tooltip-workload.png",
+      "time": "2026-02-10T04:30:28.512Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/545-reports-click-workload.png",
+      "time": "2026-02-10T04:30:29.130Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/546-reports-tooltip-analytics.png",
+      "time": "2026-02-10T04:30:29.448Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/547-reports-click-analytics.png",
+      "time": "2026-02-10T04:30:30.151Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/550-activity-tooltip-notifications14.png",
+      "time": "2026-02-10T04:30:33.690Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/551-activity-click-notifications14.png",
+      "time": "2026-02-10T04:30:34.481Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/552-activity-tooltip-approvals.png",
+      "time": "2026-02-10T04:30:34.936Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/553-activity-click-approvals.png",
+      "time": "2026-02-10T04:30:35.574Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/554-activity-tooltip-overdue10.png",
+      "time": "2026-02-10T04:30:35.896Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/555-activity-click-overdue10.png",
+      "time": "2026-02-10T04:30:36.621Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/556-activity-tooltip-payments10.png",
+      "time": "2026-02-10T04:30:37.023Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/557-activity-click-payments10.png",
+      "time": "2026-02-10T04:30:37.700Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/558-activity-tooltip-my-day.png",
+      "time": "2026-02-10T04:30:38.085Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/559-activity-click-my-day.png",
+      "time": "2026-02-10T04:30:38.839Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/560-activity-tooltip-assignments.png",
+      "time": "2026-02-10T04:30:39.287Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/561-activity-click-assignments.png",
+      "time": "2026-02-10T04:30:40.025Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/562-activity-tooltip-requests.png",
+      "time": "2026-02-10T04:30:40.454Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/563-activity-click-requests.png",
+      "time": "2026-02-10T04:30:41.107Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/564-activity-tooltip-calendar.png",
+      "time": "2026-02-10T04:30:41.455Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/565-activity-click-calendar.png",
+      "time": "2026-02-10T04:30:42.203Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/566-activity-tooltip-invoices.png",
+      "time": "2026-02-10T04:30:42.604Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/567-activity-click-invoices.png",
+      "time": "2026-02-10T04:30:43.309Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/568-activity-tooltip-notifications.png",
+      "time": "2026-02-10T04:30:43.698Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/569-activity-click-notifications.png",
+      "time": "2026-02-10T04:30:44.451Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/570-activity-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:30:44.921Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/571-activity-click-new-assignment.png",
+      "time": "2026-02-10T04:30:45.597Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/572-activity-tooltip-control-tower.png",
+      "time": "2026-02-10T04:30:45.956Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/573-activity-click-control-tower.png",
+      "time": "2026-02-10T04:30:46.601Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/574-activity-tooltip-open-queue.png",
+      "time": "2026-02-10T04:30:46.928Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/575-activity-click-open-queue.png",
+      "time": "2026-02-10T04:30:47.552Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/576-activity-tooltip-workload.png",
+      "time": "2026-02-10T04:30:47.868Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/577-activity-click-workload.png",
+      "time": "2026-02-10T04:30:48.499Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/578-activity-tooltip-analytics.png",
+      "time": "2026-02-10T04:30:48.859Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/579-activity-click-analytics.png",
+      "time": "2026-02-10T04:30:49.580Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/582-email-deliveries-tooltip-notifications14.png",
+      "time": "2026-02-10T04:30:51.883Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/583-email-deliveries-click-notifications14.png",
+      "time": "2026-02-10T04:30:52.626Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/584-email-deliveries-tooltip-approvals.png",
+      "time": "2026-02-10T04:30:53.078Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/585-email-deliveries-click-approvals.png",
+      "time": "2026-02-10T04:30:53.726Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/586-email-deliveries-tooltip-overdue10.png",
+      "time": "2026-02-10T04:30:54.058Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/587-email-deliveries-click-overdue10.png",
+      "time": "2026-02-10T04:30:54.797Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/588-email-deliveries-tooltip-payments10.png",
+      "time": "2026-02-10T04:30:55.239Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/589-email-deliveries-click-payments10.png",
+      "time": "2026-02-10T04:30:55.916Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/590-email-deliveries-tooltip-my-day.png",
+      "time": "2026-02-10T04:30:56.312Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/591-email-deliveries-click-my-day.png",
+      "time": "2026-02-10T04:30:57.066Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/592-email-deliveries-tooltip-assignments.png",
+      "time": "2026-02-10T04:30:57.512Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/593-email-deliveries-click-assignments.png",
+      "time": "2026-02-10T04:30:58.238Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/594-email-deliveries-tooltip-requests.png",
+      "time": "2026-02-10T04:30:58.714Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/595-email-deliveries-click-requests.png",
+      "time": "2026-02-10T04:30:59.374Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/596-email-deliveries-tooltip-calendar.png",
+      "time": "2026-02-10T04:30:59.739Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/597-email-deliveries-click-calendar.png",
+      "time": "2026-02-10T04:31:00.464Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/598-email-deliveries-tooltip-invoices.png",
+      "time": "2026-02-10T04:31:00.874Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/599-email-deliveries-click-invoices.png",
+      "time": "2026-02-10T04:31:01.573Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/600-email-deliveries-tooltip-notifications.png",
+      "time": "2026-02-10T04:31:01.922Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/601-email-deliveries-click-notifications.png",
+      "time": "2026-02-10T04:31:02.658Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/602-email-deliveries-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:31:03.086Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/603-email-deliveries-click-new-assignment.png",
+      "time": "2026-02-10T04:31:03.735Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/604-email-deliveries-tooltip-control-tower.png",
+      "time": "2026-02-10T04:31:04.065Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/605-email-deliveries-click-control-tower.png",
+      "time": "2026-02-10T04:31:04.696Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/606-email-deliveries-tooltip-open-queue.png",
+      "time": "2026-02-10T04:31:05.126Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/607-email-deliveries-click-open-queue.png",
+      "time": "2026-02-10T04:31:05.886Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/608-email-deliveries-tooltip-workload.png",
+      "time": "2026-02-10T04:31:06.183Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/609-email-deliveries-click-workload.png",
+      "time": "2026-02-10T04:31:06.791Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/610-email-deliveries-tooltip-analytics.png",
+      "time": "2026-02-10T04:31:07.107Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/611-email-deliveries-click-analytics.png",
+      "time": "2026-02-10T04:31:07.810Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/614-attendance-tooltip-notifications14.png",
+      "time": "2026-02-10T04:31:10.940Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/615-attendance-click-notifications14.png",
+      "time": "2026-02-10T04:31:11.709Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/616-attendance-tooltip-approvals.png",
+      "time": "2026-02-10T04:31:12.146Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/617-attendance-click-approvals.png",
+      "time": "2026-02-10T04:31:12.803Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/618-attendance-tooltip-overdue10.png",
+      "time": "2026-02-10T04:31:13.169Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/619-attendance-click-overdue10.png",
+      "time": "2026-02-10T04:31:13.917Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/620-attendance-tooltip-payments10.png",
+      "time": "2026-02-10T04:31:14.351Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/621-attendance-click-payments10.png",
+      "time": "2026-02-10T04:31:15.064Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/622-attendance-tooltip-my-day.png",
+      "time": "2026-02-10T04:31:15.478Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/623-attendance-click-my-day.png",
+      "time": "2026-02-10T04:31:16.244Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/624-attendance-tooltip-assignments.png",
+      "time": "2026-02-10T04:31:16.682Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/625-attendance-click-assignments.png",
+      "time": "2026-02-10T04:31:17.415Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/626-attendance-tooltip-requests.png",
+      "time": "2026-02-10T04:31:17.825Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/627-attendance-click-requests.png",
+      "time": "2026-02-10T04:31:18.491Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/628-attendance-tooltip-calendar.png",
+      "time": "2026-02-10T04:31:18.835Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/629-attendance-click-calendar.png",
+      "time": "2026-02-10T04:31:19.573Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/630-attendance-tooltip-invoices.png",
+      "time": "2026-02-10T04:31:19.960Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/631-attendance-click-invoices.png",
+      "time": "2026-02-10T04:31:20.655Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/632-attendance-tooltip-notifications.png",
+      "time": "2026-02-10T04:31:21.027Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/633-attendance-click-notifications.png",
+      "time": "2026-02-10T04:31:21.785Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/634-attendance-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:31:22.238Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/635-attendance-click-new-assignment.png",
+      "time": "2026-02-10T04:31:22.916Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/636-attendance-tooltip-control-tower.png",
+      "time": "2026-02-10T04:31:23.286Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/637-attendance-click-control-tower.png",
+      "time": "2026-02-10T04:31:23.949Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/638-attendance-tooltip-open-queue.png",
+      "time": "2026-02-10T04:31:24.290Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/639-attendance-click-open-queue.png",
+      "time": "2026-02-10T04:31:24.932Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/640-attendance-tooltip-workload.png",
+      "time": "2026-02-10T04:31:25.253Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/641-attendance-click-workload.png",
+      "time": "2026-02-10T04:31:25.889Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/642-attendance-tooltip-analytics.png",
+      "time": "2026-02-10T04:31:26.220Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/643-attendance-click-analytics.png",
+      "time": "2026-02-10T04:31:26.930Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/646-support-inbox-tooltip-notifications14.png",
+      "time": "2026-02-10T04:31:29.209Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/647-support-inbox-click-notifications14.png",
+      "time": "2026-02-10T04:31:29.963Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/648-support-inbox-tooltip-approvals.png",
+      "time": "2026-02-10T04:31:30.405Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/649-support-inbox-click-approvals.png",
+      "time": "2026-02-10T04:31:31.044Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/650-support-inbox-tooltip-overdue10.png",
+      "time": "2026-02-10T04:31:31.382Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/651-support-inbox-click-overdue10.png",
+      "time": "2026-02-10T04:31:32.123Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/652-support-inbox-tooltip-payments10.png",
+      "time": "2026-02-10T04:31:32.575Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/653-support-inbox-click-payments10.png",
+      "time": "2026-02-10T04:31:33.263Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/654-support-inbox-tooltip-my-day.png",
+      "time": "2026-02-10T04:31:33.668Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/655-support-inbox-click-my-day.png",
+      "time": "2026-02-10T04:31:34.441Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/656-support-inbox-tooltip-assignments.png",
+      "time": "2026-02-10T04:31:34.880Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/657-support-inbox-click-assignments.png",
+      "time": "2026-02-10T04:31:35.613Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/658-support-inbox-tooltip-requests.png",
+      "time": "2026-02-10T04:31:36.039Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/659-support-inbox-click-requests.png",
+      "time": "2026-02-10T04:31:36.718Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/660-support-inbox-tooltip-calendar.png",
+      "time": "2026-02-10T04:31:37.060Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/661-support-inbox-click-calendar.png",
+      "time": "2026-02-10T04:31:37.778Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/662-support-inbox-tooltip-invoices.png",
+      "time": "2026-02-10T04:31:38.180Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/663-support-inbox-click-invoices.png",
+      "time": "2026-02-10T04:31:38.893Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/664-support-inbox-tooltip-notifications.png",
+      "time": "2026-02-10T04:31:39.277Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/665-support-inbox-click-notifications.png",
+      "time": "2026-02-10T04:31:40.044Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/666-support-inbox-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:31:40.468Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/667-support-inbox-click-new-assignment.png",
+      "time": "2026-02-10T04:31:41.130Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/668-support-inbox-tooltip-control-tower.png",
+      "time": "2026-02-10T04:31:41.476Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/669-support-inbox-click-control-tower.png",
+      "time": "2026-02-10T04:31:42.127Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/670-support-inbox-tooltip-open-queue.png",
+      "time": "2026-02-10T04:31:42.458Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/671-support-inbox-click-open-queue.png",
+      "time": "2026-02-10T04:31:43.078Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/672-support-inbox-tooltip-workload.png",
+      "time": "2026-02-10T04:31:43.404Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/673-support-inbox-click-workload.png",
+      "time": "2026-02-10T04:31:44.043Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/674-support-inbox-tooltip-analytics.png",
+      "time": "2026-02-10T04:31:44.358Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/675-support-inbox-click-analytics.png",
+      "time": "2026-02-10T04:31:45.080Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/678-system-config-tooltip-notifications14.png",
+      "time": "2026-02-10T04:31:47.310Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/679-system-config-click-notifications14.png",
+      "time": "2026-02-10T04:31:48.066Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/680-system-config-tooltip-approvals.png",
+      "time": "2026-02-10T04:31:48.500Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/681-system-config-click-approvals.png",
+      "time": "2026-02-10T04:31:49.122Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/682-system-config-tooltip-overdue10.png",
+      "time": "2026-02-10T04:31:49.454Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/683-system-config-click-overdue10.png",
+      "time": "2026-02-10T04:31:50.177Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/684-system-config-tooltip-payments10.png",
+      "time": "2026-02-10T04:31:50.601Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/685-system-config-click-payments10.png",
+      "time": "2026-02-10T04:31:51.282Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/686-system-config-tooltip-my-day.png",
+      "time": "2026-02-10T04:31:51.632Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/687-system-config-click-my-day.png",
+      "time": "2026-02-10T04:31:52.400Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/688-system-config-tooltip-assignments.png",
+      "time": "2026-02-10T04:31:52.835Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/689-system-config-click-assignments.png",
+      "time": "2026-02-10T04:31:53.577Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/690-system-config-tooltip-requests.png",
+      "time": "2026-02-10T04:31:54.012Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/691-system-config-click-requests.png",
+      "time": "2026-02-10T04:31:54.672Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/692-system-config-tooltip-calendar.png",
+      "time": "2026-02-10T04:31:55.010Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/693-system-config-click-calendar.png",
+      "time": "2026-02-10T04:31:55.722Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/694-system-config-tooltip-invoices.png",
+      "time": "2026-02-10T04:31:56.116Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/695-system-config-click-invoices.png",
+      "time": "2026-02-10T04:31:56.816Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/696-system-config-tooltip-notifications.png",
+      "time": "2026-02-10T04:31:57.182Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/697-system-config-click-notifications.png",
+      "time": "2026-02-10T04:31:57.917Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/698-system-config-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:31:58.340Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/699-system-config-click-new-assignment.png",
+      "time": "2026-02-10T04:31:58.995Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/700-system-config-tooltip-control-tower.png",
+      "time": "2026-02-10T04:31:59.334Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/701-system-config-click-control-tower.png",
+      "time": "2026-02-10T04:31:59.967Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/702-system-config-tooltip-open-queue.png",
+      "time": "2026-02-10T04:32:00.290Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/703-system-config-click-open-queue.png",
+      "time": "2026-02-10T04:32:00.903Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/704-system-config-tooltip-workload.png",
+      "time": "2026-02-10T04:32:01.205Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/705-system-config-click-workload.png",
+      "time": "2026-02-10T04:32:01.831Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/706-system-config-tooltip-analytics.png",
+      "time": "2026-02-10T04:32:02.158Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/707-system-config-click-analytics.png",
+      "time": "2026-02-10T04:32:02.884Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/710-partner-requests-tooltip-notifications14.png",
+      "time": "2026-02-10T04:32:05.130Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/711-partner-requests-click-notifications14.png",
+      "time": "2026-02-10T04:32:05.877Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/712-partner-requests-tooltip-approvals.png",
+      "time": "2026-02-10T04:32:06.312Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/713-partner-requests-click-approvals.png",
+      "time": "2026-02-10T04:32:06.940Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/714-partner-requests-tooltip-overdue10.png",
+      "time": "2026-02-10T04:32:07.272Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/715-partner-requests-click-overdue10.png",
+      "time": "2026-02-10T04:32:07.990Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/716-partner-requests-tooltip-payments10.png",
+      "time": "2026-02-10T04:32:08.403Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/717-partner-requests-click-payments10.png",
+      "time": "2026-02-10T04:32:09.115Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/718-partner-requests-tooltip-my-day.png",
+      "time": "2026-02-10T04:32:09.486Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/719-partner-requests-click-my-day.png",
+      "time": "2026-02-10T04:32:10.256Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/720-partner-requests-tooltip-assignments.png",
+      "time": "2026-02-10T04:32:10.685Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/721-partner-requests-click-assignments.png",
+      "time": "2026-02-10T04:32:11.429Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/722-partner-requests-tooltip-requests.png",
+      "time": "2026-02-10T04:32:11.862Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/723-partner-requests-click-requests.png",
+      "time": "2026-02-10T04:32:12.521Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/724-partner-requests-tooltip-calendar.png",
+      "time": "2026-02-10T04:32:12.866Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/725-partner-requests-click-calendar.png",
+      "time": "2026-02-10T04:32:13.597Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/726-partner-requests-tooltip-invoices.png",
+      "time": "2026-02-10T04:32:13.996Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/727-partner-requests-click-invoices.png",
+      "time": "2026-02-10T04:32:14.704Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/728-partner-requests-tooltip-notifications.png",
+      "time": "2026-02-10T04:32:15.082Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/729-partner-requests-click-notifications.png",
+      "time": "2026-02-10T04:32:15.836Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/730-partner-requests-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:32:16.253Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/731-partner-requests-click-new-assignment.png",
+      "time": "2026-02-10T04:32:16.915Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/732-partner-requests-tooltip-control-tower.png",
+      "time": "2026-02-10T04:32:17.259Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/733-partner-requests-click-control-tower.png",
+      "time": "2026-02-10T04:32:17.892Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/734-partner-requests-tooltip-open-queue.png",
+      "time": "2026-02-10T04:32:18.223Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/735-partner-requests-click-open-queue.png",
+      "time": "2026-02-10T04:32:18.851Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/736-partner-requests-tooltip-workload.png",
+      "time": "2026-02-10T04:32:19.151Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/737-partner-requests-click-workload.png",
+      "time": "2026-02-10T04:32:19.777Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/738-partner-requests-tooltip-analytics.png",
+      "time": "2026-02-10T04:32:20.088Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/739-partner-requests-click-analytics.png",
+      "time": "2026-02-10T04:32:20.787Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/742-personnel-tooltip-notifications14.png",
+      "time": "2026-02-10T04:32:23.072Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/743-personnel-click-notifications14.png",
+      "time": "2026-02-10T04:32:23.813Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/744-personnel-tooltip-approvals.png",
+      "time": "2026-02-10T04:32:24.237Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/745-personnel-click-approvals.png",
+      "time": "2026-02-10T04:32:24.862Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/746-personnel-tooltip-overdue10.png",
+      "time": "2026-02-10T04:32:25.194Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/747-personnel-click-overdue10.png",
+      "time": "2026-02-10T04:32:25.914Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/748-personnel-tooltip-payments10.png",
+      "time": "2026-02-10T04:32:26.347Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/749-personnel-click-payments10.png",
+      "time": "2026-02-10T04:32:27.049Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/750-personnel-tooltip-my-day.png",
+      "time": "2026-02-10T04:32:27.447Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/751-personnel-click-my-day.png",
+      "time": "2026-02-10T04:32:28.214Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/752-personnel-tooltip-assignments.png",
+      "time": "2026-02-10T04:32:28.648Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/753-personnel-click-assignments.png",
+      "time": "2026-02-10T04:32:29.384Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/754-personnel-tooltip-requests.png",
+      "time": "2026-02-10T04:32:29.815Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/755-personnel-click-requests.png",
+      "time": "2026-02-10T04:32:30.477Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/756-personnel-tooltip-calendar.png",
+      "time": "2026-02-10T04:32:30.822Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/757-personnel-click-calendar.png",
+      "time": "2026-02-10T04:32:31.551Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/758-personnel-tooltip-invoices.png",
+      "time": "2026-02-10T04:32:31.964Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/759-personnel-click-invoices.png",
+      "time": "2026-02-10T04:32:32.668Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/760-personnel-tooltip-notifications.png",
+      "time": "2026-02-10T04:32:33.029Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/761-personnel-click-notifications.png",
+      "time": "2026-02-10T04:32:33.792Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/762-personnel-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:32:34.224Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/763-personnel-click-new-assignment.png",
+      "time": "2026-02-10T04:32:34.884Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/764-personnel-tooltip-control-tower.png",
+      "time": "2026-02-10T04:32:35.223Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/765-personnel-click-control-tower.png",
+      "time": "2026-02-10T04:32:35.870Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/766-personnel-tooltip-open-queue.png",
+      "time": "2026-02-10T04:32:36.196Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/767-personnel-click-open-queue.png",
+      "time": "2026-02-10T04:32:36.834Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/768-personnel-tooltip-workload.png",
+      "time": "2026-02-10T04:32:37.142Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/769-personnel-click-workload.png",
+      "time": "2026-02-10T04:32:37.764Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/770-personnel-tooltip-analytics.png",
+      "time": "2026-02-10T04:32:38.084Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/771-personnel-click-analytics.png",
+      "time": "2026-02-10T04:32:38.799Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/774-master-data-tooltip-notifications14.png",
+      "time": "2026-02-10T04:32:41.058Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/775-master-data-click-notifications14.png",
+      "time": "2026-02-10T04:32:41.808Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/776-master-data-tooltip-approvals.png",
+      "time": "2026-02-10T04:32:42.235Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/777-master-data-click-approvals.png",
+      "time": "2026-02-10T04:32:42.883Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/778-master-data-tooltip-overdue10.png",
+      "time": "2026-02-10T04:32:43.244Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/779-master-data-click-overdue10.png",
+      "time": "2026-02-10T04:32:43.985Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/780-master-data-tooltip-payments10.png",
+      "time": "2026-02-10T04:32:44.423Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/781-master-data-click-payments10.png",
+      "time": "2026-02-10T04:32:45.127Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/782-master-data-tooltip-my-day.png",
+      "time": "2026-02-10T04:32:45.506Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/783-master-data-click-my-day.png",
+      "time": "2026-02-10T04:32:46.275Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/784-master-data-tooltip-assignments.png",
+      "time": "2026-02-10T04:32:46.708Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/785-master-data-click-assignments.png",
+      "time": "2026-02-10T04:32:47.466Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/786-master-data-tooltip-requests.png",
+      "time": "2026-02-10T04:32:47.913Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/787-master-data-click-requests.png",
+      "time": "2026-02-10T04:32:48.577Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/788-master-data-tooltip-calendar.png",
+      "time": "2026-02-10T04:32:48.917Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/789-master-data-click-calendar.png",
+      "time": "2026-02-10T04:32:49.641Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/790-master-data-tooltip-invoices.png",
+      "time": "2026-02-10T04:32:50.048Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/791-master-data-click-invoices.png",
+      "time": "2026-02-10T04:32:50.750Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/792-master-data-tooltip-notifications.png",
+      "time": "2026-02-10T04:32:51.111Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/793-master-data-click-notifications.png",
+      "time": "2026-02-10T04:32:51.858Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/794-master-data-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:32:52.303Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/795-master-data-click-new-assignment.png",
+      "time": "2026-02-10T04:32:52.975Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/796-master-data-tooltip-control-tower.png",
+      "time": "2026-02-10T04:32:53.317Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/797-master-data-click-control-tower.png",
+      "time": "2026-02-10T04:32:53.964Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/798-master-data-tooltip-open-queue.png",
+      "time": "2026-02-10T04:32:54.293Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/799-master-data-click-open-queue.png",
+      "time": "2026-02-10T04:32:54.927Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/800-master-data-tooltip-workload.png",
+      "time": "2026-02-10T04:32:55.234Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/801-master-data-click-workload.png",
+      "time": "2026-02-10T04:32:55.850Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/802-master-data-tooltip-analytics.png",
+      "time": "2026-02-10T04:32:56.160Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/803-master-data-click-analytics.png",
+      "time": "2026-02-10T04:32:56.874Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/806-company-accts-tooltip-notifications14.png",
+      "time": "2026-02-10T04:32:59.174Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/807-company-accts-click-notifications14.png",
+      "time": "2026-02-10T04:32:59.903Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/808-company-accts-tooltip-approvals.png",
+      "time": "2026-02-10T04:33:00.340Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/809-company-accts-click-approvals.png",
+      "time": "2026-02-10T04:33:00.967Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/810-company-accts-tooltip-overdue10.png",
+      "time": "2026-02-10T04:33:01.291Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/811-company-accts-click-overdue10.png",
+      "time": "2026-02-10T04:33:02.019Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/812-company-accts-tooltip-payments10.png",
+      "time": "2026-02-10T04:33:02.454Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/813-company-accts-click-payments10.png",
+      "time": "2026-02-10T04:33:03.138Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/814-company-accts-tooltip-my-day.png",
+      "time": "2026-02-10T04:33:03.517Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/815-company-accts-click-my-day.png",
+      "time": "2026-02-10T04:33:04.261Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/816-company-accts-tooltip-assignments.png",
+      "time": "2026-02-10T04:33:04.699Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/817-company-accts-click-assignments.png",
+      "time": "2026-02-10T04:33:05.424Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/818-company-accts-tooltip-requests.png",
+      "time": "2026-02-10T04:33:05.947Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/819-company-accts-click-requests.png",
+      "time": "2026-02-10T04:33:06.602Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/820-company-accts-tooltip-calendar.png",
+      "time": "2026-02-10T04:33:06.931Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/821-company-accts-click-calendar.png",
+      "time": "2026-02-10T04:33:07.637Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/822-company-accts-tooltip-invoices.png",
+      "time": "2026-02-10T04:33:08.035Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/823-company-accts-click-invoices.png",
+      "time": "2026-02-10T04:33:08.741Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/824-company-accts-tooltip-notifications.png",
+      "time": "2026-02-10T04:33:09.112Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/825-company-accts-click-notifications.png",
+      "time": "2026-02-10T04:33:09.853Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/826-company-accts-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:33:10.292Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/827-company-accts-click-new-assignment.png",
+      "time": "2026-02-10T04:33:10.947Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/828-company-accts-tooltip-control-tower.png",
+      "time": "2026-02-10T04:33:11.279Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/829-company-accts-click-control-tower.png",
+      "time": "2026-02-10T04:33:11.910Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/830-company-accts-tooltip-open-queue.png",
+      "time": "2026-02-10T04:33:12.235Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/831-company-accts-click-open-queue.png",
+      "time": "2026-02-10T04:33:12.864Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/832-company-accts-tooltip-workload.png",
+      "time": "2026-02-10T04:33:13.166Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/833-company-accts-click-workload.png",
+      "time": "2026-02-10T04:33:13.778Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/834-company-accts-tooltip-analytics.png",
+      "time": "2026-02-10T04:33:14.077Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/835-company-accts-click-analytics.png",
+      "time": "2026-02-10T04:33:14.772Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications14",
+      "screenshot": "reports/screenshots/838-backups-tooltip-notifications14.png",
+      "time": "2026-02-10T04:33:16.994Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications14",
+      "text": "🔔Notifications14 Notifications",
+      "screenshot": "reports/screenshots/839-backups-click-notifications14.png",
+      "time": "2026-02-10T04:33:17.733Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "approvals",
+      "screenshot": "reports/screenshots/840-backups-tooltip-approvals.png",
+      "time": "2026-02-10T04:33:18.173Z"
+    },
+    {
+      "type": "click",
+      "label": "approvals",
+      "text": "📝Approvals Approvals",
+      "screenshot": "reports/screenshots/841-backups-click-approvals.png",
+      "time": "2026-02-10T04:33:18.800Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "overdue10",
+      "screenshot": "reports/screenshots/842-backups-tooltip-overdue10.png",
+      "time": "2026-02-10T04:33:19.131Z"
+    },
+    {
+      "type": "click",
+      "label": "overdue10",
+      "text": "⏱️Overdue10 Overdue",
+      "screenshot": "reports/screenshots/843-backups-click-overdue10.png",
+      "time": "2026-02-10T04:33:19.838Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "payments10",
+      "screenshot": "reports/screenshots/844-backups-tooltip-payments10.png",
+      "time": "2026-02-10T04:33:20.244Z"
+    },
+    {
+      "type": "click",
+      "label": "payments10",
+      "text": "💸Payments10 Payments",
+      "screenshot": "reports/screenshots/845-backups-click-payments10.png",
+      "time": "2026-02-10T04:33:20.936Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "my-day",
+      "screenshot": "reports/screenshots/846-backups-tooltip-my-day.png",
+      "time": "2026-02-10T04:33:21.298Z"
+    },
+    {
+      "type": "click",
+      "label": "my-day",
+      "text": "My Day",
+      "screenshot": "reports/screenshots/847-backups-click-my-day.png",
+      "time": "2026-02-10T04:33:22.031Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "assignments",
+      "screenshot": "reports/screenshots/848-backups-tooltip-assignments.png",
+      "time": "2026-02-10T04:33:22.464Z"
+    },
+    {
+      "type": "click",
+      "label": "assignments",
+      "text": "Assignments",
+      "screenshot": "reports/screenshots/849-backups-click-assignments.png",
+      "time": "2026-02-10T04:33:23.184Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "requests",
+      "screenshot": "reports/screenshots/850-backups-tooltip-requests.png",
+      "time": "2026-02-10T04:33:23.604Z"
+    },
+    {
+      "type": "click",
+      "label": "requests",
+      "text": "Requests",
+      "screenshot": "reports/screenshots/851-backups-click-requests.png",
+      "time": "2026-02-10T04:33:24.256Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "calendar",
+      "screenshot": "reports/screenshots/852-backups-tooltip-calendar.png",
+      "time": "2026-02-10T04:33:24.595Z"
+    },
+    {
+      "type": "click",
+      "label": "calendar",
+      "text": "Calendar",
+      "screenshot": "reports/screenshots/853-backups-click-calendar.png",
+      "time": "2026-02-10T04:33:25.300Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "invoices",
+      "screenshot": "reports/screenshots/854-backups-tooltip-invoices.png",
+      "time": "2026-02-10T04:33:25.692Z"
+    },
+    {
+      "type": "click",
+      "label": "invoices",
+      "text": "Invoices",
+      "screenshot": "reports/screenshots/855-backups-click-invoices.png",
+      "time": "2026-02-10T04:33:26.374Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "notifications",
+      "screenshot": "reports/screenshots/856-backups-tooltip-notifications.png",
+      "time": "2026-02-10T04:33:26.730Z"
+    },
+    {
+      "type": "click",
+      "label": "notifications",
+      "text": "Notifications",
+      "screenshot": "reports/screenshots/857-backups-click-notifications.png",
+      "time": "2026-02-10T04:33:27.484Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "new-assignment",
+      "screenshot": "reports/screenshots/858-backups-tooltip-new-assignment.png",
+      "time": "2026-02-10T04:33:27.897Z"
+    },
+    {
+      "type": "click",
+      "label": "new-assignment",
+      "text": "New Assignment",
+      "screenshot": "reports/screenshots/859-backups-click-new-assignment.png",
+      "time": "2026-02-10T04:33:28.547Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "control-tower",
+      "screenshot": "reports/screenshots/860-backups-tooltip-control-tower.png",
+      "time": "2026-02-10T04:33:28.879Z"
+    },
+    {
+      "type": "click",
+      "label": "control-tower",
+      "text": "Control Tower",
+      "screenshot": "reports/screenshots/861-backups-click-control-tower.png",
+      "time": "2026-02-10T04:33:29.516Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "open-queue",
+      "screenshot": "reports/screenshots/862-backups-tooltip-open-queue.png",
+      "time": "2026-02-10T04:33:29.839Z"
+    },
+    {
+      "type": "click",
+      "label": "open-queue",
+      "text": "Open Queue",
+      "screenshot": "reports/screenshots/863-backups-click-open-queue.png",
+      "time": "2026-02-10T04:33:30.483Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "workload",
+      "screenshot": "reports/screenshots/864-backups-tooltip-workload.png",
+      "time": "2026-02-10T04:33:30.782Z"
+    },
+    {
+      "type": "click",
+      "label": "workload",
+      "text": "Workload",
+      "screenshot": "reports/screenshots/865-backups-click-workload.png",
+      "time": "2026-02-10T04:33:31.398Z"
+    },
+    {
+      "type": "tooltip",
+      "label": "analytics",
+      "screenshot": "reports/screenshots/866-backups-tooltip-analytics.png",
+      "time": "2026-02-10T04:33:31.718Z"
+    },
+    {
+      "type": "click",
+      "label": "analytics",
+      "text": "Analytics",
+      "screenshot": "reports/screenshots/867-backups-click-analytics.png",
+      "time": "2026-02-10T04:33:32.412Z"
+    }
+  ],
+  "consoleErrors": [
+    {
+      "type": "error",
+      "text": "ReferenceError: highlightMentions is not defined\n    at L (http://localhost/assets/index-f9f37d04.js:73:101974)\n    at Wh (http://localhost/assets/index-f9f37d04.js:38:17019)\n    at z_ (http://localhost/assets/index-f9f37d04.js:40:44055)\n    at $_ (http://localhost/assets/index-f9f37d04.js:40:39787)\n    at Bk (http://localhost/assets/index-f9f37d04.js:40:39715)\n    at Nc (http://localhost/assets/index-f9f37d04.js:40:39568)\n    at Pp (http://localhost/assets/index-f9f37d04.js:40:35933)\n    at O_ (http://localhost/assets/index-f9f37d04.js:40:34882)\n    at D (http://localhost/assets/index-f9f37d04.js:25:1593)\n    at MessagePort.re (http://localhost/assets/index-f9f37d04.js:25:1962)",
+      "location": {
+        "url": "http://localhost/assets/index-f9f37d04.js",
+        "lineNumber": 39,
+        "columnNumber": 160
+      },
+      "time": "2026-02-10T04:33:51.456Z"
+    },
+    {
+      "type": "error",
+      "text": "ErrorBoundary caught an error: ReferenceError: highlightMentions is not defined\n    at L (http://localhost/assets/index-f9f37d04.js:73:101974)\n    at Wh (http://localhost/assets/index-f9f37d04.js:38:17019)\n    at z_ (http://localhost/assets/index-f9f37d04.js:40:44055)\n    at $_ (http://localhost/assets/index-f9f37d04.js:40:39787)\n    at Bk (http://localhost/assets/index-f9f37d04.js:40:39715)\n    at Nc (http://localhost/assets/index-f9f37d04.js:40:39568)\n    at Pp (http://localhost/assets/index-f9f37d04.js:40:35933)\n    at O_ (http://localhost/assets/index-f9f37d04.js:40:34882)\n    at D (http://localhost/assets/index-f9f37d04.js:25:1593)\n    at MessagePort.re (http://localhost/assets/index-f9f37d04.js:25:1962) {componentStack: \n    at L (http://localhost/assets/index-f9f37d04.…tp://localhost/assets/index-f9f37d04.js:104:2855)}",
+      "location": {
+        "url": "http://localhost/assets/index-f9f37d04.js",
+        "lineNumber": 72,
+        "columnNumber": 473
+      },
+      "time": "2026-02-10T04:33:51.456Z"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "responseErrors": []
+}

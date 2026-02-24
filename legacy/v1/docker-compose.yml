@@ -1,0 +1,385 @@
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-zenops}
+      POSTGRES_USER: ${POSTGRES_USER:-zenops}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zenops} -d ${POSTGRES_DB:-zenops}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  migrate:
+    build:
+      context: ./backend
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    env_file:
+      - .env.backend
+    environment:
+      UPLOADS_DIR: /tmp/uploads
+      DB_WAIT_TIMEOUT: "90"
+      DB_WAIT_INTERVAL: "2"
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *default-logging
+
+  uploads-perms:
+    image: alpine:3.19
+    command: ["sh", "-c", "chown -R 100:101 /uploads"]
+    user: "0:0"
+    volumes:
+      - uploads:/uploads
+    restart: "no"
+    logging: *default-logging
+
+  api:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - .env.backend
+    environment:
+      DB_WAIT_TIMEOUT: "90"
+      DB_WAIT_INTERVAL: "2"
+      UPLOADS_DIR: /app/uploads
+      BACKUP_DIR: /backups
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      uploads-perms:
+        condition: service_completed_successfully
+    volumes:
+      - uploads:/app/uploads
+      - ./deploy/backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/readyz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *default-logging
+
+  email-worker:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - .env.backend
+    command: ["python", "-m", "app.scripts.notification_worker", "--interval", "30"]
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      uploads-perms:
+        condition: service_completed_successfully
+    volumes:
+      - uploads:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import os; os.kill(1, 0)' || exit 1"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging: *default-logging
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost}
+    restart: unless-stopped
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *default-logging
+
+  backup:
+    build:
+      context: .
+      dockerfile: deploy/backup/Dockerfile
+    profiles: ["backup"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER:-zenops}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-change_me}
+      PGDATABASE: ${POSTGRES_DB:-zenops}
+      APP_NAME: zenops
+      BACKUP_DIR: /backups
+      BACKUP_TIER_DIR: /backups/tiers
+      UPLOADS_DIR: /uploads
+      RETAIN_LOCAL_DAYS: "7"
+      RETAIN_REMOTE_DAYS: "30"
+      RCLONE_REMOTE: ${RCLONE_REMOTE:-}
+      RCLONE_UPLOAD_MODE: ${RCLONE_UPLOAD_MODE:-tiers}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
+      DAILY_SLOTS: "2"
+      WEEKLY_DAY: "1"
+      FORTNIGHT_DAYS: "1,15"
+      MONTHLY_DAY: "1"
+      MANIFEST_HASH: "1"
+      ASSIGNMENT_ARCHIVE_MODE: ${ASSIGNMENT_ARCHIVE_MODE:-all}
+      ASSIGNMENT_ARCHIVE_DIR: /backups/assignment_archives
+      STRUCTURED_UPLOADS_MODE: ${STRUCTURED_UPLOADS_MODE:-on}
+      STRUCTURED_UPLOADS_ROOT: ${STRUCTURED_UPLOADS_ROOT:-valuations}
+      STRUCTURED_UPLOADS_DIR: /backups/structured_uploads
+      RCLONE_CONFIG: /config/rclone/rclone.conf
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-zenops}:${POSTGRES_PASSWORD:-change_me}@db:5432/${POSTGRES_DB:-zenops}
+    volumes:
+      - ./deploy/backups:/backups
+      - uploads:/uploads:ro
+      - ./deploy/rclone:/config/rclone
+    logging: *default-logging
+
+  backup-cron:
+    build:
+      context: .
+      dockerfile: deploy/backup/cron.Dockerfile
+    profiles: ["backup"]
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/work
+      - ./deploy/backup/crontab:/etc/crontabs/root:ro
+    working_dir: /work
+    command: ["crond", "-f", "-l", "8"]
+    logging: *default-logging
+
+  backup-dispatcher:
+    build:
+      context: .
+      dockerfile: deploy/backup/cron.Dockerfile
+    profiles: ["backup"]
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/work
+      - ./deploy/backups:/backups
+    environment:
+      BACKUP_DIR: /backups
+      WORKDIR: /work
+    working_dir: /work
+    command: ["/bin/bash", "/work/deploy/backup/dispatcher.sh"]
+    logging: *default-logging
+
+  rclone:
+    image: rclone/rclone:latest
+    profiles: ["backup"]
+    volumes:
+      - ./deploy/rclone:/config/rclone
+      - ./deploy/backups:/data
+    entrypoint: ["rclone"]
+    logging: *default-logging
+
+  reverse-proxy:
+    image: caddy:2.7-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      CADDY_SITE: ${CADDY_SITE:-:80}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-change_me@example.com}
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - frontend
+    logging: *default-logging
+
+  # ============================================================================
+  # OBSERVABILITY SERVICES (enabled with --profile observability)
+  # ============================================================================
+
+  prometheus:
+    image: prom/prometheus:v2.50.1
+    profiles: ["observability"]
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-remote-write-receiver'
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/alerts:/etc/prometheus/alerts:ro
+      - prometheus_data:/prometheus
+    logging: *default-logging
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    profiles: ["observability"]
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    volumes:
+      - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    logging: *default-logging
+
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    profiles: ["observability"]
+    restart: unless-stopped
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    logging: *default-logging
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    profiles: ["observability"]
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    logging: *default-logging
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    profiles: ["observability"]
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-zenops}:${POSTGRES_PASSWORD:-change_me}@db:5432/${POSTGRES_DB:-zenops}?sslmode=disable"
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *default-logging
+
+  loki:
+    image: grafana/loki:2.9.4
+    profiles: ["observability"]
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki.yml
+    volumes:
+      - ./observability/loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    logging: *default-logging
+
+  tempo:
+    image: grafana/tempo:2.3.1
+    profiles: ["observability"]
+    restart: unless-stopped
+    command: -config.file=/etc/tempo/tempo.yml
+    volumes:
+      - ./observability/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/var/tempo
+    logging: *default-logging
+
+  alloy:
+    image: grafana/alloy:v1.0.0
+    profiles: ["observability"]
+    restart: unless-stopped
+    command:
+      - run
+      - /etc/alloy/alloy.hcl
+      - --server.http.listen-addr=0.0.0.0:12345
+    volumes:
+      - ./observability/alloy/alloy.hcl:/etc/alloy/alloy.hcl:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+      - tempo
+    logging: *default-logging
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.24.0
+    profiles: ["observability"]
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/blackbox/blackbox.yml'
+    volumes:
+      - ./observability/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    logging: *default-logging
+
+  grafana:
+    image: grafana/grafana:10.3.3
+    profiles: ["observability"]
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
+      GF_FEATURE_TOGGLES_ENABLE: "traceqlEditor"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    logging: *default-logging
+
+  watchdog:
+    build:
+      context: ./observability/watchdog
+    profiles: ["observability"]
+    restart: unless-stopped
+    environment:
+      API_BASE_URL: http://api:8000
+      CHECK_INTERVAL: "60"
+      SMOKE_TEST_USER: ${WATCHDOG_SMOKE_USER:-}
+      SMOKE_TEST_PASSWORD: ${WATCHDOG_SMOKE_PASSWORD:-}
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *default-logging
+
+volumes:
+  postgres_data:
+  uploads:
+  caddy_data:
+  caddy_config:
+  prometheus_data:
+  alertmanager_data:
+  loki_data:
+  tempo_data:
+  grafana_data:

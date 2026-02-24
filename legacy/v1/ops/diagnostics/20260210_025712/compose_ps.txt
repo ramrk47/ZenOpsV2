@@ -1,0 +1,17 @@
+NAME                          IMAGE                                           COMMAND                  SERVICE             CREATED             STATUS                       PORTS
+zen-ops-alertmanager-1        prom/alertmanager:v0.27.0                       "/bin/alertmanager -…"   alertmanager        2 hours ago         Up 2 hours                   9093/tcp
+zen-ops-alloy-1               grafana/alloy:v1.3.0                            "/bin/alloy run /etc…"   alloy               2 hours ago         Up 2 hours                   
+zen-ops-api-1                 zen-ops-api                                     "/app/entrypoint.sh …"   api                 About an hour ago   Up About an hour (healthy)   8000/tcp
+zen-ops-blackbox-exporter-1   prom/blackbox-exporter:v0.24.0                  "/bin/blackbox_expor…"   blackbox-exporter   2 hours ago         Up 2 hours                   9115/tcp
+zen-ops-cadvisor-1            gcr.io/cadvisor/cadvisor:v0.49.1                "/usr/bin/cadvisor -…"   cadvisor            2 hours ago         Up 2 hours (healthy)         8080/tcp
+zen-ops-db-1                  postgres:15-alpine                              "docker-entrypoint.s…"   db                  2 hours ago         Up 2 hours (healthy)         5432/tcp
+zen-ops-email-worker-1        zen-ops-email-worker                            "/app/entrypoint.sh …"   email-worker        2 hours ago         Up 2 hours (healthy)         8000/tcp
+zen-ops-frontend-1            zen-ops-frontend                                "/docker-entrypoint.…"   frontend            2 hours ago         Up 2 hours (healthy)         80/tcp
+zen-ops-grafana-1             grafana/grafana:10.3.3                          "/run.sh"                grafana             2 hours ago         Up 2 hours                   0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp
+zen-ops-loki-1                grafana/loki:2.9.4                              "/usr/bin/loki -conf…"   loki                2 hours ago         Up 2 hours                   3100/tcp
+zen-ops-node-exporter-1       prom/node-exporter:v1.7.0                       "/bin/node_exporter …"   node-exporter       2 hours ago         Up 2 hours                   9100/tcp
+zen-ops-postgres-exporter-1   prometheuscommunity/postgres-exporter:v0.15.0   "/bin/postgres_expor…"   postgres-exporter   2 hours ago         Up 2 hours                   9187/tcp
+zen-ops-prometheus-1          prom/prometheus:v2.50.1                         "/bin/prometheus --c…"   prometheus          2 hours ago         Up 2 hours                   9090/tcp
+zen-ops-reverse-proxy-1       caddy:2.7-alpine                                "caddy run --config …"   reverse-proxy       2 hours ago         Up 2 hours                   0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp
+zen-ops-tempo-1               grafana/tempo:2.3.1                             "/tempo -config.file…"   tempo               2 hours ago         Up 2 hours                   
+zen-ops-watchdog-1            zen-ops-watchdog                                "python watchdog.py"     watchdog            2 hours ago         Up 2 hours (unhealthy)       8080/tcp

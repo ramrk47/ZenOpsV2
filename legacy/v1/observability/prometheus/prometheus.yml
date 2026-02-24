@@ -1,0 +1,78 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: zenops
+    env: production
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+rule_files:
+  - /etc/prometheus/alerts/*.yml
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Node Exporter - host metrics
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  # cAdvisor - container metrics
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+
+  # Postgres Exporter
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+
+  # Grafana Alloy - collector metrics
+  - job_name: alloy
+    static_configs:
+      - targets: ["alloy:12345"]
+
+  # Watchdog - contract monitor
+  - job_name: watchdog
+    static_configs:
+      - targets: ["watchdog:8080"]
+
+  # Blackbox Exporter - synthetic checks
+  - job_name: blackbox
+    static_configs:
+      - targets: ["blackbox-exporter:9115"]
+
+  # Blackbox probes - HTTP endpoints
+  - job_name: blackbox_http
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - http://reverse-proxy:80/
+          - http://api:8000/readyz
+          - http://api:8000/openapi.json
+          - http://frontend:80/
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # API metrics (if instrumented)
+  - job_name: api
+    static_configs:
+      - targets: ["api:8000"]
+    metrics_path: /metrics
+    scrape_timeout: 5s
+    honor_labels: true

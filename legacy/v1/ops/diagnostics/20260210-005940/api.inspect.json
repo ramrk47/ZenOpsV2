@@ -1,0 +1,310 @@
+[
+    {
+        "Id": "89a83bd56375f4439076f80f0e663bd2f4c897787993755a576be9a12f059617",
+        "Created": "2026-02-09T19:29:04.681697923Z",
+        "Path": "/app/entrypoint.sh",
+        "Args": [
+            "/app/scripts/start.sh"
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 36196,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-02-09T19:29:07.517803633Z",
+            "FinishedAt": "0001-01-01T00:00:00Z",
+            "Health": {
+                "Status": "healthy",
+                "FailingStreak": 0,
+                "Log": [
+                    {
+                        "Start": "2026-02-09T19:29:12.589441677Z",
+                        "End": "2026-02-09T19:29:12.689961677Z",
+                        "ExitCode": 0,
+                        "Output": "{\"status\":\"ok\",\"alembic_revision\":\"0032_add_support_system\"}"
+                    }
+                ]
+            }
+        },
+        "Image": "sha256:904eb47b62ff67c78a08a82b75c65f5c7a0c4d0de542fb385567f74d52e73d84",
+        "ResolvConfPath": "/var/lib/docker/containers/89a83bd56375f4439076f80f0e663bd2f4c897787993755a576be9a12f059617/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/89a83bd56375f4439076f80f0e663bd2f4c897787993755a576be9a12f059617/hostname",
+        "HostsPath": "/var/lib/docker/containers/89a83bd56375f4439076f80f0e663bd2f4c897787993755a576be9a12f059617/hosts",
+        "LogPath": "/var/lib/docker/containers/89a83bd56375f4439076f80f0e663bd2f4c897787993755a576be9a12f059617/89a83bd56375f4439076f80f0e663bd2f4c897787993755a576be9a12f059617-json.log",
+        "Name": "/zen-ops-api-1",
+        "RestartCount": 0,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "zen-ops_uploads:/app/uploads:rw",
+                "/host_mnt/Users/dr.156/zen-ops/deploy/backups:/backups:rw"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {
+                    "max-file": "3",
+                    "max-size": "10m"
+                }
+            },
+            "NetworkMode": "zen-ops_default",
+            "PortBindings": {},
+            "RestartPolicy": {
+                "Name": "unless-stopped",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": null,
+            "DnsOptions": null,
+            "DnsSearch": null,
+            "ExtraHosts": [],
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": null,
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "Storage": {
+            "RootFS": {
+                "Snapshot": {
+                    "Name": "overlayfs"
+                }
+            }
+        },
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "zen-ops_uploads",
+                "Source": "/var/lib/docker/volumes/zen-ops_uploads/_data",
+                "Destination": "/app/uploads",
+                "Driver": "local",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "bind",
+                "Source": "/host_mnt/Users/dr.156/zen-ops/deploy/backups",
+                "Destination": "/backups",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": "rprivate"
+            }
+        ],
+        "Config": {
+            "Hostname": "89a83bd56375",
+            "Domainname": "",
+            "User": "app",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "ExposedPorts": {
+                "8000/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "ALLOW_ORIGINS=http://localhost",
+                "EMAIL_API_KEY=",
+                "JWT_SECRET=3E_PHN0ocCmLjNrSUvjK2YrGWvBhckQFiV-XSqgYbDwz1v0RLdXkd6d1V5Z800jF",
+                "LOGIN_WINDOW_MINUTES=10",
+                "EMAIL_DAILY_LIMIT=20",
+                "EMAIL_FROM=no-reply@zenops.local",
+                "GUNICORN_GRACEFUL_TIMEOUT=30",
+                "APP_BASE_URL=http://localhost",
+                "LOG_LEVEL=INFO",
+                "DB_POOL_RECYCLE=1800",
+                "SMTP_PORT=587",
+                "DB_POOL_SIZE=5",
+                "EMAIL_PROVIDER=disabled",
+                "WEB_CONCURRENCY=2",
+                "ACCESS_TOKEN_EXPIRE_MINUTES=120",
+                "BACKUP_ADMIN_PIN=99828669",
+                "SMTP_USERNAME=",
+                "DB_WAIT_TIMEOUT=90",
+                "DB_POOL_TIMEOUT=30",
+                "EMAIL_MAX_ATTEMPTS=3",
+                "GUNICORN_TIMEOUT=120",
+                "ENVIRONMENT=development",
+                "LOGIN_MAX_ATTEMPTS=5",
+                "DB_MAX_OVERFLOW=10",
+                "SMTP_USE_TLS=true",
+                "DATABASE_URL=postgresql+psycopg2://zenops:t55KL5YMNGJjkuB67uMma_cgBrIQzzfb@db:5432/zenops",
+                "SMTP_HOST=",
+                "DB_WAIT_INTERVAL=2",
+                "EMAIL_RETRY_MINUTES=5",
+                "GIT_SHA=",
+                "UPLOADS_DIR=/app/uploads",
+                "SMTP_PASSWORD=",
+                "EMAIL_DEDUPE_MINUTES=60",
+                "OTEL_EXPORTER_OTLP_ENDPOINT=",
+                "BACKUP_DIR=/backups",
+                "ALLOW_DESTRUCTIVE_ACTIONS=false",
+                "ALGORITHM=HS256",
+                "BUILD_VERSION=",
+                "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "LANG=C.UTF-8",
+                "GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D",
+                "PYTHON_VERSION=3.11.11",
+                "PYTHON_SHA256=2a9920c7a0cd236de33644ed980a13cbbc21058bfdc528febb6081575ed73be3",
+                "PYTHONDONTWRITEBYTECODE=1",
+                "PYTHONUNBUFFERED=1"
+            ],
+            "Cmd": [
+                "/app/scripts/start.sh"
+            ],
+            "Healthcheck": {
+                "Test": [
+                    "CMD-SHELL",
+                    "curl -fsS http://localhost:8000/readyz || exit 1"
+                ],
+                "Interval": 30000000000,
+                "Timeout": 5000000000,
+                "StartPeriod": 10000000000,
+                "Retries": 3
+            },
+            "Image": "zen-ops-api",
+            "Volumes": null,
+            "WorkingDir": "/app",
+            "Entrypoint": [
+                "/app/entrypoint.sh"
+            ],
+            "Labels": {
+                "com.docker.compose.config-hash": "66b0e328b81c84a23a39b17d67826599f0a833b032bc6e2b7496abdb7848ba78",
+                "com.docker.compose.container-number": "1",
+                "com.docker.compose.depends_on": "db:service_healthy:false,migrate:service_completed_successfully:false,uploads-perms:service_completed_successfully:false",
+                "com.docker.compose.image": "sha256:904eb47b62ff67c78a08a82b75c65f5c7a0c4d0de542fb385567f74d52e73d84",
+                "com.docker.compose.oneoff": "False",
+                "com.docker.compose.project": "zen-ops",
+                "com.docker.compose.project.config_files": "/Users/dr.156/zen-ops/docker-compose.yml",
+                "com.docker.compose.project.working_dir": "/Users/dr.156/zen-ops",
+                "com.docker.compose.replace": "api-1",
+                "com.docker.compose.service": "api",
+                "com.docker.compose.version": "5.0.2"
+            },
+            "StopTimeout": 1
+        },
+        "NetworkSettings": {
+            "SandboxID": "c15349e425ce6b184c7841744503bd49dc7d306906062c84299a81abb8b5bf35",
+            "SandboxKey": "/var/run/docker/netns/c15349e425ce",
+            "Ports": {
+                "8000/tcp": null
+            },
+            "Networks": {
+                "zen-ops_default": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "zen-ops-api-1",
+                        "api"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "a07d4f755728ab4d26e205333eca3fe0c1af8b681b289d6534e44a3b6334de51",
+                    "EndpointID": "cadbf6fa7a71dd65f6e1972f3a0fa53132ba9af19dd4324072ff129fd09f73d2",
+                    "Gateway": "172.18.0.1",
+                    "IPAddress": "172.18.0.13",
+                    "MacAddress": "96:3b:b3:47:fc:f6",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "zen-ops-api-1",
+                        "api",
+                        "89a83bd56375"
+                    ]
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:986e7ac7e6626d11e4d269ddb7f492e0b03fd66d74b6a0269d2705508763568f",
+            "size": 2956,
+            "platform": {
+                "architecture": "arm64",
+                "os": "linux"
+            }
+        }
+    }
+]
