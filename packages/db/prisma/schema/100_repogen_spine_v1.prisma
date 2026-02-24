@@ -10,6 +10,7 @@ model RepogenWorkOrder {
   valueSlab             RepogenValueSlab        @default(UNKNOWN) @map("value_slab")
   templateSelector      RepogenTemplateSelector @default(UNKNOWN) @map("template_selector")
   status                RepogenWorkOrderStatus  @default(DRAFT)
+  reportPackId          String?                 @unique @map("report_pack_id") @db.Uuid
   billingModeCache      String?                 @map("billing_mode_cache")
   billingAccountId      String?                 @map("billing_account_id") @db.Uuid
   billingReservationId  String?                 @map("billing_reservation_id") @db.Uuid
@@ -22,11 +23,15 @@ model RepogenWorkOrder {
   evidenceItems         RepogenEvidenceItem[]
   rulesRuns             RepogenRulesRun[]
   comments              RepogenComment[]
+  reportPack            ReportPack?             @relation("RepogenWorkOrderPrimaryPack", fields: [reportPackId], references: [id])
+  factoryReportPack     ReportPack?             @relation("ReportPackWorkOrder")
+  deliverableReleases   RepogenDeliverableRelease[]
 
   @@index([orgId])
   @@index([status])
   @@index([reportType, status])
   @@index([bankType, valueSlab, templateSelector])
+  @@index([reportPackId])
   @@index([sourceType, sourceRefId])
   @@index([assignmentId])
   @@index([createdAt])
@@ -116,4 +121,29 @@ model RepogenComment {
   @@index([workOrderId])
   @@index([commentType])
   @@map("repogen_comments")
+}
+
+model RepogenDeliverableRelease {
+  id                  String                               @id @default(uuid()) @db.Uuid
+  orgId               String                               @map("org_id") @db.Uuid
+  workOrderId         String                               @map("work_order_id") @db.Uuid
+  reportPackId        String                               @map("report_pack_id") @db.Uuid
+  releasedByUserId    String?                              @map("released_by_user_id") @db.Uuid
+  releasedAt          DateTime                             @default(now()) @map("released_at")
+  billingModeAtRelease RepogenDeliverableReleaseBillingMode @map("billing_mode_at_release")
+  billingGateResult   RepogenDeliverableReleaseGateResult  @map("billing_gate_result")
+  overrideReason      String?                              @map("override_reason")
+  idempotencyKey      String                               @map("idempotency_key")
+  metadataJson        Json                                 @default("{}") @db.JsonB @map("metadata_json")
+  createdAt           DateTime                             @default(now()) @map("created_at")
+  updatedAt           DateTime                             @updatedAt @map("updated_at")
+  workOrder           RepogenWorkOrder                     @relation(fields: [workOrderId], references: [id])
+  reportPack          ReportPack                           @relation(fields: [reportPackId], references: [id])
+
+  @@unique([orgId, idempotencyKey])
+  @@index([orgId])
+  @@index([workOrderId])
+  @@index([reportPackId])
+  @@index([releasedAt])
+  @@map("repogen_deliverable_releases")
 }

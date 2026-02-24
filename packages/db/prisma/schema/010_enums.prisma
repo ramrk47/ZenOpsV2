@@ -223,6 +223,18 @@ enum RepogenCommentType {
   NOTES
 }
 
+enum RepogenDeliverableReleaseBillingMode {
+  POSTPAID
+  CREDIT
+}
+
+enum RepogenDeliverableReleaseGateResult {
+  PAID
+  CREDIT_CONSUMED
+  OVERRIDE
+  BLOCKED
+}
+
 enum CreditsLedgerStatus {
   reserved
   consumed

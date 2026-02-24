@@ -2,6 +2,7 @@ model ReportPack {
   id                String            @id @default(uuid()) @db.Uuid
   tenantId          String            @map("tenant_id") @db.Uuid
   assignmentId      String            @map("assignment_id") @db.Uuid
+  workOrderId       String?           @unique @map("work_order_id") @db.Uuid
   templateVersionId String?           @map("template_version_id") @db.Uuid
   templateKey       String            @map("template_key")
   reportFamily      RepogenReportFamily @map("report_family")
@@ -15,14 +16,18 @@ model ReportPack {
   updatedAt         DateTime          @updatedAt @map("updated_at")
   tenant            Tenant            @relation(fields: [tenantId], references: [id])
   assignment        Assignment        @relation(fields: [assignmentId], references: [id])
+  workOrder         RepogenWorkOrder? @relation("ReportPackWorkOrder", fields: [workOrderId], references: [id])
   templateVersion   TemplateVersion?  @relation(fields: [templateVersionId], references: [id])
+  primaryForRepogenWorkOrder RepogenWorkOrder? @relation("RepogenWorkOrderPrimaryPack")
   generationJob     ReportGenerationJob? @relation("RepogenJobPack")
   artifacts         ReportPackArtifact[]
   auditLogs         ReportAuditLog[]
+  deliverableReleases RepogenDeliverableRelease[]
 
   @@unique([assignmentId, templateKey, version])
   @@index([tenantId])
   @@index([assignmentId, templateKey, createdAt])
+  @@index([workOrderId])
   @@index([status])
   @@map("report_packs")
 }
