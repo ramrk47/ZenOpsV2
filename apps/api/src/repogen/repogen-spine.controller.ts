@@ -5,7 +5,10 @@ import {
   RepogenContractPatchRequestSchema,
   RepogenDeliverablesReleaseRequestSchema,
   RepogenEvidenceLinkRequestSchema,
+  RepogenEvidenceProfileSelectSchema,
   RepogenExportQuerySchema,
+  RepogenFieldEvidenceLinksUpsertSchema,
+  RepogenOcrEnqueueRequestSchema,
   RepogenStatusTransitionSchema,
   RepogenWorkOrderCreateSchema,
   RepogenWorkOrderListQuerySchema,
@@ -14,7 +17,10 @@ import {
   type RepogenContractPatchRequest,
   type RepogenDeliverablesReleaseRequest,
   type RepogenEvidenceLinkRequest,
+  type RepogenEvidenceProfileSelect,
   type RepogenExportQuery,
+  type RepogenFieldEvidenceLinksUpsert,
+  type RepogenOcrEnqueueRequest,
   type RepogenStatusTransition,
   type RepogenWorkOrderCreate,
   type RepogenWorkOrderListQuery
@@ -24,9 +30,11 @@ import { Claims } from '../auth/claims.decorator.js';
 import { RequestContextService } from '../db/request-context.service.js';
 import type { AuthenticatedRequest } from '../types.js';
 import { RepogenComputeSnapshotQueueService } from '../queue/repogen-compute-queue.service.js';
+import { RepogenOcrQueueService } from '../queue/repogen-ocr-queue.service.js';
 import { RepogenQueueService } from '../queue/repogen-queue.service.js';
 import { RepogenSpineService } from './repogen-spine.service.js';
 import { RepogenFactoryService } from './factory/repogen-factory.service.js';
+import { RepogenEvidenceIntelligenceService } from './evidence-intelligence.service.js';
 
 const parseOrThrow = <T>(schema: { safeParse: (input: unknown) => { success: boolean; data?: T; error?: unknown } }, input: unknown): T => {
   const parsed = schema.safeParse(input);
@@ -48,7 +56,9 @@ export class RepogenSpineController {
   constructor(
     private readonly requestContext: RequestContextService,
     private readonly repogenSpineService: RepogenSpineService,
+    private readonly repogenEvidenceIntelligenceService: RepogenEvidenceIntelligenceService,
     private readonly repogenComputeSnapshotQueueService: RepogenComputeSnapshotQueueService,
+    private readonly repogenOcrQueueService: RepogenOcrQueueService,
     private readonly repogenQueueService: RepogenQueueService,
     private readonly repogenFactoryService: RepogenFactoryService
   ) {}
@@ -112,6 +122,67 @@ export class RepogenSpineController {
     return this.requestContext.runWithClaims(claims, (tx) =>
       this.repogenSpineService.upsertEvidenceLinks(tx, workOrderId, userId, parsed)
     );
+  }
+
+  @Get('work-orders/:id/evidence-profiles')
+  async listEvidenceProfiles(@Claims() claims: JwtClaims, @Param('id') workOrderId: string) {
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.repogenEvidenceIntelligenceService.listEvidenceProfiles(tx, workOrderId)
+    );
+  }
+
+  @Post('work-orders/:id/evidence-profile')
+  async selectEvidenceProfile(@Claims() claims: JwtClaims, @Param('id') workOrderId: string, @Body() body: unknown) {
+    const parsed = parseOrThrow<RepogenEvidenceProfileSelect>(RepogenEvidenceProfileSelectSchema, body);
+    const userId = requireUserId(claims);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.repogenEvidenceIntelligenceService.selectEvidenceProfile(tx, workOrderId, userId, parsed)
+    );
+  }
+
+  @Get('work-orders/:id/field-evidence-links')
+  async listFieldEvidenceLinks(@Claims() claims: JwtClaims, @Param('id') workOrderId: string) {
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.repogenEvidenceIntelligenceService.listFieldEvidenceLinks(tx, workOrderId)
+    );
+  }
+
+  @Post('work-orders/:id/field-evidence-links')
+  async upsertFieldEvidenceLinks(@Claims() claims: JwtClaims, @Param('id') workOrderId: string, @Body() body: unknown) {
+    const parsed = parseOrThrow<RepogenFieldEvidenceLinksUpsert>(RepogenFieldEvidenceLinksUpsertSchema, body);
+    const userId = requireUserId(claims);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.repogenEvidenceIntelligenceService.upsertFieldEvidenceLinks(tx, workOrderId, userId, parsed)
+    );
+  }
+
+  @Post('work-orders/:id/ocr/enqueue')
+  async enqueueOcrPlaceholder(
+    @Claims() claims: JwtClaims,
+    @Param('id') workOrderId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest
+  ) {
+    const parsed = parseOrThrow<RepogenOcrEnqueueRequest>(RepogenOcrEnqueueRequestSchema, body);
+    const tenantId = this.requestContext.tenantIdForClaims(claims);
+    if (!tenantId) {
+      throw new BadRequestException('TENANT_CONTEXT_REQUIRED');
+    }
+    const userId = requireUserId(claims);
+    const result = await this.requestContext.runWithClaims(claims, (tx) =>
+      this.repogenEvidenceIntelligenceService.enqueueOcrPlaceholder(tx, workOrderId, userId, parsed, {
+        tenant_id: tenantId,
+        request_id: req.requestId
+      })
+    );
+    if (result.queue_payload) {
+      await this.repogenOcrQueueService.enqueue(result.queue_payload);
+    }
+    return {
+      work_order_id: result.work_order_id,
+      ocr_job: result.ocr_job,
+      queue_enqueued: Boolean(result.queue_payload)
+    };
   }
 
   @Get('work-orders/:id/export')

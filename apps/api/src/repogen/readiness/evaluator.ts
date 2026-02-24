@@ -4,6 +4,7 @@ export interface RepogenReadinessResult {
   completeness_score: number;
   missing_fields: string[];
   missing_evidence: string[];
+  missing_field_evidence_links: string[];
   warnings: string[];
   required_evidence_minimums: Record<string, number>;
 }
@@ -12,6 +13,16 @@ export interface RepogenEvidenceLike {
   evidence_type: 'DOCUMENT' | 'PHOTO' | 'SCREENSHOT' | 'GEO' | 'OTHER';
   doc_type?: string | null;
   tags?: Record<string, unknown> | null;
+}
+
+export interface RepogenEvidenceProfileRequirementLike {
+  id?: string;
+  evidence_type: RepogenEvidenceLike['evidence_type'];
+  doc_type?: string | null;
+  min_count: number;
+  is_required: boolean;
+  tags_json?: Record<string, unknown> | null;
+  label?: string | null;
 }
 
 interface ReadinessConfig {
@@ -44,6 +55,25 @@ const countValuationPhotos = (evidence: RepogenEvidenceLike[]): number => {
     }
     return true;
   }).length;
+};
+
+const profileRequirementMatches = (
+  requirement: RepogenEvidenceProfileRequirementLike,
+  evidence: RepogenEvidenceLike
+): boolean => {
+  if (evidence.evidence_type !== requirement.evidence_type) return false;
+  if (requirement.doc_type && evidence.doc_type !== requirement.doc_type) return false;
+
+  if (requirement.tags_json) {
+    const tags = evidence.tags ?? {};
+    for (const [key, expected] of Object.entries(requirement.tags_json)) {
+      if ((tags as Record<string, unknown>)[key] !== expected) {
+        return false;
+      }
+    }
+  }
+
+  return true;
 };
 
 const configs: Record<RepogenReportType, ReadinessConfig> = {
@@ -156,16 +186,25 @@ export const evaluateRepogenReadiness = (
   reportType: RepogenReportType,
   contract: RepogenContract,
   evidence: RepogenEvidenceLike[],
-  warningsFromRules: string[] = []
+  warningsFromRules: string[] = [],
+  options?: {
+    evidence_profile_requirements?: RepogenEvidenceProfileRequirementLike[];
+    field_evidence_linked_keys?: string[];
+  }
 ): RepogenReadinessResult => {
   const config = configs[reportType];
   const missing_fields: string[] = [];
+  const missing_field_evidence_links: string[] = [];
   const warnings = [...warningsFromRules];
+  const linkedFieldKeys = new Set((options?.field_evidence_linked_keys ?? []).filter((key) => typeof key === 'string' && key.trim().length > 0));
 
   let satisfiedFieldChecks = 0;
   for (const field of config.requiredFields) {
     if (field.predicate(contract)) {
       satisfiedFieldChecks += 1;
+      if (!linkedFieldKeys.has(field.key)) {
+        missing_field_evidence_links.push(field.key);
+      }
       continue;
     }
     missing_fields.push(field.message);
@@ -174,30 +213,55 @@ export const evaluateRepogenReadiness = (
   const missing_evidence: string[] = [];
   let satisfiedEvidenceChecks = 0;
 
-  for (const [key, minCount] of Object.entries(config.requiredEvidenceMinimums)) {
-    let actual = 0;
-    if (key === 'valuation_photos') {
-      actual = countValuationPhotos(evidence);
-    } else if (key === 'dpr_photos_or_screenshots') {
-      actual = countEvidenceByKinds(evidence, ['PHOTO', 'SCREENSHOT']);
-    } else if (key === 'revaluation_photos') {
-      actual = countEvidenceByKinds(evidence, ['PHOTO', 'GEO', 'SCREENSHOT']);
-    } else if (key === 'stage_progress_photos') {
-      actual = countEvidenceByKinds(evidence, ['PHOTO', 'GEO']);
-    }
+  const profileRequirements = (options?.evidence_profile_requirements ?? []).filter((row) => row.is_required);
+  const requiredEvidenceMinimums: Record<string, number> = {};
 
-    if (actual >= minCount) {
-      satisfiedEvidenceChecks += 1;
-    } else {
-      missing_evidence.push(`${key}: need at least ${minCount}, found ${actual}`);
+  if (profileRequirements.length > 0) {
+    for (const requirement of profileRequirements) {
+      const key =
+        requirement.label?.trim() ||
+        `${requirement.evidence_type}${requirement.doc_type ? `:${requirement.doc_type}` : ''}${
+          requirement.id ? `#${requirement.id}` : ''
+        }`;
+      const minCount = Math.max(0, requirement.min_count ?? 0);
+      requiredEvidenceMinimums[key] = minCount;
+      const actual = evidence.filter((row) => profileRequirementMatches(requirement, row)).length;
+      if (actual >= minCount) {
+        satisfiedEvidenceChecks += 1;
+      } else {
+        missing_evidence.push(`${key}: need at least ${minCount}, found ${actual}`);
+      }
+    }
+  } else {
+    for (const [key, minCount] of Object.entries(config.requiredEvidenceMinimums)) {
+      requiredEvidenceMinimums[key] = minCount;
+      let actual = 0;
+      if (key === 'valuation_photos') {
+        actual = countValuationPhotos(evidence);
+      } else if (key === 'dpr_photos_or_screenshots') {
+        actual = countEvidenceByKinds(evidence, ['PHOTO', 'SCREENSHOT']);
+      } else if (key === 'revaluation_photos') {
+        actual = countEvidenceByKinds(evidence, ['PHOTO', 'GEO', 'SCREENSHOT']);
+      } else if (key === 'stage_progress_photos') {
+        actual = countEvidenceByKinds(evidence, ['PHOTO', 'GEO']);
+      }
+
+      if (actual >= minCount) {
+        satisfiedEvidenceChecks += 1;
+      } else {
+        missing_evidence.push(`${key}: need at least ${minCount}, found ${actual}`);
+      }
     }
   }
 
   if ((contract.annexures.items?.length ?? 0) === 0) {
     warnings.push('Annexure ordering metadata is empty (allowed in Phase 1 but review before render).');
   }
+  if (missing_field_evidence_links.length > 0) {
+    warnings.push(`Field evidence links missing for ${missing_field_evidence_links.length} required field(s).`);
+  }
 
-  const totalChecks = config.requiredFields.length + Object.keys(config.requiredEvidenceMinimums).length;
+  const totalChecks = config.requiredFields.length + Object.keys(requiredEvidenceMinimums).length;
   const passedChecks = satisfiedFieldChecks + satisfiedEvidenceChecks;
   const completeness_score = totalChecks <= 0 ? 100 : Math.round((passedChecks / totalChecks) * 100);
 
@@ -205,7 +269,8 @@ export const evaluateRepogenReadiness = (
     completeness_score,
     missing_fields,
     missing_evidence,
+    missing_field_evidence_links,
     warnings,
-    required_evidence_minimums: config.requiredEvidenceMinimums
+    required_evidence_minimums: requiredEvidenceMinimums
   };
 };

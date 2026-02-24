@@ -13,8 +13,14 @@ import {
 } from '@zenops/contracts';
 import { Prisma, type TxClient } from '@zenops/db';
 import { BillingControlService } from '../billing-control/billing-control.service.js';
-import { evaluateRepogenReadiness, type RepogenEvidenceLike, type RepogenReadinessResult } from './readiness/evaluator.js';
+import {
+  evaluateRepogenReadiness,
+  type RepogenEvidenceLike,
+  type RepogenEvidenceProfileRequirementLike,
+  type RepogenReadinessResult
+} from './readiness/evaluator.js';
 import { computeRepogenContract } from './rules/engine.js';
+import { chooseDefaultRepogenEvidenceProfile } from './evidence-intelligence/defaults.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -81,6 +87,7 @@ const parseReadinessJson = (value: Prisma.JsonValue | null | undefined): Repogen
     completeness_score: Math.max(0, Math.min(100, Math.round(completenessScore))),
     missing_fields: asStringArray(value.missing_fields),
     missing_evidence: asStringArray(value.missing_evidence),
+    missing_field_evidence_links: asStringArray((value as Record<string, unknown>).missing_field_evidence_links),
     warnings: asStringArray(value.warnings),
     required_evidence_minimums: requiredEvidenceMinimums
   };
@@ -150,6 +157,7 @@ export class RepogenSpineService {
     templateSelector: string;
     status: string;
     reportPackId: string | null;
+    evidenceProfileId: string | null;
     billingModeCache: string | null;
     billingAccountId: string | null;
     billingReservationId: string | null;
@@ -172,6 +180,7 @@ export class RepogenSpineService {
       template_selector: row.templateSelector,
       status: row.status,
       report_pack_id: row.reportPackId,
+      evidence_profile_id: row.evidenceProfileId,
       billing: {
         mode_cache: row.billingModeCache,
         account_id: row.billingAccountId,
@@ -391,6 +400,7 @@ export class RepogenSpineService {
         templateSelector: true,
         status: true,
         reportPackId: true,
+        evidenceProfileId: true,
         billingModeCache: true,
         billingAccountId: true,
         billingReservationId: true,
@@ -425,12 +435,136 @@ export class RepogenSpineService {
     });
   }
 
+  private supportsEvidenceIntel(tx: TxClient): boolean {
+    const unsafe = tx as unknown as Record<string, unknown>;
+    return Boolean(
+      unsafe &&
+        typeof unsafe === 'object' &&
+        (unsafe as any).repogenEvidenceProfile &&
+        (unsafe as any).repogenEvidenceProfileItem &&
+        (unsafe as any).repogenFieldEvidenceLink
+    );
+  }
+
+  private async ensureDefaultEvidenceProfileAssigned(
+    tx: TxClient,
+    workOrder: {
+      id: string;
+      orgId: string;
+      reportType: string;
+      bankType: string;
+      valueSlab: string;
+      evidenceProfileId?: string | null;
+    }
+  ): Promise<string | null> {
+    if (workOrder.evidenceProfileId) {
+      return workOrder.evidenceProfileId;
+    }
+    if (!this.supportsEvidenceIntel(tx)) {
+      return null;
+    }
+
+    const chosen = await chooseDefaultRepogenEvidenceProfile(tx, {
+      id: workOrder.id,
+      orgId: workOrder.orgId,
+      reportType: workOrder.reportType,
+      bankType: workOrder.bankType,
+      valueSlab: workOrder.valueSlab
+    });
+
+    if (!chosen) {
+      return null;
+    }
+
+    await tx.repogenWorkOrder.update({
+      where: { id: workOrder.id },
+      data: { evidenceProfileId: chosen.id }
+    });
+
+    return chosen.id;
+  }
+
+  private async getEvidenceProfileRequirementsForWorkOrder(
+    tx: TxClient,
+    workOrder: {
+      id: string;
+      orgId: string;
+      reportType: string;
+      bankType: string;
+      valueSlab: string;
+      evidenceProfileId?: string | null;
+    }
+  ): Promise<{
+    evidenceProfileId: string | null;
+    requirements: RepogenEvidenceProfileRequirementLike[];
+  }> {
+    if (!this.supportsEvidenceIntel(tx)) {
+      return { evidenceProfileId: null, requirements: [] };
+    }
+
+    const evidenceProfileId = await this.ensureDefaultEvidenceProfileAssigned(tx, workOrder);
+    if (!evidenceProfileId) {
+      return { evidenceProfileId: null, requirements: [] };
+    }
+
+    const profileItems = await tx.repogenEvidenceProfileItem.findMany({
+      where: { profileId: evidenceProfileId },
+      orderBy: [{ orderHint: 'asc' }, { createdAt: 'asc' }],
+      select: {
+        id: true,
+        evidenceType: true,
+        docType: true,
+        minCount: true,
+        isRequired: true,
+        tagsJson: true,
+        label: true
+      }
+    });
+
+    return {
+      evidenceProfileId,
+      requirements: profileItems.map((row) => ({
+        id: row.id,
+        evidence_type: row.evidenceType as RepogenEvidenceProfileRequirementLike['evidence_type'],
+        doc_type: row.docType,
+        min_count: row.minCount,
+        is_required: row.isRequired,
+        tags_json: isRecord(row.tagsJson) ? (row.tagsJson as Record<string, unknown>) : null,
+        label: row.label ?? null
+      }))
+    };
+  }
+
+  private async getLinkedFieldKeysForSnapshot(
+    tx: TxClient,
+    workOrderId: string,
+    snapshotId: string | null | undefined
+  ): Promise<string[]> {
+    if (!snapshotId || !this.supportsEvidenceIntel(tx)) {
+      return [];
+    }
+
+    const links = await tx.repogenFieldEvidenceLink.findMany({
+      where: {
+        workOrderId,
+        snapshotId
+      },
+      select: {
+        fieldKey: true
+      }
+    });
+
+    return Array.from(
+      new Set(links.map((row) => row.fieldKey).filter((value): value is string => typeof value === 'string' && value.length > 0))
+    );
+  }
+
   private async computeCurrentReadiness(
     tx: TxClient,
     workOrder: RepogenWorkOrderRow,
     options?: { latestSnapshot?: RepogenSnapshotRow | null }
   ) {
-    const [snapshot, evidenceRows, latestRulesRun] = await Promise.all([
+    const [snapshot, evidenceRows, latestRulesRun, profileReqs] = await Promise.all([
       options?.latestSnapshot !== undefined ? Promise.resolve(options.latestSnapshot) : this.getLatestSnapshot(tx, workOrder.id),
       tx.repogenEvidenceItem.findMany({
         where: { workOrderId: workOrder.id },
@@ -457,7 +591,8 @@ export class RepogenSpineService {
         select: {
           warnings: true
         }
-      })
+      }),
+      this.getEvidenceProfileRequirementsForWorkOrder(tx, workOrder)
     ]);
 
     const contract =
@@ -468,11 +603,17 @@ export class RepogenSpineService {
         bankName: workOrder.bankName
       });
 
+    const fieldEvidenceLinkedKeys = await this.getLinkedFieldKeysForSnapshot(tx, workOrder.id, snapshot?.id ?? null);
+
     const readiness = evaluateRepogenReadiness(
       workOrder.reportType as RepogenContract['meta']['report_type'] extends infer R ? Extract<R, string> : never,
       contract,
       this.evidenceListForReadiness(evidenceRows),
-      this.latestRulesWarningsToMessages(latestRulesRun?.warnings)
+      this.latestRulesWarningsToMessages(latestRulesRun?.warnings),
+      {
+        evidence_profile_requirements: profileReqs.requirements,
+        field_evidence_linked_keys: fieldEvidenceLinkedKeys
+      }
     );
 
     return {
@@ -522,6 +663,7 @@ export class RepogenSpineService {
         templateSelector: true,
         status: true,
         reportPackId: true,
+        evidenceProfileId: true,
         billingModeCache: true,
         billingAccountId: true,
         billingReservationId: true,
@@ -596,6 +738,7 @@ export class RepogenSpineService {
         templateSelector: true,
         status: true,
         reportPackId: true,
+        evidenceProfileId: true,
         billingModeCache: true,
         billingAccountId: true,
         billingReservationId: true,
@@ -607,6 +750,11 @@ export class RepogenSpineService {
       }
     });
 
+    const evidenceProfileId = await this.ensureDefaultEvidenceProfileAssigned(tx, workOrder);
+    if (evidenceProfileId) {
+      (workOrder as unknown as { evidenceProfileId: string | null }).evidenceProfileId = evidenceProfileId;
+    }
+
     return {
       work_order_id: workOrder.id,
       work_order: this.serializeWorkOrder(workOrder)
@@ -615,7 +763,7 @@ export class RepogenSpineService {
 
   async getWorkOrderDetail(tx: TxClient, workOrderId: string) {
     const workOrder = await this.getWorkOrderOrThrow(tx, workOrderId);
-    const [latestSnapshot, evidenceRows, comments, rulesRuns] = await Promise.all([
+    const [latestSnapshot, evidenceRows, comments, rulesRuns, profileReqs, fieldEvidenceLinks, ocrJobs] = await Promise.all([
       this.getLatestSnapshot(tx, workOrderId),
       tx.repogenEvidenceItem.findMany({
         where: { workOrderId }
@@ -654,7 +802,42 @@ export class RepogenSpineService {
             }
           }
         }
-      })
+      }),
+      this.getEvidenceProfileRequirementsForWorkOrder(tx, workOrder),
+      this.supportsEvidenceIntel(tx)
+        ? tx.repogenFieldEvidenceLink.findMany({
+            where: { workOrderId },
+            orderBy: [{ createdAt: 'desc' }],
+            select: {
+              id: true,
+              snapshotId: true,
+              fieldKey: true,
+              evidenceItemId: true,
+              confidence: true,
+              note: true,
+              createdByUserId: true,
+              createdAt: true
+            }
+          })
+        : Promise.resolve([]),
+      this.supportsEvidenceIntel(tx)
+        ? tx.repogenOcrJob.findMany({
+            where: { workOrderId },
+            orderBy: [{ createdAt: 'desc' }],
+            select: {
+              id: true,
+              evidenceItemId: true,
+              status: true,
+              requestedAt: true,
+              finishedAt: true,
+              resultJson: true,
+              error: true,
+              workerTrace: true,
+              createdByUserId: true,
+              createdAt: true
+            }
+          })
+        : Promise.resolve([])
     ]);
 
     const sortedEvidence = this.sortEvidenceRows(evidenceRows);
@@ -676,11 +859,16 @@ export class RepogenSpineService {
         bankType: workOrder.bankType,
         bankName: workOrder.bankName
       });
+    const latestSnapshotLinkedFieldKeys = await this.getLinkedFieldKeysForSnapshot(tx, workOrder.id, latestSnapshot?.id ?? null);
     const readiness = evaluateRepogenReadiness(
       workOrder.reportType as RepogenContract['meta']['report_type'] extends infer R ? Extract<R, string> : never,
       contract,
       this.evidenceListForReadiness(sortedEvidence),
-      latestRulesWarnings
+      latestRulesWarnings,
+      {
+        evidence_profile_requirements: profileReqs.requirements,
+        field_evidence_linked_keys: latestSnapshotLinkedFieldKeys
+      }
     );
 
     return {
@@ -688,6 +876,28 @@ export class RepogenSpineService {
       latest_snapshot: this.serializeSnapshot(latestSnapshot),
       readiness,
       evidence_items: sortedEvidence.map((row) => this.serializeEvidence(row, row.documentId ? documentMap.get(row.documentId) : null)),
+      field_evidence_links: fieldEvidenceLinks.map((row) => ({
+        id: row.id,
+        snapshot_id: row.snapshotId,
+        field_key: row.fieldKey,
+        evidence_item_id: row.evidenceItemId,
+        confidence: row.confidence,
+        note: row.note,
+        created_by_user_id: row.createdByUserId,
+        created_at: row.createdAt.toISOString()
+      })),
+      ocr_jobs: ocrJobs.map((row) => ({
+        id: row.id,
+        evidence_item_id: row.evidenceItemId,
+        status: row.status,
+        requested_at: row.requestedAt.toISOString(),
+        finished_at: toIso(row.finishedAt),
+        result_json: row.resultJson,
+        error: row.error,
+        worker_trace: row.workerTrace,
+        created_by_user_id: row.createdByUserId,
+        created_at: row.createdAt.toISOString()
+      })),
       comments: comments.map((row) => this.serializeComment(row)),
       rules_runs: rulesRuns.map((row) => this.serializeRulesRun(row))
     };
@@ -785,6 +995,7 @@ export class RepogenSpineService {
         capturedAt: true
       }
     });
+    const profileReqs = await this.getEvidenceProfileRequirementsForWorkOrder(tx, workOrder);
 
     const rulesResult = computeRepogenContract(canonicalInputContract, input.ruleset_version);
     const outputContract = cloneJson(rulesResult.contract);
@@ -799,7 +1010,11 @@ export class RepogenSpineService {
       workOrder.reportType as RepogenContract['meta']['report_type'] extends infer R ? Extract<R, string> : never,
       outputContract,
       this.evidenceListForReadiness(evidenceRows),
-      rulesResult.warnings.map((warning) => `${warning.code}: ${warning.message}`)
+      rulesResult.warnings.map((warning) => `${warning.code}: ${warning.message}`),
+      {
+        evidence_profile_requirements: profileReqs.requirements,
+        field_evidence_linked_keys: []
+      }
     );
 
     const outputSnapshot = await tx.repogenContractSnapshot.create({
@@ -862,6 +1077,14 @@ export class RepogenSpineService {
         templateSelector: (outputContract.meta.template_selector ?? workOrder.templateSelector) as any
       }
     });
+
+    if (!workOrder.evidenceProfileId) {
+      await this.ensureDefaultEvidenceProfileAssigned(tx, {
+        ...workOrder,
+        bankType: String(outputContract.meta.bank_type ?? workOrder.bankType),
+        valueSlab: String(outputContract.meta.value_slab ?? workOrder.valueSlab)
+      });
+    }
 
     return {
       work_order_id: workOrder.id,

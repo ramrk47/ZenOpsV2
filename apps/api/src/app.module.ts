@@ -12,6 +12,7 @@ import { ReportQueueService } from './queue/report-queue.service.js';
 import { RepogenQueueService } from './queue/repogen-queue.service.js';
 import { AssignmentSignalsQueueService } from './queue/assignment-signals-queue.service.js';
 import { RepogenComputeSnapshotQueueService } from './queue/repogen-compute-queue.service.js';
+import { RepogenOcrQueueService } from './queue/repogen-ocr-queue.service.js';
 import { RequestIdMiddleware } from './common/request-id.middleware.js';
 import { loadLaunchModeConfig } from './common/launch-mode.js';
 import { loadEnv } from '@zenops/config';
@@ -31,6 +32,7 @@ import { RepogenService } from './repogen/repogen.service.js';
 import { RepogenSpineController } from './repogen/repogen-spine.controller.js';
 import { RepogenSpineService } from './repogen/repogen-spine.service.js';
 import { RepogenFactoryService } from './repogen/factory/repogen-factory.service.js';
+import { RepogenEvidenceIntelligenceService } from './repogen/evidence-intelligence.service.js';
 
 @Module({
   controllers: [
@@ -72,6 +74,14 @@ import { RepogenFactoryService } from './repogen/factory/repogen-factory.service
       provide: RepogenComputeSnapshotQueueService,
       useFactory: () =>
         new RepogenComputeSnapshotQueueService(
+          process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
+          process.env.DISABLE_QUEUE === 'true'
+        )
+    },
+    {
+      provide: RepogenOcrQueueService,
+      useFactory: () =>
+        new RepogenOcrQueueService(
           process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
           process.env.DISABLE_QUEUE === 'true'
         )
@@ -146,6 +156,7 @@ import { RepogenFactoryService } from './repogen/factory/repogen-factory.service
     DomainService,
     RepogenService,
     RepogenSpineService,
+    RepogenEvidenceIntelligenceService,
     RepogenFactoryService,
     {
       provide: APP_GUARD,
