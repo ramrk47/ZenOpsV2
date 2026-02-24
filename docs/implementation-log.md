@@ -4,6 +4,33 @@ Last updated: 2026-02-24
 
 ## Scope Completed
 
+### 0.6) M5.5 Repogen Factory Flow (Bridge M5.4 -> M5.3, No DOCX Templates)
+- Bridged deterministic M5.4 work orders into M5.3 report pack/job pipeline:
+  - added work-order <-> pack linkage columns
+  - added `repogen_deliverable_releases` for audited/idempotent manual release actions
+- Added Repogen factory bridge service in API:
+  - creates/links `report_packs`
+  - creates queued `report_generation_jobs`
+  - stores export bundle snapshot as `debug_json` artifact metadata
+  - writes report audit logs for pack/job creation and release outcomes
+- Extended status transition flow:
+  - `READY_FOR_RENDER` auto-creates/links pack/job (no auto-release)
+- Added manual deliverables release endpoint with billing gates:
+  - CREDIT -> consume reserved credit on release
+  - POSTPAID -> block until invoice paid unless override with reason
+  - release endpoint idempotent by `idempotency_key`
+- Improved worker placeholder generation for factory jobs:
+  - artifact metadata now includes `work_order_id`, `snapshot_version`, `template_selector`, `export_bundle_hash`
+- Updated operator UIs:
+  - Web Repogen queue shows pack/job state, billing gate status, release action
+  - Studio Repogen panel shows cross-tenant filters, pack linkage, release events, and audit-oriented JSON views
+- Expanded tests:
+  - `RepogenFactoryService` bridge/release/billing gate coverage
+  - worker factory metadata propagation test
+  - DB RLS integration fixture + assertions for `repogen_deliverable_releases`
+- Added M5.5 docs:
+  - `docs/REPOGEN_FACTORY_FLOW_M5_5.md`
+
 ### 0.5) M5.4 Repogen Spine v1 (No DOCX Generation)
 - Implemented deterministic Repogen spine in V2 for report prep (no rendering):
   - `repogen_work_orders`
