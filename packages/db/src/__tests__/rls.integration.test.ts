@@ -56,6 +56,16 @@ const setupFixtures = async () => {
   const repogenReportPackExternal = randomUUID();
   const repogenReleaseInternal = randomUUID();
   const repogenReleaseExternal = randomUUID();
+  const repogenProfileInternal = randomUUID();
+  const repogenProfileExternal = randomUUID();
+  const repogenProfileItemInternal = randomUUID();
+  const repogenProfileItemExternal = randomUUID();
+  const repogenFieldDefInternal = randomUUID();
+  const repogenFieldDefExternal = randomUUID();
+  const repogenFieldLinkInternal = randomUUID();
+  const repogenFieldLinkExternal = randomUUID();
+  const repogenOcrJobInternal = randomUUID();
+  const repogenOcrJobExternal = randomUUID();
 
   await rootClient.query(
     `INSERT INTO users (id, email, name, created_at, updated_at)
@@ -206,6 +216,76 @@ const setupFixtures = async () => {
       ($2, $4, $6, 'NOTES', 'External repogen note', NOW())
      ON CONFLICT (id) DO NOTHING`,
     [repogenCommentInternal, repogenCommentExternal, cfg.tenantInternal, cfg.tenantExternal, repogenWorkOrderInternal, repogenWorkOrderExternal]
+  );
+
+  await rootClient.query(
+    `INSERT INTO repogen_evidence_profiles (
+      id, org_id, report_type, bank_type, value_slab, name, is_default, metadata_json, created_at, updated_at
+    ) VALUES
+      ($1, $5, 'VALUATION', 'SBI', 'LT_5CR', 'Internal Profile', true, '{}'::jsonb, NOW(), NOW()),
+      ($2, $6, 'DPR', 'PSU_GENERIC', 'GT_5CR', 'External Profile', true, '{}'::jsonb, NOW(), NOW())
+    ON CONFLICT (id) DO NOTHING`,
+    [repogenProfileInternal, repogenProfileExternal, cfg.tenantInternal, cfg.tenantExternal]
+  );
+
+  await rootClient.query(
+    `INSERT INTO repogen_evidence_profile_items (
+      id, org_id, profile_id, evidence_type, doc_type, min_count, is_required, tags_json, order_hint, label, field_key_hint, created_at, updated_at
+    ) VALUES
+      ($1, $5, $3, 'DOCUMENT', 'SALE_DEED', 1, true, '{}'::jsonb, 10, 'Sale Deed', 'property.address', NOW(), NOW()),
+      ($2, $6, $4, 'PHOTO', NULL, 2, true, '{\"category\":\"site\"}'::jsonb, 10, 'Site Photos', 'manual_fields.project_summary', NOW(), NOW())
+    ON CONFLICT (id) DO NOTHING`,
+    [repogenProfileItemInternal, repogenProfileItemExternal, repogenProfileInternal, repogenProfileExternal, cfg.tenantInternal, cfg.tenantExternal]
+  );
+
+  await rootClient.query(
+    `INSERT INTO repogen_field_defs (
+      id, org_id, field_key, label, data_type, required_by_default, unit, metadata_json, created_at, updated_at
+    ) VALUES
+      ($1, $3, 'property.address', 'Property Address', 'text', true, NULL, '{}'::jsonb, NOW(), NOW()),
+      ($2, $4, 'manual_fields.project_summary', 'Project Summary', 'text', true, NULL, '{}'::jsonb, NOW(), NOW())
+    ON CONFLICT (id) DO NOTHING`,
+    [repogenFieldDefInternal, repogenFieldDefExternal, cfg.tenantInternal, cfg.tenantExternal]
+  );
+
+  await rootClient.query(
+    `INSERT INTO repogen_field_evidence_links (
+      id, org_id, work_order_id, snapshot_id, field_key, evidence_item_id, confidence, note, created_at
+    ) VALUES
+      ($1, $7, $3, $5, 'property.address', $9, 0.9, 'Internal field link', NOW()),
+      ($2, $8, $4, $6, 'manual_fields.project_summary', $10, 0.8, 'External field link', NOW())
+    ON CONFLICT (id) DO NOTHING`,
+    [
+      repogenFieldLinkInternal,
+      repogenFieldLinkExternal,
+      repogenWorkOrderInternal,
+      repogenWorkOrderExternal,
+      repogenOutputSnapshotInternal,
+      repogenOutputSnapshotExternal,
+      cfg.tenantInternal,
+      cfg.tenantExternal,
+      repogenEvidenceInternal,
+      repogenEvidenceExternal
+    ]
+  );
+
+  await rootClient.query(
+    `INSERT INTO repogen_ocr_jobs (
+      id, org_id, work_order_id, evidence_item_id, status, requested_at, finished_at, result_json, error, created_at, updated_at
+    ) VALUES
+      ($1, $5, $3, $7, 'DONE', NOW(), NOW(), '{\"note\":\"OCR not enabled yet\"}'::jsonb, NULL, NOW(), NOW()),
+      ($2, $6, $4, $8, 'QUEUED', NOW(), NULL, NULL, NULL, NOW(), NOW())
+    ON CONFLICT (id) DO NOTHING`,
+    [
+      repogenOcrJobInternal,
+      repogenOcrJobExternal,
+      repogenWorkOrderInternal,
+      repogenWorkOrderExternal,
+      cfg.tenantInternal,
+      cfg.tenantExternal,
+      repogenEvidenceInternal,
+      repogenEvidenceExternal
+    ]
   );
 
   await rootClient.query(
@@ -462,6 +542,11 @@ describe('RLS integration', () => {
     const internalRulesRuns = await webClient.query('SELECT org_id FROM repogen_rules_runs');
     const internalComments = await webClient.query('SELECT org_id FROM repogen_comments');
     const internalReleases = await webClient.query('SELECT org_id FROM repogen_deliverable_releases');
+    const internalProfiles = await webClient.query('SELECT org_id FROM repogen_evidence_profiles');
+    const internalProfileItems = await webClient.query('SELECT org_id FROM repogen_evidence_profile_items');
+    const internalFieldDefs = await webClient.query('SELECT org_id FROM repogen_field_defs');
+    const internalFieldLinks = await webClient.query('SELECT org_id FROM repogen_field_evidence_links');
+    const internalOcrJobs = await webClient.query('SELECT org_id FROM repogen_ocr_jobs');
     await webClient.query('COMMIT');
 
     await webClient.query('BEGIN');
@@ -474,6 +559,11 @@ describe('RLS integration', () => {
     const externalRulesRuns = await webClient.query('SELECT org_id FROM repogen_rules_runs');
     const externalComments = await webClient.query('SELECT org_id FROM repogen_comments');
     const externalReleases = await webClient.query('SELECT org_id FROM repogen_deliverable_releases');
+    const externalProfiles = await webClient.query('SELECT org_id FROM repogen_evidence_profiles');
+    const externalProfileItems = await webClient.query('SELECT org_id FROM repogen_evidence_profile_items');
+    const externalFieldDefs = await webClient.query('SELECT org_id FROM repogen_field_defs');
+    const externalFieldLinks = await webClient.query('SELECT org_id FROM repogen_field_evidence_links');
+    const externalOcrJobs = await webClient.query('SELECT org_id FROM repogen_ocr_jobs');
     await webClient.query('COMMIT');
 
     await webClient.end();
@@ -484,12 +574,22 @@ describe('RLS integration', () => {
     expect(internalRulesRuns.rows.length).toBeGreaterThan(0);
     expect(internalComments.rows.length).toBeGreaterThan(0);
     expect(internalReleases.rows.length).toBeGreaterThan(0);
+    expect(internalProfiles.rows.length).toBeGreaterThan(0);
+    expect(internalProfileItems.rows.length).toBeGreaterThan(0);
+    expect(internalFieldDefs.rows.length).toBeGreaterThan(0);
+    expect(internalFieldLinks.rows.length).toBeGreaterThan(0);
+    expect(internalOcrJobs.rows.length).toBeGreaterThan(0);
     expect(externalWorkOrders.rows.length).toBeGreaterThan(0);
     expect(externalSnapshots.rows.length).toBeGreaterThan(0);
     expect(externalEvidence.rows.length).toBeGreaterThan(0);
     expect(externalRulesRuns.rows.length).toBeGreaterThan(0);
     expect(externalComments.rows.length).toBeGreaterThan(0);
     expect(externalReleases.rows.length).toBeGreaterThan(0);
+    expect(externalProfiles.rows.length).toBeGreaterThan(0);
+    expect(externalProfileItems.rows.length).toBeGreaterThan(0);
+    expect(externalFieldDefs.rows.length).toBeGreaterThan(0);
+    expect(externalFieldLinks.rows.length).toBeGreaterThan(0);
+    expect(externalOcrJobs.rows.length).toBeGreaterThan(0);
 
     expect(internalWorkOrders.rows.every((row) => row.org_id === cfg.tenantInternal)).toBe(true);
     expect(internalSnapshots.rows.every((row) => row.org_id === cfg.tenantInternal)).toBe(true);
@@ -497,6 +597,11 @@ describe('RLS integration', () => {
     expect(internalRulesRuns.rows.every((row) => row.org_id === cfg.tenantInternal)).toBe(true);
     expect(internalComments.rows.every((row) => row.org_id === cfg.tenantInternal)).toBe(true);
     expect(internalReleases.rows.every((row) => row.org_id === cfg.tenantInternal)).toBe(true);
+    expect(internalProfiles.rows.every((row) => row.org_id === cfg.tenantInternal)).toBe(true);
+    expect(internalProfileItems.rows.every((row) => row.org_id === cfg.tenantInternal)).toBe(true);
+    expect(internalFieldDefs.rows.every((row) => row.org_id === cfg.tenantInternal)).toBe(true);
+    expect(internalFieldLinks.rows.every((row) => row.org_id === cfg.tenantInternal)).toBe(true);
+    expect(internalOcrJobs.rows.every((row) => row.org_id === cfg.tenantInternal)).toBe(true);
 
     expect(externalWorkOrders.rows.every((row) => row.org_id === cfg.tenantExternal)).toBe(true);
     expect(externalSnapshots.rows.every((row) => row.org_id === cfg.tenantExternal)).toBe(true);
@@ -504,6 +609,11 @@ describe('RLS integration', () => {
     expect(externalRulesRuns.rows.every((row) => row.org_id === cfg.tenantExternal)).toBe(true);
     expect(externalComments.rows.every((row) => row.org_id === cfg.tenantExternal)).toBe(true);
     expect(externalReleases.rows.every((row) => row.org_id === cfg.tenantExternal)).toBe(true);
+    expect(externalProfiles.rows.every((row) => row.org_id === cfg.tenantExternal)).toBe(true);
+    expect(externalProfileItems.rows.every((row) => row.org_id === cfg.tenantExternal)).toBe(true);
+    expect(externalFieldDefs.rows.every((row) => row.org_id === cfg.tenantExternal)).toBe(true);
+    expect(externalFieldLinks.rows.every((row) => row.org_id === cfg.tenantExternal)).toBe(true);
+    expect(externalOcrJobs.rows.every((row) => row.org_id === cfg.tenantExternal)).toBe(true);
   });
 
   it.skipIf(!ready)('enforces tenant isolation for assignments on zen_web', async () => {
