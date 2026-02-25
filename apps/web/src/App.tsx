@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import { Button } from './components/ui/button';
 import { RepogenQueuePage } from './repogen-queue-page';
+import { WorkspaceHome } from './pages/workspace/WorkspaceHome';
 
 const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/v1';
 
@@ -1642,13 +1643,12 @@ function ReportGenerationPanel({
           {(context?.warnings ?? []).map((warning, index) => (
             <li
               key={`${warning.code}-${index}`}
-              className={`rounded-lg border px-3 py-2 text-sm ${
-                warning.severity === 'error'
+              className={`rounded-lg border px-3 py-2 text-sm ${warning.severity === 'error'
                   ? 'border-red-300 bg-red-50 text-red-900'
                   : warning.severity === 'warn'
                     ? 'border-amber-300 bg-amber-50 text-amber-900'
                     : 'border-slate-300 bg-slate-50 text-slate-800'
-              }`}
+                }`}
             >
               <strong>{warning.code}</strong> · {warning.message}
             </li>
@@ -2176,6 +2176,7 @@ function AppShell({ token, setToken }: { token: string; setToken: (token: string
       </header>
 
       <nav className="mb-4 flex flex-wrap gap-2">
+        <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/workspace">Workspace</NavLink>
         <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/assignments">Assignments</NavLink>
         <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/assignments/new">New</NavLink>
         <NavLink className={({ isActive }) => `rounded-lg border px-3 py-1 text-sm ${isActive ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`} to="/invoices">Invoices</NavLink>
@@ -2185,6 +2186,7 @@ function AppShell({ token, setToken }: { token: string; setToken: (token: string
       </nav>
 
       <Routes>
+        <Route path="/workspace" element={<WorkspaceHome token={token} />} />
         <Route path="/assignments" element={<AssignmentListPage token={token} />} />
         <Route path="/assignments/new" element={<NewAssignmentPage token={token} />} />
         <Route path="/assignments/:id" element={<AssignmentDetailPage token={token} />} />
@@ -2192,7 +2194,7 @@ function AppShell({ token, setToken }: { token: string; setToken: (token: string
         <Route path="/repogen" element={<RepogenQueuePage token={token} />} />
         <Route path="/analytics" element={<AnalyticsPage token={token} />} />
         <Route path="/employees" element={<EmployeesPage token={token} />} />
-        <Route path="*" element={<Navigate to="/assignments" replace />} />
+        <Route path="*" element={<Navigate to="/workspace" replace />} />
       </Routes>
     </main>
   );

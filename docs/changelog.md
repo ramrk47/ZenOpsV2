@@ -1,7 +1,14 @@
 # ZenOps v2 Changelog
 
-## 2026-02-24
+## 2026-02-25 (M5.6.x Workspace Realignment)
 
+### Changed
+- Shifted immediate focus from M5.7 (DOCX Rendering) to Workspace 2.0 uplift (M5.6.1 - M5.6.4).
+- Added `V1_WORKSPACE_AUDIT.md` and `V1_TO_V2_WORKSPACE_MAPPING.md` documenting legacy UI patterns.
+- Added `V2_WORKSPACE_2_0_SPEC.md` establishing the design for the new React/Next queue, detail tabs, CoreLogic integration, and Aadhaar OCR pipeline.
+- Added `WORKSPACE_MILESTONE_BACKLOG.md` detailing the build sequence.
+
+## 2026-02-24
 ### Added (M5.5 Repogen Factory Flow - Spine -> Pack Bridge, No Templates)
 - M5.5 Repogen factory bridge connecting M5.4 work orders to M5.3 pack/job pipeline:
   - work-order <-> report-pack linkage (`repogen_work_orders.report_pack_id`, `report_packs.work_order_id`)

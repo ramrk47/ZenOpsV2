@@ -2,6 +2,13 @@
 
 Last updated: 2026-02-24
 
+## Scope In Progress
+### M5.6.x Workspace 2.0 Re-Alignment & Intelligence Start
+- Completed audit of legacy V1 workspace (`zen-ops` repo frontend/backend).
+- Produced `V1_WORKSPACE_AUDIT.md`, `V1_TO_V2_WORKSPACE_MAPPING.md`, and `V2_WORKSPACE_2_0_SPEC.md` replacing M5.7 priorities for now.
+- Designed flow for Aadhaar OCR ingestion (to populate Master Data via proxy) and CoreLogic (Cotality) Google Maps integration.
+- Drafted `WORKSPACE_MILESTONE_BACKLOG.md` (M5.6.1 through M5.6.4).
+
 ## Scope Completed
 
 ### 0.6) M5.5 Repogen Factory Flow (Bridge M5.4 -> M5.3, No DOCX Templates)
