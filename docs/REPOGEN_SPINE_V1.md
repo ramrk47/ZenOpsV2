@@ -181,7 +181,7 @@ Behavior:
 
 - Studio:
   - Repogen tab with list/detail and JSON inspectors for snapshots/derived/evidence/comments/readiness
-- Web (Tenant #1 internal lane):
+- Web (Core Tenant internal lane):
   - `Repogen` production queue page
   - create work order
   - patch contract JSON

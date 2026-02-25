@@ -62,7 +62,7 @@
   - idempotent `jobId=work_order_id:snapshot_version`
 - Minimal operator UI surfaces:
   - Studio Repogen read-only monitoring tab (list/detail + JSON inspectors)
-  - Web Tenant #1 Repogen production queue page (create/patch/evidence/comments/status/export preview)
+  - Web Core Tenant Repogen production queue page (create/patch/evidence/comments/status/export preview)
 - M5.4 tests:
   - rules engine unit tests
   - readiness evaluator unit tests
@@ -195,7 +195,7 @@
   - assignment detail lifecycle status actions + timeline panel
   - assignment tasks wired to global task endpoints
   - analytics page with retry + safe fallback
-  - channel wording retained user-facing (`Channel`, not `Partner`)
+  - channel wording retained user-facing (`Channel`, not `External Associate`)
 - Portal UI:
   - channel request submit/list flow
   - user-facing copy uses `Channel`

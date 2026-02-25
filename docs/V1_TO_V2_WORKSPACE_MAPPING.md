@@ -12,7 +12,7 @@ This document highlights how features from the legacy V1 workspace should map to
 | **Tasks & Mentions** | `tasks`, `assignment_status_history` | Port V1 `AssignmentTask` components as-is, connected to V2's M4.6 operational task endpoints. |
 | **Approvals Flow** | (Pending / Manual overrides in V2) | Replace V1's generic `approvals` with V2's specific workflow states (e.g. M5.5 Deliverables Release gating, Credit Overrides). |
 | **Finance / Invoicing** | V2 Billing Control Plane (`service_invoices`) | Do NOT replicate V1 finance UI directly in the assignment. Instead, use V2's isolated `service_invoices` lane and show a "Linked Invoice" summary chip inside the assignment. |
-| **Master Data Selectors (Bank, Branch)** | V2 Master Data (`banks`, `channels`, etc.) | Ensure V2 selectors use `Channel` modeling instead of V1 `Partner` terminology as established in M4.6. |
+| **Master Data Selectors (Bank, Branch)** | V2 Master Data (`banks`, `channels`, etc.) | Ensure V2 selectors use `Channel` modeling instead of V1 Legacy terminology as established in M4.6. |
 
 ## Major Divergences
 - **V2 Evidence Intelligence (M5.6)**: V1 had simple `Document` tags. V2 has `evidence_profiles`, `field_defs`, and `field_evidence_links`. The V1 "Documents" tab must be heavily upgraded into an "Evidence Inbox & Checklist".

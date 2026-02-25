@@ -3,6 +3,11 @@ import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useNavigate, use
 import { Button } from './components/ui/button';
 import { RepogenQueuePage } from './repogen-queue-page';
 import { WorkspaceHome } from './pages/workspace/WorkspaceHome';
+import { AssignmentWorkspaceLayout } from './components/workspace/AssignmentWorkspaceLayout';
+import { OverviewPanel } from './components/workspace/OverviewPanel';
+import { EvidenceDropzone } from './components/workspace/EvidenceDropzone';
+import { TaskBoard } from './components/workspace/TaskBoard';
+import { StatusChip } from './components/workspace/StatusChip';
 
 const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/v1';
 
@@ -561,7 +566,7 @@ function NewAssignmentPage({ token }: { token: string }) {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
-  const [source, setSource] = useState<'tenant' | 'external_portal' | 'partner'>('tenant');
+  const [source, setSource] = useState<'tenant' | 'external_portal' | 'referral_channel'>('tenant');
   const [sourceType, setSourceType] = useState<(typeof assignmentSourceTypeOptions)[number]>('direct');
   const [priority, setPriority] = useState<AssignmentPriority>('normal');
   const [dueDate, setDueDate] = useState('');
@@ -659,10 +664,10 @@ function NewAssignmentPage({ token }: { token: string }) {
         <textarea className="min-h-24 rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Summary" value={summary} onChange={(event) => setSummary(event.target.value)} />
 
         <div className="grid gap-2 md:grid-cols-4">
-          <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={source} onChange={(event) => setSource(event.target.value as 'tenant' | 'external_portal' | 'partner')}>
+          <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={source} onChange={(event) => setSource(event.target.value as 'tenant' | 'external_portal' | 'referral_channel')}>
             <option value="tenant">tenant</option>
             <option value="external_portal">external_portal</option>
-            <option value="partner">referral channel</option>
+            <option value="referral_channel">referral channel</option>
           </select>
 
           <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={sourceType} onChange={(event) => setSourceType(event.target.value as (typeof assignmentSourceTypeOptions)[number])}>
@@ -756,28 +761,11 @@ function NewAssignmentPage({ token }: { token: string }) {
 
 function AssignmentDetailPage({ token }: { token: string }) {
   const { id = '' } = useParams();
-  const [tab, setTab] = useState<'overview' | 'tasks' | 'messages' | 'documents' | 'repogen' | 'activity'>('overview');
+  const [tab, setTab] = useState<'overview' | 'evidence' | 'tasks' | 'timeline' | 'chat' | 'repogen'>('overview');
   const [assignment, setAssignment] = useState<AssignmentDetail | null>(null);
   const [taskRows, setTaskRows] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [statusDraft, setStatusDraft] = useState<AssignmentStatus>('requested');
-  const [lifecycleDraft, setLifecycleDraft] = useState<AssignmentLifecycleStatus>('DRAFT');
-  const [taskTitle, setTaskTitle] = useState('');
-  const [taskDueDate, setTaskDueDate] = useState('');
-  const [messageBody, setMessageBody] = useState('');
-  const [attachDocumentId, setAttachDocumentId] = useState('');
-  const [attachPurpose, setAttachPurpose] = useState<(typeof documentPurposeOptions)[number]>('reference');
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadPurpose, setUploadPurpose] = useState<(typeof documentPurposeOptions)[number]>('photo');
-  const [uploadSource, setUploadSource] = useState<DocumentSource>('mobile_camera');
-  const [uploadClassification, setUploadClassification] = useState<DocumentClassification>('site_photo');
-  const [uploadSensitivity, setUploadSensitivity] = useState<DocumentSensitivity>('internal');
-  const [uploadRemarks, setUploadRemarks] = useState('');
-  const [uploadTakenOnSite, setUploadTakenOnSite] = useState(true);
-  const [uploadTagValue, setUploadTagValue] = useState('');
-  const [uploadStatus, setUploadStatus] = useState('');
-  const [uploading, setUploading] = useState(false);
 
   const load = async () => {
     if (!token || !id) {
@@ -795,8 +783,6 @@ function AssignmentDetailPage({ token }: { token: string }) {
       ]);
       setAssignment(data);
       setTaskRows(tasks);
-      setStatusDraft(data.status);
-      setLifecycleDraft(data.lifecycle_status);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load assignment.');
       setAssignment(null);
@@ -810,425 +796,125 @@ function AssignmentDetailPage({ token }: { token: string }) {
     void load();
   }, [token, id]);
 
-  const tasksByFloor = useMemo(() => {
-    if (taskRows.length === 0) return [] as Array<{ floor: string; tasks: TaskRow[] }>;
-    const groups = new Map<string, TaskRow[]>();
-    for (const task of taskRows) {
-      const key = 'Task Queue';
-      const current = groups.get(key) ?? [];
-      current.push(task);
-      groups.set(key, current);
-    }
-    return Array.from(groups.entries()).map(([floor, tasks]) => ({ floor, tasks }));
-  }, [taskRows]);
+  if (loading && !assignment) {
+    return <section className="card">Loading assignment {id}...</section>;
+  }
 
-  const updateStatus = async () => {
-    if (!token || !id) return;
-    try {
-      await apiRequest(token, `/assignments/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: statusDraft })
-      });
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update status.');
-    }
-  };
-
-  const updateLifecycleStatus = async () => {
-    if (!token || !id) return;
-    try {
-      await apiRequest(token, `/assignments/${id}/status`, {
-        method: 'POST',
-        body: JSON.stringify({
-          to_status: lifecycleDraft
-        })
-      });
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update lifecycle status.');
-    }
-  };
-
-  const createTask = async () => {
-    if (!taskTitle || !token || !id) return;
-    try {
-      await apiRequest(token, '/tasks', {
-        method: 'POST',
-        body: JSON.stringify({
-          assignment_id: id,
-          title: taskTitle,
-          due_at: taskDueDate ? new Date(`${taskDueDate}T00:00:00.000Z`).toISOString() : undefined
-        })
-      });
-      setTaskTitle('');
-      setTaskDueDate('');
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to create task.');
-    }
-  };
-
-  const updateTaskStatus = async (taskId: string, nextStatus: TaskStatus) => {
-    if (!token || !id) return;
-    try {
-      if (nextStatus === 'done') {
-        await apiRequest(token, `/tasks/${taskId}/mark-done`, {
-          method: 'POST'
-        });
-      } else {
-        await apiRequest(token, `/tasks/${taskId}`, {
-          method: 'PATCH',
-          body: JSON.stringify({ status: 'OPEN' })
-        });
-      }
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update task.');
-    }
-  };
-
-  const postMessage = async () => {
-    if (!messageBody || !token || !id) return;
-    try {
-      await apiRequest(token, `/assignments/${id}/messages`, {
-        method: 'POST',
-        body: JSON.stringify({ body: messageBody })
-      });
-      setMessageBody('');
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to post message.');
-    }
-  };
-
-  const attachDocument = async () => {
-    if (!attachDocumentId || !token || !id) return;
-    try {
-      await apiRequest(token, `/assignments/${id}/attach-document`, {
-        method: 'POST',
-        body: JSON.stringify({ document_id: attachDocumentId, purpose: attachPurpose })
-      });
-      setAttachDocumentId('');
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to attach document.');
-    }
-  };
-
-  const uploadAndAttachDocument = async () => {
-    if (!uploadFile || !token || !id) return;
-    setUploading(true);
-    setUploadStatus('Preparing upload...');
-    try {
-      const presign = await apiRequest<{
-        document_id: string;
-        upload: { url: string; method: 'PUT'; headers: Record<string, string> };
-      }>(token, '/files/presign-upload', {
-        method: 'POST',
-        body: JSON.stringify({
-          purpose: uploadPurpose,
-          assignment_id: id,
-          filename: uploadFile.name,
-          content_type: uploadFile.type || 'application/octet-stream',
-          size_bytes: uploadFile.size,
-          source: uploadSource,
-          classification: uploadClassification,
-          sensitivity: uploadSensitivity,
-          captured_at: new Date().toISOString(),
-          remarks: uploadRemarks || undefined,
-          taken_on_site: uploadTakenOnSite
-        })
-      });
-
-      setUploadStatus('Uploading...');
-      const uploadResponse = await fetch(presign.upload.url, {
-        method: presign.upload.method,
-        headers: presign.upload.headers,
-        body: uploadFile
-      });
-      if (!uploadResponse.ok) {
-        throw new Error(`Object upload failed (${uploadResponse.status})`);
-      }
-
-      setUploadStatus('Confirming upload...');
-      await apiRequest(token, '/files/confirm-upload', {
-        method: 'POST',
-        body: JSON.stringify({ document_id: presign.document_id })
-      });
-
-      await apiRequest(token, `/documents/${presign.document_id}/tags`, {
-        method: 'POST',
-        body: JSON.stringify({
-          tags: [
-            { key: 'classification', value: uploadClassification },
-            { key: 'source', value: uploadSource },
-            ...(uploadTagValue ? [{ key: 'note', value: uploadTagValue }] : [])
-          ]
-        })
-      });
-
-      setUploadStatus('Upload completed');
-      setUploadFile(null);
-      setUploadRemarks('');
-      setUploadTagValue('');
-      await load();
-    } catch (err) {
-      setUploadStatus(err instanceof Error ? err.message : 'Upload failed');
-      setError(err instanceof Error ? err.message : 'Upload failed');
-    } finally {
-      setUploading(false);
-    }
-  };
+  if (!assignment) {
+    return <section className="card text-red-700">{error || 'Assignment not found.'}</section>;
+  }
 
   return (
-    <section className="space-y-4">
-      <header className="card">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <Link className="text-xs text-[var(--zen-muted)]" to="/assignments">← Back to Assignments</Link>
-            <h1 className="m-0 text-3xl font-bold">{assignment?.title ?? 'Assignment Detail'}</h1>
-            <p className="m-0 text-sm text-[var(--zen-muted)]">{assignment?.summary ?? 'No summary'}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={statusDraft} onChange={(event) => setStatusDraft(event.target.value as AssignmentStatus)}>
-              {statusOptions.map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-            <Button onClick={() => void updateStatus()} disabled={!assignment}>Update Status</Button>
-            <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={lifecycleDraft} onChange={(event) => setLifecycleDraft(event.target.value as AssignmentLifecycleStatus)}>
-              {lifecycleStatusOptions.map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-            <Button onClick={() => void updateLifecycleStatus()} disabled={!assignment}>Move Next</Button>
+    <AssignmentWorkspaceLayout
+      assignmentId={assignment.id}
+      title={assignment.title}
+      subtitle={(assignment as any).bank_name || (assignment as any).source_label || 'Internal Task'}
+      statusBadge={<StatusChip domain="assignment" value={assignment.status} />}
+      activeTab={tab as 'overview' | 'evidence' | 'tasks' | 'timeline' | 'chat'} // Safe cast, repogen handled separately if needed
+      onTabChange={(newTab) => setTab(newTab)}
+      headerActions={
+        <>
+          <select
+            className="rounded-lg border border-[var(--zen-border)] px-3 py-2 text-sm bg-white cursor-pointer"
+            value={assignment.lifecycle_status}
+            onChange={async (e) => {
+              try {
+                await apiRequest(token, `/assignments/${id}/status`, {
+                  method: 'POST',
+                  body: JSON.stringify({ to_status: e.target.value })
+                });
+                await load();
+              } catch (err) {
+                console.error(err);
+              }
+            }}
+          >
+            {lifecycleStatusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+          </select>
+          <Button onClick={() => void load()} disabled={loading}>
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </>
+      }
+    >
+      {tab === 'overview' && (
+        <OverviewPanel assignment={assignment} token={token} onRefresh={() => void load()} />
+      )}
+
+      {tab === 'evidence' && (
+        <div className="flex flex-col gap-6">
+          <EvidenceDropzone assignmentId={assignment.id} token={token} onUploadComplete={() => void load()} />
+          <div className="card">
+            <h3 className="text-lg font-bold m-0 mb-4">Uploaded Documents</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-[var(--zen-border)] text-left">
+                    <th className="p-2 font-semibold text-[var(--zen-muted)]">Filename</th>
+                    <th className="p-2 font-semibold text-[var(--zen-muted)]">Category</th>
+                    <th className="p-2 font-semibold text-[var(--zen-muted)]">Type</th>
+                    <th className="p-2 font-semibold text-[var(--zen-muted)]">Size</th>
+                    <th className="p-2 font-semibold text-[var(--zen-muted)]">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(assignment as any).documents?.map((doc: any) => (
+                    <tr key={doc.id} className="border-b border-[var(--zen-border)] hover:bg-slate-50 transition-colors">
+                      <td className="p-2 font-medium">
+                        <a href={doc.presign_download_endpoint} target="_blank" rel="noopener noreferrer" className="text-[var(--zen-primary)] hover:underline">
+                          {doc.metadata?.original_filename || doc.id}
+                        </a>
+                      </td>
+                      <td className="p-2">{doc.purpose}</td>
+                      <td className="p-2">{doc.metadata?.content_type || 'Unknown'}</td>
+                      <td className="p-2">{doc.metadata?.size_bytes ? `${Math.round(doc.metadata.size_bytes / 1024)} KB` : '-'}</td>
+                      <td className="p-2 text-[var(--zen-muted)]">{new Date(doc.linked_at || doc.created_at || Date.now()).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                  {!(assignment as any).documents?.length && (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-[var(--zen-muted)] border-b border-[var(--zen-border)]">No evidence items attached.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
+      )}
 
-        <div className="mt-3 flex flex-wrap gap-2">
-          {(['overview', 'tasks', 'messages', 'documents', 'repogen', 'activity'] as const).map((next) => (
-            <button
-              key={next}
-              className={`rounded-lg border px-3 py-1 text-sm ${tab === next ? 'border-[var(--zen-primary)] bg-white font-semibold' : 'border-[var(--zen-border)]'}`}
-              onClick={() => setTab(next)}
-              type="button"
-            >
-              {next}
-            </button>
-          ))}
+      {tab === 'tasks' && (
+        <TaskBoard assignmentId={assignment.id} tasks={taskRows} token={token} onRefresh={() => void load()} />
+      )}
+
+      {tab === 'timeline' && (
+        <div className="card text-center p-12 text-[var(--zen-muted)]">
+          <h3 className="text-lg font-bold mb-2">Activity Timeline</h3>
+          <p>Activity timeline visualization coming in next milestone.</p>
         </div>
-      </header>
+      )}
 
-      {loading ? <section className="card">Loading...</section> : null}
-      {error ? <section className="card text-sm text-red-700">{error}</section> : null}
+      {tab === 'chat' && (
+        <div className="card text-center p-12 text-[var(--zen-muted)]">
+          <h3 className="text-lg font-bold mb-2">Notes & Chat</h3>
+          <p>Collaborative notes and chat discussion log coming in next milestone.</p>
+        </div>
+      )}
 
-      {assignment && tab === 'overview' ? (
-        <section className="card grid gap-3 md:grid-cols-2">
-          <article>
-            <h2 className="mt-0 text-lg">Overview</h2>
-            <p className="m-0 text-sm">Status: <strong>{assignment.status}</strong></p>
-            <p className="m-0 text-sm">Lifecycle: <strong>{assignment.lifecycle_status}</strong></p>
-            <p className="m-0 text-sm">Priority: <strong>{assignment.priority}</strong></p>
-            <p className="m-0 text-sm">Due Date: <strong>{assignment.due_date ?? '-'}</strong></p>
-            <p className="m-0 text-sm">Work Order: <strong>{assignment.work_order_id ?? '-'}</strong></p>
-            <p className="m-0 text-sm">
-              Data Completeness: <strong>{assignment.data_completeness ? `${assignment.data_completeness.score}%` : '-'}</strong>
-            </p>
-          </article>
-          <article>
-            <h2 className="mt-0 text-lg">Assignees</h2>
-            <ul className="m-0 list-none space-y-2 p-0">
-              {assignment.assignees.map((assignee) => (
-                <li key={assignee.id} className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm">
-                  <strong>{assignee.user.name}</strong> · {assignee.role}
-                </li>
-              ))}
-            </ul>
-            {assignment.assignees.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No assignees yet.</p> : null}
-          </article>
-          <article className="md:col-span-2">
-            <h2 className="mt-0 text-lg">Status Timeline</h2>
-            <div className="space-y-2">
-              {(assignment.status_history ?? []).map((item) => (
-                <div key={item.id} className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm">
-                  <p className="m-0">
-                    {item.from_status ?? 'START'}
-                    {' -> '}
-                    <strong>{item.to_status}</strong>
-                  </p>
-                  <p className="m-0 text-xs text-[var(--zen-muted)]">{new Date(item.created_at).toLocaleString()}</p>
-                  {item.note ? <p className="m-0 text-xs text-[var(--zen-muted)]">{item.note}</p> : null}
-                </div>
-              ))}
-            </div>
-          </article>
-        </section>
-      ) : null}
+      {tab === 'repogen' && (
+        <ReportGenerationPanel token={token} assignmentId={assignment.id} documents={(assignment as any).documents ?? []} />
+      )}
 
-      {assignment && tab === 'tasks' ? (
-        <section className="card space-y-3">
-          <h2 className="mt-0 text-lg">Tasks</h2>
-          <div className="grid gap-2 md:grid-cols-[1fr_auto_auto]">
-            <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Task title" value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} />
-            <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2" type="date" value={taskDueDate} onChange={(event) => setTaskDueDate(event.target.value)} />
-            <Button onClick={() => void createTask()}>Add Task</Button>
-          </div>
+      <div className="mt-8 flex justify-end">
+        <button
+          onClick={() => setTab('repogen')}
+          className="text-xs text-[var(--zen-muted)] hover:text-slate-800 transition-colors underline"
+        >
+          Access Legacy Repogen Tools
+        </button>
+      </div>
 
-          {tasksByFloor.map((group) => (
-            <article key={group.floor} className="rounded-lg border border-[var(--zen-border)] p-3">
-              <h3 className="m-0 text-base">{group.floor}</h3>
-              <ul className="m-0 list-none space-y-2 p-0 pt-2">
-                {group.tasks.map((task) => (
-                  <li key={task.id} className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <strong>{task.title}</strong>
-                        <p className="m-0 text-xs text-[var(--zen-muted)]">
-                          Due: {task.due_at ? new Date(task.due_at).toLocaleDateString() : '-'}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <select className="rounded-lg border border-[var(--zen-border)] px-2 py-1" value={task.status.toLowerCase() === 'done' ? 'done' : 'todo'} onChange={(event) => void updateTaskStatus(task.id, event.target.value as TaskStatus)}>
-                          {taskStatusOptions.filter((value) => value === 'todo' || value === 'done').map((option) => (
-                            <option key={option} value={option}>{option}</option>
-                          ))}
-                        </select>
-                        <span className={`inline-flex rounded-full border px-2 py-1 text-xs ${task.overdue ? 'border-red-300 bg-red-100 text-red-800' : 'border-slate-300 bg-slate-100 text-slate-800'}`}>
-                          {task.status}
-                        </span>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </article>
-          ))}
-          {taskRows.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No tasks yet.</p> : null}
-        </section>
-      ) : null}
-
-      {assignment && tab === 'messages' ? (
-        <section className="card space-y-3">
-          <h2 className="mt-0 text-lg">Messages</h2>
-          <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-            <textarea className="min-h-20 rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Post update for the team" value={messageBody} onChange={(event) => setMessageBody(event.target.value)} />
-            <Button onClick={() => void postMessage()}>Post</Button>
-          </div>
-
-          <ul className="m-0 list-none space-y-2 p-0">
-            {assignment.messages.map((message) => (
-              <li key={message.id} className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2">
-                <p className="m-0 text-sm">{message.body}</p>
-                <p className="m-0 text-xs text-[var(--zen-muted)]">{message.author.name} · {new Date(message.created_at).toLocaleString()}</p>
-              </li>
-            ))}
-          </ul>
-          {assignment.messages.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No messages yet.</p> : null}
-        </section>
-      ) : null}
-
-      {assignment && tab === 'documents' ? (
-        <section className="card space-y-3">
-          <h2 className="mt-0 text-lg">Documents</h2>
-          <article className="rounded-lg border border-[var(--zen-border)] bg-white p-3">
-            <h3 className="m-0 text-base">Mobile Upload</h3>
-            <p className="m-0 text-xs text-[var(--zen-muted)]">Capture from camera, gallery, or file manager and tag at upload time.</p>
-            <div className="mt-2 grid gap-2 md:grid-cols-2">
-              <input
-                className="rounded-lg border border-[var(--zen-border)] px-3 py-2"
-                type="file"
-                accept="image/*,.pdf,.doc,.docx"
-                capture="environment"
-                onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)}
-              />
-              <input
-                className="rounded-lg border border-[var(--zen-border)] px-3 py-2"
-                type="file"
-                onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)}
-              />
-              <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={uploadPurpose} onChange={(event) => setUploadPurpose(event.target.value as (typeof documentPurposeOptions)[number])}>
-                {documentPurposeOptions.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-              <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={uploadSource} onChange={(event) => setUploadSource(event.target.value as DocumentSource)}>
-                {documentSourceOptions.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-              <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={uploadClassification} onChange={(event) => setUploadClassification(event.target.value as DocumentClassification)}>
-                {documentClassificationOptions.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-              <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={uploadSensitivity} onChange={(event) => setUploadSensitivity(event.target.value as DocumentSensitivity)}>
-                {documentSensitivityOptions.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-              <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2 md:col-span-2" placeholder="Remarks (optional)" value={uploadRemarks} onChange={(event) => setUploadRemarks(event.target.value)} />
-              <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2 md:col-span-2" placeholder="Tag note (optional)" value={uploadTagValue} onChange={(event) => setUploadTagValue(event.target.value)} />
-              <label className="inline-flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={uploadTakenOnSite} onChange={(event) => setUploadTakenOnSite(event.target.checked)} />
-                Taken on site
-              </label>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Button onClick={() => void uploadAndAttachDocument()} disabled={!uploadFile || uploading}>
-                {uploading ? 'Uploading...' : 'Upload + Tag'}
-              </Button>
-              {uploadStatus ? <span className="text-xs text-[var(--zen-muted)]">{uploadStatus}</span> : null}
-            </div>
-          </article>
-
-          <div className="grid gap-2 md:grid-cols-[1fr_auto_auto]">
-            <input className="rounded-lg border border-[var(--zen-border)] px-3 py-2" placeholder="Document id" value={attachDocumentId} onChange={(event) => setAttachDocumentId(event.target.value)} />
-            <select className="rounded-lg border border-[var(--zen-border)] px-3 py-2" value={attachPurpose} onChange={(event) => setAttachPurpose(event.target.value as (typeof documentPurposeOptions)[number])}>
-              {documentPurposeOptions.map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-            <Button onClick={() => void attachDocument()}>Attach</Button>
-          </div>
-
-          <ul className="m-0 list-none space-y-2 p-0">
-            {assignment.documents.map((document) => (
-              <li key={document.id} className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm">
-                <strong>{document.metadata.original_filename ?? document.id}</strong> · {document.purpose}
-                <p className="m-0 text-xs text-[var(--zen-muted)]">
-                  {document.metadata.content_type ?? 'unknown'} · {document.metadata.size_bytes ?? 0} bytes
-                </p>
-              </li>
-            ))}
-          </ul>
-          {assignment.documents.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No linked documents.</p> : null}
-        </section>
-      ) : null}
-
-      {assignment && tab === 'activity' ? (
-        <section className="card">
-          <h2 className="mt-0 text-lg">Activity Timeline</h2>
-          <ul className="m-0 list-none space-y-2 p-0">
-            {assignment.activities.map((activity) => (
-              <li key={activity.id} className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <strong>{activity.type}</strong>
-                  <span className="text-xs text-[var(--zen-muted)]">{new Date(activity.created_at).toLocaleString()}</span>
-                </div>
-                <p className="m-0 text-xs text-[var(--zen-muted)]">Actor: {activity.actor?.name ?? 'system'}</p>
-                <pre className="m-0 overflow-x-auto rounded bg-slate-50 p-2 text-xs">{JSON.stringify(activity.payload, null, 2)}</pre>
-              </li>
-            ))}
-          </ul>
-          {assignment.activities.length === 0 ? <p className="text-sm text-[var(--zen-muted)]">No activity yet.</p> : null}
-        </section>
-      ) : null}
-
-      {assignment && tab === 'repogen' ? (
-        <ReportGenerationPanel token={token} assignmentId={assignment.id} documents={assignment.documents} />
-      ) : null}
-    </section>
+    </AssignmentWorkspaceLayout>
   );
 }
 
@@ -1644,10 +1330,10 @@ function ReportGenerationPanel({
             <li
               key={`${warning.code}-${index}`}
               className={`rounded-lg border px-3 py-2 text-sm ${warning.severity === 'error'
-                  ? 'border-red-300 bg-red-50 text-red-900'
-                  : warning.severity === 'warn'
-                    ? 'border-amber-300 bg-amber-50 text-amber-900'
-                    : 'border-slate-300 bg-slate-50 text-slate-800'
+                ? 'border-red-300 bg-red-50 text-red-900'
+                : warning.severity === 'warn'
+                  ? 'border-amber-300 bg-amber-50 text-amber-900'
+                  : 'border-slate-300 bg-slate-50 text-slate-800'
                 }`}
             >
               <strong>{warning.code}</strong> · {warning.message}
@@ -2166,7 +1852,7 @@ function AppShell({ token, setToken }: { token: string; setToken: (token: string
     <main className="mx-auto max-w-7xl px-6 py-8">
       <header className="card mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="m-0 text-xs uppercase tracking-[0.2em] text-[var(--zen-muted)]">Tenant #1 Internal Lane</p>
+          <p className="m-0 text-xs uppercase tracking-[0.2em] text-[var(--zen-muted)]">Core Tenant Internal Lane</p>
           <h1 className="m-0 text-3xl font-bold">ZenOps Assignment Spine V2</h1>
         </div>
         <div className="w-full max-w-xl">

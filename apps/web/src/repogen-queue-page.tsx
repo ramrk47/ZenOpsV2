@@ -1053,9 +1053,9 @@ export function RepogenQueuePage({ token }: { token: string }) {
                   <li key={`field-link-${index}`}>Field missing evidence link: {value}</li>
                 ))}
                 {detail.readiness.warnings.length === 0 &&
-                detail.readiness.missing_fields.length === 0 &&
-                detail.readiness.missing_evidence.length === 0 &&
-                (detail.readiness.missing_field_evidence_links ?? []).length === 0 ? <li>None</li> : null}
+                  detail.readiness.missing_fields.length === 0 &&
+                  detail.readiness.missing_evidence.length === 0 &&
+                  (detail.readiness.missing_field_evidence_links ?? []).length === 0 ? <li>None</li> : null}
               </ul>
             </section>
 
@@ -1331,7 +1331,7 @@ export function RepogenQueuePage({ token }: { token: string }) {
             <section className="rounded-lg border border-[var(--zen-border)] p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="m-0 text-sm">Factory Pack + Deliverables Release</h3>
+                  <h3 className="m-0 text-sm">Core Tenant Pack + Deliverables Release</h3>
                   <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
                     M5.5 bridge: READY_FOR_RENDER auto-creates pack/job. Release is manual and billing-gated.
                   </p>

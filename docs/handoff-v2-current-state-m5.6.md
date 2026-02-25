@@ -770,7 +770,7 @@ V1 continues to own (until migrated):
 - legacy staff/admin UX
 - legacy operational workflows
 - operational postpaid invoice workflow used by current staff/customers
-- legacy partner/referral operational paths
+- legacy external associate/referral operational paths
 
 V1 already has (per M5.2 handoff context):
 

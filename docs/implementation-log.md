@@ -654,7 +654,7 @@ Proposed M4.6 high-value scope:
   - no Postgres volume recreation steps added
   - RLS extended for every new tenant-owned table
   - OpenAPI/contract surfaces updated with endpoint additions
-  - user-facing naming retained as `Channel` instead of `Partner`
+  - user-facing naming retained as `Channel` instead of Legacy Term
 
 ### DB/Prisma expansion (expand phase)
 - New schema files and extensions:

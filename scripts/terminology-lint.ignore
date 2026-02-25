@@ -1,0 +1,4 @@
+# Ignore list for canonical terminology linter
+# Add specific lines, keys, or regexes that contain deprecated terms but MUST be preserved (e.g., legacy DB values, external API formats).
+
+v1:partner:

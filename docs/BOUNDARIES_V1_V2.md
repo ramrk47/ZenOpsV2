@@ -29,7 +29,7 @@ Location:
 V1 owns (until migrated off):
 - operational postpaid invoice workflow used by current staff/customers
 - legacy admin/staff UX
-- partner/referral operational flows tied to current production usage
+- external associate/referral operational flows tied to current production usage
 
 ## DB separation policy (non-negotiable)
 - V1 and V2 use separate databases.

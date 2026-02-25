@@ -18,7 +18,7 @@ Based on `App.jsx` and `EmployeeLayout`, the V1 workspace is segregated by Role/
 - `/admin/dashboard`, `/admin/workload`, `/admin/open-queue`
 - `/admin/approvals`, `/admin/activity`, `/admin/analytics`
 - `/admin/personnel`, `/admin/masterdata`, `/admin/company`, `/admin/system-config`
-- `/admin/payroll/...`, `/admin/partner-requests`, `/admin/billing-monitor`
+- `/admin/payroll/...`, `/admin/external-associate-requests`, `/admin/billing-monitor`
 
 ## 3. Daily Screen: The Queue (`Assignments.jsx`)
 - **Top KPIs**: "Visible", "Open", "Due Soon" (warn), "Overdue" (danger). Helps operators immediately focus on SLA risks.

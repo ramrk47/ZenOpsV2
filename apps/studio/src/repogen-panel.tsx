@@ -384,7 +384,7 @@ export function RepogenStudioPanel({ token }: { token: string }) {
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <h3 className="m-0 text-base">Repogen Work Orders</h3>
-            <p className="m-0 text-xs text-[var(--zen-muted)]">Studio monitor for M5.5 factory flow: readiness, pack linkage, jobs, and release events.</p>
+            <p className="m-0 text-xs text-[var(--zen-muted)]">Control Plane monitor for M5.5 factory flow: readiness, pack linkage, jobs, and release events.</p>
           </div>
           <Button className="h-9 px-3" onClick={() => void loadList()} disabled={loading || !token}>
             Refresh
@@ -483,9 +483,9 @@ export function RepogenStudioPanel({ token }: { token: string }) {
                     <li key={`field-link-${idx}`}>Field missing evidence link: {item}</li>
                   ))}
                   {detail.readiness.warnings.length === 0 &&
-                  detail.readiness.missing_fields.length === 0 &&
-                  detail.readiness.missing_evidence.length === 0 &&
-                  (detail.readiness.missing_field_evidence_links ?? []).length === 0 ? (
+                    detail.readiness.missing_fields.length === 0 &&
+                    detail.readiness.missing_evidence.length === 0 &&
+                    (detail.readiness.missing_field_evidence_links ?? []).length === 0 ? (
                     <li>None</li>
                   ) : null}
                 </ul>

@@ -36,7 +36,7 @@ We are building the **ZenOps V2 Report Generation Framework**, which consists of
 ### 1.2 People / Roles
 - Current users: **you + brother**.
 - Future: field valuers get mobile access.
-- External partner: can commission assignments but should not see data beyond their own.
+- External Associate: can commission assignments but should not see data beyond their own.
 
 ### 1.3 Documents & Photos
 - Documents are uploaded/captured (mobile camera/gallery) and linked to assignments.

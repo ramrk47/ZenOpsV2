@@ -153,19 +153,19 @@ export const processRepogenGenerationJob = async ({
       const factoryPayload =
         requestPayload.repogen_factory === true && isRecord(requestPayload.export_bundle)
           ? {
-              workOrderId: typeof requestPayload.work_order_id === 'string' ? requestPayload.work_order_id : null,
-              snapshotVersion:
-                typeof requestPayload.snapshot_version === 'number' && Number.isFinite(requestPayload.snapshot_version)
-                  ? Math.trunc(requestPayload.snapshot_version)
-                  : null,
-              templateSelector:
-                typeof requestPayload.template_selector === 'string' ? requestPayload.template_selector : null,
-              exportBundle: requestPayload.export_bundle,
-              exportBundleHash:
-                typeof requestPayload.export_bundle_hash === 'string'
-                  ? requestPayload.export_bundle_hash
-                  : sha256Hex(stableStringify(requestPayload.export_bundle))
-            }
+            workOrderId: typeof requestPayload.work_order_id === 'string' ? requestPayload.work_order_id : null,
+            snapshotVersion:
+              typeof requestPayload.snapshot_version === 'number' && Number.isFinite(requestPayload.snapshot_version)
+                ? Math.trunc(requestPayload.snapshot_version)
+                : null,
+            templateSelector:
+              typeof requestPayload.template_selector === 'string' ? requestPayload.template_selector : null,
+            exportBundle: requestPayload.export_bundle,
+            exportBundleHash:
+              typeof requestPayload.export_bundle_hash === 'string'
+                ? requestPayload.export_bundle_hash
+                : sha256Hex(stableStringify(requestPayload.export_bundle))
+          }
           : null;
 
       let reportPackId = job.reportPackId;
@@ -243,6 +243,16 @@ export const processRepogenGenerationJob = async ({
       });
 
       if (!existingDocxArtifact) {
+        if (process.env.ENABLE_M5_7_DOCX_RENDERING === 'true') {
+          // Explicit "missing template" error path for M5.7 traceable execution
+          logger.warn('missing_template_enforced', {
+            request_id: payload.requestId,
+            repogen_job_id: payload.reportGenerationJobId,
+            template_key: job.templateKey
+          });
+          throw new Error(`missing_template: Real DOCX template for '${job.templateKey}' is required but not found in M5.7 rendering path.`);
+        }
+
         const artifactPath = join(
           artifactsRoot,
           'repogen',
@@ -268,14 +278,14 @@ export const processRepogenGenerationJob = async ({
 
         const factoryLines = factoryPayload
           ? [
-              '',
-              'Factory Bridge (M5.5)',
-              `Work Order: ${factoryPayload.workOrderId ?? 'NA'}`,
-              `Snapshot Version: ${factoryPayload.snapshotVersion ?? 'NA'}`,
-              `Template Selector: ${factoryPayload.templateSelector ?? 'NA'}`,
-              `Export Bundle Hash: ${factoryPayload.exportBundleHash}`,
-              `Export Bundle Keys: ${Object.keys(factoryPayload.exportBundle).sort().join(', ')}`
-            ]
+            '',
+            'Factory Bridge (M5.5)',
+            `Work Order: ${factoryPayload.workOrderId ?? 'NA'}`,
+            `Snapshot Version: ${factoryPayload.snapshotVersion ?? 'NA'}`,
+            `Template Selector: ${factoryPayload.templateSelector ?? 'NA'}`,
+            `Export Bundle Hash: ${factoryPayload.exportBundleHash}`,
+            `Export Bundle Keys: ${Object.keys(factoryPayload.exportBundle).sort().join(', ')}`
+          ]
           : [];
 
         const content = [
@@ -310,12 +320,12 @@ export const processRepogenGenerationJob = async ({
               request_id: payload.requestId,
               ...(factoryPayload
                 ? {
-                    repogen_factory: true,
-                    work_order_id: factoryPayload.workOrderId,
-                    snapshot_version: factoryPayload.snapshotVersion,
-                    template_selector: factoryPayload.templateSelector,
-                    export_bundle_hash: factoryPayload.exportBundleHash
-                  }
+                  repogen_factory: true,
+                  work_order_id: factoryPayload.workOrderId,
+                  snapshot_version: factoryPayload.snapshotVersion,
+                  template_selector: factoryPayload.templateSelector,
+                  export_bundle_hash: factoryPayload.exportBundleHash
+                }
                 : {})
             }
           }
