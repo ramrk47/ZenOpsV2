@@ -2,10 +2,18 @@ import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { Logger } from '@zenops/common';
+import { buildRenderContext, resolveRecipe, TEMPLATE_KEY_TO_FAMILY } from '@zenops/common';
+import type { ManifestJson } from '@zenops/common';
 import { withTxContext, type PrismaClient } from '@zenops/db';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { readFile } from 'node:fs/promises';
+
+function toString(v: unknown): string {
+  if (typeof v === 'string') return v;
+  if (v == null) return '';
+  return String(v);
+}
 
 export const REPOGEN_GENERATION_QUEUE = 'repogen-generation';
 
@@ -246,102 +254,128 @@ export const processRepogenGenerationJob = async ({
       });
 
       if (!existingDocxArtifact) {
-        const artifactPath = join(
-          artifactsRoot,
-          'repogen',
-          job.assignmentId,
-          job.templateKey,
-          `pack-v${packVersion}-${job.id}.docx`
-        );
-        await mkdir(dirname(artifactPath), { recursive: true });
-
-        // Hydrate DB context into nested object
-        const context: Record<string, any> = {};
-
-        // Map fields into structured nested objects (e.g. Property.Address instead of flat Property.Address)
-        for (const field of fieldValues) {
-          if (field.sectionKey) {
-            context[field.sectionKey] = context[field.sectionKey] || {};
-            context[field.sectionKey][field.fieldKey] = field.valueJson;
-          } else {
-            context[field.fieldKey] = field.valueJson;
-          }
-        }
-
-        // Expose a flat list of evidence items for iteration {#evidence}
-        context.evidence = evidenceLinks.map((link: any) => ({
-          category: link.sectionKey || link.fieldKey || 'evidence',
-          filename: link.document.originalFilename ?? link.document.id
-        }));
-
-        if (factoryPayload) {
-          context.factory = {
-            workOrderId: factoryPayload.workOrderId ?? 'NA',
-            snapshotVersion: factoryPayload.snapshotVersion ?? 'NA',
-            templateSelector: factoryPayload.templateSelector ?? 'NA'
-          };
-        }
-
-        context.assignment = {
-          id: assignment.id,
-          title: assignment.title
-        };
-        context.jobId = job.id;
-        context.packVersion = packVersion;
-
-        const templatePath = join(__dirname, '../../../docs/templates/samples', `${job.templateKey}.docx`);
-
-        let contentBuffer: Buffer;
+        // ── Resolve pack recipe from manifest ──
+        const familyKey = TEMPLATE_KEY_TO_FAMILY[job.templateKey] ?? job.templateKey.toLowerCase();
+        const familyDir = join(__dirname, '../../../docs/templates/samples', familyKey);
+        let manifest: ManifestJson;
         try {
-          const templateSource = await readFile(templatePath, 'binary');
-          const zip = new PizZip(templateSource);
-          const doc = new Docxtemplater(zip, {
-            paragraphLoop: true,
-            linebreaks: true,
-            nullGetter: () => '' // Return empty string for undefined tags instead of undefined literal
-          });
-
-          doc.render(context);
-          contentBuffer = doc.getZip().generate({
-            type: 'nodebuffer',
-            compression: 'DEFLATE'
-          });
-        } catch (error: any) {
-          logger.warn('missing_or_corrupt_template', {
+          const manifestRaw = await readFile(join(familyDir, 'manifest.json'), 'utf8');
+          manifest = JSON.parse(manifestRaw) as ManifestJson;
+        } catch {
+          logger.warn('m5_7_template_missing', {
             request_id: payload.requestId,
             repogen_job_id: payload.reportGenerationJobId,
             template_key: job.templateKey,
-            error: error.message
+            error: `manifest.json not found for family '${familyKey}'`
           });
-          throw new Error(`missing_or_corrupt_template: Could not render template '${job.templateKey}'. Verify it exists in docs/templates/samples/. Error: ${error.message}`);
+          throw new Error(`M5_7_TEMPLATE_MISSING: manifest.json not found for family '${familyKey}'. Verify docs/templates/samples/${familyKey}/manifest.json exists.`);
         }
 
-        await writeFile(artifactPath, contentBuffer);
+        const recipe = resolveRecipe(familyKey, manifest);
 
-        await tx.reportPackArtifact.create({
-          data: {
-            tenantId,
-            reportPackId,
-            kind: 'docx',
-            filename: `${job.templateKey}-v${packVersion}.docx`,
-            storageRef: artifactPath,
-            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            sizeBytes: BigInt(contentBuffer.length),
-            metadataJson: {
-              generated_by: 'docxtemplater',
-              request_id: payload.requestId,
-              ...(factoryPayload
-                ? {
-                  repogen_factory: true,
-                  work_order_id: factoryPayload.workOrderId,
-                  snapshot_version: factoryPayload.snapshotVersion,
-                  template_selector: factoryPayload.templateSelector,
-                  export_bundle_hash: factoryPayload.exportBundleHash
-                }
-                : {})
-            }
-          }
+        // ── Build render context from DB snapshot ──
+        const fp = factoryPayload as Record<string, any> | null;
+        const renderContext = buildRenderContext({
+          assignmentId: job.assignmentId,
+          templateKey: job.templateKey,
+          bankName: toString(fp?.bankName) || manifest.bank_family,
+          branchName: toString(fp?.branchName) || '',
+          reportFamily: job.reportFamily || manifest.report_type,
+          fieldValues: fieldValues as any[],
+          evidenceLinks: evidenceLinks as any[],
+          exportHash: fp?.exportBundleHash ? String(fp.exportBundleHash) : sha256Hex(stableStringify(fieldValues)),
+          templateHash: sha256Hex(familyKey),
+          factoryPayload: fp ?? undefined
         });
+
+        // ── Render each pack part ──
+        for (const part of recipe.parts) {
+          const templatePath = join(familyDir, part.templateFile);
+          const artifactPath = join(
+            artifactsRoot,
+            'repogen',
+            job.assignmentId,
+            job.templateKey,
+            `${part.name}-v${packVersion}-${job.id}.docx`
+          );
+          await mkdir(dirname(artifactPath), { recursive: true });
+
+          let contentBuffer: Buffer;
+          try {
+            const templateSource = await readFile(templatePath, 'binary');
+            const zip = new PizZip(templateSource);
+            const doc = new Docxtemplater(zip, {
+              paragraphLoop: true,
+              linebreaks: true,
+              nullGetter: () => ''
+            });
+
+            doc.render(renderContext as any);
+            contentBuffer = doc.getZip().generate({
+              type: 'nodebuffer',
+              compression: 'DEFLATE'
+            });
+          } catch (error: any) {
+            if (part.required) {
+              logger.warn('m5_7_corrupt_template', {
+                request_id: payload.requestId,
+                repogen_job_id: payload.reportGenerationJobId,
+                template_key: job.templateKey,
+                part_name: part.name,
+                error: error.message
+              });
+              throw new Error(`M5_7_CORRUPT_TEMPLATE: Could not render '${part.name}' for '${job.templateKey}'. Error: ${error.message}`);
+            }
+            // Optional part failed — skip with warning
+            logger.warn('m5_7_optional_part_skipped', {
+              request_id: payload.requestId,
+              part_name: part.name,
+              error: error.message
+            });
+            continue;
+          }
+
+          // Check for unresolved placeholders
+          const outputText = contentBuffer.toString('utf8');
+          const unresolvedMatch = outputText.match(/\{\{[^}]+\}\}/g);
+          if (unresolvedMatch && unresolvedMatch.length > 0) {
+            logger.warn('m5_7_placeholder_unresolved', {
+              request_id: payload.requestId,
+              part_name: part.name,
+              unresolved_count: unresolvedMatch.length
+            });
+          }
+
+          await writeFile(artifactPath, contentBuffer);
+
+          await tx.reportPackArtifact.create({
+            data: {
+              tenantId,
+              reportPackId,
+              kind: 'docx',
+              filename: `${job.templateKey}-${part.name}-v${packVersion}.docx`,
+              storageRef: artifactPath,
+              mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              sizeBytes: BigInt(contentBuffer.length),
+              metadataJson: {
+                generated_by: 'docxtemplater',
+                part_name: part.name,
+                export_hash: renderContext.meta.exportHash,
+                template_hash: renderContext.meta.templateHash,
+                request_id: payload.requestId,
+                ...(factoryPayload
+                  ? {
+                    repogen_factory: true,
+                    work_order_id: factoryPayload.workOrderId,
+                    snapshot_version: factoryPayload.snapshotVersion,
+                    template_selector: factoryPayload.templateSelector,
+                    export_bundle_hash: factoryPayload.exportBundleHash
+                  }
+                  : {})
+              }
+            }
+          });
+        }
       }
 
       await tx.reportPack.update({

@@ -1,0 +1,181 @@
+{
+    "description": "SBI L&B Valuation <5Cr — sanitized fixture",
+    "templateKey": "SBI_UNDER_5CR_V1",
+    "bankName": "SBI",
+    "branchName": "Test Branch",
+    "reportFamily": "valuation",
+    "fieldValues": [
+        {
+            "sectionKey": "",
+            "fieldKey": "land_value",
+            "valueJson": 2500000
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "building_value",
+            "valueJson": 1500000
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "slab_rule",
+            "valueJson": "LT_5CR"
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "loan_product",
+            "valueJson": "HL"
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "inspection_date",
+            "valueJson": "2026-02-01"
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "assignment_date",
+            "valueJson": "2026-02-01"
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "report_date",
+            "valueJson": "2026-02-10"
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "valuer_signatory",
+            "valueJson": "Test Valuer"
+        },
+        {
+            "sectionKey": "parties",
+            "fieldKey": "borrower_name",
+            "valueJson": "Test Borrower"
+        },
+        {
+            "sectionKey": "parties",
+            "fieldKey": "owner_name",
+            "valueJson": "Test Owner"
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "property_type",
+            "valueJson": "Residential"
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "address_full",
+            "valueJson": "123 Test Street, Test City"
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "village_town",
+            "valueJson": "Test Village"
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "survey_number",
+            "valueJson": "SY-123"
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "built_up_area_sqm",
+            "valueJson": 120
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "land_area_sqm",
+            "valueJson": 200
+        },
+        {
+            "sectionKey": "rates",
+            "fieldKey": "guideline_rate_sqm",
+            "valueJson": 5000
+        },
+        {
+            "sectionKey": "rates",
+            "fieldKey": "guideline_value_total",
+            "valueJson": 1000000
+        },
+        {
+            "sectionKey": "rates",
+            "fieldKey": "market_rate_input",
+            "valueJson": 800
+        },
+        {
+            "sectionKey": "rates",
+            "fieldKey": "market_rate_unit",
+            "valueJson": "sqft"
+        },
+        {
+            "sectionKey": "rates",
+            "fieldKey": "adopted_rate_input",
+            "valueJson": 700
+        },
+        {
+            "sectionKey": "rates",
+            "fieldKey": "adopted_rate_unit",
+            "valueJson": "sqft"
+        },
+        {
+            "sectionKey": "depreciation",
+            "fieldKey": "age_years",
+            "valueJson": 10
+        },
+        {
+            "sectionKey": "depreciation",
+            "fieldKey": "total_life_years",
+            "valueJson": 60
+        },
+        {
+            "sectionKey": "geo",
+            "fieldKey": "latitude",
+            "valueJson": 15.35
+        },
+        {
+            "sectionKey": "geo",
+            "fieldKey": "longitude",
+            "valueJson": 75.12
+        }
+    ],
+    "evidenceLinks": [
+        {
+            "sectionKey": "exterior_photos",
+            "fieldKey": null,
+            "sortOrder": 0,
+            "document": {
+                "id": "doc-ext-1",
+                "originalFilename": "exterior_front.jpg",
+                "contentType": "image/jpeg"
+            }
+        },
+        {
+            "sectionKey": "interior_photos",
+            "fieldKey": null,
+            "sortOrder": 1,
+            "document": {
+                "id": "doc-int-1",
+                "originalFilename": "interior_hall.jpg",
+                "contentType": "image/jpeg"
+            }
+        },
+        {
+            "sectionKey": "gps_photos",
+            "fieldKey": null,
+            "sortOrder": 2,
+            "document": {
+                "id": "doc-gps-1",
+                "originalFilename": "gps_overlay.jpg",
+                "contentType": "image/jpeg"
+            }
+        },
+        {
+            "sectionKey": "sale_deed",
+            "fieldKey": null,
+            "sortOrder": 0,
+            "document": {
+                "id": "doc-deed-1",
+                "originalFilename": "sale_deed.pdf",
+                "contentType": "application/pdf"
+            }
+        }
+    ]
+}

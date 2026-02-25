@@ -1,0 +1,121 @@
+{
+    "description": "BOI L&B Valuation >5Cr — sanitized fixture",
+    "templateKey": "PSU_GENERIC_OVER_5CR_V1",
+    "bankName": "Bank of India",
+    "branchName": "BOI Test Branch",
+    "reportFamily": "valuation",
+    "fieldValues": [
+        {
+            "sectionKey": "",
+            "fieldKey": "land_value",
+            "valueJson": 35000000
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "building_value",
+            "valueJson": 25000000
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "slab_rule",
+            "valueJson": "GT_5CR"
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "loan_product",
+            "valueJson": "LAP"
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "inspection_date",
+            "valueJson": "2026-02-05"
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "assignment_date",
+            "valueJson": "2026-02-05"
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "report_date",
+            "valueJson": "2026-02-12"
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "valuer_signatory",
+            "valueJson": "BOI Valuer"
+        },
+        {
+            "sectionKey": "parties",
+            "fieldKey": "borrower_name",
+            "valueJson": "Test Corp Ltd"
+        },
+        {
+            "sectionKey": "parties",
+            "fieldKey": "owner_name",
+            "valueJson": "Test Director"
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "property_type",
+            "valueJson": "Commercial"
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "address_full",
+            "valueJson": "456 Industrial Area, Metro City"
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "village_town",
+            "valueJson": "Metro City"
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "survey_number",
+            "valueJson": "SY-456"
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "built_up_area_sqm",
+            "valueJson": 500
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "land_area_sqm",
+            "valueJson": 800
+        },
+        {
+            "sectionKey": "rates",
+            "fieldKey": "guideline_rate_sqm",
+            "valueJson": 15000
+        },
+        {
+            "sectionKey": "rates",
+            "fieldKey": "guideline_value_total",
+            "valueJson": 12000000
+        },
+        {
+            "sectionKey": "depreciation",
+            "fieldKey": "age_years",
+            "valueJson": 5
+        },
+        {
+            "sectionKey": "depreciation",
+            "fieldKey": "total_life_years",
+            "valueJson": 50
+        }
+    ],
+    "evidenceLinks": [
+        {
+            "sectionKey": "exterior_photos",
+            "fieldKey": null,
+            "sortOrder": 0,
+            "document": {
+                "id": "doc-ext-2",
+                "originalFilename": "building_front.jpg",
+                "contentType": "image/jpeg"
+            }
+        }
+    ]
+}

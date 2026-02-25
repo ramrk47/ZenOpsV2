@@ -26,11 +26,20 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>();
   return {
     ...actual,
-    readFile: vi.fn().mockImplementation(async (path, encoding) => {
+    readFile: vi.fn().mockImplementation(async (path: string, encoding?: string) => {
+      if (typeof path === 'string' && path.includes('manifest.json')) {
+        return JSON.stringify({
+          bank_family: 'SBI',
+          report_type: 'VALUATION',
+          slab_rule: 'LT_5CR',
+          pack_parts: ['report'],
+          notes: 'test manifest'
+        });
+      }
       if (typeof path === 'string' && path.includes('samples') && path.includes('.docx')) {
         return Buffer.from('mock sample template data');
       }
-      return actual.readFile(path, encoding);
+      return actual.readFile(path, encoding as any);
     })
   };
 });

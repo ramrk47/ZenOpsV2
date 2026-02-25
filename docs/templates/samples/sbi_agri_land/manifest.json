@@ -1,0 +1,9 @@
+{
+    "bank_family": "SBI",
+    "report_type": "VALUATION",
+    "slab_rule": "ALL",
+    "pack_parts": [
+        "report"
+    ],
+    "notes": "Agri Land Valuation"
+}

@@ -32,6 +32,7 @@
     "@types/node": "22.13.1",
     "eslint": "9.20.1",
     "prettier": "3.5.1",
+    "tsx": "4.20.5",
     "turbo": "2.4.2",
     "typescript": "5.7.3"
   }

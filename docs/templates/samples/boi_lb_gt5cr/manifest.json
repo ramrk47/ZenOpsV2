@@ -1,0 +1,9 @@
+{
+    "bank_family": "BOI",
+    "report_type": "VALUATION",
+    "slab_rule": "GT_5CR",
+    "pack_parts": [
+        "report"
+    ],
+    "notes": "BOI L&B Valuation >5Cr"
+}

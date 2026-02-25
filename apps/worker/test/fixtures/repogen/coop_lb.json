@@ -1,0 +1,146 @@
+{
+    "description": "Co-op L&B Valuation — sanitized fixture (cover + letter + report pack)",
+    "templateKey": "COOP_LB_V1",
+    "bankName": "Test Co-op Bank",
+    "branchName": "Coop Test Branch",
+    "reportFamily": "valuation",
+    "fieldValues": [
+        {
+            "sectionKey": "",
+            "fieldKey": "land_value",
+            "valueJson": 1800000
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "building_value",
+            "valueJson": 1200000
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "coop_adopted_value",
+            "valueJson": 2700000
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "slab_rule",
+            "valueJson": "ALL"
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "loan_product",
+            "valueJson": "HL"
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "inspection_date",
+            "valueJson": "2026-01-20"
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "assignment_date",
+            "valueJson": "2026-01-20"
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "report_date",
+            "valueJson": "2026-01-25"
+        },
+        {
+            "sectionKey": "",
+            "fieldKey": "valuer_signatory",
+            "valueJson": "Coop Valuer"
+        },
+        {
+            "sectionKey": "parties",
+            "fieldKey": "borrower_name",
+            "valueJson": "Test Borrower Coop"
+        },
+        {
+            "sectionKey": "parties",
+            "fieldKey": "owner_name",
+            "valueJson": "Test Coop Owner"
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "property_type",
+            "valueJson": "Residential"
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "address_full",
+            "valueJson": "789 Village Road, Test Town"
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "village_town",
+            "valueJson": "Test Town"
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "survey_number",
+            "valueJson": "SY-789"
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "built_up_area_sqm",
+            "valueJson": 90
+        },
+        {
+            "sectionKey": "property",
+            "fieldKey": "land_area_sqm",
+            "valueJson": 150
+        },
+        {
+            "sectionKey": "rates",
+            "fieldKey": "adopted_rate_input",
+            "valueJson": 800
+        },
+        {
+            "sectionKey": "rates",
+            "fieldKey": "adopted_rate_unit",
+            "valueJson": "sqft"
+        },
+        {
+            "sectionKey": "rates",
+            "fieldKey": "market_rate_input",
+            "valueJson": 1000
+        },
+        {
+            "sectionKey": "rates",
+            "fieldKey": "market_rate_unit",
+            "valueJson": "sqft"
+        },
+        {
+            "sectionKey": "depreciation",
+            "fieldKey": "age_years",
+            "valueJson": 15
+        },
+        {
+            "sectionKey": "depreciation",
+            "fieldKey": "total_life_years",
+            "valueJson": 60
+        }
+    ],
+    "evidenceLinks": [
+        {
+            "sectionKey": "exterior_photos",
+            "fieldKey": null,
+            "sortOrder": 0,
+            "document": {
+                "id": "doc-ext-3",
+                "originalFilename": "front_view.jpg",
+                "contentType": "image/jpeg"
+            }
+        },
+        {
+            "sectionKey": "surrounding_photos",
+            "fieldKey": null,
+            "sortOrder": 1,
+            "document": {
+                "id": "doc-surr-1",
+                "originalFilename": "street_view.jpg",
+                "contentType": "image/jpeg"
+            }
+        }
+    ]
+}

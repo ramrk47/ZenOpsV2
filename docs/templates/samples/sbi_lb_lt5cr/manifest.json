@@ -1,0 +1,10 @@
+{
+    "bank_family": "SBI",
+    "report_type": "VALUATION",
+    "slab_rule": "LT_5CR",
+    "pack_parts": [
+        "report",
+        "images"
+    ],
+    "notes": "L&B Valuation <5Cr"
+}

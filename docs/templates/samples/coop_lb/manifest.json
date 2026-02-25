@@ -1,0 +1,11 @@
+{
+    "bank_family": "COOP",
+    "report_type": "VALUATION",
+    "slab_rule": "ALL",
+    "pack_parts": [
+        "cover",
+        "letter",
+        "report"
+    ],
+    "notes": "Co-op L&B Valuation"
+}
