@@ -15,9 +15,12 @@
     "@zenops/common": "workspace:*",
     "@zenops/config": "workspace:*",
     "@zenops/db": "workspace:*",
-    "bullmq": "5.67.3"
+    "bullmq": "5.67.3",
+    "docxtemplater": "^3.68.3",
+    "pizzip": "^3.2.0"
   },
   "devDependencies": {
+    "@types/pizzip": "^3.1.2",
     "tsx": "4.20.5",
     "typescript": "5.7.3",
     "vitest": "3.0.6"

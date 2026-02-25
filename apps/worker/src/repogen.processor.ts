@@ -3,6 +3,9 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { Logger } from '@zenops/common';
 import { withTxContext, type PrismaClient } from '@zenops/db';
+import PizZip from 'pizzip';
+import Docxtemplater from 'docxtemplater';
+import { readFile } from 'node:fs/promises';
 
 export const REPOGEN_GENERATION_QUEUE = 'repogen-generation';
 
@@ -243,16 +246,6 @@ export const processRepogenGenerationJob = async ({
       });
 
       if (!existingDocxArtifact) {
-        if (process.env.ENABLE_M5_7_DOCX_RENDERING === 'true') {
-          // Explicit "missing template" error path for M5.7 traceable execution
-          logger.warn('missing_template_enforced', {
-            request_id: payload.requestId,
-            repogen_job_id: payload.reportGenerationJobId,
-            template_key: job.templateKey
-          });
-          throw new Error(`missing_template: Real DOCX template for '${job.templateKey}' is required but not found in M5.7 rendering path.`);
-        }
-
         const artifactPath = join(
           artifactsRoot,
           'repogen',
@@ -262,48 +255,68 @@ export const processRepogenGenerationJob = async ({
         );
         await mkdir(dirname(artifactPath), { recursive: true });
 
-        const fieldLines = fieldValues
-          .slice(0, factoryPayload ? 12 : 40)
-          .map((field: any) => {
-            const key = field.sectionKey ? `${field.sectionKey}.${field.fieldKey}` : field.fieldKey;
-            const value =
-              typeof field.valueJson === 'string' || typeof field.valueJson === 'number'
-                ? String(field.valueJson)
-                : JSON.stringify(field.valueJson);
-            return `${key}: ${value}`;
+        // Hydrate DB context into nested object
+        const context: Record<string, any> = {};
+
+        // Map fields into structured nested objects (e.g. Property.Address instead of flat Property.Address)
+        for (const field of fieldValues) {
+          if (field.sectionKey) {
+            context[field.sectionKey] = context[field.sectionKey] || {};
+            context[field.sectionKey][field.fieldKey] = field.valueJson;
+          } else {
+            context[field.fieldKey] = field.valueJson;
+          }
+        }
+
+        // Expose a flat list of evidence items for iteration {#evidence}
+        context.evidence = evidenceLinks.map((link: any) => ({
+          category: link.sectionKey || link.fieldKey || 'evidence',
+          filename: link.document.originalFilename ?? link.document.id
+        }));
+
+        if (factoryPayload) {
+          context.factory = {
+            workOrderId: factoryPayload.workOrderId ?? 'NA',
+            snapshotVersion: factoryPayload.snapshotVersion ?? 'NA',
+            templateSelector: factoryPayload.templateSelector ?? 'NA'
+          };
+        }
+
+        context.assignment = {
+          id: assignment.id,
+          title: assignment.title
+        };
+        context.jobId = job.id;
+        context.packVersion = packVersion;
+
+        const templatePath = join(__dirname, '../../../docs/templates/samples', `${job.templateKey}.docx`);
+
+        let contentBuffer: Buffer;
+        try {
+          const templateSource = await readFile(templatePath, 'binary');
+          const zip = new PizZip(templateSource);
+          const doc = new Docxtemplater(zip, {
+            paragraphLoop: true,
+            linebreaks: true,
+            nullGetter: () => '' // Return empty string for undefined tags instead of undefined literal
           });
-        const evidenceLines = evidenceLinks
-          .slice(0, factoryPayload ? 12 : 20)
-          .map((link: any) => `${link.sectionKey || link.fieldKey || 'evidence'} -> ${link.document.originalFilename ?? link.document.id}`);
 
-        const factoryLines = factoryPayload
-          ? [
-            '',
-            'Factory Bridge (M5.5)',
-            `Work Order: ${factoryPayload.workOrderId ?? 'NA'}`,
-            `Snapshot Version: ${factoryPayload.snapshotVersion ?? 'NA'}`,
-            `Template Selector: ${factoryPayload.templateSelector ?? 'NA'}`,
-            `Export Bundle Hash: ${factoryPayload.exportBundleHash}`,
-            `Export Bundle Keys: ${Object.keys(factoryPayload.exportBundle).sort().join(', ')}`
-          ]
-          : [];
+          doc.render(context);
+          contentBuffer = doc.getZip().generate({
+            type: 'nodebuffer',
+            compression: 'DEFLATE'
+          });
+        } catch (error: any) {
+          logger.warn('missing_or_corrupt_template', {
+            request_id: payload.requestId,
+            repogen_job_id: payload.reportGenerationJobId,
+            template_key: job.templateKey,
+            error: error.message
+          });
+          throw new Error(`missing_or_corrupt_template: Could not render template '${job.templateKey}'. Verify it exists in docs/templates/samples/. Error: ${error.message}`);
+        }
 
-        const content = [
-          'ZenOps Repogen Placeholder DOCX',
-          `Job: ${job.id}`,
-          `Assignment: ${assignment.id}`,
-          `Template: ${job.templateKey}`,
-          `Pack Version: ${packVersion}`,
-          ...factoryLines,
-          '',
-          'Fields',
-          ...fieldLines,
-          '',
-          'Evidence',
-          ...evidenceLines
-        ].join('\n');
-
-        await writeFile(artifactPath, content, 'utf8');
+        await writeFile(artifactPath, contentBuffer);
 
         await tx.reportPackArtifact.create({
           data: {
@@ -313,10 +326,9 @@ export const processRepogenGenerationJob = async ({
             filename: `${job.templateKey}-v${packVersion}.docx`,
             storageRef: artifactPath,
             mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            sizeBytes: BigInt(Buffer.byteLength(content, 'utf8')),
+            sizeBytes: BigInt(contentBuffer.length),
             metadataJson: {
-              placeholder: true,
-              generated_by: 'repogen_worker_phase1',
+              generated_by: 'docxtemplater',
               request_id: payload.requestId,
               ...(factoryPayload
                 ? {

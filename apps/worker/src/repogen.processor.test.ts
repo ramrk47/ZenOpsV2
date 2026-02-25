@@ -1,9 +1,39 @@
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createJsonLogger } from '@zenops/common';
 import { processRepogenGenerationJob } from './repogen.processor.js';
+
+vi.mock('pizzip', () => {
+  return {
+    default: vi.fn().mockImplementation(() => ({}))
+  };
+});
+
+vi.mock('docxtemplater', () => {
+  return {
+    default: vi.fn().mockImplementation(() => ({
+      render: vi.fn(),
+      getZip: vi.fn().mockReturnValue({
+        generate: vi.fn().mockReturnValue(Buffer.from('mock docx content'))
+      })
+    }))
+  };
+});
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return {
+    ...actual,
+    readFile: vi.fn().mockImplementation(async (path, encoding) => {
+      if (typeof path === 'string' && path.includes('samples') && path.includes('.docx')) {
+        return Buffer.from('mock sample template data');
+      }
+      return actual.readFile(path, encoding);
+    })
+  };
+});
 
 const makeStatefulTx = (initialJobs?: any[]) => {
   const state = {
@@ -103,9 +133,9 @@ const makeStatefulTx = (initialJobs?: any[]) => {
           job.reportPackId == null
             ? null
             : {
-                ...state.packs.find((row) => row.id === job.reportPackId),
-                artifacts: state.artifacts.filter((row) => row.reportPackId === job.reportPackId)
-              };
+              ...state.packs.find((row) => row.id === job.reportPackId),
+              artifacts: state.artifacts.filter((row) => row.reportPackId === job.reportPackId)
+            };
         return {
           ...job,
           reportPack
@@ -258,8 +288,7 @@ describe('processRepogenGenerationJob', () => {
     expect(state.auditLogs.some((row) => row.action === 'generation_completed')).toBe(true);
 
     const content = await readFile(state.artifacts[0].storageRef, 'utf8');
-    expect(content).toContain('ZenOps Repogen Placeholder DOCX');
-    expect(content).toContain('Template: SBI_UNDER_5CR_V1');
+    expect(content).toContain('mock docx content');
   });
 
   it('increments report pack version for subsequent jobs on the same assignment/template', async () => {
