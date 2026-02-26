@@ -335,14 +335,18 @@ export const processRepogenGenerationJob = async ({
             continue;
           }
 
-          // Check for unresolved placeholders
+          // Check for unresolved single-brace {tag} placeholders (docxtemplater convention)
           const outputText = contentBuffer.toString('utf8');
-          const unresolvedMatch = outputText.match(/\{\{[^}]+\}\}/g);
-          if (unresolvedMatch && unresolvedMatch.length > 0) {
+          // Match {tag.path} but not {#loop} markers since docxtemplater removes those on render
+          const MANUAL_PREFIXES = ['manual.', 'construction.ageYears', 'construction.residualLife'];
+          const unresolvedMatch = (outputText.match(/\{([a-zA-Z_][a-zA-Z0-9_.]+)\}/g) ?? [])
+            .filter(tag => !MANUAL_PREFIXES.some(p => tag.slice(1, -1).startsWith(p)));
+          if (unresolvedMatch.length > 0) {
             logger.warn('m5_7_placeholder_unresolved', {
               request_id: payload.requestId,
               part_name: part.name,
-              unresolved_count: unresolvedMatch.length
+              unresolved_count: unresolvedMatch.length,
+              examples: unresolvedMatch.slice(0, 5)
             });
           }
 

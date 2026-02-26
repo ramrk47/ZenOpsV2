@@ -6,5 +6,9 @@
         "report",
         "images"
     ],
-    "notes": "L&B Valuation <5Cr"
+    "is_annotated": true,
+    "annotated_parts": [
+        "report"
+    ],
+    "notes": "L&B Valuation <5Cr. report.docx annotated 2026-02-26 using scripts/annotate_docx.py + scripts/sbi_lb_lt5cr_mapping.json"
 }
