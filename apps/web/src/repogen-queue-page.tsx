@@ -392,6 +392,88 @@ export function RepogenQueuePage({ token }: { token: string }) {
   const [fieldLinkConfidence, setFieldLinkConfidence] = useState('1');
   const [fieldLinkNote, setFieldLinkNote] = useState('');
 
+  // ── M5.6.2A: Evidence Inbox tab state ──
+  const [activeTab, setActiveTab] = useState<'overview' | 'evidence' | 'pack'>('overview');
+  const [selectedEvidenceIds, setSelectedEvidenceIds] = useState<Set<string>>(new Set());
+  const [evidenceFilter, setEvidenceFilter] = useState<string>('all');
+
+  const SECTION_KEY_OPTIONS = ['site', 'guideline', 'map', 'dishank'] as const;
+  type SectionKey = (typeof SECTION_KEY_OPTIONS)[number];
+
+  const getSectionKey = (item: WorkOrderDetailResponse['evidence_items'][number]): string | null => {
+    const tags = item.tags as Record<string, unknown> | null;
+    if (!tags || typeof tags !== 'object') return null;
+    const sk = tags.section_key;
+    return typeof sk === 'string' && sk.length > 0 ? sk : null;
+  };
+
+  const filteredEvidenceItems = detail?.evidence_items.filter((item) => {
+    if (evidenceFilter === 'all') return true;
+    if (evidenceFilter === 'untagged') return !getSectionKey(item);
+    return getSectionKey(item) === evidenceFilter;
+  }) ?? [];
+
+  const untaggedCount = detail?.evidence_items.filter((item) => !getSectionKey(item)).length ?? 0;
+
+  const toggleEvidenceSelect = (id: string) => {
+    setSelectedEvidenceIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllFiltered = () => {
+    const ids = filteredEvidenceItems.map((item) => item.id);
+    const allSelected = ids.every((id) => selectedEvidenceIds.has(id));
+    if (allSelected) {
+      setSelectedEvidenceIds(new Set());
+    } else {
+      setSelectedEvidenceIds(new Set(ids));
+    }
+  };
+
+  const bulkTagEvidence = async (sectionKey: SectionKey | null) => {
+    if (!token || !selectedId || selectedEvidenceIds.size === 0 || !detail) return;
+    setWorking(true);
+    setErrorMessage('');
+    try {
+      await apiRequest(token, `/repogen/work-orders/${selectedId}/evidence/link`, {
+        method: 'POST',
+        body: JSON.stringify({
+          items: detail.evidence_items
+            .filter((item) => selectedEvidenceIds.has(item.id))
+            .map((item) => {
+              const existingTags = (item.tags && typeof item.tags === 'object' && !Array.isArray(item.tags))
+                ? (item.tags as Record<string, unknown>)
+                : {};
+              let mergedTags: Record<string, unknown>;
+              if (sectionKey) {
+                mergedTags = { ...existingTags, section_key: sectionKey };
+              } else {
+                const { section_key: _removed, ...rest } = existingTags;
+                mergedTags = rest;
+              }
+              return {
+                id: item.id,
+                evidence_type: item.evidence_type ?? 'OTHER',
+                doc_type: item.doc_type ?? 'OTHER',
+                tags: mergedTags
+              };
+            })
+        })
+      });
+      setNotice(`Tagged ${selectedEvidenceIds.size} item(s) as ${sectionKey ?? 'untagged'}`);
+      setSelectedEvidenceIds(new Set());
+      await loadDetail(selectedId);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to tag evidence');
+    } finally {
+      setWorking(false);
+    }
+  };
+
   const setErrorMessage = (value: string) => {
     setError(value);
     if (value) setNotice('');
@@ -1012,6 +1094,24 @@ export function RepogenQueuePage({ token }: { token: string }) {
           <p className="text-sm text-[var(--zen-muted)]">Select a work order to edit contract data, link evidence, add manual comments, and move statuses.</p>
         ) : (
           <>
+            {/* ── M5.6.2A: Detail Panel Tab Bar ── */}
+            <div className="flex gap-1 rounded-lg border border-[var(--zen-border)] bg-[var(--zen-panel)] p-1">
+              {(['overview', 'evidence', 'pack'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${activeTab === tab
+                    ? 'bg-white text-[var(--zen-primary)] shadow-sm'
+                    : 'text-[var(--zen-muted)] hover:text-[var(--zen-text)]'
+                    }`}
+                >
+                  {tab === 'overview' ? 'Overview' : tab === 'evidence' ? `📷 Evidence${untaggedCount > 0 ? ` (${untaggedCount})` : ''}` : 'Pack & Release'}
+                </button>
+              ))}
+            </div>
+
+            {/* ── Status Cards (always visible) ── */}
             <div className="grid gap-3 md:grid-cols-4">
               <div className="rounded-lg border border-[var(--zen-border)] p-3">
                 <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Status</p>
@@ -1059,412 +1159,588 @@ export function RepogenQueuePage({ token }: { token: string }) {
               </ul>
             </section>
 
-            <section className="grid gap-3 lg:grid-cols-2">
-              <article className="rounded-lg border border-[var(--zen-border)] p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h3 className="m-0 text-sm">Evidence Checklist Panel</h3>
-                    <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
-                      Profile-based requirements (M5.6). Missing evidence blocks READY_FOR_RENDER.
-                    </p>
-                  </div>
-                  <Button className="h-8 px-3" disabled={working || !selectedId} onClick={() => selectedId && void loadEvidenceProfilesView(selectedId)}>
-                    Reload
-                  </Button>
-                </div>
-
-                <div className="mt-2 grid gap-2 md:grid-cols-[1fr_auto]">
-                  <select
-                    className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
-                    value={selectedEvidenceProfileId}
-                    onChange={(event) => setSelectedEvidenceProfileId(event.target.value)}
-                  >
-                    <option value="">Use default profile</option>
-                    {(evidenceProfilesView?.profiles ?? []).map((profile) => (
-                      <option key={profile.id} value={profile.id}>
-                        {profile.name} ({profile.bank_type}/{profile.value_slab}){profile.is_default ? ' [default]' : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <Button className="h-10 px-3" disabled={working || !selectedId} onClick={() => void selectEvidenceProfile()}>
-                    Save Profile
-                  </Button>
-                </div>
-
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Button className="h-8 px-3" disabled={working || !detail.evidence_items.length} onClick={() => void autoOrderAnnexure()}>
-                    Auto-order Annexure
-                  </Button>
-                  <span className="text-xs text-[var(--zen-muted)]">
-                    Annexure rule order: exterior → interior → surroundings → GPS → screenshots (editable after auto-order).
-                  </span>
-                </div>
-
-                <div className="mt-3 max-h-72 space-y-2 overflow-auto">
-                  {(evidenceProfilesView?.checklist ?? []).map((item) => (
-                    <div key={item.id} className={`rounded border p-2 ${item.satisfied ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="m-0 text-sm font-semibold">{item.label}</p>
-                          <p className="m-0 text-xs text-[var(--zen-muted)]">
-                            {item.evidence_type}{item.doc_type ? `/${item.doc_type}` : ''} · min {item.min_count} · current {item.current_count}
-                            {item.field_key_hint ? ` · field ${item.field_key_hint}` : ''}
-                          </p>
-                        </div>
-                        <span className="text-xs">{item.satisfied ? 'OK' : `Missing ${item.missing_count}`}</span>
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <Button
-                          className="h-7 px-2 text-xs"
-                          disabled={working}
-                          onClick={() => {
-                            setEvidenceType(item.evidence_type as (typeof evidenceTypeOptions)[number]);
-                            setEvidenceDocType(((item.doc_type ?? 'OTHER') as (typeof docTypeOptions)[number]));
-                            setNotice(`Prefilled evidence form for ${item.label}`);
-                          }}
-                        >
-                          Add Doc Link
-                        </Button>
-                        <Button className="h-7 px-2 text-xs" disabled={working} onClick={() => void markChecklistItemReceived(item)}>
-                          Mark as Received
-                        </Button>
-                        <Button
-                          className="h-7 px-2 text-xs"
-                          disabled={working || item.matching_evidence_item_ids.length === 0}
-                          onClick={() => {
-                            const target = detail.evidence_items.find((row) => item.matching_evidence_item_ids.includes(row.id));
-                            if (target) setAnnexureOrder(String(target.annexure_order ?? ''));
-                          }}
-                        >
-                          Set Annexure Order
-                        </Button>
-                      </div>
+            {/* ── Overview Tab ── */}
+            {activeTab === 'overview' && (<>
+              <section className="grid gap-3 lg:grid-cols-2">
+                <article className="rounded-lg border border-[var(--zen-border)] p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="m-0 text-sm">Evidence Checklist Panel</h3>
+                      <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
+                        Profile-based requirements (M5.6). Missing evidence blocks READY_FOR_RENDER.
+                      </p>
                     </div>
-                  ))}
-                  {(evidenceProfilesView?.checklist ?? []).length === 0 ? (
-                    <p className="text-sm text-[var(--zen-muted)]">No evidence profile/checklist loaded yet.</p>
-                  ) : null}
-                </div>
-
-                <div className="mt-3 rounded-lg border border-[var(--zen-border)] p-2">
-                  <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Suggested Evidence For Missing Fields</p>
-                  <div className="mt-2 space-y-2">
-                    {(evidenceProfilesView?.suggested_evidence_for_missing_fields ?? []).map((row) => (
-                      <div key={row.field_key} className="rounded border border-[var(--zen-border)] bg-white p-2">
-                        <p className="m-0 text-xs font-semibold">{row.field_key}</p>
-                        <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
-                          {row.suggested_items.map((item) => `${item.label} (${item.current_count}/${item.min_count})`).join(' · ')}
-                        </p>
-                      </div>
-                    ))}
-                    {(evidenceProfilesView?.suggested_evidence_for_missing_fields ?? []).length === 0 ? (
-                      <p className="text-xs text-[var(--zen-muted)]">No suggestions pending.</p>
-                    ) : null}
+                    <Button className="h-8 px-3" disabled={working || !selectedId} onClick={() => selectedId && void loadEvidenceProfilesView(selectedId)}>
+                      Reload
+                    </Button>
                   </div>
-                </div>
-              </article>
 
-              <article className="rounded-lg border border-[var(--zen-border)] p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h3 className="m-0 text-sm">Field ↔ Evidence Links (Audit)</h3>
-                    <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
-                      Manual operator linking for current snapshot. Missing links warn in readiness.
-                    </p>
-                  </div>
-                  <Button className="h-8 px-3" disabled={working || !selectedId} onClick={() => selectedId && void loadFieldEvidenceLinksView(selectedId)}>
-                    Reload
-                  </Button>
-                </div>
-
-                <div className="mt-2 grid gap-2">
-                  <select
-                    className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
-                    value={fieldLinkFieldKey}
-                    onChange={(event) => setFieldLinkFieldKey(event.target.value)}
-                  >
-                    <option value="">Select field</option>
-                    {(fieldEvidenceLinksView?.field_defs ?? evidenceProfilesView?.field_defs ?? []).map((field) => (
-                      <option key={field.id} value={field.field_key}>
-                        {field.label} ({field.field_key})
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
-                    value={fieldLinkEvidenceItemId}
-                    onChange={(event) => setFieldLinkEvidenceItemId(event.target.value)}
-                  >
-                    <option value="">Select evidence item</option>
-                    {detail.evidence_items.map((row) => (
-                      <option key={row.id} value={row.id}>
-                        {row.id} · {String(row.evidence_type ?? 'OTHER')} {row.doc_type ? `/${String(row.doc_type)}` : ''} · annex {row.annexure_order ?? 'NA'}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="grid gap-2 md:grid-cols-2">
-                    <input
+                  <div className="mt-2 grid gap-2 md:grid-cols-[1fr_auto]">
+                    <select
                       className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
-                      value={fieldLinkConfidence}
-                      onChange={(event) => setFieldLinkConfidence(event.target.value)}
-                      type="number"
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      placeholder="confidence 0..1"
-                    />
-                    <input
-                      className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
-                      value={fieldLinkNote}
-                      onChange={(event) => setFieldLinkNote(event.target.value)}
-                      placeholder="link note (optional)"
-                    />
+                      value={selectedEvidenceProfileId}
+                      onChange={(event) => setSelectedEvidenceProfileId(event.target.value)}
+                    >
+                      <option value="">Use default profile</option>
+                      {(evidenceProfilesView?.profiles ?? []).map((profile) => (
+                        <option key={profile.id} value={profile.id}>
+                          {profile.name} ({profile.bank_type}/{profile.value_slab}){profile.is_default ? ' [default]' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <Button className="h-10 px-3" disabled={working || !selectedId} onClick={() => void selectEvidenceProfile()}>
+                      Save Profile
+                    </Button>
                   </div>
-                  <Button disabled={working || !fieldEvidenceLinksView?.latest_snapshot_id} onClick={() => void upsertFieldEvidenceLink()}>
-                    Link Field to Evidence
-                  </Button>
-                  {!fieldEvidenceLinksView?.latest_snapshot_id ? (
-                    <p className="m-0 text-xs text-[var(--zen-muted)]">Create/compute a contract snapshot first; field links are snapshot-scoped.</p>
-                  ) : null}
-                </div>
 
-                <div className="mt-3 max-h-56 space-y-2 overflow-auto">
-                  {(fieldEvidenceLinksView?.links ?? []).map((link) => (
-                    <div key={link.id} className="rounded border border-[var(--zen-border)] bg-white p-2">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="m-0 text-xs font-semibold">{link.field_key}</p>
-                          <p className="m-0 text-xs text-[var(--zen-muted)]">
-                            evidence {link.evidence_item_id} · confidence {link.confidence ?? 'NA'} · {new Date(link.created_at).toLocaleString()}
-                          </p>
-                        </div>
-                        <Button className="h-7 px-2 text-xs" disabled={working} onClick={() => void removeFieldEvidenceLink(link)}>
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                  {(fieldEvidenceLinksView?.links ?? []).length === 0 ? <p className="text-xs text-[var(--zen-muted)]">No field-evidence links for current snapshot.</p> : null}
-                </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Button className="h-8 px-3" disabled={working || !detail.evidence_items.length} onClick={() => void autoOrderAnnexure()}>
+                      Auto-order Annexure
+                    </Button>
+                    <span className="text-xs text-[var(--zen-muted)]">
+                      Annexure rule order: exterior → interior → surroundings → GPS → screenshots (editable after auto-order).
+                    </span>
+                  </div>
 
-                <div className="mt-3 rounded-lg border border-[var(--zen-border)] p-2">
-                  <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">OCR Placeholder Queue</p>
-                  <div className="mt-2 max-h-44 space-y-2 overflow-auto">
-                    {detail.evidence_items.map((row) => {
-                      const latestOcr = (detail.ocr_jobs ?? []).find((job) => job.evidence_item_id === row.id);
-                      return (
-                        <div key={`ocr-${row.id}`} className="flex flex-wrap items-center justify-between gap-2 rounded border border-[var(--zen-border)] bg-white p-2">
+                  <div className="mt-3 max-h-72 space-y-2 overflow-auto">
+                    {(evidenceProfilesView?.checklist ?? []).map((item) => (
+                      <div key={item.id} className={`rounded border p-2 ${item.satisfied ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
-                            <p className="m-0 text-xs font-semibold">{row.id}</p>
+                            <p className="m-0 text-sm font-semibold">{item.label}</p>
                             <p className="m-0 text-xs text-[var(--zen-muted)]">
-                              {String(row.evidence_type ?? 'OTHER')}{row.doc_type ? `/${String(row.doc_type)}` : ''} · OCR {latestOcr?.status ?? 'NOT_QUEUED'}
+                              {item.evidence_type}{item.doc_type ? `/${item.doc_type}` : ''} · min {item.min_count} · current {item.current_count}
+                              {item.field_key_hint ? ` · field ${item.field_key_hint}` : ''}
                             </p>
                           </div>
-                          <Button className="h-7 px-2 text-xs" disabled={working} onClick={() => void enqueueOcrPlaceholder(row.id)}>
-                            OCR Enqueue
+                          <span className="text-xs">{item.satisfied ? 'OK' : `Missing ${item.missing_count}`}</span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <Button
+                            className="h-7 px-2 text-xs"
+                            disabled={working}
+                            onClick={() => {
+                              setEvidenceType(item.evidence_type as (typeof evidenceTypeOptions)[number]);
+                              setEvidenceDocType(((item.doc_type ?? 'OTHER') as (typeof docTypeOptions)[number]));
+                              setNotice(`Prefilled evidence form for ${item.label}`);
+                            }}
+                          >
+                            Add Doc Link
                           </Button>
+                          <Button className="h-7 px-2 text-xs" disabled={working} onClick={() => void markChecklistItemReceived(item)}>
+                            Mark as Received
+                          </Button>
+                          <Button
+                            className="h-7 px-2 text-xs"
+                            disabled={working || item.matching_evidence_item_ids.length === 0}
+                            onClick={() => {
+                              const target = detail.evidence_items.find((row) => item.matching_evidence_item_ids.includes(row.id));
+                              if (target) setAnnexureOrder(String(target.annexure_order ?? ''));
+                            }}
+                          >
+                            Set Annexure Order
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {(evidenceProfilesView?.checklist ?? []).length === 0 ? (
+                      <p className="text-sm text-[var(--zen-muted)]">No evidence profile/checklist loaded yet.</p>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-3 rounded-lg border border-[var(--zen-border)] p-2">
+                    <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Suggested Evidence For Missing Fields</p>
+                    <div className="mt-2 space-y-2">
+                      {(evidenceProfilesView?.suggested_evidence_for_missing_fields ?? []).map((row) => (
+                        <div key={row.field_key} className="rounded border border-[var(--zen-border)] bg-white p-2">
+                          <p className="m-0 text-xs font-semibold">{row.field_key}</p>
+                          <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
+                            {row.suggested_items.map((item) => `${item.label} (${item.current_count}/${item.min_count})`).join(' · ')}
+                          </p>
+                        </div>
+                      ))}
+                      {(evidenceProfilesView?.suggested_evidence_for_missing_fields ?? []).length === 0 ? (
+                        <p className="text-xs text-[var(--zen-muted)]">No suggestions pending.</p>
+                      ) : null}
+                    </div>
+                  </div>
+                </article>
+
+                <article className="rounded-lg border border-[var(--zen-border)] p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="m-0 text-sm">Field ↔ Evidence Links (Audit)</h3>
+                      <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
+                        Manual operator linking for current snapshot. Missing links warn in readiness.
+                      </p>
+                    </div>
+                    <Button className="h-8 px-3" disabled={working || !selectedId} onClick={() => selectedId && void loadFieldEvidenceLinksView(selectedId)}>
+                      Reload
+                    </Button>
+                  </div>
+
+                  <div className="mt-2 grid gap-2">
+                    <select
+                      className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                      value={fieldLinkFieldKey}
+                      onChange={(event) => setFieldLinkFieldKey(event.target.value)}
+                    >
+                      <option value="">Select field</option>
+                      {(fieldEvidenceLinksView?.field_defs ?? evidenceProfilesView?.field_defs ?? []).map((field) => (
+                        <option key={field.id} value={field.field_key}>
+                          {field.label} ({field.field_key})
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                      value={fieldLinkEvidenceItemId}
+                      onChange={(event) => setFieldLinkEvidenceItemId(event.target.value)}
+                    >
+                      <option value="">Select evidence item</option>
+                      {detail.evidence_items.map((row) => (
+                        <option key={row.id} value={row.id}>
+                          {row.id} · {String(row.evidence_type ?? 'OTHER')} {row.doc_type ? `/${String(row.doc_type)}` : ''} · annex {row.annexure_order ?? 'NA'}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="grid gap-2 md:grid-cols-2">
+                      <input
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                        value={fieldLinkConfidence}
+                        onChange={(event) => setFieldLinkConfidence(event.target.value)}
+                        type="number"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        placeholder="confidence 0..1"
+                      />
+                      <input
+                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                        value={fieldLinkNote}
+                        onChange={(event) => setFieldLinkNote(event.target.value)}
+                        placeholder="link note (optional)"
+                      />
+                    </div>
+                    <Button disabled={working || !fieldEvidenceLinksView?.latest_snapshot_id} onClick={() => void upsertFieldEvidenceLink()}>
+                      Link Field to Evidence
+                    </Button>
+                    {!fieldEvidenceLinksView?.latest_snapshot_id ? (
+                      <p className="m-0 text-xs text-[var(--zen-muted)]">Create/compute a contract snapshot first; field links are snapshot-scoped.</p>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-3 max-h-56 space-y-2 overflow-auto">
+                    {(fieldEvidenceLinksView?.links ?? []).map((link) => (
+                      <div key={link.id} className="rounded border border-[var(--zen-border)] bg-white p-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="m-0 text-xs font-semibold">{link.field_key}</p>
+                            <p className="m-0 text-xs text-[var(--zen-muted)]">
+                              evidence {link.evidence_item_id} · confidence {link.confidence ?? 'NA'} · {new Date(link.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                          <Button className="h-7 px-2 text-xs" disabled={working} onClick={() => void removeFieldEvidenceLink(link)}>
+                            Remove
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {(fieldEvidenceLinksView?.links ?? []).length === 0 ? <p className="text-xs text-[var(--zen-muted)]">No field-evidence links for current snapshot.</p> : null}
+                  </div>
+
+                  <div className="mt-3 rounded-lg border border-[var(--zen-border)] p-2">
+                    <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">OCR Placeholder Queue</p>
+                    <div className="mt-2 max-h-44 space-y-2 overflow-auto">
+                      {detail.evidence_items.map((row) => {
+                        const latestOcr = (detail.ocr_jobs ?? []).find((job) => job.evidence_item_id === row.id);
+                        return (
+                          <div key={`ocr-${row.id}`} className="flex flex-wrap items-center justify-between gap-2 rounded border border-[var(--zen-border)] bg-white p-2">
+                            <div>
+                              <p className="m-0 text-xs font-semibold">{row.id}</p>
+                              <p className="m-0 text-xs text-[var(--zen-muted)]">
+                                {String(row.evidence_type ?? 'OTHER')}{row.doc_type ? `/${String(row.doc_type)}` : ''} · OCR {latestOcr?.status ?? 'NOT_QUEUED'}
+                              </p>
+                            </div>
+                            <Button className="h-7 px-2 text-xs" disabled={working} onClick={() => void enqueueOcrPlaceholder(row.id)}>
+                              OCR Enqueue
+                            </Button>
+                          </div>
+                        );
+                      })}
+                      {detail.evidence_items.length === 0 ? <p className="text-xs text-[var(--zen-muted)]">No evidence items yet.</p> : null}
+                    </div>
+                  </div>
+                </article>
+              </section>
+
+              <section className="rounded-lg border border-[var(--zen-border)] p-3">
+                <h3 className="m-0 text-sm">Draft Contract Patch (JSON)</h3>
+                <textarea className="mt-2 min-h-[220px] w-full rounded-lg border border-[var(--zen-border)] bg-white p-3 font-mono text-xs" value={patchJson} onChange={(event) => setPatchJson(event.target.value)} />
+                <div className="mt-2">
+                  <Button disabled={working} onClick={() => void patchContract()}>Patch Contract + Compute</Button>
+                </div>
+              </section>
+
+              <section className="grid gap-3 md:grid-cols-2">
+                <article className="rounded-lg border border-[var(--zen-border)] p-3">
+                  <h3 className="m-0 text-sm">Link Evidence</h3>
+                  <div className="mt-2 grid gap-2">
+                    <select className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2" value={evidenceType} onChange={(event) => setEvidenceType(event.target.value as (typeof evidenceTypeOptions)[number])}>
+                      {evidenceTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                    <select className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2" value={evidenceDocType} onChange={(event) => setEvidenceDocType(event.target.value as (typeof docTypeOptions)[number])}>
+                      {docTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                    <input className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2" value={evidenceDocumentId} onChange={(event) => setEvidenceDocumentId(event.target.value)} placeholder="document_id" />
+                    <input className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2" value={evidenceFileRef} onChange={(event) => setEvidenceFileRef(event.target.value)} placeholder="file_ref (future external upload)" />
+                    <input className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2" value={annexureOrder} onChange={(event) => setAnnexureOrder(event.target.value)} placeholder="annexure_order" type="number" min={0} />
+                    <Button disabled={working} onClick={() => void linkEvidence()}>Link Evidence</Button>
+                  </div>
+                  <div className="mt-3">
+                    <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Recent Documents (click to pick)</p>
+                    <div className="mt-2 max-h-40 space-y-1 overflow-auto">
+                      {documents.map((doc) => (
+                        <button key={doc.id} type="button" className="w-full rounded border border-[var(--zen-border)] px-2 py-1 text-left text-xs hover:bg-[var(--zen-panel)]" onClick={() => setEvidenceDocumentId(doc.id)}>
+                          {doc.original_filename ?? doc.id} · {doc.classification} · {doc.source}
+                        </button>
+                      ))}
+                      {documents.length === 0 ? <p className="text-xs text-[var(--zen-muted)]">No visible documents (or endpoint unavailable).</p> : null}
+                    </div>
+                  </div>
+                </article>
+
+                <article className="rounded-lg border border-[var(--zen-border)] p-3">
+                  <h3 className="m-0 text-sm">Manual Zones + Status</h3>
+                  <div className="mt-2 grid gap-2">
+                    <select className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2" value={commentType} onChange={(event) => setCommentType(event.target.value as (typeof commentTypeOptions)[number])}>
+                      {commentTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                    <textarea className="min-h-24 rounded-lg border border-[var(--zen-border)] bg-white p-3 text-sm" value={commentBody} onChange={(event) => setCommentBody(event.target.value)} placeholder="Justification / enclosures / checklist notes" />
+                    <Button disabled={working || !commentBody.trim()} onClick={() => void addComment()}>Add Manual Comment</Button>
+
+                    <hr className="my-1 border-[var(--zen-border)]" />
+
+                    <select className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2" value={nextStatus} onChange={(event) => setNextStatus(event.target.value as RepogenStatus)}>
+                      {statusOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                    <input className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2" value={statusNote} onChange={(event) => setStatusNote(event.target.value)} placeholder="Status note (optional)" />
+                    <Button disabled={working} onClick={() => void transitionStatus()}>Move Status</Button>
+                  </div>
+                </article>
+              </section>
+
+              {/* ── Debug JSON Panels (Overview only) ── */}
+              <section className="grid gap-3 lg:grid-cols-2">
+                <article className="rounded-lg border border-[var(--zen-border)] p-3">
+                  <h3 className="m-0 text-sm">Derived JSON</h3>
+                  <pre className="mt-2 max-h-72 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">{JSON.stringify(detail.latest_snapshot?.derived_json ?? {}, null, 2)}</pre>
+                </article>
+                <article className="rounded-lg border border-[var(--zen-border)] p-3">
+                  <h3 className="m-0 text-sm">Export Bundle JSON</h3>
+                  <pre className="mt-2 max-h-72 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">{JSON.stringify(exportBundle ?? {}, null, 2)}</pre>
+                </article>
+              </section>
+
+              <section className="grid gap-3 lg:grid-cols-2">
+                <article className="rounded-lg border border-[var(--zen-border)] p-3">
+                  <h3 className="m-0 text-sm">Evidence Items</h3>
+                  <pre className="mt-2 max-h-72 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">{JSON.stringify(detail.evidence_items, null, 2)}</pre>
+                </article>
+                <article className="rounded-lg border border-[var(--zen-border)] p-3">
+                  <h3 className="m-0 text-sm">Manual Comments</h3>
+                  <pre className="mt-2 max-h-72 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">{JSON.stringify(detail.comments, null, 2)}</pre>
+                </article>
+              </section>
+            </>)}
+
+            {/* ── Evidence Tab (M5.6.2A) ── */}
+            {activeTab === 'evidence' && (
+              <>
+                {/* Evidence Checklist Panel (reused from overview) */}
+                <section className="rounded-lg border border-[var(--zen-border)] p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="m-0 text-sm">Evidence Checklist</h3>
+                      <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
+                        Profile-based requirements (M5.6). Missing evidence blocks READY_FOR_RENDER.
+                      </p>
+                    </div>
+                    <Button className="h-8 px-3" disabled={working || !selectedId} onClick={() => selectedId && void loadEvidenceProfilesView(selectedId)}>
+                      Reload
+                    </Button>
+                  </div>
+                  <div className="mt-3 max-h-48 space-y-2 overflow-auto">
+                    {(evidenceProfilesView?.checklist ?? []).map((item) => (
+                      <div key={item.id} className={`rounded border p-2 ${item.satisfied ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="m-0 text-sm font-semibold">{item.label}</p>
+                            <p className="m-0 text-xs text-[var(--zen-muted)]">
+                              {item.evidence_type}{item.doc_type ? `/${item.doc_type}` : ''} · min {item.min_count} · current {item.current_count}
+                            </p>
+                          </div>
+                          <span className="text-xs">{item.satisfied ? '✅ OK' : `⚠️ Missing ${item.missing_count}`}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {(evidenceProfilesView?.checklist ?? []).length === 0 ? (
+                      <p className="text-sm text-[var(--zen-muted)]">No evidence profile/checklist loaded yet.</p>
+                    ) : null}
+                  </div>
+                </section>
+
+                {/* Photo Gallery + Bulk Tagging */}
+                <section className="rounded-lg border border-[var(--zen-border)] p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="m-0 text-sm">📷 Photo Gallery &amp; Tagging</h3>
+                      <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
+                        Tag evidence photos by section. Tagged photos skip OCR in the pipeline.
+                      </p>
+                    </div>
+                    <span className="text-xs text-[var(--zen-muted)]">
+                      {detail.evidence_items.length} items · {untaggedCount} untagged
+                    </span>
+                  </div>
+
+                  {/* Filter Bar */}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {['all', 'untagged', ...SECTION_KEY_OPTIONS].map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => { setEvidenceFilter(key); setSelectedEvidenceIds(new Set()); }}
+                        className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${evidenceFilter === key
+                          ? 'bg-[var(--zen-primary)] text-white'
+                          : 'bg-[var(--zen-panel)] text-[var(--zen-muted)] hover:bg-gray-200'
+                          }`}
+                      >
+                        {key === 'all' ? `All (${detail.evidence_items.length})` : key === 'untagged' ? `Untagged (${untaggedCount})` : key.charAt(0).toUpperCase() + key.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Select All */}
+                  {filteredEvidenceItems.length > 0 && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <label className="inline-flex items-center gap-2 text-xs text-[var(--zen-muted)]">
+                        <input
+                          type="checkbox"
+                          checked={filteredEvidenceItems.length > 0 && filteredEvidenceItems.every((item) => selectedEvidenceIds.has(item.id))}
+                          onChange={selectAllFiltered}
+                        />
+                        Select all filtered ({filteredEvidenceItems.length})
+                      </label>
+                      {selectedEvidenceIds.size > 0 && (
+                        <span className="text-xs font-semibold text-[var(--zen-primary)]">
+                          {selectedEvidenceIds.size} selected
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Evidence Cards Grid */}
+                  <div className="mt-3 grid max-h-[50vh] gap-2 overflow-auto sm:grid-cols-2 lg:grid-cols-3">
+                    {filteredEvidenceItems.map((item) => {
+                      const sk = getSectionKey(item);
+                      const isSelected = selectedEvidenceIds.has(item.id);
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => toggleEvidenceSelect(item.id)}
+                          className={`cursor-pointer rounded-lg border p-3 transition-all ${isSelected
+                            ? 'border-[var(--zen-primary)] bg-blue-50 ring-1 ring-[var(--zen-primary)]'
+                            : 'border-[var(--zen-border)] bg-white hover:border-gray-300'
+                            }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleEvidenceSelect(item.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-0.5"
+                            />
+                            {sk ? (
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${sk === 'site' ? 'bg-emerald-100 text-emerald-700' :
+                                sk === 'guideline' ? 'bg-blue-100 text-blue-700' :
+                                  sk === 'map' ? 'bg-amber-100 text-amber-700' :
+                                    sk === 'dishank' ? 'bg-purple-100 text-purple-700' :
+                                      'bg-gray-100 text-gray-700'
+                                }`}>{sk}</span>
+                            ) : (
+                              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-400">UNTAGGED</span>
+                            )}
+                          </div>
+                          <div className="mt-2 flex aspect-video items-center justify-center rounded bg-[var(--zen-panel)] text-3xl">
+                            {String(item.evidence_type) === 'PHOTO' ? '🖼️' : String(item.evidence_type) === 'DOCUMENT' ? '📄' : String(item.evidence_type) === 'GEO' ? '📍' : '📎'}
+                          </div>
+                          <div className="mt-2">
+                            <p className="m-0 truncate text-xs font-semibold">{String(item.evidence_type ?? 'OTHER')}{item.doc_type ? ` / ${String(item.doc_type)}` : ''}</p>
+                            <p className="m-0 mt-0.5 truncate text-[10px] text-[var(--zen-muted)]">
+                              Annex {item.annexure_order ?? 'NA'} · {item.id.slice(0, 8)}…
+                            </p>
+                          </div>
                         </div>
                       );
                     })}
-                    {detail.evidence_items.length === 0 ? <p className="text-xs text-[var(--zen-muted)]">No evidence items yet.</p> : null}
-                  </div>
-                </div>
-              </article>
-            </section>
-
-            <section className="rounded-lg border border-[var(--zen-border)] p-3">
-              <h3 className="m-0 text-sm">Draft Contract Patch (JSON)</h3>
-              <textarea className="mt-2 min-h-[220px] w-full rounded-lg border border-[var(--zen-border)] bg-white p-3 font-mono text-xs" value={patchJson} onChange={(event) => setPatchJson(event.target.value)} />
-              <div className="mt-2">
-                <Button disabled={working} onClick={() => void patchContract()}>Patch Contract + Compute</Button>
-              </div>
-            </section>
-
-            <section className="grid gap-3 md:grid-cols-2">
-              <article className="rounded-lg border border-[var(--zen-border)] p-3">
-                <h3 className="m-0 text-sm">Link Evidence</h3>
-                <div className="mt-2 grid gap-2">
-                  <select className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2" value={evidenceType} onChange={(event) => setEvidenceType(event.target.value as (typeof evidenceTypeOptions)[number])}>
-                    {evidenceTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                  </select>
-                  <select className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2" value={evidenceDocType} onChange={(event) => setEvidenceDocType(event.target.value as (typeof docTypeOptions)[number])}>
-                    {docTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                  </select>
-                  <input className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2" value={evidenceDocumentId} onChange={(event) => setEvidenceDocumentId(event.target.value)} placeholder="document_id" />
-                  <input className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2" value={evidenceFileRef} onChange={(event) => setEvidenceFileRef(event.target.value)} placeholder="file_ref (future external upload)" />
-                  <input className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2" value={annexureOrder} onChange={(event) => setAnnexureOrder(event.target.value)} placeholder="annexure_order" type="number" min={0} />
-                  <Button disabled={working} onClick={() => void linkEvidence()}>Link Evidence</Button>
-                </div>
-                <div className="mt-3">
-                  <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Recent Documents (click to pick)</p>
-                  <div className="mt-2 max-h-40 space-y-1 overflow-auto">
-                    {documents.map((doc) => (
-                      <button key={doc.id} type="button" className="w-full rounded border border-[var(--zen-border)] px-2 py-1 text-left text-xs hover:bg-[var(--zen-panel)]" onClick={() => setEvidenceDocumentId(doc.id)}>
-                        {doc.original_filename ?? doc.id} · {doc.classification} · {doc.source}
-                      </button>
-                    ))}
-                    {documents.length === 0 ? <p className="text-xs text-[var(--zen-muted)]">No visible documents (or endpoint unavailable).</p> : null}
-                  </div>
-                </div>
-              </article>
-
-              <article className="rounded-lg border border-[var(--zen-border)] p-3">
-                <h3 className="m-0 text-sm">Manual Zones + Status</h3>
-                <div className="mt-2 grid gap-2">
-                  <select className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2" value={commentType} onChange={(event) => setCommentType(event.target.value as (typeof commentTypeOptions)[number])}>
-                    {commentTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                  </select>
-                  <textarea className="min-h-24 rounded-lg border border-[var(--zen-border)] bg-white p-3 text-sm" value={commentBody} onChange={(event) => setCommentBody(event.target.value)} placeholder="Justification / enclosures / checklist notes" />
-                  <Button disabled={working || !commentBody.trim()} onClick={() => void addComment()}>Add Manual Comment</Button>
-
-                  <hr className="my-1 border-[var(--zen-border)]" />
-
-                  <select className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2" value={nextStatus} onChange={(event) => setNextStatus(event.target.value as RepogenStatus)}>
-                    {statusOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                  </select>
-                  <input className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2" value={statusNote} onChange={(event) => setStatusNote(event.target.value)} placeholder="Status note (optional)" />
-                  <Button disabled={working} onClick={() => void transitionStatus()}>Move Status</Button>
-                </div>
-              </article>
-            </section>
-
-            <section className="rounded-lg border border-[var(--zen-border)] p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="m-0 text-sm">Core Tenant Pack + Deliverables Release</h3>
-                  <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
-                    M5.5 bridge: READY_FOR_RENDER auto-creates pack/job. Release is manual and billing-gated.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    disabled={working || detail.work_order.status !== 'READY_FOR_RENDER' || Boolean(packLink?.pack)}
-                    onClick={() => void createPack()}
-                  >
-                    Create Pack
-                  </Button>
-                  <Button disabled={working || !selectedId} onClick={() => selectedId && void loadPackLink(selectedId)}>
-                    Reload Pack
-                  </Button>
-                </div>
-              </div>
-
-              {!packLink ? (
-                <p className="mt-3 text-sm text-[var(--zen-muted)]">Pack linkage not loaded.</p>
-              ) : (
-                <div className="mt-3 space-y-3">
-                  <div className="grid gap-3 md:grid-cols-4">
-                    <div className="rounded-lg border border-[var(--zen-border)] p-3">
-                      <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Template</p>
-                      <p className="m-0 mt-1 text-sm font-semibold">{packLink.template_selector}</p>
-                      <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">{packLink.value_slab}</p>
-                    </div>
-                    <div className="rounded-lg border border-[var(--zen-border)] p-3">
-                      <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Pack</p>
-                      <p className="m-0 mt-1 text-sm font-semibold">{packLink.pack ? `${packLink.pack.status} · v${packLink.pack.version}` : 'Not created'}</p>
-                      <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">{packLink.pack?.id ?? '—'}</p>
-                    </div>
-                    <div className="rounded-lg border border-[var(--zen-border)] p-3">
-                      <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Generation Job</p>
-                      <p className="m-0 mt-1 text-sm font-semibold">{packLink.generation_job?.status ?? 'None'}</p>
-                      <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
-                        Attempts {packLink.generation_job?.attempts ?? 0} · Artifacts {packLink.pack?.artifacts.length ?? 0}
+                    {filteredEvidenceItems.length === 0 && (
+                      <p className="col-span-full py-6 text-center text-sm text-[var(--zen-muted)]">
+                        {evidenceFilter === 'all' ? 'No evidence items yet.' : `No ${evidenceFilter} items.`}
                       </p>
-                    </div>
-                    <div className="rounded-lg border border-[var(--zen-border)] p-3">
-                      <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Billing Gate</p>
-                      <p className="m-0 mt-1 text-sm font-semibold">{packLink.billing_gate_status?.mode ?? 'Unknown'}</p>
-                      <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
-                        {packLink.billing_gate_status?.mode === 'CREDIT'
-                          ? `Reservation ${packLink.billing_gate_status.reservation_id_present ? 'present' : 'missing'}`
-                          : packLink.billing_gate_status?.mode === 'POSTPAID'
-                            ? `Invoice ${packLink.billing_gate_status.service_invoice_status ?? 'missing'}`
-                            : 'No billing hook yet'}
-                      </p>
-                    </div>
+                    )}
                   </div>
 
-                  <div className="rounded-lg border border-[var(--zen-border)] p-3">
-                    <h4 className="m-0 text-sm">Release Deliverables (Manual)</h4>
-                    <div className="mt-2 grid gap-2 md:grid-cols-[auto_1fr] md:items-center">
-                      <label className="inline-flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={releaseOverride}
-                          onChange={(event) => setReleaseOverride(event.target.checked)}
-                        />
-                        Override billing gate
-                      </label>
-                      <input
-                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
-                        value={releaseOverrideReason}
-                        onChange={(event) => setReleaseOverrideReason(event.target.value)}
-                        placeholder="Override reason (required if override checked)"
-                      />
-                      <span className="text-xs text-[var(--zen-muted)] md:col-span-1">Idempotency key</span>
-                      <input
-                        className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
-                        value={releaseIdempotencyKey}
-                        onChange={(event) => setReleaseIdempotencyKey(event.target.value)}
-                        placeholder="Optional; auto-generated if blank"
-                      />
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <Button
-                        disabled={working || !packLink.pack || packLink.generation_job?.status !== 'completed'}
-                        onClick={() => void releaseDeliverables()}
-                      >
-                        Release Deliverables
-                      </Button>
-                      <span className="text-xs text-[var(--zen-muted)]">
-                        {packLink.generation_job?.status === 'completed'
-                          ? packLink.billing_gate_status?.releasable_without_override
-                            ? 'Release allowed without override'
-                            : 'Billing gate will block unless override'
-                          : 'Generation must complete before release'}
+                  {/* Bulk Tag Bar (sticky when items selected) */}
+                  {selectedEvidenceIds.size > 0 && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--zen-primary)] bg-blue-50 p-3">
+                      <span className="text-xs font-semibold text-[var(--zen-primary)]">
+                        {selectedEvidenceIds.size} selected →
                       </span>
+                      {SECTION_KEY_OPTIONS.map((sk) => (
+                        <Button
+                          key={sk}
+                          className={`h-7 px-3 text-xs ${sk === 'site' ? 'bg-emerald-600 hover:bg-emerald-700' :
+                            sk === 'guideline' ? 'bg-blue-600 hover:bg-blue-700' :
+                              sk === 'map' ? 'bg-amber-600 hover:bg-amber-700' :
+                                'bg-purple-600 hover:bg-purple-700'
+                            }`}
+                          disabled={working}
+                          onClick={() => void bulkTagEvidence(sk)}
+                        >
+                          {sk.charAt(0).toUpperCase() + sk.slice(1)}
+                        </Button>
+                      ))}
+                      <Button
+                        className="h-7 px-3 text-xs"
+                        disabled={working}
+                        onClick={() => void bulkTagEvidence(null)}
+                      >
+                        Clear Tag
+                      </Button>
                     </div>
-                  </div>
+                  )}
+                </section>
+              </>)}
 
-                  <div className="grid gap-3 lg:grid-cols-2">
-                    <article className="rounded-lg border border-[var(--zen-border)] p-3">
-                      <h4 className="m-0 text-sm">Artifacts</h4>
-                      <pre className="mt-2 max-h-64 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">
-                        {JSON.stringify(packLink.pack?.artifacts ?? [], null, 2)}
-                      </pre>
-                    </article>
-                    <article className="rounded-lg border border-[var(--zen-border)] p-3">
-                      <h4 className="m-0 text-sm">Release Events</h4>
-                      <pre className="mt-2 max-h-64 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">
-                        {JSON.stringify(packLink.deliverable_releases ?? [], null, 2)}
-                      </pre>
-                    </article>
+            {/* ── Pack & Release Tab ── */}
+            {activeTab === 'pack' && (
+              <section className="rounded-lg border border-[var(--zen-border)] p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="m-0 text-sm">Core Tenant Pack + Deliverables Release</h3>
+                    <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
+                      M5.5 bridge: READY_FOR_RENDER auto-creates pack/job. Release is manual and billing-gated.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      disabled={working || detail.work_order.status !== 'READY_FOR_RENDER' || Boolean(packLink?.pack)}
+                      onClick={() => void createPack()}
+                    >
+                      Create Pack
+                    </Button>
+                    <Button disabled={working || !selectedId} onClick={() => selectedId && void loadPackLink(selectedId)}>
+                      Reload Pack
+                    </Button>
                   </div>
                 </div>
-              )}
-            </section>
 
-            <section className="grid gap-3 lg:grid-cols-2">
-              <article className="rounded-lg border border-[var(--zen-border)] p-3">
-                <h3 className="m-0 text-sm">Derived JSON</h3>
-                <pre className="mt-2 max-h-72 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">{JSON.stringify(detail.latest_snapshot?.derived_json ?? {}, null, 2)}</pre>
-              </article>
-              <article className="rounded-lg border border-[var(--zen-border)] p-3">
-                <h3 className="m-0 text-sm">Export Bundle JSON</h3>
-                <pre className="mt-2 max-h-72 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">{JSON.stringify(exportBundle ?? {}, null, 2)}</pre>
-              </article>
-            </section>
+                {!packLink ? (
+                  <p className="mt-3 text-sm text-[var(--zen-muted)]">Pack linkage not loaded.</p>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    <div className="grid gap-3 md:grid-cols-4">
+                      <div className="rounded-lg border border-[var(--zen-border)] p-3">
+                        <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Template</p>
+                        <p className="m-0 mt-1 text-sm font-semibold">{packLink.template_selector}</p>
+                        <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">{packLink.value_slab}</p>
+                      </div>
+                      <div className="rounded-lg border border-[var(--zen-border)] p-3">
+                        <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Pack</p>
+                        <p className="m-0 mt-1 text-sm font-semibold">{packLink.pack ? `${packLink.pack.status} · v${packLink.pack.version}` : 'Not created'}</p>
+                        <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">{packLink.pack?.id ?? '—'}</p>
+                      </div>
+                      <div className="rounded-lg border border-[var(--zen-border)] p-3">
+                        <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Generation Job</p>
+                        <p className="m-0 mt-1 text-sm font-semibold">{packLink.generation_job?.status ?? 'None'}</p>
+                        <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
+                          Attempts {packLink.generation_job?.attempts ?? 0} · Artifacts {packLink.pack?.artifacts.length ?? 0}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-[var(--zen-border)] p-3">
+                        <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Billing Gate</p>
+                        <p className="m-0 mt-1 text-sm font-semibold">{packLink.billing_gate_status?.mode ?? 'Unknown'}</p>
+                        <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">
+                          {packLink.billing_gate_status?.mode === 'CREDIT'
+                            ? `Reservation ${packLink.billing_gate_status.reservation_id_present ? 'present' : 'missing'}`
+                            : packLink.billing_gate_status?.mode === 'POSTPAID'
+                              ? `Invoice ${packLink.billing_gate_status.service_invoice_status ?? 'missing'}`
+                              : 'No billing hook yet'}
+                        </p>
+                      </div>
+                    </div>
 
-            <section className="grid gap-3 lg:grid-cols-2">
-              <article className="rounded-lg border border-[var(--zen-border)] p-3">
-                <h3 className="m-0 text-sm">Evidence Items</h3>
-                <pre className="mt-2 max-h-72 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">{JSON.stringify(detail.evidence_items, null, 2)}</pre>
-              </article>
-              <article className="rounded-lg border border-[var(--zen-border)] p-3">
-                <h3 className="m-0 text-sm">Manual Comments</h3>
-                <pre className="mt-2 max-h-72 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">{JSON.stringify(detail.comments, null, 2)}</pre>
-              </article>
-            </section>
+                    <div className="rounded-lg border border-[var(--zen-border)] p-3">
+                      <h4 className="m-0 text-sm">Release Deliverables (Manual)</h4>
+                      <div className="mt-2 grid gap-2 md:grid-cols-[auto_1fr] md:items-center">
+                        <label className="inline-flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={releaseOverride}
+                            onChange={(event) => setReleaseOverride(event.target.checked)}
+                          />
+                          Override billing gate
+                        </label>
+                        <input
+                          className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                          value={releaseOverrideReason}
+                          onChange={(event) => setReleaseOverrideReason(event.target.value)}
+                          placeholder="Override reason (required if override checked)"
+                        />
+                        <span className="text-xs text-[var(--zen-muted)] md:col-span-1">Idempotency key</span>
+                        <input
+                          className="rounded-lg border border-[var(--zen-border)] bg-white px-3 py-2 text-sm"
+                          value={releaseIdempotencyKey}
+                          onChange={(event) => setReleaseIdempotencyKey(event.target.value)}
+                          placeholder="Optional; auto-generated if blank"
+                        />
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <Button
+                          disabled={working || !packLink.pack || packLink.generation_job?.status !== 'completed'}
+                          onClick={() => void releaseDeliverables()}
+                        >
+                          Release Deliverables
+                        </Button>
+                        <span className="text-xs text-[var(--zen-muted)]">
+                          {packLink.generation_job?.status === 'completed'
+                            ? packLink.billing_gate_status?.releasable_without_override
+                              ? 'Release allowed without override'
+                              : 'Billing gate will block unless override'
+                            : 'Generation must complete before release'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      <article className="rounded-lg border border-[var(--zen-border)] p-3">
+                        <h4 className="m-0 text-sm">Artifacts</h4>
+                        <pre className="mt-2 max-h-64 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">
+                          {JSON.stringify(packLink.pack?.artifacts ?? [], null, 2)}
+                        </pre>
+                      </article>
+                      <article className="rounded-lg border border-[var(--zen-border)] p-3">
+                        <h4 className="m-0 text-sm">Release Events</h4>
+                        <pre className="mt-2 max-h-64 overflow-auto rounded bg-[var(--zen-panel)] p-3 text-xs">
+                          {JSON.stringify(packLink.deliverable_releases ?? [], null, 2)}
+                        </pre>
+                      </article>
+                    </div>
+                  </div>
+                )}
+              </section>)}
           </>
         )}
       </section>

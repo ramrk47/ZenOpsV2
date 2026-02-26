@@ -21,6 +21,7 @@
     "build": "turbo run build",
     "lint": "turbo run lint && bash ./scripts/terminology-lint.sh",
     "test": "turbo run test",
+    "e2e:repogen": "bash ./scripts/e2e-repogen.sh",
     "smoke:v1": "bash ./scripts/smoke-v1.sh",
     "smoke:v2": "bash ./scripts/smoke-v2.sh",
     "contract_check": "turbo run contract_check",
