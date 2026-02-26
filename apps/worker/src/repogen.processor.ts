@@ -1,18 +1,36 @@
 import { createHash } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, unlink } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { spawn } from 'node:child_process';
 import type { Logger } from '@zenops/common';
 import { buildRenderContext, resolveRecipe, TEMPLATE_KEY_TO_FAMILY } from '@zenops/common';
 import type { ManifestJson } from '@zenops/common';
 import { withTxContext, type PrismaClient } from '@zenops/db';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
-import { readFile } from 'node:fs/promises';
+
+
 
 function toString(v: unknown): string {
   if (typeof v === 'string') return v;
   if (v == null) return '';
   return String(v);
+}
+
+/** Spawn a Python3 script, resolve when exit 0, reject with stderr on non-zero. */
+function spawnPython(scriptPath: string, args: string[]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn('python3', [scriptPath, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    proc.stdout?.on('data', (d: Buffer) => { stdout += d.toString(); });
+    proc.stderr?.on('data', (d: Buffer) => { stderr += d.toString(); });
+    proc.on('close', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`Python script ${scriptPath} exited ${code}: ${stderr.slice(0, 500)}`));
+    });
+  });
 }
 
 export const REPOGEN_GENERATION_QUEUE = 'repogen-generation';
@@ -351,6 +369,55 @@ export const processRepogenGenerationJob = async ({
           }
 
           await writeFile(artifactPath, contentBuffer);
+
+          // ── Stage B: Image embedding (images part only) ──
+          if (part.name === 'images' && renderContext.evidence.photos.length > 0) {
+            const photosTmp = join(tmpdir(), `zenops-photos-${job.id}.json`);
+            const classifiedTmp = join(tmpdir(), `zenops-classified-${job.id}.json`);
+            const scriptsDir = join(__dirname, '../../../scripts');
+
+            // Build photo records for classifier
+            const photoRecords = renderContext.evidence.photos.map((p, i) => ({
+              filename: p.filename,
+              path: '',      // no local path at this stage; classifier uses sectionKey
+              contentType: p.type === 'gps' ? 'image/jpeg' : 'image/jpeg',
+              sectionKey: p.type,
+              sortOrder: i,
+              caption: p.filename
+            }));
+            await writeFile(photosTmp, JSON.stringify(photoRecords));
+
+            try {
+              // Classify
+              await spawnPython(join(scriptsDir, 'classify_photos.py'), [
+                '--photos', photosTmp,
+                '--output', classifiedTmp
+              ]);
+
+              // Embed
+              await spawnPython(join(scriptsDir, 'embed_images.py'), [
+                '--docx', artifactPath,
+                '--photos', classifiedTmp,
+                '--output', artifactPath
+              ]);
+
+              logger.info('m5_7_4_images_embedded', {
+                request_id: payload.requestId,
+                part_name: part.name,
+                photo_count: photoRecords.length
+              });
+            } catch (embedErr: any) {
+              // Non-fatal: log and continue (text DOCX is still valid)
+              logger.warn('m5_7_4_image_embed_failed', {
+                request_id: payload.requestId,
+                part_name: part.name,
+                error: embedErr.message
+              });
+            } finally {
+              await unlink(photosTmp).catch(() => { });
+              await unlink(classifiedTmp).catch(() => { });
+            }
+          }
 
           await tx.reportPackArtifact.create({
             data: {
