@@ -19,6 +19,8 @@ import {
   type RepogenEvidenceLinksUpsert,
   RepogenGenerateTriggerSchema,
   type RepogenGenerateTrigger,
+  RepogenPackFinalizeSchema,
+  type RepogenPackFinalize,
   RepogenPacksListQuerySchema,
   type RepogenPacksListQuery
 } from '@zenops/contracts';
@@ -43,7 +45,7 @@ export class RepogenController {
     private readonly requestContext: RequestContextService,
     private readonly repogenService: RepogenService,
     private readonly repogenQueueService: RepogenQueueService
-  ) {}
+  ) { }
 
   @Get('assignments/:id/report-generation/context')
   async getDraftContext(@Claims() claims: JwtClaims, @Param('id') assignmentId: string, @Query() query: unknown) {
@@ -87,6 +89,16 @@ export class RepogenController {
     if (!tenantId) {
       throw new BadRequestException('TENANT_CONTEXT_REQUIRED');
     }
+
+    const { repogenFeaturesJson } = await this.requestContext.runWithClaims(claims, (tx) =>
+      tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { repogenFeaturesJson: true } })
+    );
+
+    const features = repogenFeaturesJson as any;
+    if (features?.enable_repogen !== true) {
+      throw new BadRequestException('Repogen is not enabled for this tenant');
+    }
+
     const result = await this.requestContext.runWithClaims(claims, (tx) =>
       this.repogenService.triggerGeneration(tx, assignmentId, claims.user_id, input)
     );
@@ -112,5 +124,53 @@ export class RepogenController {
   async listPacks(@Claims() claims: JwtClaims, @Param('id') assignmentId: string, @Query() query: unknown) {
     const parsed = parseOrThrow<RepogenPacksListQuery>(RepogenPacksListQuerySchema, query);
     return this.requestContext.runWithClaims(claims, (tx) => this.repogenService.listPacks(tx, assignmentId, parsed));
+  }
+
+  @Get('assignments/:id/report-generation/packs/:packId/artifacts')
+  async listPackArtifacts(
+    @Claims() claims: JwtClaims,
+    @Param('id') assignmentId: string,
+    @Param('packId') packId: string
+  ) {
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.repogenService.listPackArtifacts(tx, assignmentId, packId)
+    );
+  }
+
+  @Post('assignments/:id/report-generation/packs/:packId/finalize')
+  async finalizePack(
+    @Claims() claims: JwtClaims,
+    @Param('id') assignmentId: string,
+    @Param('packId') packId: string,
+    @Body() body: unknown
+  ) {
+    const tenantId = this.requestContext.tenantIdForClaims(claims);
+    if (!tenantId) {
+      throw new BadRequestException('TENANT_CONTEXT_REQUIRED');
+    }
+
+    const { repogenFeaturesJson } = await this.requestContext.runWithClaims(claims, (tx) =>
+      tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { repogenFeaturesJson: true } })
+    );
+
+    const features = repogenFeaturesJson as any;
+    if (features?.enable_review_gap !== true) {
+      throw new BadRequestException('Review Gap is not enabled for this tenant');
+    }
+
+    const input = parseOrThrow<RepogenPackFinalize>(RepogenPackFinalizeSchema, body);
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.repogenService.finalizePack(tx, assignmentId, packId, input.notes)
+    );
+  }
+
+  @Get('report-generation/artifacts/:artifactId/presigned')
+  async getArtifactPresignedUrl(
+    @Claims() claims: JwtClaims,
+    @Param('artifactId') artifactId: string
+  ) {
+    return this.requestContext.runWithClaims(claims, (tx) =>
+      this.repogenService.createArtifactPresignedUrl(tx, artifactId)
+    );
   }
 }

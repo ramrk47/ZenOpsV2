@@ -133,11 +133,13 @@ enum ReportPackStatus {
   generated
   failed
   superseded
+  finalized
 }
 
 enum ReportPackArtifactKind {
   docx
   pdf
+  zip
   annexure
   debug_json
 }

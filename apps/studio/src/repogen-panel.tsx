@@ -139,6 +139,17 @@ interface RepogenPackLinkResponse {
   } | null;
 }
 
+export interface ArtifactInfo {
+  id: string;
+  kind: 'docx' | 'pdf' | 'zip';
+  filename: string;
+  mime_type: string;
+  size_bytes: number;
+  checksum_sha256: string | null;
+  metadata_json: Record<string, unknown>;
+  created_at: string;
+}
+
 const readError = async (response: Response): Promise<string> => {
   const text = await response.text();
   return text || `HTTP ${response.status}`;
@@ -166,9 +177,11 @@ export function RepogenStudioPanel({ token }: { token: string }) {
   const [selectedId, setSelectedId] = useState('');
   const [detail, setDetail] = useState<RepogenDetailResponse | null>(null);
   const [packLink, setPackLink] = useState<RepogenPackLinkResponse | null>(null);
+  const [artifacts, setArtifacts] = useState<ArtifactInfo[]>([]);
   const [evidenceProfilesView, setEvidenceProfilesView] = useState<RepogenEvidenceProfilesResponse | null>(null);
   const [fieldLinksView, setFieldLinksView] = useState<RepogenFieldEvidenceLinksResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [artifactsLoading, setArtifactsLoading] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [tenantFilter, setTenantFilter] = useState('');
@@ -184,6 +197,7 @@ export function RepogenStudioPanel({ token }: { token: string }) {
       setRows([]);
       setDetail(null);
       setPackLink(null);
+      setArtifacts([]);
       setSelectedId('');
       return;
     }
@@ -206,6 +220,7 @@ export function RepogenStudioPanel({ token }: { token: string }) {
     if (!token || !id) {
       setDetail(null);
       setPackLink(null);
+      setArtifacts([]);
       return;
     }
     setLoading(true);
@@ -223,14 +238,62 @@ export function RepogenStudioPanel({ token }: { token: string }) {
   const loadPackLink = async (id: string) => {
     if (!token || !id) {
       setPackLink(null);
+      setArtifacts([]);
       return;
     }
     try {
       const data = await apiRequest<RepogenPackLinkResponse>(token, `/repogen/work-orders/${id}/pack`);
       setPackLink(data);
+
+      if (data.pack?.id) {
+        setArtifactsLoading(true);
+        try {
+          const artifactsData = await apiRequest<{ artifacts: ArtifactInfo[] }>(token, `/assignments/${id}/report-generation/packs/${data.pack.id}/artifacts`);
+          setArtifacts(artifactsData.artifacts || []);
+        } catch (err) {
+          console.error('Failed to load artifacts', err);
+          setArtifacts([]);
+        } finally {
+          setArtifactsLoading(false);
+        }
+      } else {
+        setArtifacts([]);
+      }
     } catch (err) {
       setPackLink(null);
+      setArtifacts([]);
       setError(err instanceof Error ? err.message : 'Failed to load pack linkage');
+    }
+  };
+
+  const handleFinalize = async (packId: string) => {
+    if (!confirm('This will mark the current draft outputs as FINAL. Are you sure?')) return;
+    try {
+      setLoading(true);
+      await apiRequest(token, `/assignments/${selectedId}/report-generation/packs/${packId}/finalize`, {
+        method: 'POST',
+        body: JSON.stringify({ notes: 'Finalized from Studio' })
+      });
+      setNotice('Pack finalized successfully');
+      await loadPackLink(selectedId);
+      await loadList();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to finalize pack');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownloadArtifact = async (artifactId: string) => {
+    try {
+      setLoading(true);
+      const res = await apiRequest<{ url: string; expiresAt: string }>(token, `/report-generation/artifacts/${artifactId}/presigned`);
+      window.open(res.url, '_blank');
+      setNotice('Opening presigned URL...');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to get artifact URL');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -459,10 +522,92 @@ export function RepogenStudioPanel({ token }: { token: string }) {
               </div>
               <div className="rounded-lg border border-[var(--zen-border)] p-3">
                 <p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--zen-muted)]">Pack / Job</p>
-                <p className="m-0 mt-1 font-semibold">
-                  {packLink?.pack ? `${packLink.pack.status} · v${packLink.pack.version}` : 'No pack'}
-                </p>
-                <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">{packLink?.generation_job?.status ?? 'No job'}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="m-0 mt-1 font-semibold">
+                      {packLink?.pack ? `${packLink.pack.status} · v${packLink.pack.version}` : 'No pack'}
+                    </p>
+                    <p className="m-0 mt-1 text-xs text-[var(--zen-muted)]">{packLink?.generation_job?.status ?? 'No job'}</p>
+                    {artifactsLoading && <p className="m-0 mt-1 text-xs text-blue-500">Loading artifacts...</p>}
+                  </div>
+                </div>
+                {packLink?.pack && !artifactsLoading && (
+                  <div className="mt-3 flex flex-col gap-2 border-t border-[var(--zen-border)] pt-3">
+                    {(() => {
+                      const isPackFinal = packLink.pack?.status === 'finalized';
+                      const docxDraft = artifacts.find(a => a.kind === 'docx');
+                      const pdfDraft = artifacts.find(a => a.kind === 'pdf');
+                      const zipFinal = artifacts.find(a => a.kind === 'zip');
+
+                      const pdfHasError = pdfDraft?.metadata_json?.error;
+                      const pdfHasWarning = pdfDraft?.metadata_json?.skipped;
+
+                      if (!isPackFinal) {
+                        return (
+                          <>
+                            {pdfDraft && !pdfHasError && !pdfHasWarning ? (
+                              <Button
+                                className="bg-slate-200 text-slate-800 hover:bg-slate-300 h-8 px-3 text-xs"
+                                onClick={() => handleDownloadArtifact(pdfDraft.id)}
+                              >
+                                View Draft PDF
+                              </Button>
+                            ) : docxDraft ? (
+                              <Button
+                                className="border border-slate-300 bg-transparent text-slate-800 hover:bg-slate-50 h-8 px-3 text-xs"
+                                onClick={() => handleDownloadArtifact(docxDraft.id)}
+                              >
+                                View Draft DOCX
+                              </Button>
+                            ) : null}
+
+                            {pdfHasError && <span className="inline-flex max-w-max items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-red-100 text-red-800">PDF Failed</span>}
+                            {pdfHasWarning && <span className="inline-flex max-w-max items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-800">PDF Skipped</span>}
+
+                            <Button
+                              className="h-8 px-3 text-xs"
+                              onClick={() => handleFinalize(packLink.pack!.id)}
+                              disabled={packLink.generation_job?.status !== 'COMPLETED'}
+                            >
+                              Make Final
+                            </Button>
+                            {packLink.generation_job?.status !== 'COMPLETED' && (
+                              <p className="text-[10px] text-[var(--zen-muted)] leading-tight">Must wait for generation to complete.</p>
+                            )}
+                          </>
+                        );
+                      } else {
+                        return (
+                          <>
+                            {zipFinal && (
+                              <Button
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 px-3 text-xs"
+                                onClick={() => handleDownloadArtifact(zipFinal.id)}
+                              >
+                                Download Pack (Final ZIP)
+                              </Button>
+                            )}
+                            {pdfDraft ? (
+                              <Button
+                                className="border border-slate-300 bg-transparent text-slate-800 hover:bg-slate-50 h-8 px-3 text-xs"
+                                onClick={() => handleDownloadArtifact(pdfDraft.id)}
+                              >
+                                View Final PDF
+                              </Button>
+                            ) : docxDraft ? (
+                              <Button
+                                className="border border-slate-300 bg-transparent text-slate-800 hover:bg-slate-50 h-8 px-3 text-xs"
+                                onClick={() => handleDownloadArtifact(docxDraft.id)}
+                              >
+                                View Final DOCX
+                              </Button>
+                            ) : null}
+                          </>
+                        );
+                      }
+                    })()}
+                  </div>
+                )}
               </div>
             </div>
 

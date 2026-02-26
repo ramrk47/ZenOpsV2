@@ -56,3 +56,11 @@ export * from './repogen/renderContext.js';
 export * from './repogen/buildRenderContext.js';
 export * from './repogen/packRecipe.js';
 export * from './terminology.js';
+
+export interface RepogenFeatures {
+  enable_repogen?: boolean;
+  enable_review_gap?: boolean;
+  enable_pdf_conversion?: boolean;
+  enable_image_classifier?: boolean;
+}
+

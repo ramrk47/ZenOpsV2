@@ -160,7 +160,7 @@ export class DomainService {
     private readonly billingControlService: BillingControlService,
     private readonly notificationsService: NotificationsService,
     private readonly assignmentSignalsQueue: AssignmentSignalsQueueService
-  ) {}
+  ) { }
 
   async listTenants(tx: TxClient) {
     return tx.tenant.findMany({ where: { deletedAt: null }, orderBy: { createdAt: 'desc' } });
@@ -191,11 +191,11 @@ export class DomainService {
         deletedAt: null,
         ...(query.search
           ? {
-              OR: [
-                { name: { contains: query.search, mode: 'insensitive' } },
-                { code: { contains: query.search, mode: 'insensitive' } }
-              ]
-            }
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' } },
+              { code: { contains: query.search, mode: 'insensitive' } }
+            ]
+          }
           : {})
       },
       orderBy: [{ isVerified: 'desc' }, { name: 'asc' }],
@@ -290,12 +290,12 @@ export class DomainService {
         ...(query.bank_id ? { bankId: query.bank_id } : {}),
         ...(query.search
           ? {
-              OR: [
-                { branchName: { contains: query.search, mode: 'insensitive' } },
-                { city: { contains: query.search, mode: 'insensitive' } },
-                { ifsc: { contains: query.search, mode: 'insensitive' } }
-              ]
-            }
+            OR: [
+              { branchName: { contains: query.search, mode: 'insensitive' } },
+              { city: { contains: query.search, mode: 'insensitive' } },
+              { ifsc: { contains: query.search, mode: 'insensitive' } }
+            ]
+          }
           : {})
       },
       include: {
@@ -422,11 +422,11 @@ export class DomainService {
         deletedAt: null,
         ...(query.search
           ? {
-              OR: [
-                { name: { contains: query.search, mode: 'insensitive' } },
-                { city: { contains: query.search, mode: 'insensitive' } }
-              ]
-            }
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' } },
+              { city: { contains: query.search, mode: 'insensitive' } }
+            ]
+          }
           : {})
       },
       orderBy: [{ isVerified: 'desc' }, { name: 'asc' }],
@@ -523,12 +523,12 @@ export class DomainService {
         ...(query.client_org_id ? { clientOrgId: query.client_org_id } : {}),
         ...(query.search
           ? {
-              OR: [
-                { name: { contains: query.search, mode: 'insensitive' } },
-                { email: { contains: query.search, mode: 'insensitive' } },
-                { phone: { contains: query.search, mode: 'insensitive' } }
-              ]
-            }
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' } },
+              { email: { contains: query.search, mode: 'insensitive' } },
+              { phone: { contains: query.search, mode: 'insensitive' } }
+            ]
+          }
           : {})
       },
       orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
@@ -600,12 +600,12 @@ export class DomainService {
         ...(query.branch_id ? { branchId: query.branch_id } : {}),
         ...(query.search
           ? {
-              OR: [
-                { name: { contains: query.search, mode: 'insensitive' } },
-                { email: { contains: query.search, mode: 'insensitive' } },
-                { phone: { contains: query.search, mode: 'insensitive' } }
-              ]
-            }
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' } },
+              { email: { contains: query.search, mode: 'insensitive' } },
+              { phone: { contains: query.search, mode: 'insensitive' } }
+            ]
+          }
           : {})
       },
       orderBy: [{ createdAt: 'desc' }],
@@ -673,12 +673,12 @@ export class DomainService {
         deletedAt: null,
         ...(query.search
           ? {
-              OR: [
-                { name: { contains: query.search, mode: 'insensitive' } },
-                { line1: { contains: query.search, mode: 'insensitive' } },
-                { city: { contains: query.search, mode: 'insensitive' } }
-              ]
-            }
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' } },
+              { line1: { contains: query.search, mode: 'insensitive' } },
+              { city: { contains: query.search, mode: 'insensitive' } }
+            ]
+          }
           : {})
       },
       orderBy: [{ name: 'asc' }],
@@ -736,11 +736,11 @@ export class DomainService {
         ...(claims.aud === 'portal' ? { ownerUserId: claims.user_id ?? null } : {}),
         ...(query.search
           ? {
-              OR: [
-                { name: { contains: query.search, mode: 'insensitive' } },
-                { city: { contains: query.search, mode: 'insensitive' } }
-              ]
-            }
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' } },
+              { city: { contains: query.search, mode: 'insensitive' } }
+            ]
+          }
           : {})
       },
       orderBy: [{ isVerified: 'desc' }, { name: 'asc' }],
@@ -781,29 +781,29 @@ export class DomainService {
 
     const row = existing
       ? await tx.channel.update({
-          where: { id: existing.id },
-          data: {
-            ownerUserId,
-            channelType: this.parseChannelType(input.channel_type),
-            commissionMode: this.parseCommissionMode(input.commission_mode),
-            commissionValue: new Prisma.Decimal(input.commission_value),
-            isActive: input.is_active,
-            deletedAt: null
-          }
-        })
+        where: { id: existing.id },
+        data: {
+          ownerUserId,
+          channelType: this.parseChannelType(input.channel_type),
+          commissionMode: this.parseCommissionMode(input.commission_mode),
+          commissionValue: new Prisma.Decimal(input.commission_value),
+          isActive: input.is_active,
+          deletedAt: null
+        }
+      })
       : await tx.channel.create({
-          data: {
-            tenantId,
-            ownerUserId,
-            name: input.name,
-            city: input.city ?? null,
-            channelType: this.parseChannelType(input.channel_type),
-            commissionMode: this.parseCommissionMode(input.commission_mode),
-            commissionValue: new Prisma.Decimal(input.commission_value),
-            isActive: input.is_active,
-            isVerified: claims.roles.includes('super_admin')
-          }
-        });
+        data: {
+          tenantId,
+          ownerUserId,
+          name: input.name,
+          city: input.city ?? null,
+          channelType: this.parseChannelType(input.channel_type),
+          commissionMode: this.parseCommissionMode(input.commission_mode),
+          commissionValue: new Prisma.Decimal(input.commission_value),
+          isActive: input.is_active,
+          isVerified: claims.roles.includes('super_admin')
+        }
+      });
     const channelType = this.serializeChannelType(row.channelType);
     const commissionMode = this.serializeCommissionMode(row.commissionMode);
     return {
@@ -885,20 +885,20 @@ export class DomainService {
       .filter((value): value is string => Boolean(value));
     const invoices = invoiceIds.length
       ? await tx.serviceInvoice.findMany({
-          where: {
-            id: {
-              in: invoiceIds
-            }
-          },
-          select: {
-            id: true,
-            status: true,
-            invoiceNumber: true,
-            amountDue: true,
-            totalAmount: true,
-            isPaid: true
+        where: {
+          id: {
+            in: invoiceIds
           }
-        })
+        },
+        select: {
+          id: true,
+          status: true,
+          invoiceNumber: true,
+          amountDue: true,
+          totalAmount: true,
+          isPaid: true
+        }
+      })
       : [];
     const invoiceById = new Map(invoices.map((invoice) => [invoice.id, invoice]));
 
@@ -1475,9 +1475,9 @@ export class DomainService {
     const updated =
       period.status === 'draft'
         ? await tx.payrollPeriod.update({
-            where: { id: period.id },
-            data: { status: 'running' }
-          })
+          where: { id: period.id },
+          data: { status: 'running' }
+        })
         : period;
 
     const items = await tx.payrollItem.findMany({
@@ -1647,20 +1647,20 @@ export class DomainService {
 
     const target = existingTarget
       ? await tx.notificationTarget.update({
-          where: { id: existingTarget.id },
-          data: {
-            isActive: input.is_active
-          }
-        })
+        where: { id: existingTarget.id },
+        data: {
+          isActive: input.is_active
+        }
+      })
       : await tx.notificationTarget.create({
-          data: {
-            tenantId,
-            groupId: group.id,
-            channel: input.channel,
-            toContactPointId: input.to_contact_point_id,
-            isActive: input.is_active
-          }
-        });
+        data: {
+          tenantId,
+          groupId: group.id,
+          channel: input.channel,
+          toContactPointId: input.to_contact_point_id,
+          isActive: input.is_active
+        }
+      });
 
     return {
       group: {
@@ -1822,12 +1822,12 @@ export class DomainService {
       ...(query.priority ? { priority: query.priority } : {}),
       ...(query.assignee_user_id
         ? {
-            assignees: {
-              some: {
-                userId: query.assignee_user_id
-              }
+          assignees: {
+            some: {
+              userId: query.assignee_user_id
             }
           }
+        }
         : {}),
       ...(query.due_date ? { dueDate: parseDateOnly(query.due_date) } : {})
     };
@@ -2194,16 +2194,16 @@ export class DomainService {
       ...this.serializeAssignment(assignment),
       source_record: sourceRecord
         ? {
-            id: sourceRecord.id,
-            source_type: sourceRecord.sourceType,
-            source_ref_id: sourceRecord.sourceRefId,
-            bank_branch_id: sourceRecord.bankBranchId,
-            client_org_id: sourceRecord.clientOrgId,
-            channel_id: sourceRecord.channelId,
-            recorded_by_user_id: sourceRecord.recordedByUserId,
-            recorded_at: sourceRecord.recordedAt.toISOString(),
-            metadata_json: asJsonRecord(sourceRecord.metadataJson)
-          }
+          id: sourceRecord.id,
+          source_type: sourceRecord.sourceType,
+          source_ref_id: sourceRecord.sourceRefId,
+          bank_branch_id: sourceRecord.bankBranchId,
+          client_org_id: sourceRecord.clientOrgId,
+          channel_id: sourceRecord.channelId,
+          recorded_by_user_id: sourceRecord.recordedByUserId,
+          recorded_at: sourceRecord.recordedAt.toISOString(),
+          metadata_json: asJsonRecord(sourceRecord.metadataJson)
+        }
         : null,
       data_completeness: this.computeAssignmentCompleteness(assignment),
       assignees: assignment.assignees.map((assignee) => ({
@@ -2245,10 +2245,10 @@ export class DomainService {
         created_at: activity.createdAt.toISOString(),
         actor: activity.actorUser
           ? {
-              id: activity.actorUser.id,
-              name: activity.actorUser.name,
-              email: activity.actorUser.email
-            }
+            id: activity.actorUser.id,
+            name: activity.actorUser.name,
+            email: activity.actorUser.email
+          }
           : null
       })),
       stage_transitions: transitions.map((row) => ({
@@ -2262,10 +2262,10 @@ export class DomainService {
         metadata_json: asJsonRecord(row.metadataJson),
         changed_by_user: row.changedByUser
           ? {
-              id: row.changedByUser.id,
-              name: row.changedByUser.name,
-              email: row.changedByUser.email
-            }
+            id: row.changedByUser.id,
+            name: row.changedByUser.name,
+            email: row.changedByUser.email
+          }
           : null
       })),
       status_history: statusHistory.map((row) => ({
@@ -2277,10 +2277,10 @@ export class DomainService {
         changed_by_user_id: row.changedByUserId,
         changed_by_user: row.changedByUser
           ? {
-              id: row.changedByUser.id,
-              name: row.changedByUser.name,
-              email: row.changedByUser.email
-            }
+            id: row.changedByUser.id,
+            name: row.changedByUser.name,
+            email: row.changedByUser.email
+          }
           : null
       })),
       signals: signals.map((signal) => ({
@@ -2445,6 +2445,27 @@ export class DomainService {
     }
     this.assertStageTransitionAllowed(fromStage, toStage);
 
+    if (toStage === 'sent_to_client') {
+      const anyPack = await tx.reportPack.findFirst({
+        where: { assignmentId }
+      });
+      if (anyPack) {
+        const finalizedPacks = await tx.reportPack.findMany({
+          where: { assignmentId, status: 'finalized' },
+          include: { artifacts: true }
+        });
+
+        if (finalizedPacks.length === 0) {
+          throw new BadRequestException('Cannot release deliverables: A finalized report pack is required.');
+        }
+
+        const hasFinalArtifacts = finalizedPacks.some((p) => p.artifacts.length > 0);
+        if (!hasFinalArtifacts) {
+          throw new BadRequestException('Cannot release deliverables: Finalized pack has no generated artifacts.');
+        }
+      }
+    }
+
     const now = new Date();
     const updated = await tx.assignment.update({
       where: { id: assignmentId },
@@ -2556,10 +2577,10 @@ export class DomainService {
       created_at: row.createdAt.toISOString(),
       changed_by_user: row.changedByUser
         ? {
-            id: row.changedByUser.id,
-            name: row.changedByUser.name,
-            email: row.changedByUser.email
-          }
+          id: row.changedByUser.id,
+          name: row.changedByUser.name,
+          email: row.changedByUser.email
+        }
         : null
     }));
   }
@@ -3166,10 +3187,10 @@ export class DomainService {
       created_at: activity.createdAt.toISOString(),
       actor: activity.actorUser
         ? {
-            id: activity.actorUser.id,
-            name: activity.actorUser.name,
-            email: activity.actorUser.email
-          }
+          id: activity.actorUser.id,
+          name: activity.actorUser.name,
+          email: activity.actorUser.email
+        }
         : null
     }));
   }
@@ -3383,25 +3404,25 @@ export class DomainService {
     const reservation = existingReservation
       ? existingReservation
       : await tx.creditsLedger.create({
-          data: {
-            tenantId: reportRequest.tenantId,
-            reportRequestId,
-            delta: -1,
-            status: 'reserved',
-            idempotencyKey: `reserve:${reportRequestId}`
-          }
-        });
+        data: {
+          tenantId: reportRequest.tenantId,
+          reportRequestId,
+          delta: -1,
+          status: 'reserved',
+          idempotencyKey: `reserve:${reportRequestId}`
+        }
+      });
 
     const reportJob = existingJob
       ? existingJob
       : await tx.reportJob.create({
-          data: {
-            tenantId: reportRequest.tenantId,
-            reportRequestId,
-            status: 'pending',
-            queuedAt: new Date()
-          }
-        });
+        data: {
+          tenantId: reportRequest.tenantId,
+          reportRequestId,
+          status: 'pending',
+          queuedAt: new Date()
+        }
+      });
 
     if (!reservation.reportJobId) {
       await tx.creditsLedger.update({
@@ -3634,9 +3655,9 @@ export class DomainService {
     const employeeId = typeof pendingContext.employee_id === 'string' ? pendingContext.employee_id : undefined;
     const purpose =
       pendingContext.purpose === 'evidence' ||
-      pendingContext.purpose === 'reference' ||
-      pendingContext.purpose === 'photo' ||
-      pendingContext.purpose === 'annexure'
+        pendingContext.purpose === 'reference' ||
+        pendingContext.purpose === 'photo' ||
+        pendingContext.purpose === 'annexure'
         ? pendingContext.purpose
         : 'other';
 
@@ -3790,20 +3811,20 @@ export class DomainService {
 
       const value = tag.value
         ? await tx.documentTagValue.upsert({
-            where: {
-              tenantId_keyId_value: {
-                tenantId: document.tenantId,
-                keyId: key.id,
-                value: tag.value
-              }
-            },
-            update: {},
-            create: {
+          where: {
+            tenantId_keyId_value: {
               tenantId: document.tenantId,
               keyId: key.id,
               value: tag.value
             }
-          })
+          },
+          update: {},
+          create: {
+            tenantId: document.tenantId,
+            keyId: key.id,
+            value: tag.value
+          }
+        })
         : null;
 
       const existingMap = await tx.documentTagMap.findFirst({
@@ -3963,9 +3984,9 @@ export class DomainService {
       status: reportRequest.status,
       schema: reportRequest.reportInput?.schema
         ? {
-            name: reportRequest.reportInput.schema.name,
-            version: reportRequest.reportInput.schema.version
-          }
+          name: reportRequest.reportInput.schema.name,
+          version: reportRequest.reportInput.schema.version
+        }
         : null,
       payload: isRecord(reportRequest.reportInput?.payload) ? reportRequest.reportInput?.payload : {},
       documents: links
@@ -4530,17 +4551,17 @@ export class DomainService {
       assignmentId: string;
       actorUserId: string | null;
       type:
-        | 'created'
-        | 'status_changed'
-        | 'stage_transitioned'
-        | 'assignee_added'
-        | 'assignee_removed'
-        | 'task_added'
-        | 'task_done'
-        | 'message_posted'
-        | 'document_attached'
-        | 'report_queued'
-        | 'report_finalized';
+      | 'created'
+      | 'status_changed'
+      | 'stage_transitioned'
+      | 'assignee_added'
+      | 'assignee_removed'
+      | 'task_added'
+      | 'task_done'
+      | 'message_posted'
+      | 'document_attached'
+      | 'report_queued'
+      | 'report_finalized';
       payload?: Record<string, unknown>;
     }
   ) {
@@ -4661,20 +4682,20 @@ export class DomainService {
       floor_id: task.floorId,
       floor: task.floor
         ? {
-            id: task.floor.id,
-            name: task.floor.name,
-            sort_order: task.floor.sortOrder
-          }
+          id: task.floor.id,
+          name: task.floor.name,
+          sort_order: task.floor.sortOrder
+        }
         : null,
       title: task.title,
       status: task.status,
       assigned_to_user_id: task.assignedToUserId,
       assigned_to_user: task.assignedToUser
         ? {
-            id: task.assignedToUser.id,
-            name: task.assignedToUser.name,
-            email: task.assignedToUser.email
-          }
+          id: task.assignedToUser.id,
+          name: task.assignedToUser.name,
+          email: task.assignedToUser.email
+        }
         : null,
       due_date: toDateOnly(task.dueDate),
       created_at: task.createdAt.toISOString(),
@@ -4829,13 +4850,13 @@ export class DomainService {
         ? workOrder
         : reportRequest?.workOrderId
           ? await tx.workOrder.findFirst({
-              where: {
-                id: reportRequest.workOrderId,
-                tenantId,
-                deletedAt: null
-              },
-              select: { id: true, portalUserId: true }
-            })
+            where: {
+              id: reportRequest.workOrderId,
+              tenantId,
+              deletedAt: null
+            },
+            select: { id: true, portalUserId: true }
+          })
           : null;
 
       if (workOrderForOwnership && workOrderForOwnership.portalUserId !== expectedPortalUserId) {

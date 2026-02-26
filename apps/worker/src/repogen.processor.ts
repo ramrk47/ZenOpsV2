@@ -9,7 +9,14 @@ import type { ManifestJson } from '@zenops/common';
 import { withTxContext, type PrismaClient } from '@zenops/db';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
+import pLimit from 'p-limit';
+import archiver from 'archiver';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { createWriteStream } from 'node:fs';
 
+const execFileAsync = promisify(execFile);
+const pdfConvertLimit = pLimit(1);
 
 
 function toString(v: unknown): string {
@@ -83,6 +90,8 @@ export const processRepogenGenerationJob = async ({
 }: ProcessRepogenJobParams): Promise<void> => {
   const tenantId = payload.tenantId || fallbackTenantId;
 
+  const jobStartMs = Date.now();
+
   logger.info('repogen_job_start', {
     request_id: payload.requestId,
     repogen_job_id: payload.reportGenerationJobId,
@@ -134,21 +143,29 @@ export const processRepogenGenerationJob = async ({
         }
       });
 
-      const assignment = await tx.assignment.findFirst({
-        where: {
-          id: job.assignmentId,
-          tenantId,
-          deletedAt: null
-        },
-        select: {
-          id: true,
-          title: true
-        }
-      });
+      const [assignment, tenant] = await Promise.all([
+        tx.assignment.findFirst({
+          where: {
+            id: job.assignmentId,
+            tenantId,
+            deletedAt: null
+          },
+          select: {
+            id: true,
+            title: true
+          }
+        }),
+        tx.tenant.findUnique({
+          where: { id: tenantId },
+          select: { repogenFeaturesJson: true }
+        })
+      ]);
 
-      if (!assignment) {
-        throw new Error(`assignment ${job.assignmentId} not found`);
+      if (!assignment || !tenant) {
+        throw new Error(`assignment ${job.assignmentId} or tenant ${tenantId} not found`);
       }
+
+      const features = (tenant.repogenFeaturesJson || {}) as any;
 
       const [fieldValues, evidenceLinks] = await Promise.all([
         tx.reportFieldValue.findMany({
@@ -307,6 +324,8 @@ export const processRepogenGenerationJob = async ({
         });
 
         // ── Render each pack part ──
+        const zipArtifacts: Array<{ filename: string, kind: string, checksumSha256: string | null, sizeBytes: bigint, storageRef: string }> = [];
+
         for (const part of recipe.parts) {
           const templatePath = join(familyDir, part.templateFile);
           const artifactPath = join(
@@ -372,54 +391,62 @@ export const processRepogenGenerationJob = async ({
 
           // ── Stage B: Image embedding (images part only) ──
           if (part.name === 'images' && renderContext.evidence.photos.length > 0) {
-            const photosTmp = join(tmpdir(), `zenops-photos-${job.id}.json`);
-            const classifiedTmp = join(tmpdir(), `zenops-classified-${job.id}.json`);
-            const scriptsDir = join(__dirname, '../../../scripts');
-
-            // Build photo records for classifier
-            const photoRecords = renderContext.evidence.photos.map((p, i) => ({
-              filename: p.filename,
-              path: '',      // no local path at this stage; classifier uses sectionKey
-              contentType: p.type === 'gps' ? 'image/jpeg' : 'image/jpeg',
-              sectionKey: p.type,
-              sortOrder: i,
-              caption: p.filename
-            }));
-            await writeFile(photosTmp, JSON.stringify(photoRecords));
-
-            try {
-              // Classify
-              await spawnPython(join(scriptsDir, 'classify_photos.py'), [
-                '--photos', photosTmp,
-                '--output', classifiedTmp
-              ]);
-
-              // Embed
-              await spawnPython(join(scriptsDir, 'embed_images.py'), [
-                '--docx', artifactPath,
-                '--photos', classifiedTmp,
-                '--output', artifactPath
-              ]);
-
-              logger.info('m5_7_4_images_embedded', {
+            if (features?.enable_image_classifier !== true) {
+              logger.info('m5_7_4_image_classifier_disabled', {
                 request_id: payload.requestId,
                 part_name: part.name,
-                photo_count: photoRecords.length
+                tenant_id: tenantId
               });
-            } catch (embedErr: any) {
-              // Non-fatal: log and continue (text DOCX is still valid)
-              logger.warn('m5_7_4_image_embed_failed', {
-                request_id: payload.requestId,
-                part_name: part.name,
-                error: embedErr.message
-              });
-            } finally {
-              await unlink(photosTmp).catch(() => { });
-              await unlink(classifiedTmp).catch(() => { });
+            } else {
+              const photosTmp = join(tmpdir(), `zenops-photos-${job.id}.json`);
+              const classifiedTmp = join(tmpdir(), `zenops-classified-${job.id}.json`);
+              const scriptsDir = join(__dirname, '../../../scripts');
+
+              // Build photo records for classifier
+              const photoRecords = renderContext.evidence.photos.map((p, i) => ({
+                filename: p.filename,
+                path: '',      // no local path at this stage; classifier uses sectionKey
+                contentType: p.type === 'gps' ? 'image/jpeg' : 'image/jpeg',
+                sectionKey: p.type,
+                sortOrder: i,
+                caption: p.filename
+              }));
+              await writeFile(photosTmp, JSON.stringify(photoRecords));
+
+              try {
+                // Classify
+                await spawnPython(join(scriptsDir, 'classify_photos.py'), [
+                  '--photos', photosTmp,
+                  '--output', classifiedTmp
+                ]);
+
+                // Embed
+                await spawnPython(join(scriptsDir, 'embed_images.py'), [
+                  '--docx', artifactPath,
+                  '--photos', classifiedTmp,
+                  '--output', artifactPath
+                ]);
+
+                logger.info('m5_7_4_images_embedded', {
+                  request_id: payload.requestId,
+                  part_name: part.name,
+                  photo_count: photoRecords.length
+                });
+              } catch (embedErr: any) {
+                // Non-fatal: log and continue (text DOCX is still valid)
+                logger.warn('m5_7_4_image_embed_failed', {
+                  request_id: payload.requestId,
+                  part_name: part.name,
+                  error: embedErr.message
+                });
+              } finally {
+                await unlink(photosTmp).catch(() => { });
+                await unlink(classifiedTmp).catch(() => { });
+              }
             }
           }
 
-          await tx.reportPackArtifact.create({
+          const docxArtifact = await tx.reportPackArtifact.create({
             data: {
               tenantId,
               reportPackId,
@@ -446,7 +473,162 @@ export const processRepogenGenerationJob = async ({
               }
             }
           });
+
+          zipArtifacts.push({
+            filename: `${job.templateKey}-${part.name}-v${packVersion}.docx`,
+            kind: 'docx',
+            checksumSha256: null,
+            sizeBytes: BigInt(contentBuffer.length),
+            storageRef: artifactPath
+          });
+
+          // ── M5.7.5: Stage C - PDF Conversion ──
+          if (features?.enable_pdf_conversion !== true) {
+            logger.info('pdf_convert_disabled', {
+              request_id: payload.requestId,
+              part_name: part.name,
+              tenant_id: tenantId
+            });
+          } else {
+            const pdfPath = join(
+              artifactsRoot,
+              'repogen',
+              job.assignmentId,
+              job.templateKey,
+              `${part.name}-v${packVersion}-${job.id}.pdf`
+            );
+            let pdfStatus = 'SKIPPED';
+            let pdfSizeBytes = 0;
+            let pdfError = undefined;
+
+            logger.info('pdf_convert_started', {
+              request_id: payload.requestId,
+              part_name: part.name
+            });
+
+            try {
+              await pdfConvertLimit(async () => {
+                // 90s timeout enforces isolation limit
+                await execFileAsync('soffice', [
+                  '--headless',
+                  '--nologo',
+                  '--nofirststartwizard',
+                  '--nodefault',
+                  '--norestore',
+                  '--convert-to', 'pdf',
+                  '--outdir', dirname(artifactPath),
+                  artifactPath
+                ], { timeout: 90000 });
+              });
+              const pdfBuffer = await readFile(pdfPath);
+              pdfSizeBytes = pdfBuffer.length;
+              pdfStatus = 'GENERATED';
+              logger.info('pdf_convert_succeeded', {
+                request_id: payload.requestId,
+                part_name: part.name,
+                size_bytes: pdfSizeBytes
+              });
+            } catch (pdfErr: any) {
+              if (pdfErr.code === 'ENOENT' || pdfErr.message.includes('ENOENT')) {
+                pdfStatus = 'SKIPPED';
+                pdfError = 'soffice_missing';
+                logger.info('pdf_convert_skipped_soffice_missing', {
+                  request_id: payload.requestId,
+                  part_name: part.name
+                });
+              } else {
+                pdfStatus = 'FAILED';
+                pdfError = pdfErr.message;
+                logger.warn('pdf_convert_failed', {
+                  request_id: payload.requestId,
+                  part_name: part.name,
+                  error: pdfError
+                });
+              }
+            }
+
+            if (pdfStatus === 'GENERATED') {
+              await tx.reportPackArtifact.create({
+                data: {
+                  tenantId,
+                  reportPackId,
+                  kind: 'pdf',
+                  filename: `${job.templateKey}-${part.name}-v${packVersion}.pdf`,
+                  storageRef: pdfPath,
+                  mimeType: 'application/pdf',
+                  sizeBytes: BigInt(pdfSizeBytes),
+                  metadataJson: {
+                    ...docxArtifact.metadataJson as Record<string, unknown>,
+                    generated_by: 'soffice'
+                  }
+                }
+              });
+
+              zipArtifacts.push({
+                filename: `${job.templateKey}-${part.name}-v${packVersion}.pdf`,
+                kind: 'pdf',
+                checksumSha256: null,
+                sizeBytes: BigInt(pdfSizeBytes),
+                storageRef: pdfPath
+              });
+            }
+          }
         }
+
+        // ── M5.7.6: Pack Assembly (ZIP) ──
+        const zipPath = join(
+          artifactsRoot,
+          'repogen',
+          job.assignmentId,
+          job.templateKey,
+          `${job.templateKey}-pack-v${packVersion}-${renderContext.meta.exportHash.slice(0, 8)}.zip`
+        );
+
+        const metaJson: Record<string, unknown> = {
+          export_hash: renderContext.meta.exportHash,
+          template_hash: renderContext.meta.templateHash,
+          context_version: packVersion, // Approximation for now
+          generated_at: new Date().toISOString(),
+          pack_version: packVersion,
+          artifacts: zipArtifacts.map((a: { filename: string, kind: string, checksumSha256: string | null, sizeBytes: bigint }) => ({
+            filename: a.filename,
+            kind: a.kind,
+            sha256: a.checksumSha256,
+            size: Number(a.sizeBytes)
+          }))
+        };
+
+        await new Promise<void>((resolve, reject) => {
+          const output = createWriteStream(zipPath);
+          const archive = archiver('zip', { zlib: { level: 9 } });
+
+          output.on('close', () => resolve());
+          archive.on('error', (err: Error) => reject(err));
+
+          archive.pipe(output);
+
+          for (const a of zipArtifacts) {
+            archive.file(a.storageRef, { name: a.filename });
+          }
+          archive.append(JSON.stringify(metaJson, null, 2), { name: 'meta.json' });
+
+          void archive.finalize();
+        });
+
+        const zipStat = await readFile(zipPath);
+
+        await tx.reportPackArtifact.create({
+          data: {
+            tenantId,
+            reportPackId,
+            kind: 'zip',
+            filename: `${job.templateKey}-pack-v${packVersion}.zip`,
+            storageRef: zipPath,
+            mimeType: 'application/zip',
+            sizeBytes: BigInt(zipStat.length),
+            metadataJson: metaJson
+          }
+        });
       }
 
       await tx.reportPack.update({
@@ -457,12 +639,28 @@ export const processRepogenGenerationJob = async ({
         }
       });
 
+      const artifactCount = await tx.reportPackArtifact.count({
+        where: { reportPackId: reportPackId! }
+      });
+
+      const jobSummary = {
+        started_at: new Date(jobStartMs).toISOString(),
+        finished_at: new Date().toISOString(),
+        duration_ms: Date.now() - jobStartMs,
+        artifact_count: artifactCount,
+        features: {
+          pdf_conversion: features?.enable_pdf_conversion === true,
+          image_classifier: features?.enable_image_classifier === true
+        }
+      };
+
       await tx.reportGenerationJob.update({
         where: { id: job.id },
         data: {
           status: 'completed',
           finishedAt: new Date(),
-          workerTrace: payload.requestId
+          workerTrace: payload.requestId,
+          jobSummaryJson: jobSummary
         }
       });
 

@@ -510,6 +510,15 @@ export const RepogenPacksListQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(50).default(10)
 });
 
+export const RepogenArtifactPresignResponseSchema = z.object({
+  url: z.string().url(),
+  expiresAt: z.string().datetime()
+});
+
+export const RepogenPackFinalizeSchema = z.object({
+  notes: z.string().optional()
+});
+
 export const BillingInvoiceMarkPaidSchema = z.object({
   amount_paise: z.number().int().positive().optional(),
   reference: z.string().min(1).optional(),
@@ -624,6 +633,8 @@ export type RepogenEvidenceLinksUpsert = z.infer<typeof RepogenEvidenceLinksUpse
 export type RepogenGenerateTrigger = z.infer<typeof RepogenGenerateTriggerSchema>;
 export type RepogenDraftContextQuery = z.infer<typeof RepogenDraftContextQuerySchema>;
 export type RepogenPacksListQuery = z.infer<typeof RepogenPacksListQuerySchema>;
+export type RepogenArtifactPresignResponse = z.infer<typeof RepogenArtifactPresignResponseSchema>;
+export type RepogenPackFinalize = z.infer<typeof RepogenPackFinalizeSchema>;
 export type BillingInvoiceMarkPaid = z.infer<typeof BillingInvoiceMarkPaidSchema>;
 export type EmployeeCreate = z.infer<typeof EmployeeCreateSchema>;
 export type AttendanceMark = z.infer<typeof AttendanceMarkSchema>;

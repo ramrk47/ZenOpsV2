@@ -90,12 +90,12 @@ const buildTriggerTx = () => {
             templateVersion:
               state.templateVersions.find((row) => row.id === existing.templateVersionId)
                 ? {
-                    id: existing.templateVersionId,
-                    version:
-                      state.templateVersions.find((row) => row.id === existing.templateVersionId)!.version,
-                    label:
-                      state.templateVersions.find((row) => row.id === existing.templateVersionId)!.label
-                  }
+                  id: existing.templateVersionId,
+                  version:
+                    state.templateVersions.find((row) => row.id === existing.templateVersionId)!.version,
+                  label:
+                    state.templateVersions.find((row) => row.id === existing.templateVersionId)!.label
+                }
                 : null,
             reportPack: null
           };
@@ -273,9 +273,14 @@ const buildEvidenceTx = () => {
   return { tx, state };
 };
 
+const mockStorageProvider: any = {
+  getPresignedGetUrl: vi.fn(),
+  getPresignedPutUrl: vi.fn(),
+};
+
 describe('RepogenService', () => {
   it('returns the same generation job for repeated idempotency keys', async () => {
-    const service = new RepogenService();
+    const service = new RepogenService(mockStorageProvider);
     const { tx, state } = buildTriggerTx();
 
     const first = await service.triggerGeneration(tx, assignmentId, 'user-1', {
@@ -299,7 +304,7 @@ describe('RepogenService', () => {
   });
 
   it('persists evidence links and returns them in draft context', async () => {
-    const service = new RepogenService();
+    const service = new RepogenService(mockStorageProvider);
     const { tx, state } = buildEvidenceTx();
 
     await service.upsertEvidenceLinks(tx, assignmentId, 'user-1', {

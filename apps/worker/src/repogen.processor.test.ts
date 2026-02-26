@@ -175,6 +175,21 @@ const makeStatefulTx = (initialJobs?: any[]) => {
         return null;
       }
     },
+    tenant: {
+      findUnique: async ({ where }: any) => {
+        if (where.id === 'tenant-1') {
+          return {
+            repogenFeaturesJson: {
+              enable_repogen: true,
+              enable_review_gap: true,
+              enable_pdf_conversion: true,
+              enable_image_classifier: true
+            }
+          };
+        }
+        return null;
+      }
+    },
     reportFieldValue: {
       findMany: async ({ where }: any) =>
         state.fields.filter(
@@ -243,6 +258,8 @@ const makeStatefulTx = (initialJobs?: any[]) => {
             row.reportPackId === where.reportPackId &&
             row.kind === where.kind
         ) ?? null,
+      count: async ({ where }: any) =>
+        state.artifacts.filter((row) => row.reportPackId === where.reportPackId).length,
       create: async ({ data }: any) => {
         const row = {
           id: `artifact-${state.artifacts.length + 1}`,
@@ -293,7 +310,7 @@ describe('processRepogenGenerationJob', () => {
     expect(state.jobs[0]?.attempts).toBe(1);
     expect(state.packs).toHaveLength(1);
     expect(state.packs[0]?.status).toBe('generated');
-    expect(state.artifacts).toHaveLength(1);
+    expect(state.artifacts).toHaveLength(2); // docx + zip
     expect(state.auditLogs.some((row) => row.action === 'generation_completed')).toBe(true);
 
     const content = await readFile(state.artifacts[0].storageRef, 'utf8');
@@ -437,11 +454,12 @@ describe('processRepogenGenerationJob', () => {
       runWithContext: async (_prisma, _ctx, fn) => fn(tx)
     });
 
-    expect(state.artifacts).toHaveLength(1);
-    expect(state.artifacts[0]?.metadataJson?.repogen_factory).toBe(true);
-    expect(state.artifacts[0]?.metadataJson?.work_order_id).toBe('wo-1');
-    expect(state.artifacts[0]?.metadataJson?.snapshot_version).toBe(4);
-    expect(state.artifacts[0]?.metadataJson?.template_selector).toBe('SBI_FORMAT_A');
-    expect(state.artifacts[0]?.metadataJson?.export_bundle_hash).toBe('hash-123');
+    expect(state.artifacts).toHaveLength(2); // docx + zip
+    const docxArtifact = state.artifacts.find(a => a.kind === 'docx');
+    expect(docxArtifact?.metadataJson?.repogen_factory).toBe(true);
+    expect(docxArtifact?.metadataJson?.work_order_id).toBe('wo-1');
+    expect(docxArtifact?.metadataJson?.snapshot_version).toBe(4);
+    expect(docxArtifact?.metadataJson?.template_selector).toBe('SBI_FORMAT_A');
+    expect(docxArtifact?.metadataJson?.export_bundle_hash).toBe('hash-123');
   });
 });

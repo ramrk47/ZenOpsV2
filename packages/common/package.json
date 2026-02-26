@@ -12,6 +12,10 @@
     "contract_check": "echo 'no contract checks for common'"
   },
   "devDependencies": {
+    "@types/archiver": "^7.0.0",
     "vitest": "3.0.6"
+  },
+  "dependencies": {
+    "archiver": "^7.0.1"
   }
 }

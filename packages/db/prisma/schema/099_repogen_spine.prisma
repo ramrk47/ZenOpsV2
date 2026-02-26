@@ -123,6 +123,7 @@ model ReportGenerationJob {
   requestedByUserId String?               @map("requested_by_user_id") @db.Uuid
   requestPayloadJson Json                 @default("{}") @db.JsonB @map("request_payload_json")
   warningsJson    Json                    @default("[]") @db.JsonB @map("warnings_json")
+  jobSummaryJson  Json                    @default("{}") @db.JsonB @map("job_summary_json")
   reportPackId    String?                 @unique @map("report_pack_id") @db.Uuid
   queuedAt        DateTime?               @map("queued_at")
   startedAt       DateTime?               @map("started_at")

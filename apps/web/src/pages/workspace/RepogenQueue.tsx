@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { StatusChip } from '../../components/workspace/StatusChip';
 import { KpiData } from '../../components/workspace/KpiStrip';
 import { QuickPreviewSidebar } from '../../components/workspace/QuickPreviewSidebar';
 import { ReadinessBadge } from '../../components/workspace/ReadinessBadge';
+import { RepogenClient, type ArtifactInfo } from '../../api/repogen.client';
 
 const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/v1';
 
@@ -16,8 +17,12 @@ export function RepogenQueue({ token, activeKpiFilter, onCountsCalc }: RepogenQu
     const [rows, setRows] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-
     const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+
+    const [artifacts, setArtifacts] = useState<ArtifactInfo[]>([]);
+    const [artifactsLoading, setArtifactsLoading] = useState(false);
+
+    const client = useMemo(() => new RepogenClient(API, token), [token]);
 
     const load = async () => {
         if (!token) return;
@@ -84,19 +89,147 @@ export function RepogenQueue({ token, activeKpiFilter, onCountsCalc }: RepogenQu
 
     const selectedRow = rows.find(r => r.id === selectedRowId);
 
-    const getNextAction = (row: any) => {
-        if (!row) return undefined;
-        if (row.status === 'EVIDENCE_PENDING' || row.status === 'DATA_PENDING') {
-            return { label: 'Complete Data', onClick: () => { window.location.href = `/repogen?id=${row.id}`; } };
+    // Load artifacts for selected row if exists
+    useEffect(() => {
+        if (!selectedRow || !selectedRow.report_pack_id) {
+            setArtifacts([]);
+            return;
         }
-        if (row.status === 'READY_FOR_RENDER' && !row.report_pack_id) {
-            return { label: 'Create Pack', onClick: () => { window.location.href = `/repogen?id=${row.id}`; } };
+
+        let isMounted = true;
+        setArtifactsLoading(true);
+
+        client.listPackArtifacts(selectedRow.id, selectedRow.report_pack_id)
+            .then(res => {
+                if (isMounted) setArtifacts(res.artifacts || []);
+            })
+            .catch(err => {
+                console.error("Failed to load artifacts", err);
+                if (isMounted) setArtifacts([]);
+            })
+            .finally(() => {
+                if (isMounted) setArtifactsLoading(false);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [selectedRowId, selectedRow?.report_pack_id, client]);
+
+    const handleDownloadArtifact = async (artifactId: string) => {
+        try {
+            const res = await client.getPresignedUrl(artifactId);
+            window.open(res.url, '_blank');
+        } catch (err) {
+            console.error(err);
+            alert('Failed to get download URL.');
         }
-        if (row.status === 'READY_FOR_RENDER' && row.report_pack_id) {
-            return { label: 'Release Deliverables', onClick: () => { window.location.href = `/repogen?id=${row.id}`; } };
-        }
-        return { label: 'Open Detail', onClick: () => { window.location.href = `/repogen?id=${row.id}`; } };
     };
+
+    const handleFinalize = async (packId: string) => {
+        if (!confirm('This will mark the current draft outputs as FINAL. Are you sure?')) return;
+        try {
+            await client.finalizePack(selectedRow!.id, packId);
+            // Reload the queue to grab new status
+            load();
+            setArtifacts([]);
+        } catch (err) {
+            console.error(err);
+            alert('Failed to finalize pack.');
+        }
+    };
+
+    const getSidebarProps = () => {
+        if (!selectedRow) return null;
+
+        const isPackFinal = selectedRow.report_pack_status === 'finalized';
+        const docxDraft = artifacts.find(a => a.kind === 'docx');
+        const pdfDraft = artifacts.find(a => a.kind === 'pdf');
+        const zipFinal = artifacts.find(a => a.kind === 'zip');
+
+        let pdfHasError = false;
+        if (pdfDraft?.metadata_json?.error) pdfHasError = true;
+
+        let pdfHasWarning = false;
+        if (pdfDraft?.metadata_json?.skipped) pdfHasWarning = true;
+
+        let nextAction;
+        let secondaryActions: { label: string; onClick: () => void }[] = [];
+        let badges: { label: string; variant: 'red' | 'amber' | 'emerald' | 'slate' }[] = [];
+
+        const links: { label: string; href: string }[] = [
+            { label: 'Open in Repogen Studio', href: `/repogen?id=${selectedRow.id}` }
+        ];
+
+        if (selectedRow.status === 'EVIDENCE_PENDING' || selectedRow.status === 'DATA_PENDING') {
+            nextAction = { label: 'Complete Data', onClick: () => { window.location.href = `/repogen?id=${selectedRow.id}`; } };
+        } else if (selectedRow.status === 'READY_FOR_RENDER' && !selectedRow.report_pack_id) {
+            nextAction = { label: 'Create Pack', onClick: () => { window.location.href = `/repogen?id=${selectedRow.id}`; } };
+        } else if (selectedRow.report_pack_id) {
+            // Document Review Gap Workflow
+            if (!isPackFinal) {
+                // DRAFT MODE
+                nextAction = {
+                    label: 'Make Final',
+                    onClick: () => handleFinalize(selectedRow.report_pack_id)
+                };
+
+                if (pdfDraft && !pdfHasError && !pdfHasWarning) {
+                    secondaryActions.push({
+                        label: 'View Draft (PDF)',
+                        onClick: () => handleDownloadArtifact(pdfDraft.id)
+                    });
+                } else if (docxDraft) {
+                    secondaryActions.push({
+                        label: 'View Draft (DOCX)',
+                        onClick: () => handleDownloadArtifact(docxDraft.id)
+                    });
+                }
+
+                if (pdfHasError) {
+                    badges.push({ label: 'PDF Failed', variant: 'red' });
+                } else if (pdfHasWarning) {
+                    badges.push({ label: 'PDF Skipped', variant: 'amber' });
+                }
+
+            } else {
+                // FINAL MODE
+                if (zipFinal) {
+                    nextAction = {
+                        label: 'Download Pack (Final ZIP)',
+                        onClick: () => handleDownloadArtifact(zipFinal.id)
+                    };
+                }
+
+                if (pdfDraft) {
+                    secondaryActions.push({
+                        label: 'View Final (PDF)',
+                        onClick: () => handleDownloadArtifact(pdfDraft.id)
+                    });
+                } else if (docxDraft) {
+                    secondaryActions.push({
+                        label: 'View Final (DOCX)',
+                        onClick: () => handleDownloadArtifact(docxDraft.id)
+                    });
+                }
+            }
+        } else {
+            nextAction = { label: 'Open Detail', onClick: () => { window.location.href = `/repogen?id=${selectedRow.id}`; } };
+        }
+
+        const details = [
+            { label: 'Status', value: selectedRow.status },
+            { label: 'Report Type', value: selectedRow.report_type },
+            { label: 'Value Slab', value: selectedRow.value_slab },
+            { label: 'Template Selector', value: selectedRow.template_selector ?? 'Waiting for rules' },
+            { label: 'Evidence Attached', value: selectedRow.evidence_count ?? 0 },
+            { label: 'Pack Status', value: selectedRow.report_pack_status ?? '-' },
+        ];
+
+        return { nextAction, secondaryActions, badges, links, details };
+    };
+
+    const sidebarProps = getSidebarProps();
 
     return (
         <div className="flex flex-col gap-4">
@@ -155,22 +288,16 @@ export function RepogenQueue({ token, activeKpiFilter, onCountsCalc }: RepogenQu
                 onClose={() => setSelectedRowId(null)}
                 title={`Work Order ${selectedRow?.id?.split('-')[0]}`}
                 subtitle={selectedRow?.bank_name}
+                badges={sidebarProps?.badges}
                 readiness={{
                     score: selectedRow?.readiness_score ?? null,
                     missingEvidenceCount: selectedRow?.status === 'EVIDENCE_PENDING' ? 1 : 0,
                     warningsCount: 0
                 }}
-                details={[
-                    { label: 'Status', value: selectedRow?.status },
-                    { label: 'Report Type', value: selectedRow?.report_type },
-                    { label: 'Value Slab', value: selectedRow?.value_slab },
-                    { label: 'Template Selector', value: selectedRow?.template_selector ?? 'Waiting for rules' },
-                    { label: 'Evidence Attached', value: selectedRow?.evidence_count ?? 0 },
-                ]}
-                nextAction={getNextAction(selectedRow)}
-                links={[
-                    { label: 'Open in Repogen Studio', href: `/repogen?id=${selectedRow?.id}` }
-                ]}
+                details={sidebarProps?.details ?? []}
+                nextAction={sidebarProps?.nextAction}
+                secondaryActions={sidebarProps?.secondaryActions}
+                links={sidebarProps?.links ?? []}
             />
         </div>
     );

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Inject, NotFoundException } from '@nestjs/common';
 import type {
   RepogenDraftContextQuery,
   RepogenDraftUpsert,
@@ -7,6 +7,7 @@ import type {
   RepogenPacksListQuery
 } from '@zenops/contracts';
 import { Prisma, type TxClient } from '@zenops/db';
+import type { StorageProvider } from '@zenops/storage';
 
 type WarningSeverity = 'info' | 'warn' | 'error';
 
@@ -43,6 +44,8 @@ const firstString = (value: unknown): string | null => {
 
 @Injectable()
 export class RepogenService {
+  constructor(@Inject('STORAGE_PROVIDER') private readonly storageProvider: StorageProvider) { }
+
   private readonly supportedTemplates = {
     SBI_UNDER_5CR_V1: {
       family: 'valuation' as const,
@@ -475,10 +478,10 @@ export class RepogenService {
       updated_at: row.updatedAt.toISOString(),
       template_version: row.templateVersion
         ? {
-            id: row.templateVersion.id,
-            version: row.templateVersion.version,
-            label: row.templateVersion.label
-          }
+          id: row.templateVersion.id,
+          version: row.templateVersion.version,
+          label: row.templateVersion.label
+        }
         : null,
       artifacts: row.artifacts.map((artifact) => this.serializeArtifact(artifact))
     };
@@ -550,10 +553,10 @@ export class RepogenService {
       updated_at: row.updatedAt.toISOString(),
       template_version: row.templateVersion
         ? {
-            id: row.templateVersion.id,
-            version: row.templateVersion.version,
-            label: row.templateVersion.label
-          }
+          id: row.templateVersion.id,
+          version: row.templateVersion.version,
+          label: row.templateVersion.label
+        }
         : null,
       report_pack: row.reportPack ? this.serializePack(row.reportPack) : null
     };
@@ -673,15 +676,15 @@ export class RepogenService {
     const computed =
       landValue !== null && buildingValue !== null
         ? {
-            fmv: landValue + buildingValue,
-            realizable: Math.round((landValue + buildingValue) * 0.95),
-            distress: Math.round((landValue + buildingValue) * 0.8),
-            book_value: guidelineValue,
-            depreciation_pct:
-              ageYears !== null && totalLifeYears && totalLifeYears > 0
-                ? Number((((ageYears / totalLifeYears) * 100)).toFixed(2))
-                : null
-          }
+          fmv: landValue + buildingValue,
+          realizable: Math.round((landValue + buildingValue) * 0.95),
+          distress: Math.round((landValue + buildingValue) * 0.8),
+          book_value: guidelineValue,
+          depreciation_pct:
+            ageYears !== null && totalLifeYears && totalLifeYears > 0
+              ? Number((((ageYears / totalLifeYears) * 100)).toFixed(2))
+              : null
+        }
         : null;
 
     return {
@@ -696,16 +699,16 @@ export class RepogenService {
         family: this.supportedTemplates[templateKey].family,
         registry: templateMeta
           ? {
-              template_id: templateMeta.id,
-              status: templateMeta.status,
-              versions: templateMeta.versions.map((versionRow) => ({
-                id: versionRow.id,
-                version: versionRow.version,
-                label: versionRow.label,
-                status: versionRow.status,
-                storage_ref: versionRow.storageRef
-              }))
-            }
+            template_id: templateMeta.id,
+            status: templateMeta.status,
+            versions: templateMeta.versions.map((versionRow) => ({
+              id: versionRow.id,
+              version: versionRow.version,
+              label: versionRow.label,
+              status: versionRow.status,
+              storage_ref: versionRow.storageRef
+            }))
+          }
           : null
       },
       fields: fieldRows.map((row) => this.serializeField(row)),
@@ -789,12 +792,12 @@ export class RepogenService {
 
       const saved = before
         ? await tx.reportFieldValue.update({
-            where: { id: before.id },
-            data
-          })
+          where: { id: before.id },
+          data
+        })
         : await tx.reportFieldValue.create({
-            data
-          });
+          data
+        });
 
       existingByKey.set(rowKey, saved);
 
@@ -808,11 +811,11 @@ export class RepogenService {
         entityId: saved.id,
         beforeJson: before
           ? {
-              source: before.source,
-              value: before.valueJson as unknown as Record<string, unknown>,
-              normalized_text: before.normalizedText,
-              source_document_id: before.sourceDocumentId
-            }
+            source: before.source,
+            value: before.valueJson as unknown as Record<string, unknown>,
+            normalized_text: before.normalizedText,
+            source_document_id: before.sourceDocumentId
+          }
           : null,
         afterJson: {
           source: saved.source,
@@ -896,30 +899,30 @@ export class RepogenService {
 
       const saved = existing
         ? await tx.reportEvidenceLink.update({
-            where: { id: existing.id },
-            data: {
-              label: row.label ?? null,
-              sortOrder: row.sort_order ?? existing.sortOrder,
-              metadataJson: (row.metadata_json ?? {}) as unknown as Prisma.InputJsonObject,
-              ocrJson: jsonObject(row.ocr as unknown as Record<string, unknown> | undefined),
-              createdByUserId: actorUserId ?? existing.createdByUserId
-            }
-          })
+          where: { id: existing.id },
+          data: {
+            label: row.label ?? null,
+            sortOrder: row.sort_order ?? existing.sortOrder,
+            metadataJson: (row.metadata_json ?? {}) as unknown as Prisma.InputJsonObject,
+            ocrJson: jsonObject(row.ocr as unknown as Record<string, unknown> | undefined),
+            createdByUserId: actorUserId ?? existing.createdByUserId
+          }
+        })
         : await tx.reportEvidenceLink.create({
-            data: {
-              tenantId: assignment.tenantId,
-              assignmentId,
-              templateKey,
-              sectionKey,
-              fieldKey: row.field_key ?? null,
-              documentId: row.document_id,
-              label: row.label ?? null,
-              sortOrder: row.sort_order ?? 0,
-              metadataJson: (row.metadata_json ?? {}) as unknown as Prisma.InputJsonObject,
-              ocrJson: jsonObject(row.ocr as unknown as Record<string, unknown> | undefined),
-              createdByUserId: actorUserId
-            }
-          });
+          data: {
+            tenantId: assignment.tenantId,
+            assignmentId,
+            templateKey,
+            sectionKey,
+            fieldKey: row.field_key ?? null,
+            documentId: row.document_id,
+            label: row.label ?? null,
+            sortOrder: row.sort_order ?? 0,
+            metadataJson: (row.metadata_json ?? {}) as unknown as Prisma.InputJsonObject,
+            ocrJson: jsonObject(row.ocr as unknown as Record<string, unknown> | undefined),
+            createdByUserId: actorUserId
+          }
+        });
 
       await this.appendAuditLog(tx, {
         tenantId: assignment.tenantId,
@@ -1118,6 +1121,137 @@ export class RepogenService {
     return {
       assignment_id: assignmentId,
       packs: rows.map((row) => this.serializePack(row))
+    };
+  }
+
+  async listPackArtifacts(tx: TxClient, assignmentId: string, packId: string) {
+    const assignment = await this.getAssignment(tx, assignmentId);
+
+    const pack = await tx.reportPack.findFirst({
+      where: {
+        id: packId,
+        tenantId: assignment.tenantId,
+        assignmentId
+      }
+    });
+
+    if (!pack) {
+      throw new NotFoundException(`report_pack ${packId} not found`);
+    }
+
+    const artifacts = await tx.reportPackArtifact.findMany({
+      where: {
+        tenantId: assignment.tenantId,
+        reportPackId: packId
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return {
+      pack_id: packId,
+      artifacts: artifacts.map(a => ({
+        id: a.id,
+        kind: a.kind,
+        filename: a.filename,
+        mime_type: a.mimeType,
+        size_bytes: Number(a.sizeBytes),
+        checksum_sha256: a.checksumSha256,
+        metadata_json: a.metadataJson,
+        created_at: a.createdAt.toISOString()
+      }))
+    };
+  }
+
+  async finalizePack(tx: TxClient, assignmentId: string, packId: string, notes?: string) {
+    const assignment = await this.getAssignment(tx, assignmentId);
+
+    let pack = await tx.reportPack.findFirst({
+      where: {
+        id: packId,
+        tenantId: assignment.tenantId,
+        assignmentId
+      },
+      include: {
+        artifacts: true
+      }
+    });
+
+    if (!pack) {
+      throw new NotFoundException(`report_pack ${packId} not found`);
+    }
+
+    if (pack.status !== 'generated') {
+      throw new BadRequestException(`report_pack ${packId} is not in generated status`);
+    }
+
+    if (pack.contextSnapshotJson && isRecord(pack.contextSnapshotJson)) {
+      const snap = pack.contextSnapshotJson as Record<string, unknown>;
+      snap.final_pack_version = pack.version;
+      snap.finalized_at = new Date().toISOString();
+      if (notes) snap.finalization_notes = notes;
+
+      pack = await tx.reportPack.update({
+        where: { id: pack.id },
+        data: {
+          status: 'finalized',
+          contextSnapshotJson: snap as Prisma.InputJsonObject
+        },
+        include: {
+          templateVersion: { select: { id: true, version: true, label: true } },
+          artifacts: true
+        }
+      });
+    } else {
+      pack = await tx.reportPack.update({
+        where: { id: pack.id },
+        data: {
+          status: 'finalized',
+          contextSnapshotJson: {
+            final_pack_version: pack.version,
+            finalized_at: new Date().toISOString(),
+            finalization_notes: notes ?? null
+          }
+        },
+        include: {
+          templateVersion: { select: { id: true, version: true, label: true } },
+          artifacts: true
+        }
+      });
+    }
+
+    await this.appendAuditLog(tx, {
+      tenantId: assignment.tenantId,
+      assignmentId,
+      actorUserId: assignment.tenantId, // Using tenantId as system actor for now
+      reportPackId: pack!.id,
+      action: 'pack_finalized',
+      entityType: 'report_pack',
+      entityId: pack!.id,
+      metadataJson: {
+        version: pack!.version,
+        notes: notes ?? null
+      }
+    });
+
+    return this.serializePack(pack as any);
+  }
+
+  async createArtifactPresignedUrl(tx: TxClient, artifactId: string) {
+    const artifact = await tx.reportPackArtifact.findFirst({
+      where: { id: artifactId }
+    });
+
+    if (!artifact) {
+      throw new NotFoundException(`artifact ${artifactId} not found`);
+    }
+
+    const { url, expiresAt } = await this.storageProvider.presignDownload({
+      key: artifact.storageRef
+    });
+
+    return {
+      url,
+      expiresAt
     };
   }
 }

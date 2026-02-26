@@ -25,6 +25,14 @@ export interface QuickPreviewSidebarProps {
         label: string;
         onClick: () => void;
     };
+    secondaryActions?: {
+        label: string;
+        onClick: () => void;
+    }[];
+    badges?: {
+        label: string;
+        variant: 'red' | 'amber' | 'emerald' | 'slate';
+    }[];
     links: { label: string; href: string }[];
 }
 
@@ -37,6 +45,8 @@ export function QuickPreviewSidebar({
     readiness,
     billing,
     nextAction,
+    secondaryActions,
+    badges,
     links
 }: QuickPreviewSidebarProps) {
     if (!isOpen) return null;
@@ -58,6 +68,15 @@ export function QuickPreviewSidebar({
                 <div>
                     <h3 className="m-0 text-xl font-bold text-[var(--zen-primary)]">{title}</h3>
                     <p className="m-0 mt-1 text-sm text-[var(--zen-muted)]">{subtitle}</p>
+                    {badges && badges.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {badges.map((badge, idx) => (
+                                <span key={idx} className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-${badge.variant}-100 text-${badge.variant}-800`}>
+                                    {badge.label}
+                                </span>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {(readiness || billing) && (
@@ -80,15 +99,26 @@ export function QuickPreviewSidebar({
                     </div>
                 )}
 
-                {nextAction && (
-                    <div>
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--zen-muted)]">Next Action</p>
-                        <button
-                            onClick={nextAction.onClick}
-                            className="w-full rounded-lg bg-[var(--zen-primary)] px-4 py-2 text-sm font-bold text-white hover:bg-opacity-90 transition-colors"
-                        >
-                            {nextAction.label}
-                        </button>
+                {(nextAction || (secondaryActions && secondaryActions.length > 0)) && (
+                    <div className="space-y-2">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--zen-muted)]">Actions</p>
+                        {nextAction && (
+                            <button
+                                onClick={nextAction.onClick}
+                                className="w-full rounded-lg bg-[var(--zen-primary)] px-4 py-2 text-sm font-bold text-white hover:bg-opacity-90 transition-colors"
+                            >
+                                {nextAction.label}
+                            </button>
+                        )}
+                        {secondaryActions && secondaryActions.map((action, idx) => (
+                            <button
+                                key={idx}
+                                onClick={action.onClick}
+                                className="w-full rounded-lg border border-[var(--zen-border)] bg-white px-4 py-2 text-sm font-medium text-[var(--zen-text)] hover:bg-slate-50 transition-colors"
+                            >
+                                {action.label}
+                            </button>
+                        ))}
                     </div>
                 )}
 
