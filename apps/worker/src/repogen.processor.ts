@@ -1,7 +1,11 @@
 import { createHash } from 'node:crypto';
 import { mkdir, writeFile, readFile, unlink } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 import { spawn } from 'node:child_process';
 import type { Logger } from '@zenops/common';
 import { buildRenderContext, resolveRecipe, TEMPLATE_KEY_TO_FAMILY } from '@zenops/common';

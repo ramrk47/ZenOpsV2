@@ -19,7 +19,7 @@ const generateToken = () => {
             tenant_id: TENANT_ID,
             user_id: USER_ID,
             aud: 'web',
-            roles: ['super_admin', 'FACTORY_OPERATOR'],
+            roles: ['admin', 'factory_ops'],
             capabilities: ['*']
         },
         JWT_SECRET,
@@ -44,7 +44,7 @@ test.describe('End-to-End DOCX Generation Pipeline', () => {
         }
 
         console.log('3. Clicking Refresh...');
-        const refreshBtn = await page.getByRole('button', { name: 'Refresh' });
+        const refreshBtn = await page.getByRole('button', { name: 'Refresh', exact: true });
         if (refreshBtn) {
             await refreshBtn.click();
             await page.waitForTimeout(2000);
@@ -57,7 +57,7 @@ test.describe('End-to-End DOCX Generation Pipeline', () => {
         await workOrderRow.click();
 
         console.log('5. Navigating to Pack & Release tab...');
-        const packTabBtn = page.getByRole('button', { name: /Pack/i });
+        const packTabBtn = page.locator('button:has-text("Pack & Release")').first();
         await packTabBtn.click();
 
         console.log('6. Clicking Create Pack...');

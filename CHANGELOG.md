@@ -2,13 +2,11 @@
 
 ## [Unreleased]
 ### Fixed
-- E2E Testing DB Schema Seeding Mismatches
-  - Fixed ESM resolution errors natively via file URLs since `__dirname` wasn't accessible in `@swc/register` running `seed-e2e.ts`.
-  - Added missing fields for `RepogenWorkOrder` (`sourceType`, `reportType`, `bankName`, `bankType`, `valueSlab`).
-  - Corrected `Document` schema bindings (`mimeType` to `contentType`).
-  - Enforced correct JSON types and dependencies on `RepogenContractSnapshot` (adding `derivedJson`, removing invalid `patchJson`, `schemaHash`, `warningsJson`).
+- E2E Seeding: Resolved Prisma schema mismatches for `RepogenWorkOrder` and `RepogenContractSnapshot`.
+- ESM Compatibility: Fixed `__dirname` issues in `seed-e2e.ts` and `repogen.processor.ts` (Worker).
+- Role Validation: Corrected JWT roles from `FACTORY_OPERATOR` to `factory_ops` to align with backend controller requirements.
+- Playwright Locators: Fixed strict mode violations and timing issues for 'Refresh' and 'Pack & Release' buttons.
 ### Added
-- Created `e2e` Playwright UI automated testing framework for End-to-End DOCX Generative pipeline validation. 
-  - Validates full `CREATE_PACK` pipeline using polling pattern until ZIP artifacts are ready.
-- Integrated deterministic fixtures via `/apps/worker/test/fixtures/e2e/evidence` to simulate `upload` state without requiring Desktop agent workflows.
-- Provided `pnpm e2e:repogen` workflow script for complete pipeline setup containing parallel dockers, Postgres migrations, `seed-e2e.ts` run, and `playwright test` automation execution.
+- Portable E2E Framework: Added Playwright tests in `apps/e2e/` for deterministic DOCX generation testing.
+- Trigger Script: Added `apps/e2e/trigger-docx.ts` for direct API-based generation verification.
+- E2E Workflow: Integrated `pnpm e2e:repogen` script to automate full Docker + Seeding + Test lifecycle.
