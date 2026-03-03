@@ -20,6 +20,17 @@ log() {
   printf '[%s] %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$*"
 }
 
+current_image_for() {
+  local service="$1"
+  local cid
+  cid="$(docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" ps -q "$service" 2>/dev/null || true)"
+  if [ -z "$cid" ]; then
+    echo ""
+    return 0
+  fi
+  docker inspect --format '{{.Config.Image}}' "$cid" 2>/dev/null || true
+}
+
 if [ ! -f "$COMPOSE_FILE" ]; then
   echo "ERROR: Compose file not found: $COMPOSE_FILE" >&2
   exit 1
@@ -39,12 +50,25 @@ if [ -z "${PREVIOUS_API_IMAGE:-}" ] || [ -z "${PREVIOUS_FRONTEND_IMAGE:-}" ]; th
   exit 1
 fi
 
+PREVIOUS_EMAIL_WORKER_IMAGE="${PREVIOUS_EMAIL_WORKER_IMAGE:-$PREVIOUS_API_IMAGE}"
+
 log "Using compose file: $COMPOSE_FILE"
 log "Using compose project: $COMPOSE_PROJECT_NAME"
 docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" config -q
+
+log "Current running images before rollback:"
+log "  api=$(current_image_for api)"
+log "  frontend=$(current_image_for frontend)"
+log "  email-worker=$(current_image_for email-worker)"
+
 log "Rolling back to:"
-log "  api/email-worker -> $PREVIOUS_API_IMAGE"
+log "  api              -> $PREVIOUS_API_IMAGE"
 log "  frontend         -> $PREVIOUS_FRONTEND_IMAGE"
+log "  email-worker     -> $PREVIOUS_EMAIL_WORKER_IMAGE"
+
+if [ "$PREVIOUS_EMAIL_WORKER_IMAGE" != "$PREVIOUS_API_IMAGE" ]; then
+  log "NOTE: compose currently shares ZENOPS_API_IMAGE for api/email-worker; email-worker will use $PREVIOUS_API_IMAGE"
+fi
 
 env \
   ZENOPS_API_IMAGE="$PREVIOUS_API_IMAGE" \
