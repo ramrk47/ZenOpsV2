@@ -39,7 +39,7 @@ APPROVAL_ROUTING: dict[ApprovalEntityType, list[Role]] = {
 APPROVAL_TYPE_ROUTING: dict[ApprovalType, list[Role]] = {
     ApprovalType.DRAFT_ASSIGNMENT: [Role.OPS_MANAGER, Role.ADMIN],
     ApprovalType.FINAL_DOC_REVIEW: [Role.OPS_MANAGER, Role.ADMIN],
-    ApprovalType.PAYMENT_CONFIRMATION: [Role.FINANCE, Role.ADMIN],
+    ApprovalType.PAYMENT_CONFIRMATION: [Role.OPS_MANAGER, Role.ADMIN],
 }
 
 
