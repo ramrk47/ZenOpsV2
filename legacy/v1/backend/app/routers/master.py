@@ -19,6 +19,8 @@ from app.models.master import (
     DocumentChecklistTemplate,
     PropertySubtype,
     PropertyType,
+    ServiceLineMaster,
+    ServiceLinePolicy,
 )
 from app.models.partner import ExternalPartner
 from app.models.user import User
@@ -49,6 +51,12 @@ from app.schemas.master import (
     PropertyTypeCreate,
     PropertyTypeRead,
     PropertyTypeUpdate,
+    ServiceLineCreate,
+    ServiceLinePolicyList,
+    ServiceLinePolicyRead,
+    ServiceLinePolicyUpdate,
+    ServiceLineRead,
+    ServiceLineUpdate,
 )
 from app.schemas.partner import ExternalPartnerCreate, ExternalPartnerRead, ExternalPartnerUpdate
 
@@ -92,6 +100,48 @@ def _validate_property_refs(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="property_subtype_id does not belong to property_type_id",
             )
+
+
+LAND_POLICY_BLOCKS = {"NORMAL_LAND", "SURVEY_ROWS", "BUILT_UP"}
+
+
+def _normalize_policy_json(policy_json: Optional[dict]) -> dict:
+    payload = policy_json or {}
+    requires: list[str] = []
+    optional: list[str] = []
+
+    for raw in payload.get("requires", []) or []:
+        value = str(raw or "").strip().upper()
+        if value and value in LAND_POLICY_BLOCKS and value not in requires:
+            requires.append(value)
+    for raw in payload.get("optional", []) or []:
+        value = str(raw or "").strip().upper()
+        if value and value in LAND_POLICY_BLOCKS and value not in requires and value not in optional:
+            optional.append(value)
+
+    normalized = {
+        "requires": requires,
+        "optional": optional,
+        "uom_required": bool(payload.get("uom_required", True)),
+        "allow_assignment_override": bool(payload.get("allow_assignment_override", True)),
+    }
+    notes = payload.get("notes")
+    if notes is not None:
+        normalized["notes"] = str(notes)
+    return normalized
+
+
+def _service_line_read(service_line: ServiceLineMaster) -> ServiceLineRead:
+    return ServiceLineRead(
+        id=service_line.id,
+        key=service_line.key,
+        name=service_line.name,
+        is_active=service_line.is_active,
+        sort_order=service_line.sort_order,
+        policy_json=service_line.policy.policy_json if service_line.policy else None,
+        created_at=service_line.created_at,
+        updated_at=service_line.updated_at,
+    )
 
 
 # Banks
@@ -373,6 +423,152 @@ def delete_property_subtype(
     db.delete(subtype)
     db.commit()
     return {"detail": "Property subtype deleted"}
+
+
+# Service lines (policy-driven)
+@router.get("/service-lines", response_model=List[ServiceLineRead])
+def list_service_lines(
+    include_inactive: bool = Query(False),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> List[ServiceLineRead]:
+    if include_inactive and not rbac.can_manage_master(current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorised to view inactive service lines")
+    query = db.query(ServiceLineMaster)
+    if not include_inactive:
+        query = query.filter(ServiceLineMaster.is_active.is_(True))
+    rows = query.order_by(ServiceLineMaster.sort_order.asc(), ServiceLineMaster.name.asc()).all()
+    return [_service_line_read(row) for row in rows]
+
+
+@router.post("/service-lines", response_model=ServiceLineRead, status_code=status.HTTP_201_CREATED)
+def create_service_line(
+    payload: ServiceLineCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ServiceLineRead:
+    _require_master_manage(current_user)
+    key = payload.key.strip().upper()
+    name = payload.name.strip()
+    existing_key = db.query(ServiceLineMaster).filter(ServiceLineMaster.key == key).first()
+    if existing_key:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Service line key already exists")
+    existing_name = db.query(ServiceLineMaster).filter(ServiceLineMaster.name == name).first()
+    if existing_name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Service line name already exists")
+
+    service_line = ServiceLineMaster(
+        key=key,
+        name=name,
+        is_active=payload.is_active,
+        sort_order=payload.sort_order,
+    )
+    db.add(service_line)
+    db.flush()
+
+    policy = ServiceLinePolicy(
+        service_line_id=service_line.id,
+        policy_json=_normalize_policy_json(payload.policy_json),
+    )
+    db.add(policy)
+    db.commit()
+    db.refresh(service_line)
+    return _service_line_read(service_line)
+
+
+@router.patch("/service-lines/{service_line_id}", response_model=ServiceLineRead)
+def update_service_line(
+    service_line_id: int,
+    payload: ServiceLineUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ServiceLineRead:
+    _require_master_manage(current_user)
+    service_line = _get_or_404(db, ServiceLineMaster, service_line_id, "Service line")
+    update_data = payload.model_dump(exclude_unset=True)
+
+    if "key" in update_data and update_data["key"]:
+        key = str(update_data["key"]).strip().upper()
+        duplicate = db.query(ServiceLineMaster).filter(ServiceLineMaster.key == key, ServiceLineMaster.id != service_line_id).first()
+        if duplicate:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Service line key already exists")
+        service_line.key = key
+
+    if "name" in update_data and update_data["name"]:
+        name = str(update_data["name"]).strip()
+        duplicate = db.query(ServiceLineMaster).filter(ServiceLineMaster.name == name, ServiceLineMaster.id != service_line_id).first()
+        if duplicate:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Service line name already exists")
+        service_line.name = name
+
+    if "is_active" in update_data:
+        service_line.is_active = bool(update_data["is_active"])
+    if "sort_order" in update_data and update_data["sort_order"] is not None:
+        service_line.sort_order = int(update_data["sort_order"])
+
+    if "policy_json" in update_data:
+        normalized = _normalize_policy_json(update_data["policy_json"])
+        if service_line.policy:
+            service_line.policy.policy_json = normalized
+            db.add(service_line.policy)
+        else:
+            db.add(ServiceLinePolicy(service_line_id=service_line.id, policy_json=normalized))
+
+    db.add(service_line)
+    db.commit()
+    db.refresh(service_line)
+    return _service_line_read(service_line)
+
+
+@router.get("/service-line-policies", response_model=ServiceLinePolicyList)
+def list_service_line_policies(
+    include_inactive: bool = Query(False),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ServiceLinePolicyList:
+    if include_inactive and not rbac.can_manage_master(current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorised to view inactive service lines")
+    query = db.query(ServiceLineMaster)
+    if not include_inactive:
+        query = query.filter(ServiceLineMaster.is_active.is_(True))
+    rows = query.order_by(ServiceLineMaster.sort_order.asc(), ServiceLineMaster.name.asc()).all()
+    policies = [
+        ServiceLinePolicyRead(
+            service_line_id=row.id,
+            service_line_key=row.key,
+            service_line_name=row.name,
+            policy_json=row.policy.policy_json if row.policy else _normalize_policy_json({}),
+        )
+        for row in rows
+    ]
+    return ServiceLinePolicyList(policies=policies)
+
+
+@router.patch("/service-lines/{service_line_id}/policy", response_model=ServiceLinePolicyRead)
+def update_service_line_policy(
+    service_line_id: int,
+    payload: ServiceLinePolicyUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ServiceLinePolicyRead:
+    _require_master_manage(current_user)
+    service_line = _get_or_404(db, ServiceLineMaster, service_line_id, "Service line")
+    normalized = _normalize_policy_json(payload.policy_json)
+    policy = service_line.policy
+    if policy:
+        policy.policy_json = normalized
+        db.add(policy)
+    else:
+        policy = ServiceLinePolicy(service_line_id=service_line_id, policy_json=normalized)
+        db.add(policy)
+    db.commit()
+    db.refresh(policy)
+    return ServiceLinePolicyRead(
+        service_line_id=service_line.id,
+        service_line_key=service_line.key,
+        service_line_name=service_line.name,
+        policy_json=policy.policy_json,
+    )
 
 
 # Company accounts
