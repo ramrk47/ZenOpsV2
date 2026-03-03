@@ -6,7 +6,11 @@ COMPOSE_FILE="$ROOT_DIR/docker-compose.dev.yml"
 FRONTEND_DIR="$ROOT_DIR/frontend"
 SEED_SCRIPT="$ROOT_DIR/scripts/seed_e2e.sh"
 
+export ASSOCIATE_AUTO_APPROVE="${ASSOCIATE_AUTO_APPROVE:-1}"
+export ASSOCIATE_AUTO_APPROVE_PASSWORD="${ASSOCIATE_AUTO_APPROVE_PASSWORD:-password}"
+
 echo "[phase8.5] starting deterministic full-app e2e harness"
+echo "[phase8.5] ASSOCIATE_AUTO_APPROVE=$ASSOCIATE_AUTO_APPROVE (non-production only)"
 
 echo "[phase8.5] bringing up postgres"
 docker compose -f "$COMPOSE_FILE" up -d db

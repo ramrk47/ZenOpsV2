@@ -175,6 +175,16 @@ class Settings(BaseSettings):
         default=True,
         description="Require captcha token presence for associate access requests in production",
     )
+    associate_auto_approve: bool = Field(
+        default=False,
+        description="Auto-approve associate request-access in non-production environments only",
+        validation_alias=AliasChoices("ASSOCIATE_AUTO_APPROVE"),
+    )
+    associate_auto_approve_password: str = Field(
+        default="password",
+        description="Password assigned when ASSOCIATE_AUTO_APPROVE is enabled (non-production only)",
+        validation_alias=AliasChoices("ASSOCIATE_AUTO_APPROVE_PASSWORD"),
+    )
 
     smtp_host: str | None = Field(default=None, description="SMTP host")
     smtp_port: int = Field(default=587, description="SMTP port")
@@ -289,6 +299,10 @@ class Settings(BaseSettings):
         if self.environment.lower() in ("production", "prod"):
             return bool(self.allow_destructive_actions)
         return True
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment.lower() in ("production", "prod")
 
     @classmethod
     def settings_customise_sources(

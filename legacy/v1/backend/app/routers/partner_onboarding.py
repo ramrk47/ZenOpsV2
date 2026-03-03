@@ -12,9 +12,11 @@ from sqlalchemy.orm import Session
 
 from app.core import rbac
 from app.core.deps import get_current_user
+from app.core.security import get_password_hash
 from app.core.settings import settings
 from app.db.session import get_db
 from app.models.enums import NotificationType, Role
+from app.models.partner import ExternalPartner
 from app.models.partner_account_request import PartnerAccountRequest
 from app.models.partner_request_attempt import PartnerRequestAttempt
 from app.models.user import User
@@ -124,6 +126,84 @@ def _queue_invite_email(db: Session, *, request_id: int, invite: UserInvite, raw
     )
 
 
+def _auto_approve_non_prod_enabled() -> bool:
+    return bool(settings.associate_auto_approve) and not settings.is_production
+
+
+def _auto_approve_request(db: Session, *, req: PartnerAccountRequest) -> None:
+    now = datetime.now(timezone.utc)
+    existing_user = db.query(User).filter(User.email == req.email.lower()).first()
+    if existing_user and not rbac.user_has_role(existing_user, Role.EXTERNAL_PARTNER):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Email {req.email} is already used by an internal account",
+        )
+
+    partner: ExternalPartner | None = None
+    if existing_user and existing_user.partner_id:
+        partner = db.get(ExternalPartner, existing_user.partner_id)
+        if partner:
+            partner.is_active = True
+            db.add(partner)
+
+    if not partner:
+        partner = ExternalPartner(
+            display_name=req.company_name,
+            legal_name=req.company_name,
+            contact_name=req.contact_name,
+            email=req.email,
+            phone=req.phone,
+            is_active=True,
+            notes="Auto-approved in non-production via ASSOCIATE_AUTO_APPROVE",
+        )
+        db.add(partner)
+        db.flush()
+
+    if existing_user:
+        user = existing_user
+        user.role = Role.EXTERNAL_PARTNER
+        user.roles = [Role.EXTERNAL_PARTNER.value]
+        user.partner_id = partner.id
+        user.is_active = True
+        user.hashed_password = get_password_hash(settings.associate_auto_approve_password)
+        if not user.full_name:
+            user.full_name = req.contact_name
+        if req.phone:
+            user.phone = req.phone
+        db.add(user)
+        db.flush()
+    else:
+        user = User(
+            email=req.email.lower(),
+            hashed_password=get_password_hash(settings.associate_auto_approve_password),
+            full_name=req.contact_name,
+            phone=req.phone,
+            role=Role.EXTERNAL_PARTNER,
+            roles=[Role.EXTERNAL_PARTNER.value],
+            partner_id=partner.id,
+            is_active=True,
+        )
+        db.add(user)
+        db.flush()
+
+    req.status = "APPROVED"
+    req.email_verified_at = req.email_verified_at or now
+    req.reviewed_by_user_id = None
+    req.reviewed_at = now
+    req.created_user_id = user.id
+    req.email_verification_token = None
+    req.updated_at = now
+    db.add(req)
+
+    log_activity(
+        db,
+        actor_user_id=user.id,
+        activity_type="ASSOCIATE_ACCESS_AUTO_APPROVED",
+        message=f"Associate request auto-approved for {req.email}",
+        payload={"request_id": req.id, "partner_id": partner.id, "user_id": user.id},
+    )
+
+
 # ── Public endpoint (NO AUTH) ───────────────────────────────────────────
 
 
@@ -141,8 +221,9 @@ def request_access(
     email = body.email.lower().strip()
     request_ip = get_client_ip(request)
     user_agent = request.headers.get("user-agent")
+    auto_approve = _auto_approve_non_prod_enabled()
 
-    if settings.environment.lower() in ("production", "prod") and settings.associate_request_require_captcha_in_production:
+    if settings.is_production and settings.associate_request_require_captcha_in_production:
         if not (body.captcha_token or "").strip():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -198,7 +279,7 @@ def request_access(
             detail="An active access request for this email already exists",
         )
 
-    raw_verify_token = secrets.token_urlsafe(32)
+    raw_verify_token = secrets.token_urlsafe(32) if not auto_approve else None
 
     req = PartnerAccountRequest(
         company_name=body.company_name.strip(),
@@ -207,7 +288,7 @@ def request_access(
         phone=body.phone,
         message=body.message,
         status="PENDING",
-        email_verification_token=_hash_token(raw_verify_token),
+        email_verification_token=_hash_token(raw_verify_token) if raw_verify_token else None,
         request_ip=request_ip,
         user_agent=user_agent,
         rate_limit_bucket=f"{(request_ip or email)}:{datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
@@ -216,16 +297,19 @@ def request_access(
     db.flush()
     _record_attempt(db, email=email, request_ip=request_ip, user_agent=user_agent)
 
-    _queue_verification_email(db, req, raw_token=raw_verify_token)
+    if auto_approve:
+        _auto_approve_request(db, req=req)
+    else:
+        _queue_verification_email(db, req, raw_token=str(raw_verify_token))
 
-    # Notify admin roles (request entered system; verification pending).
-    notify_roles(
-        db,
-        roles=[Role.ADMIN, Role.OPS_MANAGER],
-        notif_type=NotificationType.PARTNER_REQUEST_SUBMITTED,
-        message=f"New external associate access request from {req.company_name}",
-        payload={"request_id": req.id, "company_name": req.company_name, "email": email, "status": req.status},
-    )
+        # Notify admin roles (request entered system; verification pending).
+        notify_roles(
+            db,
+            roles=[Role.ADMIN, Role.OPS_MANAGER],
+            notif_type=NotificationType.PARTNER_REQUEST_SUBMITTED,
+            message=f"New external associate access request from {req.company_name}",
+            payload={"request_id": req.id, "company_name": req.company_name, "email": email, "status": req.status},
+        )
 
     db.commit()
     db.refresh(req)
