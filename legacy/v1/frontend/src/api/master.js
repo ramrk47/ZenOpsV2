@@ -49,6 +49,31 @@ export async function fetchDocTemplates() {
   return data
 }
 
+export async function fetchDocumentCategories() {
+  const { data } = await api.get('/api/master/document-categories')
+  return data
+}
+
+export async function fetchChecklistRules(params = {}) {
+  const { data } = await api.get('/api/master/checklist-rules', {
+    params: {
+      service_line_key: params.serviceLineKey || undefined,
+      blocks: params.blocks || undefined,
+    },
+  })
+  return data
+}
+
+export async function fetchDocumentTemplateSlots(params = {}) {
+  const { data } = await api.get('/api/master/document-template-slots', {
+    params: {
+      service_line_key: params.serviceLineKey || undefined,
+      blocks: params.blocks || undefined,
+    },
+  })
+  return data
+}
+
 export async function fetchCompanyProfile() {
   const { data } = await api.get('/api/master/company-profile')
   return data

@@ -1,0 +1,34 @@
+{
+  "schema_version": "v1",
+  "categories": [
+    { "key": "REQUEST_LETTER", "label": "Request Letter / Bank Letter" },
+    { "key": "SANCTION_LETTER", "label": "Sanction Letter" },
+
+    { "key": "TITLE_DEED", "label": "Title Deed / Sale Deed" },
+    { "key": "EC", "label": "Encumbrance Certificate (EC)" },
+    { "key": "TAX_RECEIPT", "label": "Property Tax Receipt" },
+    { "key": "KHATA", "label": "Khata / E-Khata" },
+
+    { "key": "RTC", "label": "RTC / Record of Rights" },
+    { "key": "MUTATION", "label": "Mutation / MR Extract" },
+    { "key": "PAHANI", "label": "Pahani / Phani" },
+    { "key": "TIPPANI", "label": "Tippani" },
+    { "key": "PT_SHEET", "label": "PT Sheet / Atlas Extract" },
+    { "key": "A_KHARAB", "label": "A-Kharab Details" },
+
+    { "key": "SITE_PHOTOS", "label": "Site Photos" },
+    { "key": "LOCATION_MAP", "label": "Location / Google Map" },
+    { "key": "GUIDELINE_SCREENSHOT", "label": "Guideline Value Screenshot" },
+
+    { "key": "PLAN_APPROVAL", "label": "Plan Approval / Sanction Plan" },
+    { "key": "BUILDING_PLAN", "label": "Building Plan / Drawing" },
+    { "key": "ESTIMATE", "label": "Estimate / BOQ" },
+    { "key": "COMPLETION_CERT", "label": "Completion Certificate" },
+    { "key": "OCCUPANCY_CERT", "label": "Occupancy Certificate" },
+
+    { "key": "AADHAR", "label": "Aadhaar (KYC)" },
+    { "key": "PAN", "label": "PAN (KYC)" },
+
+    { "key": "OTHER", "label": "Other Supporting Document" }
+  ]
+}

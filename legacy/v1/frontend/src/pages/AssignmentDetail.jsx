@@ -341,7 +341,11 @@ export default function AssignmentDetail() {
 
   const documentCategoryOptions = useMemo(() => {
     if (!checklist) return []
-    const combined = new Set([...(checklist.required_categories || []), ...(checklist.present_categories || [])])
+    const combined = new Set([
+      ...(checklist.required_categories || []),
+      ...(checklist.optional_categories || []),
+      ...(checklist.present_categories || []),
+    ])
     return Array.from(combined).sort()
   }, [checklist])
 
@@ -370,7 +374,7 @@ export default function AssignmentDetail() {
 
   const assignment = detail?.assignment || null
   const due = detail?.due || null
-  const missingDocs = detail?.missing_documents || []
+  const missingDocs = checklist?.missing_required_categories || detail?.missing_documents || []
 
   useEffect(() => {
     if (!documentCategoryOptions.length) return
@@ -1486,14 +1490,20 @@ export default function AssignmentDetail() {
             </Card>
 
             <Card>
-            <CardHeader title="Checklist" subtitle="Required, present, and missing categories." />
+            <CardHeader title="Checklist" subtitle="Required vs optional categories based on service line and land policy." />
             {!checklist ? (
               <EmptyState>Checklist unavailable.</EmptyState>
             ) : (
               <div className="grid" style={{ gap: 10 }}>
-                <ChecklistGroup label="Missing" items={checklist.missing_categories} tone="warn" />
-                <ChecklistGroup label="Present" items={checklist.present_categories} tone="ok" />
-                <ChecklistGroup label="Required" items={checklist.required_categories} tone="info" />
+                <ChecklistGroup
+                  label={`Missing Required (${checklist.missing_required_count || 0})`}
+                  items={checklist.missing_required_categories || []}
+                  tone="warn"
+                  labels={checklist.category_labels}
+                />
+                <ChecklistGroup label="Required" items={checklist.required_categories || []} tone="info" labels={checklist.category_labels} />
+                <ChecklistGroup label="Optional" items={checklist.optional_categories || []} tone="ok" labels={checklist.category_labels} />
+                <ChecklistGroup label="Present" items={checklist.present_categories || []} tone="ok" labels={checklist.category_labels} />
               </div>
             )}
           </Card>
@@ -2105,7 +2115,7 @@ function ContextRow({ label, value }) {
   )
 }
 
-function ChecklistGroup({ label, items, tone }) {
+function ChecklistGroup({ label, items, tone, labels = {} }) {
   return (
     <div>
       <div className="kicker" style={{ marginBottom: 6 }}>{label}</div>
@@ -2113,7 +2123,7 @@ function ChecklistGroup({ label, items, tone }) {
         <div className="list">
           {items.map((item) => (
             <div key={item} className="list-item" style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>{item}</span>
+              <span>{labels[item] || item}</span>
               <Badge tone={tone}>{label}</Badge>
             </div>
           ))}

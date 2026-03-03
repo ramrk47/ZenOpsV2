@@ -1,0 +1,138 @@
+{
+  "schema_version": "v1",
+  "land_blocks": ["NORMAL_LAND", "SURVEY_ROWS", "BUILT_UP"],
+
+  "service_lines": [
+    {
+      "service_line_key": "VALUATION_PLOT",
+      "label": "Valuation (Plot)",
+      "base_required": ["REQUEST_LETTER", "TITLE_DEED", "EC", "SITE_PHOTOS", "LOCATION_MAP", "GUIDELINE_SCREENSHOT"],
+      "base_optional": ["TAX_RECEIPT", "KHATA", "AADHAR", "PAN", "OTHER"],
+      "block_rules": {
+        "NORMAL_LAND": {
+          "required": ["TITLE_DEED", "EC", "GUIDELINE_SCREENSHOT"],
+          "optional": ["KHATA", "TAX_RECEIPT"]
+        },
+        "SURVEY_ROWS": {
+          "required": ["RTC", "MUTATION"],
+          "optional": ["PAHANI", "TIPPANI", "PT_SHEET", "A_KHARAB"]
+        },
+        "BUILT_UP": { "required": [], "optional": ["PLAN_APPROVAL", "BUILDING_PLAN"] }
+      }
+    },
+
+    {
+      "service_line_key": "VALUATION_LB",
+      "label": "Valuation (Land & Building)",
+      "base_required": ["REQUEST_LETTER", "TITLE_DEED", "EC", "SITE_PHOTOS", "LOCATION_MAP", "GUIDELINE_SCREENSHOT"],
+      "base_optional": ["TAX_RECEIPT", "KHATA", "AADHAR", "PAN", "OTHER"],
+      "block_rules": {
+        "NORMAL_LAND": {
+          "required": ["TITLE_DEED", "EC", "GUIDELINE_SCREENSHOT"],
+          "optional": ["KHATA", "TAX_RECEIPT"]
+        },
+        "SURVEY_ROWS": {
+          "required": ["RTC", "MUTATION"],
+          "optional": ["PAHANI", "TIPPANI", "PT_SHEET", "A_KHARAB"]
+        },
+        "BUILT_UP": {
+          "required": ["PLAN_APPROVAL"],
+          "optional": ["BUILDING_PLAN", "ESTIMATE", "COMPLETION_CERT", "OCCUPANCY_CERT"]
+        }
+      }
+    },
+
+    {
+      "service_line_key": "VALUATION_AGRI",
+      "label": "Valuation (Agri Land)",
+      "base_required": ["REQUEST_LETTER", "TITLE_DEED", "EC", "SITE_PHOTOS", "LOCATION_MAP", "GUIDELINE_SCREENSHOT"],
+      "base_optional": ["AADHAR", "PAN", "OTHER"],
+      "block_rules": {
+        "SURVEY_ROWS": {
+          "required": ["RTC", "MUTATION"],
+          "optional": ["PAHANI", "TIPPANI", "PT_SHEET", "A_KHARAB"]
+        },
+        "NORMAL_LAND": {
+          "required": [],
+          "optional": ["KHATA", "TAX_RECEIPT"]
+        },
+        "BUILT_UP": { "required": [], "optional": [] }
+      }
+    },
+
+    {
+      "service_line_key": "PROGRESS_COMPLETION",
+      "label": "Progress / Completion Report",
+      "base_required": ["REQUEST_LETTER", "SITE_PHOTOS", "LOCATION_MAP"],
+      "base_optional": ["OTHER"],
+      "block_rules": {
+        "BUILT_UP": {
+          "required": ["PLAN_APPROVAL"],
+          "optional": ["ESTIMATE", "BUILDING_PLAN", "COMPLETION_CERT", "OCCUPANCY_CERT"]
+        },
+        "NORMAL_LAND": { "required": [], "optional": ["TITLE_DEED", "EC"] },
+        "SURVEY_ROWS": { "required": [], "optional": ["RTC"] }
+      }
+    },
+
+    {
+      "service_line_key": "PROJECT_REPORT",
+      "label": "Project Report",
+      "base_required": ["REQUEST_LETTER", "TITLE_DEED", "EC", "LOCATION_MAP"],
+      "base_optional": ["PLAN_APPROVAL", "ESTIMATE", "SITE_PHOTOS", "OTHER"],
+      "block_rules": {
+        "NORMAL_LAND": { "required": ["TITLE_DEED"], "optional": ["GUIDELINE_SCREENSHOT"] },
+        "BUILT_UP": { "required": [], "optional": ["PLAN_APPROVAL", "BUILDING_PLAN", "ESTIMATE"] },
+        "SURVEY_ROWS": { "required": [], "optional": ["RTC", "MUTATION"] }
+      }
+    },
+
+    {
+      "service_line_key": "HOME_LOAN",
+      "label": "Home Loans",
+      "base_required": ["REQUEST_LETTER", "TITLE_DEED", "EC", "SITE_PHOTOS", "LOCATION_MAP"],
+      "base_optional": ["KHATA", "TAX_RECEIPT", "PAN", "AADHAR", "OTHER"],
+      "block_rules": {
+        "BUILT_UP": { "required": ["PLAN_APPROVAL"], "optional": ["COMPLETION_CERT", "OCCUPANCY_CERT"] },
+        "NORMAL_LAND": { "required": [], "optional": ["GUIDELINE_SCREENSHOT"] },
+        "SURVEY_ROWS": { "required": [], "optional": ["RTC"] }
+      }
+    },
+
+    {
+      "service_line_key": "LAND_DEVELOPMENT",
+      "label": "Land Development",
+      "base_required": ["REQUEST_LETTER", "TITLE_DEED", "EC", "LOCATION_MAP"],
+      "base_optional": ["SITE_PHOTOS", "GUIDELINE_SCREENSHOT", "OTHER"],
+      "block_rules": {
+        "NORMAL_LAND": { "required": ["TITLE_DEED", "EC"], "optional": ["KHATA"] },
+        "SURVEY_ROWS": { "required": [], "optional": ["RTC", "MUTATION"] },
+        "BUILT_UP": { "required": [], "optional": ["PLAN_APPROVAL", "BUILDING_PLAN"] }
+      }
+    },
+
+    {
+      "service_line_key": "DCC",
+      "label": "DCC",
+      "base_required": ["REQUEST_LETTER", "TITLE_DEED", "EC"],
+      "base_optional": ["LOCATION_MAP", "SITE_PHOTOS", "OTHER"],
+      "block_rules": {
+        "NORMAL_LAND": { "required": [], "optional": ["GUIDELINE_SCREENSHOT"] },
+        "BUILT_UP": { "required": [], "optional": ["PLAN_APPROVAL", "ESTIMATE"] },
+        "SURVEY_ROWS": { "required": [], "optional": ["RTC"] }
+      }
+    },
+
+    {
+      "service_line_key": "OTHERS",
+      "label": "Others",
+      "base_required": ["REQUEST_LETTER"],
+      "base_optional": ["OTHER"],
+      "block_rules": {
+        "NORMAL_LAND": { "required": [], "optional": ["TITLE_DEED", "EC"] },
+        "SURVEY_ROWS": { "required": [], "optional": ["RTC"] },
+        "BUILT_UP": { "required": [], "optional": ["PLAN_APPROVAL"] }
+      }
+    }
+  ]
+}

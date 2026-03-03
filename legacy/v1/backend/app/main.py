@@ -25,6 +25,12 @@ from app.core.observability import (
 )
 from app.db.session import engine, get_db
 from app.modules.router_registry import include_all_routers
+from app.services.checklist_rules_loader import (
+    load_checklist_rules,
+    load_document_categories,
+    load_document_template_slots,
+    refresh_seed_cache,
+)
 
 configure_logging(level=settings.log_level)
 
@@ -227,3 +233,8 @@ def startup_event():
     # Initialize OpenTelemetry tracing
     setup_opentelemetry(app, service_name="zenops-api")
     setup_sqlalchemy_instrumentation(engine)
+    # Warm in-memory seed caches for checklist and upload slot rules.
+    refresh_seed_cache()
+    load_document_categories()
+    load_checklist_rules()
+    load_document_template_slots()
