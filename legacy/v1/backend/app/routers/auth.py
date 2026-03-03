@@ -239,7 +239,10 @@ def accept_invite(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid invite token")
     if invite.used_at:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite link already used")
-    if invite.expires_at <= now:
+    expires_at = invite.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at <= now:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite link expired")
     if len(payload.password or "") < 10:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 10 characters")
