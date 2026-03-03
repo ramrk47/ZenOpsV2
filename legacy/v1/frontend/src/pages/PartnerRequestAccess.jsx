@@ -1,9 +1,8 @@
 import React, { useState } from 'react'
-import axios from 'axios'
-import { API_BASE_URL } from '../api/client'
+import api, { toUserMessage } from '../api/client'
 
 /**
- * Public page (no auth required) — allows external partners to submit
+ * Public page (no auth required) — allows external associates to submit
  * an access request to the Zen Ops platform.
  */
 export default function PartnerRequestAccess() {
@@ -27,7 +26,7 @@ export default function PartnerRequestAccess() {
     setError('')
     setLoading(true)
     try {
-      await axios.post(`${API_BASE_URL}/api/partner/request-access`, {
+      await api.post('/api/partner/request-access', {
         company_name: form.company_name.trim(),
         contact_name: form.contact_name.trim(),
         email: form.email.trim().toLowerCase(),
@@ -36,8 +35,7 @@ export default function PartnerRequestAccess() {
       })
       setSubmitted(true)
     } catch (err) {
-      const detail = err?.response?.data?.detail
-      setError(typeof detail === 'string' ? detail : 'Something went wrong. Please try again.')
+      setError(toUserMessage(err, 'Something went wrong. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -51,7 +49,7 @@ export default function PartnerRequestAccess() {
             <div style={{ fontSize: 48, marginBottom: 12 }}>&#10003;</div>
             <h2 style={{ margin: '0 0 8px' }}>Request Submitted</h2>
             <p style={{ color: '#555' }}>
-              Thank you for your interest in partnering with Zen Ops. Our team will review your
+              Thank you for your interest in becoming an associate with Zen Ops. Our team will review your
               request and get back to you shortly.
             </p>
             <a href="/login" style={linkStyle}>
@@ -67,9 +65,9 @@ export default function PartnerRequestAccess() {
     <div style={pageStyle}>
       <div style={cardStyle}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <h2 style={{ margin: '0 0 4px' }}>Partner Access Request</h2>
+          <h2 style={{ margin: '0 0 4px' }}>Associate Access Request</h2>
           <p style={{ color: '#888', margin: 0, fontSize: 14 }}>
-            Submit your details to request access to the Zen Ops partner portal.
+            Submit your details to request access to the Zen Ops associate portal.
           </p>
         </div>
 
@@ -81,7 +79,7 @@ export default function PartnerRequestAccess() {
             onChange={handleChange}
             required
             style={inputStyle}
-            placeholder="Acme Partners Ltd."
+            placeholder="Acme Associates Ltd."
           />
 
           <label style={labelStyle}>Contact Name *</label>

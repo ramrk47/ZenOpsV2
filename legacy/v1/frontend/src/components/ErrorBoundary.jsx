@@ -1,5 +1,5 @@
 import React from 'react'
-import axios from 'axios'
+import api from '../api/client'
 
 /**
  * Error Boundary component to catch JavaScript errors in child component tree.
@@ -40,9 +40,8 @@ export default class ErrorBoundary extends React.Component {
         },
       }
 
-      await axios.post('/api/client-logs', payload, {
+      await api.post('/api/client-logs', payload, {
         timeout: 5000,
-        // Don't use auth token (error might happen before auth)
       })
     } catch (err) {
       // Silently fail - don't want logging error to cause more errors
@@ -111,4 +110,3 @@ export default class ErrorBoundary extends React.Component {
     return this.props.children
   }
 }
-

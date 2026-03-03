@@ -1,26 +1,21 @@
 import React, { useEffect, useState } from 'react'
-import axios from 'axios'
+import { fetchAssignmentSummary, fetchAssignmentWorkload } from '../api/assignments'
 
 export default function AdminDashboard() {
   const [summary, setSummary] = useState(null)
   const [workload, setWorkload] = useState({})
   const [error, setError] = useState(null)
+
   useEffect(() => {
-    const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000' })
-    api.interceptors.request.use((config) => {
-      const token = localStorage.getItem('token')
-      if (token) config.headers.Authorization = `Bearer ${token}`
-      return config
-    })
     async function load() {
       setError(null)
       try {
         const [s, w] = await Promise.all([
-          api.get('/api/assignments/summary'),
-          api.get('/api/assignments/workload'),
+          fetchAssignmentSummary(),
+          fetchAssignmentWorkload(),
         ])
-        setSummary(s.data)
-        setWorkload(w.data || {})
+        setSummary(s)
+        setWorkload(w || {})
       } catch (err) {
         console.error(err)
         setError('Failed to load dashboard data')
