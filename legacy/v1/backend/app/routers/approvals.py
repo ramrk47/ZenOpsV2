@@ -57,7 +57,11 @@ def list_approvals(
     approval_type: Optional[ApprovalType] = Query(None),
 ) -> List[ApprovalRead]:
     """List all approvals (admin sees all, others see own + inbox)."""
-    query = db.query(Approval)
+    query = db.query(Approval).options(
+        selectinload(Approval.requester),
+        selectinload(Approval.approver),
+        selectinload(Approval.assignment),
+    )
     if not rbac.user_has_role(current_user, Role.ADMIN):
         query = query.filter(
             (Approval.requester_user_id == current_user.id) |
@@ -120,14 +124,21 @@ def request(
 @router.get("/inbox", response_model=List[ApprovalRead])
 def inbox(
     include_decided: bool = Query(False),
+    status_filter: Optional[ApprovalStatus] = Query(None, alias="status"),
     approval_type: Optional[ApprovalType] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> List[ApprovalRead]:
     _require_approver(current_user)
 
-    query = db.query(Approval)
-    if not include_decided:
+    query = db.query(Approval).options(
+        selectinload(Approval.requester),
+        selectinload(Approval.approver),
+        selectinload(Approval.assignment),
+    )
+    if status_filter:
+        query = query.filter(Approval.status == status_filter)
+    elif not include_decided:
         query = query.filter(Approval.status == ApprovalStatus.PENDING)
     if approval_type:
         query = query.filter(Approval.approval_type == approval_type)
@@ -196,7 +207,15 @@ def mine(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> List[ApprovalRead]:
-    query = db.query(Approval).filter(Approval.requester_user_id == current_user.id)
+    query = (
+        db.query(Approval)
+        .options(
+            selectinload(Approval.requester),
+            selectinload(Approval.approver),
+            selectinload(Approval.assignment),
+        )
+        .filter(Approval.requester_user_id == current_user.id)
+    )
     if not include_decided:
         query = query.filter(Approval.status == ApprovalStatus.PENDING)
     if approval_type:
@@ -211,7 +230,16 @@ def get_approval(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ApprovalRead:
-    approval = db.get(Approval, approval_id)
+    approval = (
+        db.query(Approval)
+        .options(
+            selectinload(Approval.requester),
+            selectinload(Approval.approver),
+            selectinload(Approval.assignment),
+        )
+        .filter(Approval.id == approval_id)
+        .first()
+    )
     if not approval:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found")
     if not rbac.user_has_role(current_user, Role.ADMIN):

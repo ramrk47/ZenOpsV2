@@ -69,3 +69,66 @@ class Approval(IDMixin, TimestampMixin, Base):
     @property
     def decided_by_user_id(self) -> Optional[int]:
         return self.approver_user_id
+
+    @property
+    def requested_by_name(self) -> Optional[str]:
+        if self.requester:
+            return self.requester.full_name or self.requester.email
+        return None
+
+    @property
+    def assignment_code(self) -> Optional[str]:
+        meta = self.metadata_json or {}
+        payload = self.payload_json or {}
+        if meta.get("assignment_code"):
+            return str(meta["assignment_code"])
+        if payload.get("assignment_code"):
+            return str(payload["assignment_code"])
+        if payload.get("temporary_code"):
+            return str(payload["temporary_code"])
+        if self.assignment and self.assignment.assignment_code:
+            return self.assignment.assignment_code
+        return None
+
+    @property
+    def invoice_number(self) -> Optional[str]:
+        meta = self.metadata_json or {}
+        payload = self.payload_json or {}
+        if meta.get("invoice_number"):
+            return str(meta["invoice_number"])
+        if payload.get("invoice_number"):
+            return str(payload["invoice_number"])
+        return None
+
+    @property
+    def document_title(self) -> Optional[str]:
+        meta = self.metadata_json or {}
+        payload = self.payload_json or {}
+        value = meta.get("document_name") or meta.get("document_title") or payload.get("document_name")
+        if value is None:
+            return None
+        return str(value)
+
+    @property
+    def document_category(self) -> Optional[str]:
+        meta = self.metadata_json or {}
+        payload = self.payload_json or {}
+        value = meta.get("category") or payload.get("category")
+        if value is None:
+            return None
+        return str(value)
+
+    @property
+    def entity_summary(self) -> str:
+        parts: list[str] = []
+        if self.assignment_code:
+            parts.append(self.assignment_code)
+        if self.invoice_number:
+            parts.append(f"Invoice {self.invoice_number}")
+        if self.document_title:
+            parts.append(self.document_title)
+        elif self.document_category:
+            parts.append(self.document_category)
+        if parts:
+            return " · ".join(parts)
+        return f"{self.entity_type} #{self.entity_id}"

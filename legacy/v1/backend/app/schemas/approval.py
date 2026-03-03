@@ -39,6 +39,12 @@ class ApprovalRead(ORMModel):
     metadata_json: Optional[dict] = None
     assignment_id: Optional[int] = None
     requested_at: Optional[datetime] = None
+    requested_by_name: Optional[str] = None
+    entity_summary: Optional[str] = None
+    assignment_code: Optional[str] = None
+    invoice_number: Optional[str] = None
+    document_title: Optional[str] = None
+    document_category: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     decided_at: Optional[datetime] = None
