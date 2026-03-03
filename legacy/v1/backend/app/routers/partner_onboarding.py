@@ -13,13 +13,12 @@ from sqlalchemy.orm import Session
 from app.core import rbac
 from app.core.deps import get_current_user
 from app.core.settings import settings
-from app.core.security import get_password_hash
 from app.db.session import get_db
 from app.models.enums import NotificationType, Role
-from app.models.partner import ExternalPartner
 from app.models.partner_account_request import PartnerAccountRequest
 from app.models.partner_request_attempt import PartnerRequestAttempt
 from app.models.user import User
+from app.models.user_invite import UserInvite
 from app.schemas.partner_onboarding import (
     PartnerAccountRequestCreate,
     PartnerAccountRequestDecision,
@@ -28,6 +27,7 @@ from app.schemas.partner_onboarding import (
 )
 from app.services.activity import log_activity
 from app.services.email_delivery import create_email_delivery
+from app.services.invites import create_invite
 from app.services.notifications import notify_roles
 
 router = APIRouter(tags=["partner-onboarding"])
@@ -113,6 +113,31 @@ def _queue_verification_email(db: Session, req: PartnerAccountRequest, *, raw_to
         text=text,
         idempotency_key=f"associate-verify:{req.id}:{_hash_token(raw_token)[:16]}",
         payload={"request_id": req.id},
+    )
+
+
+def _queue_invite_email(db: Session, *, request_id: int, invite: UserInvite, raw_token: str) -> None:
+    invite_link = _associate_onboarding_url(f"/invite/accept?token={raw_token}")
+    html = (
+        "<p>Your External Associate access request has been approved.</p>"
+        "<p>Set your password using this one-time invite link:</p>"
+        f"<p><a href=\"{invite_link}\">Accept Invite</a></p>"
+        "<p>This link expires in 48 hours and can only be used once.</p>"
+    )
+    text = (
+        "Your External Associate access request has been approved.\n"
+        f"Accept invite: {invite_link}\n"
+        "This link expires in 48 hours and is one-time use.\n"
+    )
+    create_email_delivery(
+        db,
+        event_type="ASSOCIATE_ACCESS_INVITE",
+        to_email=invite.email,
+        subject="External Associate invite: set your password",
+        html=html,
+        text=text,
+        idempotency_key=f"associate-invite:{request_id}:{invite.id}",
+        payload={"request_id": request_id, "invite_id": invite.id},
     )
 
 
@@ -227,6 +252,7 @@ def _require_admin(user: User) -> None:
 
 
 @router.get("/api/admin/partner-account-requests", response_model=List[PartnerAccountRequestRead])
+@router.get("/api/admin/associate-access-requests", response_model=List[PartnerAccountRequestRead])
 def list_partner_requests(
     status_filter: str | None = Query(default=None, alias="status"),
     db: Session = Depends(get_db),
@@ -241,74 +267,76 @@ def list_partner_requests(
     return [PartnerAccountRequestRead.model_validate(r) for r in requests]
 
 
-@router.post(
-    "/api/admin/partner-account-requests/{request_id}/approve",
-    response_model=PartnerAccountRequestRead,
-)
+@router.post("/api/admin/partner-account-requests/{request_id}/approve", response_model=PartnerAccountRequestRead)
+@router.post("/api/admin/associate-access-requests/{request_id}/approve", response_model=PartnerAccountRequestRead)
 def approve_partner_request(
     request_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PartnerAccountRequestRead:
-    """Approve a partner request — creates ExternalPartner + User account."""
+    """Approve an External Associate request and issue one-time invite."""
     _require_admin(current_user)
     req = db.get(PartnerAccountRequest, request_id)
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
-    if req.status != "PENDING":
+    if req.status not in {"VERIFIED", "PENDING"}:
         raise HTTPException(status_code=400, detail="Request already decided")
+    if req.status == "PENDING":
+        raise HTTPException(status_code=400, detail="Request email must be verified before approval")
 
     now = datetime.now(timezone.utc)
-
-    # Check if a user with this email already exists
     existing_user = db.query(User).filter(User.email == req.email.lower()).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"A user with email {req.email} already exists",
+    if existing_user and existing_user.is_active:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"A user with email {req.email} already exists")
+    existing_open_invite = (
+        db.query(UserInvite)
+        .filter(
+            UserInvite.email == req.email.lower(),
+            UserInvite.used_at.is_(None),
+            UserInvite.expires_at > now,
         )
-
-    # Create ExternalPartner record
-    partner = ExternalPartner(
-        display_name=req.company_name,
-        contact_name=req.contact_name,
-        email=req.email.lower(),
-        phone=req.phone,
-        is_active=True,
+        .first()
     )
-    db.add(partner)
-    db.flush()
+    if existing_open_invite:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An active invite already exists for this email")
 
-    # Create User with EXTERNAL_PARTNER role and a random temporary password
-    import secrets
-    temp_password = secrets.token_urlsafe(16)
-    user = User(
-        email=req.email.lower(),
-        hashed_password=get_password_hash(temp_password),
-        full_name=req.contact_name,
-        phone=req.phone,
+    invite, raw_token = create_invite(
+        db,
+        email=req.email,
         role=Role.EXTERNAL_PARTNER,
-        roles=[Role.EXTERNAL_PARTNER.value],
-        partner_id=partner.id,
-        is_active=True,
+        created_by_user_id=current_user.id,
+        metadata_json={
+            "request_id": req.id,
+            "company_name": req.company_name,
+            "contact_name": req.contact_name,
+            "phone": req.phone,
+            "message": req.message,
+        },
     )
-    db.add(user)
-    db.flush()
+    _queue_invite_email(db, request_id=req.id, invite=invite, raw_token=raw_token)
 
     # Update request
     req.status = "APPROVED"
     req.reviewed_by_user_id = current_user.id
     req.reviewed_at = now
-    req.created_user_id = user.id
+    req.created_user_id = None
     req.updated_at = now
     db.add(req)
 
     log_activity(
         db,
         actor_user_id=current_user.id,
-        activity_type="PARTNER_REQUEST_APPROVED",
-        message=f"Partner request approved for {req.company_name}",
-        payload={"request_id": req.id, "partner_id": partner.id, "user_id": user.id},
+        activity_type="ASSOCIATE_ACCESS_REQUEST_APPROVED",
+        message=f"External Associate access approved for {req.company_name}",
+        payload={"request_id": req.id, "invite_id": invite.id},
+    )
+    notify_roles(
+        db,
+        roles=[Role.ADMIN, Role.OPS_MANAGER],
+        notif_type=NotificationType.PARTNER_REQUEST_APPROVED,
+        message=f"External Associate invite created for {req.company_name}",
+        payload={"request_id": req.id, "invite_id": invite.id},
+        exclude_user_ids=[current_user.id],
     )
 
     db.commit()
@@ -316,10 +344,8 @@ def approve_partner_request(
     return PartnerAccountRequestRead.model_validate(req)
 
 
-@router.post(
-    "/api/admin/partner-account-requests/{request_id}/reject",
-    response_model=PartnerAccountRequestRead,
-)
+@router.post("/api/admin/partner-account-requests/{request_id}/reject", response_model=PartnerAccountRequestRead)
+@router.post("/api/admin/associate-access-requests/{request_id}/reject", response_model=PartnerAccountRequestRead)
 def reject_partner_request(
     request_id: int,
     body: PartnerAccountRequestDecision,
@@ -331,7 +357,7 @@ def reject_partner_request(
     req = db.get(PartnerAccountRequest, request_id)
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
-    if req.status != "PENDING":
+    if req.status not in {"PENDING", "VERIFIED"}:
         raise HTTPException(status_code=400, detail="Request already decided")
 
     now = datetime.now(timezone.utc)
@@ -345,8 +371,8 @@ def reject_partner_request(
     log_activity(
         db,
         actor_user_id=current_user.id,
-        activity_type="PARTNER_REQUEST_REJECTED",
-        message=f"Partner request rejected for {req.company_name}",
+        activity_type="ASSOCIATE_ACCESS_REQUEST_REJECTED",
+        message=f"External Associate access rejected for {req.company_name}",
         payload={"request_id": req.id, "reason": body.rejection_reason},
     )
 
