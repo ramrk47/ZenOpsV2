@@ -49,3 +49,13 @@ export async function fetchAssignmentWorkload() {
   const { data } = await api.get('/api/assignments/workload')
   return data
 }
+
+export async function fetchAllocationCandidates(id, params = {}) {
+  const { data } = await api.get(`/api/assignments/${id}/allocation/candidates`, { params })
+  return data
+}
+
+export async function assignBestCandidate(id) {
+  const { data } = await api.post(`/api/assignments/${id}/allocation/assign-best`)
+  return data
+}
