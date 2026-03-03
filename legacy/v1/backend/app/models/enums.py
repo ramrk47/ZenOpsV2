@@ -233,6 +233,8 @@ class WorkSessionType(enum.StrEnum):
 
 class PartnerAccountRequestStatus(enum.StrEnum):
     PENDING = "PENDING"
+    VERIFIED = "VERIFIED"
+    INVITED = "INVITED"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
 

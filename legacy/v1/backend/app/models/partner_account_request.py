@@ -21,6 +21,11 @@ class PartnerAccountRequest(Base):
     phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="PENDING")
+    email_verification_token: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, index=True)
+    email_verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    request_ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    rate_limit_bucket: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     rejection_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     reviewed_by_user_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("users.id"), nullable=True,

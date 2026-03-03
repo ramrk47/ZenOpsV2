@@ -16,6 +16,7 @@ class PartnerAccountRequestCreate(ORMModel):
     email: EmailStr
     phone: Optional[str] = Field(None, max_length=50)
     message: Optional[str] = Field(None, max_length=2000)
+    captcha_token: Optional[str] = Field(None, max_length=2000)
 
 
 class PartnerAccountRequestRead(ORMModel):
@@ -26,6 +27,7 @@ class PartnerAccountRequestRead(ORMModel):
     phone: Optional[str] = None
     message: Optional[str] = None
     status: str
+    email_verified_at: Optional[datetime] = None
     rejection_reason: Optional[str] = None
     reviewed_by_user_id: Optional[int] = None
     reviewed_at: Optional[datetime] = None
@@ -36,3 +38,7 @@ class PartnerAccountRequestRead(ORMModel):
 
 class PartnerAccountRequestDecision(ORMModel):
     rejection_reason: Optional[str] = Field(None, max_length=1000)
+
+
+class PartnerAccessVerifyPayload(ORMModel):
+    token: str = Field(..., min_length=10, max_length=256)

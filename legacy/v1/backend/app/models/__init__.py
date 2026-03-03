@@ -85,6 +85,7 @@ from app.models.partner import (
     PartnerRequestAttachment,
 )
 from app.models.partner_account_request import PartnerAccountRequest
+from app.models.partner_request_attempt import PartnerRequestAttempt
 from app.models.support import SupportThread, SupportMessage
 from app.models.task import AssignmentTask
 from app.models.user import User
@@ -163,6 +164,7 @@ __all__ = [
     "WorkSession",
     "V1OutboxEvent",
     "PartnerAccountRequest",
+    "PartnerRequestAttempt",
     "PayrollRun",
     "PayrollLineItem",
     "Payslip",

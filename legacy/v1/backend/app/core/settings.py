@@ -129,6 +129,10 @@ class Settings(BaseSettings):
     email_retry_minutes: int = Field(default=5, description="Minutes between delivery retries")
     email_dedupe_minutes: int = Field(default=60, description="Deduplicate identical emails within minutes")
     email_daily_limit: int = Field(default=20, description="Max emails per user per day")
+    associate_request_require_captcha_in_production: bool = Field(
+        default=True,
+        description="Require captcha token presence for associate access requests in production",
+    )
 
     smtp_host: str | None = Field(default=None, description="SMTP host")
     smtp_port: int = Field(default=587, description="SMTP port")
@@ -167,6 +171,40 @@ class Settings(BaseSettings):
         default=45,
         description="TTL for cached V2 billing status lookups in V1",
         validation_alias=AliasChoices("STUDIO_STATUS_CACHE_SECONDS"),
+    )
+
+    # V1 -> V2 identity bridge
+    v1_bridge_jwt_secret: str | None = Field(
+        default=None,
+        description="Shared secret used to sign V1 bridge exchange tokens",
+        validation_alias=AliasChoices("V1_BRIDGE_JWT_SECRET"),
+    )
+    v1_bridge_issuer: str = Field(
+        default="zenops-v1",
+        description="Issuer value used in V1 bridge tokens",
+        validation_alias=AliasChoices("V1_BRIDGE_ISSUER"),
+    )
+
+    # V1 -> V2 events bridge
+    v2_events_ingest_url: str | None = Field(
+        default=None,
+        description="V2 endpoint URL for V1 outbox event ingestion",
+        validation_alias=AliasChoices("V2_EVENTS_INGEST_URL"),
+    )
+    v2_events_service_token: str | None = Field(
+        default=None,
+        description="Service token header value for V1 -> V2 event ingest",
+        validation_alias=AliasChoices("V2_EVENTS_SERVICE_TOKEN", "V1_EVENTS_SERVICE_TOKEN"),
+    )
+    v2_events_batch_size: int = Field(
+        default=20,
+        description="Max outbox events dispatched per bridge worker cycle",
+        validation_alias=AliasChoices("V2_EVENTS_BATCH_SIZE"),
+    )
+    v1_default_tenant_id: str | None = Field(
+        default=None,
+        description="Fallback V2 tenant UUID used for V1 bridge ingest payloads",
+        validation_alias=AliasChoices("V1_DEFAULT_TENANT_ID"),
     )
 
     @field_validator("allow_origins", mode="before")
