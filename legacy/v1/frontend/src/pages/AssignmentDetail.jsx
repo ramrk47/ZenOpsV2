@@ -63,6 +63,7 @@ const DEFAULT_APPROVAL_ACTIONS = [
   'EXCEPTION',
 ]
 const MENTION_TOKEN_RE = /@\[[^\]]+\]\((\d+)\)/g
+const ENABLE_REPOGEN_INPUTS = String(import.meta.env.VITE_ENABLE_REPOGEN_INPUTS || '0') === '1'
 
 function renderMessageText(text, userMap) {
   if (!text) return ''
@@ -375,6 +376,13 @@ export default function AssignmentDetail() {
   const assignment = detail?.assignment || null
   const due = detail?.due || null
   const missingDocs = checklist?.missing_required_categories || detail?.missing_documents || []
+  const repogenInputs = useMemo(() => {
+    if (!assignment || !assignment.land_policy_override_json) return null
+    const jsonField = assignment.land_policy_override_json
+    const candidate = jsonField.repogen_inputs || jsonField.repogen_inputs_json || jsonField.repogen || null
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null
+    return candidate
+  }, [assignment])
 
   useEffect(() => {
     if (!documentCategoryOptions.length) return
@@ -1339,6 +1347,25 @@ export default function AssignmentDetail() {
                 <ContextRow label="Assigned" value={teamLabel} />
               </div>
             </Card>
+
+            {ENABLE_REPOGEN_INPUTS ? (
+              <Card>
+                <CardHeader
+                  title="Repogen Inputs (Phase 9 Placeholder)"
+                  subtitle="Read-only preview from assignment JSON when present. No schema changes in Phase 5."
+                />
+                {!repogenInputs ? (
+                  <EmptyState>No repogen inputs found in assignment JSON.</EmptyState>
+                ) : (
+                  <pre style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'pre-wrap' }}>
+                    {JSON.stringify(repogenInputs, null, 2)}
+                  </pre>
+                )}
+                <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>
+                  External Associate workflows are unchanged.
+                </div>
+              </Card>
+            ) : null}
           </div>
         </div>
       ) : activeTab === 'documents' ? (
