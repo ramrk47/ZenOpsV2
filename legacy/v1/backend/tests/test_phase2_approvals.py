@@ -112,6 +112,7 @@ def _draft_payload() -> dict:
     return {
         "case_type": "DIRECT_CLIENT",
         "service_line": "VALUATION",
+        "uom": "SQFT",
         "valuer_client_name": "Draft Client",
         "borrower_name": "Draft Borrower",
         "phone": "9999999999",
