@@ -27,15 +27,30 @@ PARTNER_ALLOWED_PATHS = {
     "/api/auth/me",
     "/api/auth/capabilities",
 }
+PARTNER_DENIED_PREFIXES = (
+    "/api/admin",
+    "/api/master",
+    "/api/payroll",
+    "/api/analytics",
+)
 
 # Roles that receive shorter idle timeouts
 _ADMIN_ROLES = {Role.ADMIN, Role.OPS_MANAGER, Role.HR, Role.FINANCE}
 
 
 def _partner_path_allowed(path: str) -> bool:
+    if any(path.startswith(prefix) for prefix in PARTNER_DENIED_PREFIXES):
+        return False
     if path in PARTNER_ALLOWED_PATHS:
         return True
     return any(path.startswith(prefix) for prefix in PARTNER_ALLOWED_PREFIXES)
+
+
+def _partner_denied_scope(path: str) -> str:
+    for prefix in PARTNER_DENIED_PREFIXES:
+        if path.startswith(prefix):
+            return prefix
+    return "other"
 
 
 def _log_auth_event(event: str, *, request: Request, extra: Optional[dict] = None) -> None:
@@ -147,7 +162,11 @@ def get_current_user(
         _log_auth_event(
             "partner_forbidden",
             request=request,
-            extra={"user_id": user.id, "path": request.url.path},
+            extra={
+                "user_id": user.id,
+                "path": request.url.path,
+                "denied_scope": _partner_denied_scope(request.url.path),
+            },
         )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorised to access this workspace")
     return user
