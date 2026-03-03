@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { fetchAssignments, fetchAssignmentSummary } from '../api/assignments'
 import { fetchNotifications } from '../api/notifications'
 import { fetchMyTasks } from '../api/tasks'
 import { fetchMyLeave } from '../api/leave'
-import { fetchApprovalsInbox } from '../api/approvals'
+import { fetchApprovalsInboxCount } from '../api/approvals'
 import { fetchUserDirectory, updateMyProfile } from '../api/users'
 import PageHeader from '../components/ui/PageHeader'
 import StatCard from '../components/ui/StatCard'
@@ -17,13 +17,18 @@ import { useAuth } from '../auth/AuthContext'
 import { canSeeAdmin } from '../utils/rbac'
 
 export default function Account() {
+  const [searchParams] = useSearchParams()
   const { user, capabilities, refreshAuth } = useAuth()
   const [assignments, setAssignments] = useState([])
   const [summary, setSummary] = useState(null)
   const [notifications, setNotifications] = useState([])
   const [tasks, setTasks] = useState([])
   const [leave, setLeave] = useState([])
-  const [approvals, setApprovals] = useState([])
+  const [approvalCounts, setApprovalCounts] = useState({
+    draft: 0,
+    docs: 0,
+    payments: 0,
+  })
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [profileForm, setProfileForm] = useState({ email: '', full_name: '', phone: '' })
@@ -31,6 +36,7 @@ export default function Account() {
   const [profileNotice, setProfileNotice] = useState(null)
   const [profileError, setProfileError] = useState(null)
   const [savingProfile, setSavingProfile] = useState(false)
+  const isSettingsView = searchParams.get('view') === 'settings'
 
   useEffect(() => {
     let cancelled = false
@@ -66,12 +72,25 @@ export default function Account() {
   }, [user, capabilities])
 
   useEffect(() => {
-    if (!canSeeAdmin(capabilities)) return
+    if (!canSeeAdmin(capabilities)) {
+      setApprovalCounts({ draft: 0, docs: 0, payments: 0 })
+      return
+    }
     fetchAssignmentSummary()
       .then(setSummary)
       .catch((err) => console.error(err))
-    fetchApprovalsInbox(false)
-      .then((data) => setApprovals(data.slice(0, 6)))
+    Promise.all([
+      fetchApprovalsInboxCount('DRAFT_ASSIGNMENT').catch(() => ({ pending: 0 })),
+      fetchApprovalsInboxCount('FINAL_DOC_REVIEW').catch(() => ({ pending: 0 })),
+      fetchApprovalsInboxCount('PAYMENT_CONFIRMATION').catch(() => ({ pending: 0 })),
+    ])
+      .then(([draft, docs, payments]) => {
+        setApprovalCounts({
+          draft: draft?.pending || 0,
+          docs: docs?.pending || 0,
+          payments: payments?.pending || 0,
+        })
+      })
       .catch((err) => console.error(err))
     fetchUserDirectory().then(setUsers).catch((err) => console.error(err))
   }, [user, capabilities])
@@ -103,6 +122,20 @@ export default function Account() {
     })
     return { overdue, dueSoon }
   }, [tasks])
+
+  const assignmentsDueToday = useMemo(() => {
+    const today = new Date()
+    const y = today.getFullYear()
+    const m = today.getMonth()
+    const d = today.getDate()
+    return assignments.filter((assignment) => {
+      if (!assignment?.due_time) return false
+      const due = new Date(assignment.due_time)
+      return due.getFullYear() === y && due.getMonth() === m && due.getDate() === d
+    }).length
+  }, [assignments])
+
+  const followUpsDue = taskStats.overdue.length + taskStats.dueSoon.length
 
   const quickActions = [
     { label: 'New Assignment', to: '/assignments/new' },
@@ -176,61 +209,78 @@ export default function Account() {
   return (
     <div>
       <PageHeader
-        title="My Day"
-        subtitle="Focus on what matters now: overdue work, due soon, and critical signals."
+        title={isSettingsView ? 'Account Settings' : 'My Day'}
+        subtitle={isSettingsView ? 'Manage profile, password, MFA, and support preferences.' : 'Focus on the highest-leverage work for today.'}
         actions={(
           <>
-            <Link to="/assignments" className="nav-link">
-              Open Queue
-            </Link>
-            <Link to="/assignments/new" className="nav-link">
-              New Assignment
-            </Link>
+            {isSettingsView ? (
+              <Link to="/account" className="nav-link">Back to My Day</Link>
+            ) : (
+              <>
+                <Link to="/assignments" className="nav-link">Open Queue</Link>
+                <Link to="/assignments/new" className="nav-link">New Assignment</Link>
+                <Link to="/account?view=settings" className="nav-link">Account Settings</Link>
+              </>
+            )}
           </>
         )}
       />
 
-      <div className="grid cols-4" style={{ marginBottom: '1rem' }}>
-        {quickActions.map((action) => (
-          <Link key={`${action.to}-${action.label}`} to={action.to} className="nav-link">
-            {action.label}
-          </Link>
-        ))}
-      </div>
+      {!isSettingsView ? (
+        <>
+          <div className="grid cols-4" style={{ marginBottom: '1rem' }}>
+            <ActionCard
+              title="Assignments Due Today"
+              value={assignmentsDueToday}
+              tone={assignmentsDueToday > 0 ? 'warn' : 'ok'}
+              to="/assignments?mine=true&completion=PENDING"
+            />
+            {canSeeAdmin(capabilities) ? (
+              <ActionCard
+                title="Drafts Pending Approval"
+                value={approvalCounts.draft}
+                tone={approvalCounts.draft > 0 ? 'warn' : 'ok'}
+                to="/admin/approvals?approvalType=DRAFT_ASSIGNMENT&status=PENDING"
+              />
+            ) : null}
+            {canSeeAdmin(capabilities) ? (
+              <ActionCard
+                title="Docs Pending Review"
+                value={approvalCounts.docs}
+                tone={approvalCounts.docs > 0 ? 'info' : 'ok'}
+                to="/admin/approvals?approvalType=FINAL_DOC_REVIEW&status=PENDING"
+              />
+            ) : null}
+            {canSeeAdmin(capabilities) ? (
+              <ActionCard
+                title="Payments Pending Confirmation"
+                value={approvalCounts.payments}
+                tone={approvalCounts.payments > 0 ? 'warn' : 'ok'}
+                to="/admin/approvals?approvalType=PAYMENT_CONFIRMATION&status=PENDING"
+              />
+            ) : (
+              <ActionCard
+                title="Open Assignments"
+                value={assignments.length}
+                tone={assignments.length > 0 ? 'info' : 'ok'}
+                to="/assignments?mine=true&completion=PENDING"
+              />
+            )}
+            <ActionCard
+              title="Follow-ups Due"
+              value={followUpsDue}
+              tone={followUpsDue > 0 ? 'warn' : 'ok'}
+              to="/account#tasks"
+            />
+          </div>
 
-      <div className="grid cols-4" style={{ marginBottom: '1rem' }}>
-        <StatCard
-          kicker="My Queue"
-          label="Open Assignments"
-          value={assignments.length}
-          help="Assignments visible to you that are not completed or cancelled."
-        />
-        <StatCard
-          kicker="Fire"
-          label="Overdue"
-          value={groups.overdue.length}
-          tone="danger"
-          help="Assignments where due time has already passed."
-        />
-        <StatCard
-          kicker="Next 4h"
-          label="Due Soon"
-          value={groups.dueSoon.length}
-          tone="warn"
-          help="Assignments due within the next 24 hours."
-        />
-        <StatCard
-          kicker="Finance"
-          label="Unpaid"
-          value={groups.unpaid.length}
-          tone="accent"
-          help="Assignments with payment pending."
-        >
-          {canSeeAdmin(capabilities) && summary ? (
-            <div className="muted">Org unpaid: {summary.unpaid}</div>
-          ) : null}
-        </StatCard>
-      </div>
+          <div className="grid cols-4" style={{ marginBottom: '1rem' }}>
+            {quickActions.map((action) => (
+              <Link key={`${action.to}-${action.label}`} to={action.to} className="nav-link">
+                {action.label}
+              </Link>
+            ))}
+          </div>
 
       <div className="split">
         <div className="grid">
@@ -319,24 +369,21 @@ export default function Account() {
             </div>
             {canSeeAdmin(capabilities) ? (
               <div style={{ marginTop: 12 }}>
-                <div className="kicker">Approvals</div>
-                {approvals.length === 0 ? (
-                  <div className="muted" style={{ marginTop: 6 }}>No pending approvals.</div>
-                ) : (
-                  <div className="list" style={{ marginTop: 6 }}>
-                    {approvals.map((a) => (
-                      <Link key={a.id} to="/admin/approvals" className="list-item">
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <strong>{a.action_type}</strong>
-                          <Badge tone="warn">{a.status}</Badge>
-                        </div>
-                        <div className="muted" style={{ marginTop: 4 }}>
-                          Entity: {a.entity_type} #{a.entity_id}
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
+                <div className="kicker">Approval Requests</div>
+                <div className="list" style={{ marginTop: 6 }}>
+                  <Link to="/admin/approvals?approvalType=DRAFT_ASSIGNMENT&status=PENDING" className="list-item">
+                    <span>Draft assignments pending</span>
+                    <Badge tone={approvalCounts.draft > 0 ? 'warn' : 'ok'}>{approvalCounts.draft}</Badge>
+                  </Link>
+                  <Link to="/admin/approvals?approvalType=FINAL_DOC_REVIEW&status=PENDING" className="list-item">
+                    <span>Final docs pending review</span>
+                    <Badge tone={approvalCounts.docs > 0 ? 'info' : 'ok'}>{approvalCounts.docs}</Badge>
+                  </Link>
+                  <Link to="/admin/approvals?approvalType=PAYMENT_CONFIRMATION&status=PENDING" className="list-item">
+                    <span>Payments pending confirmation</span>
+                    <Badge tone={approvalCounts.payments > 0 ? 'warn' : 'ok'}>{approvalCounts.payments}</Badge>
+                  </Link>
+                </div>
               </div>
             ) : null}
           </Card>
@@ -413,7 +460,10 @@ export default function Account() {
           ) : null}
         </div>
       </div>
+        </>
+      ) : null}
 
+      {isSettingsView ? (
       <Card id="my-account" style={{ marginTop: '1.2rem' }}>
         <CardHeader title="My Account" subtitle="Update your personal details and password." />
         {profileError ? <div className="empty" style={{ marginBottom: '0.8rem' }}>{profileError}</div> : null}
@@ -486,10 +536,21 @@ export default function Account() {
           </form>
         </div>
       </Card>
+      ) : null}
 
-      <MfaSettingsCard />
-      <WhatsAppSettingsCard />
+      {isSettingsView ? <MfaSettingsCard /> : null}
+      {isSettingsView ? <WhatsAppSettingsCard /> : null}
     </div>
+  )
+}
+
+function ActionCard({ title, value, tone, to }) {
+  return (
+    <Link to={to} className="card tight" style={{ textDecoration: 'none', color: 'inherit' }}>
+      <div className="kicker">{title}</div>
+      <div className="stat-value" style={tone ? { color: `var(--${tone})` } : undefined}>{value}</div>
+      <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>Open filtered view</div>
+    </Link>
   )
 }
 

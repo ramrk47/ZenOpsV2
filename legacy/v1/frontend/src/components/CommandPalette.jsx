@@ -50,14 +50,14 @@ export default function CommandPalette() {
   const actions = useMemo(() => {
     const items = [
       { label: 'My Day', to: '/account' },
-      { label: 'My Account', to: '/account#my-account' },
+      { label: 'Account Settings', to: '/account?view=settings' },
       { label: 'My Tasks', to: '/account#tasks' },
       { label: 'My Assignments', to: '/assignments?mine=true' },
       { label: 'Assignments', to: '/assignments' },
       { label: 'New Assignment', to: '/assignments/new', enabled: hasCapability(capabilities, 'create_assignment') },
       { label: 'Request Leave', to: '/requests' },
       { label: 'Request Approval', to: '/requests' },
-      { label: 'Approvals', to: '/admin/approvals', enabled: canSeeAdmin(capabilities) },
+      { label: 'Requests', to: '/admin/approvals', enabled: canSeeAdmin(capabilities) },
       { label: 'Invoices', to: '/invoices', enabled: hasCapability(capabilities, 'view_invoices') || hasCapability(capabilities, 'view_all_assignments') },
       { label: 'Master Data', to: '/admin/masterdata', enabled: canSeeAdmin(capabilities) },
       { label: 'Workload', to: '/admin/workload', enabled: canSeeAdmin(capabilities) },
