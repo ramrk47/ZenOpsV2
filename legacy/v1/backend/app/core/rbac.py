@@ -11,6 +11,7 @@ ROLE_CAPABILITIES: dict[Role, Dict[str, bool]] = {
     Role.ADMIN: {
         "view_all_assignments": True,
         "create_assignment": True,
+        "assignment_allocate": True,
         "modify_money": True,
         "reassign": True,
         "view_users": True,
@@ -31,6 +32,7 @@ ROLE_CAPABILITIES: dict[Role, Dict[str, bool]] = {
     Role.OPS_MANAGER: {
         "view_all_assignments": True,
         "create_assignment": True,
+        "assignment_allocate": True,
         "modify_money": False,
         "reassign": True,
         "view_users": True,
@@ -51,6 +53,7 @@ ROLE_CAPABILITIES: dict[Role, Dict[str, bool]] = {
     Role.HR: {
         "view_all_assignments": True,
         "create_assignment": False,
+        "assignment_allocate": False,
         "modify_money": False,
         "reassign": True,
         "view_users": True,
@@ -71,6 +74,7 @@ ROLE_CAPABILITIES: dict[Role, Dict[str, bool]] = {
     Role.FINANCE: {
         "view_all_assignments": True,
         "create_assignment": False,
+        "assignment_allocate": False,
         "modify_money": True,
         "reassign": False,
         "view_users": True,
@@ -91,6 +95,7 @@ ROLE_CAPABILITIES: dict[Role, Dict[str, bool]] = {
     Role.ASSISTANT_VALUER: {
         "view_all_assignments": False,
         "create_assignment": True,
+        "assignment_allocate": False,
         "modify_money": False,
         "reassign": False,
         "view_users": False,
@@ -111,6 +116,7 @@ ROLE_CAPABILITIES: dict[Role, Dict[str, bool]] = {
     Role.FIELD_VALUER: {
         "view_all_assignments": False,
         "create_assignment": False,
+        "assignment_allocate": False,
         "modify_money": False,
         "reassign": False,
         "view_users": False,
@@ -131,6 +137,7 @@ ROLE_CAPABILITIES: dict[Role, Dict[str, bool]] = {
     Role.EMPLOYEE: {
         "view_all_assignments": False,
         "create_assignment": False,
+        "assignment_allocate": False,
         "modify_money": False,
         "reassign": False,
         "view_users": False,
@@ -151,6 +158,7 @@ ROLE_CAPABILITIES: dict[Role, Dict[str, bool]] = {
     Role.EXTERNAL_PARTNER: {
         "view_all_assignments": False,
         "create_assignment": False,
+        "assignment_allocate": False,
         "modify_money": False,
         "reassign": False,
         "view_users": False,

@@ -47,6 +47,7 @@ from app.schemas.message import MessageRead
 from app.schemas.task import TaskRead
 from app.services.activity import log_activity
 from app.services.approvals import request_approval, required_roles_for_approval
+from app.services.allocation import AssigneeNotEligibleError, assert_assignees_eligible
 from app.services.notifications import notify_roles
 from app.services.assignments import (
     apply_access_filter,
@@ -591,6 +592,16 @@ def create_assignment(
                     },
                 )
 
+    try:
+        assert_assignees_eligible(
+            db,
+            assignee_ids={uid for uid in assignee_ids if uid} | ({primary_assignee_id} if primary_assignee_id else set()),
+            service_line=service_line_master,
+            assignment=None,
+        )
+    except AssigneeNotEligibleError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=exc.to_detail()) from exc
+
     assignment = Assignment(
         assignment_code=generate_assignment_code(db),
         case_type=assignment_in.case_type,
@@ -748,6 +759,16 @@ def create_draft_assignment(
                         "leave_end": (leave.end_date or leave.start_date).isoformat(),
                     },
                 )
+
+    try:
+        assert_assignees_eligible(
+            db,
+            assignee_ids={uid for uid in assignee_ids if uid} | ({primary_assignee_id} if primary_assignee_id else set()),
+            service_line=service_line_master,
+            assignment=None,
+        )
+    except AssigneeNotEligibleError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=exc.to_detail()) from exc
 
     assignment = Assignment(
         assignment_code=generate_draft_assignment_code(db),
@@ -944,6 +965,24 @@ def update_assignment(
                         "leave_end": (leave.end_date or leave.start_date).isoformat(),
                     },
                 )
+
+    eligibility_check_ids = set()
+    if assigned_to_present and assigned_to_value:
+        eligibility_check_ids.add(int(assigned_to_value))
+    if assignee_user_ids is not None:
+        eligibility_check_ids.update({int(uid) for uid in assignee_user_ids if uid})
+        if not assigned_to_present and assignment.assigned_to_user_id:
+            eligibility_check_ids.add(int(assignment.assigned_to_user_id))
+    try:
+        assert_assignees_eligible(
+            db,
+            assignee_ids=eligibility_check_ids,
+            service_line=service_line_master,
+            assignment=assignment,
+        )
+    except AssigneeNotEligibleError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=exc.to_detail()) from exc
+
     if assigned_to_present:
         assignment.assigned_to_user_id = int(assigned_to_value) if assigned_to_value else None
         assignment.assigned_at = now if assignment.assigned_to_user_id else None
