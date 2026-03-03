@@ -1,19 +1,40 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable, Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core import rbac
 from app.models.assignment import Assignment
-from app.models.enums import Role
+from app.models.audit import ActivityLog
+from app.models.enums import AssignmentStatus, Role, TaskStatus
 from app.models.master import ServiceLineMaster
+from app.models.task import AssignmentTask
 from app.models.user import User
 
 DEFAULT_ALLOCATION_POLICY: dict[str, Any] = {
     "eligible_roles": ["ADMIN", "OPS_MANAGER", "ASSISTANT_VALUER", "FIELD_VALUER", "EMPLOYEE"],
     "deny_roles": ["FINANCE", "HR"],
+    "weights": {
+        "open_assignments": 3,
+        "overdue_tasks": 8,
+        "due_soon": 4,
+        "inactive_penalty": 6,
+        "field_valuer_bias": -2,
+    },
+    "max_open_assignments_soft": 12,
+}
+INACTIVE_WINDOW_MINUTES = 120
+OVERDUE_TASK_STATUSES = {TaskStatus.TODO, TaskStatus.DOING, TaskStatus.BLOCKED}
+OPEN_ASSIGNMENT_STATUSES = {
+    AssignmentStatus.DRAFT_PENDING_APPROVAL,
+    AssignmentStatus.PENDING,
+    AssignmentStatus.SITE_VISIT,
+    AssignmentStatus.UNDER_PROCESS,
+    AssignmentStatus.SUBMITTED,
 }
 
 
@@ -47,6 +68,8 @@ def default_allocation_policy() -> dict[str, Any]:
     return {
         "eligible_roles": list(DEFAULT_ALLOCATION_POLICY["eligible_roles"]),
         "deny_roles": list(DEFAULT_ALLOCATION_POLICY["deny_roles"]),
+        "weights": dict(DEFAULT_ALLOCATION_POLICY["weights"]),
+        "max_open_assignments_soft": int(DEFAULT_ALLOCATION_POLICY["max_open_assignments_soft"]),
     }
 
 
@@ -54,9 +77,25 @@ def normalize_allocation_policy(policy_json: Optional[dict[str, Any]]) -> dict[s
     payload = policy_json or {}
     eligible_roles = _normalize_role_list(payload.get("eligible_roles")) or list(DEFAULT_ALLOCATION_POLICY["eligible_roles"])
     deny_roles = _normalize_role_list(payload.get("deny_roles")) or list(DEFAULT_ALLOCATION_POLICY["deny_roles"])
+    raw_weights = payload.get("weights") if isinstance(payload.get("weights"), dict) else {}
+    weights = dict(DEFAULT_ALLOCATION_POLICY["weights"])
+    for key in weights:
+        if key not in raw_weights:
+            continue
+        try:
+            weights[key] = int(raw_weights[key])
+        except (TypeError, ValueError):
+            continue
+    try:
+        max_open_assignments_soft = int(payload.get("max_open_assignments_soft", DEFAULT_ALLOCATION_POLICY["max_open_assignments_soft"]))
+    except (TypeError, ValueError):
+        max_open_assignments_soft = int(DEFAULT_ALLOCATION_POLICY["max_open_assignments_soft"])
+
     return {
         "eligible_roles": eligible_roles,
         "deny_roles": deny_roles,
+        "weights": weights,
+        "max_open_assignments_soft": max_open_assignments_soft,
     }
 
 
@@ -156,3 +195,151 @@ def assert_assignees_eligible(
             reason=str(verdict.get("reason") or "ASSIGNEE_NOT_ELIGIBLE"),
             message=str(verdict.get("message") or "Assignee is not eligible"),
         )
+
+
+def _assignment_assignee_ids(assignment: Assignment) -> set[int]:
+    ids: set[int] = set()
+    if assignment.assigned_to_user_id:
+        ids.add(int(assignment.assigned_to_user_id))
+    for link in assignment.assignment_assignees or []:
+        if link.user_id:
+            ids.add(int(link.user_id))
+    return ids
+
+
+def _now_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def build_workload_signals(db: Session, user_ids: Iterable[int], *, now: Optional[datetime] = None) -> dict[int, dict[str, Any]]:
+    ids = sorted({int(uid) for uid in user_ids if uid})
+    signals: dict[int, dict[str, Any]] = {
+        uid: {
+            "open_assignments": 0,
+            "overdue_tasks": 0,
+            "due_soon": 0,
+            "last_active_minutes": None,
+        }
+        for uid in ids
+    }
+    if not ids:
+        return signals
+
+    current = now or _now_utc()
+    soon_cutoff = current + timedelta(hours=48)
+
+    open_assignments = (
+        db.query(Assignment)
+        .filter(
+            Assignment.is_deleted.is_(False),
+            Assignment.status.in_(OPEN_ASSIGNMENT_STATUSES),
+        )
+        .all()
+    )
+    for assignment in open_assignments:
+        for user_id in _assignment_assignee_ids(assignment):
+            if user_id in signals:
+                signals[user_id]["open_assignments"] += 1
+
+    task_rows = (
+        db.query(AssignmentTask)
+        .filter(AssignmentTask.assigned_to_user_id.in_(ids))
+        .all()
+    )
+    for task in task_rows:
+        if not task.assigned_to_user_id:
+            continue
+        if task.status not in OVERDUE_TASK_STATUSES:
+            continue
+        if not task.due_at:
+            continue
+        due_at = task.due_at if task.due_at.tzinfo is not None else task.due_at.replace(tzinfo=timezone.utc)
+        uid = int(task.assigned_to_user_id)
+        if due_at < current:
+            signals[uid]["overdue_tasks"] += 1
+        elif current <= due_at <= soon_cutoff:
+            signals[uid]["due_soon"] += 1
+
+    activity_rows = (
+        db.query(ActivityLog.actor_user_id, func.max(ActivityLog.created_at))
+        .filter(ActivityLog.actor_user_id.in_(ids))
+        .group_by(ActivityLog.actor_user_id)
+        .all()
+    )
+    for user_id, last_at in activity_rows:
+        if not user_id or user_id not in signals or not last_at:
+            continue
+        timestamp = last_at if last_at.tzinfo is not None else last_at.replace(tzinfo=timezone.utc)
+        minutes = int(max((current - timestamp).total_seconds(), 0) // 60)
+        signals[int(user_id)]["last_active_minutes"] = minutes
+
+    return signals
+
+
+def compute_allocation_score(
+    *,
+    assignment: Assignment,
+    user: User,
+    policy: dict[str, Any],
+    signals: dict[str, Any],
+) -> int:
+    weights = policy.get("weights") or DEFAULT_ALLOCATION_POLICY["weights"]
+    score = 0
+    score += int(signals.get("open_assignments") or 0) * int(weights.get("open_assignments", 3))
+    score += int(signals.get("overdue_tasks") or 0) * int(weights.get("overdue_tasks", 8))
+    score += int(signals.get("due_soon") or 0) * int(weights.get("due_soon", 4))
+
+    last_active_minutes = signals.get("last_active_minutes")
+    if last_active_minutes is None or int(last_active_minutes) > INACTIVE_WINDOW_MINUTES:
+        score += int(weights.get("inactive_penalty", 6))
+
+    if assignment.site_visit_date and rbac.user_has_role(user, Role.FIELD_VALUER):
+        score += int(weights.get("field_valuer_bias", -2))
+    return int(score)
+
+
+def build_allocation_candidates(
+    db: Session,
+    *,
+    assignment: Assignment,
+    include_ineligible: bool = True,
+) -> list[dict[str, Any]]:
+    service_line = assignment.service_line_master
+    policy = resolve_allocation_policy(service_line)
+    users = db.query(User).filter(User.is_active.is_(True)).all()
+    user_ids = [int(user.id) for user in users]
+    signals = build_workload_signals(db, user_ids)
+    max_open_soft = int(policy.get("max_open_assignments_soft", DEFAULT_ALLOCATION_POLICY["max_open_assignments_soft"]))
+
+    rows: list[dict[str, Any]] = []
+    for user in users:
+        verdict = evaluate_assignee_eligibility(user, service_line=service_line, assignment=assignment)
+        user_signals = signals.get(int(user.id), {"open_assignments": 0, "overdue_tasks": 0, "due_soon": 0, "last_active_minutes": None})
+        score = compute_allocation_score(
+            assignment=assignment,
+            user=user,
+            policy=policy,
+            signals=user_signals,
+        )
+        row = {
+            "user_id": int(user.id),
+            "name": user.full_name or user.email,
+            "roles": [role.value for role in rbac.roles_for_user(user)],
+            "eligible": bool(verdict.get("eligible")),
+            "reason": verdict.get("reason"),
+            "score": score,
+            "signals": user_signals,
+            "overloaded": int(user_signals.get("open_assignments") or 0) > max_open_soft,
+        }
+        if include_ineligible or row["eligible"]:
+            rows.append(row)
+
+    rows.sort(
+        key=lambda row: (
+            0 if row["eligible"] else 1,
+            int(row.get("score", 0)),
+            int(row.get("signals", {}).get("open_assignments") or 0),
+            str(row.get("name") or "").lower(),
+        )
+    )
+    return rows
