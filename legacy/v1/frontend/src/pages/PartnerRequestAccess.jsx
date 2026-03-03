@@ -12,6 +12,7 @@ export default function PartnerRequestAccess() {
     email: '',
     phone: '',
     message: '',
+    captcha_token: '',
   })
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
@@ -32,6 +33,7 @@ export default function PartnerRequestAccess() {
         email: form.email.trim().toLowerCase(),
         phone: form.phone.trim() || undefined,
         message: form.message.trim() || undefined,
+        captcha_token: form.captcha_token.trim() || undefined,
       })
       setSubmitted(true)
     } catch (err) {
@@ -49,8 +51,8 @@ export default function PartnerRequestAccess() {
             <div style={{ fontSize: 48, marginBottom: 12 }}>&#10003;</div>
             <h2 style={{ margin: '0 0 8px' }}>Request Submitted</h2>
             <p style={{ color: '#555' }}>
-              Thank you for your interest in becoming an associate with Zen Ops. Our team will review your
-              request and get back to you shortly.
+              Thanks for requesting External Associate access. Check your email and complete verification before
+              admin review starts.
             </p>
             <a href="/login" style={linkStyle}>
               Back to Login
@@ -120,6 +122,15 @@ export default function PartnerRequestAccess() {
             onChange={handleChange}
             style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }}
             placeholder="Tell us about your organisation and how we can collaborate..."
+          />
+
+          <label style={labelStyle}>Captcha Token (placeholder)</label>
+          <input
+            name="captcha_token"
+            value={form.captcha_token}
+            onChange={handleChange}
+            style={inputStyle}
+            placeholder="Required in production (provider wiring pending)"
           />
 
           {error && <p style={{ color: '#d32f2f', fontSize: 13, margin: '8px 0 0' }}>{error}</p>}

@@ -7,6 +7,8 @@ import EmployeeLayout from './components/layout/EmployeeLayout.jsx'
 import PartnerLayout from './components/layout/PartnerLayout.jsx'
 import Login from './pages/Login'
 import PartnerRequestAccess from './pages/PartnerRequestAccess'
+import PartnerVerifyAccess from './pages/PartnerVerifyAccess'
+import InviteAccept from './pages/InviteAccept'
 import Account from './pages/Account'
 import Assignments from './pages/Assignments'
 import NewAssignment from './pages/NewAssignment'
@@ -121,6 +123,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/partner/request-access" element={<PartnerRequestAccess />} />
+      <Route path="/partner/verify" element={<PartnerVerifyAccess />} />
+      <Route path="/invite/accept" element={<InviteAccept />} />
       <Route
         path="/m"
         element={(

@@ -9,6 +9,7 @@ import PageGrid from '../../components/ui/PageGrid'
 import { fetchPartnerAssignments, fetchPartnerCommissions, fetchPartnerInvoices, fetchPartnerNotifications } from '../../api/partner'
 import { formatDateTime, titleCase } from '../../utils/format'
 import { toUserMessage } from '../../api/client'
+import { useAuth } from '../../auth/AuthContext'
 
 function statusTone(status) {
   if (!status) return 'muted'
@@ -28,6 +29,7 @@ function notificationLink(notification) {
 }
 
 export default function PartnerHome() {
+  const { user } = useAuth()
   const [commissions, setCommissions] = useState([])
   const [assignments, setAssignments] = useState([])
   const [invoices, setInvoices] = useState([])
@@ -74,6 +76,7 @@ export default function PartnerHome() {
   const paymentPendingCount = useMemo(() => invoices.filter((inv) => !inv.is_paid).length, [invoices])
 
   const reportsReadyCount = useMemo(() => assignments.filter((a) => a.payment_status === 'VERIFIED').length, [assignments])
+  const needsProfile = useMemo(() => !(user?.full_name && user?.phone), [user?.full_name, user?.phone])
 
   return (
     <div>
@@ -86,6 +89,17 @@ export default function PartnerHome() {
       />
 
       {error ? <div className="empty" style={{ marginBottom: '0.9rem' }}>{error}</div> : null}
+      {needsProfile ? (
+        <Card style={{ marginBottom: '0.9rem' }}>
+          <CardHeader title="Complete Profile" subtitle="Finish first-run setup for External Associate access." />
+          <div className="list-item">
+            Add your name and phone in profile settings. Optional KYC documents can be uploaded in requests.
+            <div style={{ marginTop: 8 }}>
+              <Link className="nav-link" to="/partner/profile">Complete Profile</Link>
+            </div>
+          </div>
+        </Card>
+      ) : null}
 
       {loading ? (
         <div className="muted">Loading associate dashboard…</div>
