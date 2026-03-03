@@ -57,6 +57,8 @@ const TABS = [
 const CASE_TYPES = ['BANK', 'EXTERNAL_VALUER', 'DIRECT_CLIENT']
 const CALENDAR_EVENT_TYPES = ['SITE_VISIT', 'REPORT_DUE', 'DOC_PICKUP', 'INTERNAL_MEETING', 'TASK_DUE', 'LEAVE']
 const SERVICE_LINES = ['VALUATION', 'INDUSTRIAL', 'DPR', 'CMA']
+const DEFAULT_SERVICE_LINE_POLICY_JSON = '{\"requires\":[],\"optional\":[\"NORMAL_LAND\"],\"uom_required\":true,\"allow_assignment_override\":true}'
+const DEFAULT_ALLOCATION_POLICY_JSON = '{\"eligible_roles\":[\"OPS_MANAGER\",\"ASSISTANT_VALUER\",\"FIELD_VALUER\",\"EMPLOYEE\"],\"deny_roles\":[\"FINANCE\",\"HR\"],\"weights\":{\"open_assignments\":3,\"overdue_tasks\":8,\"due_soon\":4,\"inactive_penalty\":6,\"field_valuer_bias\":-2},\"max_open_assignments_soft\":12}'
 
 function mapById(items) {
   const map = new Map()
@@ -127,7 +129,8 @@ export default function AdminMasterData() {
     name: '',
     is_active: true,
     sort_order: 0,
-    policy_json: '{\"requires\":[],\"optional\":[\"NORMAL_LAND\"],\"uom_required\":true,\"allow_assignment_override\":true}',
+    policy_json: DEFAULT_SERVICE_LINE_POLICY_JSON,
+    allocation_policy_json: DEFAULT_ALLOCATION_POLICY_JSON,
   })
   const [templateForm, setTemplateForm] = useState({
     bank_id: '',
@@ -319,6 +322,7 @@ export default function AdminMasterData() {
         is_active: line.is_active !== false,
         sort_order: line.sort_order ?? 0,
         policy_json: JSON.stringify(line.policy_json || {}, null, 2),
+        allocation_policy_json: JSON.stringify(line.allocation_policy_json || {}, null, 2),
       }
     })
     setServiceLineDrafts(drafts)
@@ -709,25 +713,31 @@ export default function AdminMasterData() {
       if (serviceLineForm.policy_json.trim()) {
         policyJson = JSON.parse(serviceLineForm.policy_json)
       }
+      let allocationPolicyJson = {}
+      if (serviceLineForm.allocation_policy_json.trim()) {
+        allocationPolicyJson = JSON.parse(serviceLineForm.allocation_policy_json)
+      }
       await createServiceLine({
         key: serviceLineForm.key.trim().toUpperCase(),
         name: serviceLineForm.name.trim(),
         is_active: serviceLineForm.is_active,
         sort_order: Number(serviceLineForm.sort_order || 0),
         policy_json: policyJson,
+        allocation_policy_json: allocationPolicyJson,
       })
       setServiceLineForm({
         key: '',
         name: '',
         is_active: true,
         sort_order: 0,
-        policy_json: '{\"requires\":[],\"optional\":[\"NORMAL_LAND\"],\"uom_required\":true,\"allow_assignment_override\":true}',
+        policy_json: DEFAULT_SERVICE_LINE_POLICY_JSON,
+        allocation_policy_json: DEFAULT_ALLOCATION_POLICY_JSON,
       })
       refresh()
     } catch (err) {
       console.error(err)
       if (err instanceof SyntaxError) {
-        setError('Service line policy_json must be valid JSON')
+        setError('Service line policy JSON fields must be valid JSON')
       } else {
         setError(toUserMessage(err, 'Failed to create service line'))
       }
@@ -747,18 +757,22 @@ export default function AdminMasterData() {
         return
       }
       const policyJson = draft.policy_json?.trim() ? JSON.parse(draft.policy_json) : {}
+      const allocationPolicyJson = draft.allocation_policy_json?.trim()
+        ? JSON.parse(draft.allocation_policy_json)
+        : {}
       await updateServiceLine(serviceLineId, {
         key: draft.key.trim().toUpperCase(),
         name: draft.name.trim(),
         is_active: draft.is_active,
         sort_order: Number(draft.sort_order || 0),
+        allocation_policy_json: allocationPolicyJson,
       })
       await updateServiceLinePolicy(serviceLineId, { policy_json: policyJson })
       refresh()
     } catch (err) {
       console.error(err)
       if (err instanceof SyntaxError) {
-        setError('Service line policy_json must be valid JSON')
+        setError('Service line policy JSON fields must be valid JSON')
       } else {
         setError(toUserMessage(err, 'Failed to update service line'))
       }
@@ -1733,22 +1747,33 @@ function ServiceLinesTab({
             Active
           </label>
         </div>
-        <label className="grid">
-          <span className="kicker">policy_json</span>
-          <textarea
-            rows={4}
-            value={form.policy_json}
-            onChange={(e) => setForm((prev) => ({ ...prev, policy_json: e.target.value }))}
-            placeholder='{\"requires\":[\"NORMAL_LAND\"],\"optional\":[\"SURVEY_ROWS\"],\"uom_required\":true}'
-          />
-        </label>
+        <div className="grid cols-2">
+          <label className="grid">
+            <span className="kicker">policy_json</span>
+            <textarea
+              rows={4}
+              value={form.policy_json}
+              onChange={(e) => setForm((prev) => ({ ...prev, policy_json: e.target.value }))}
+              placeholder='{\"requires\":[\"NORMAL_LAND\"],\"optional\":[\"SURVEY_ROWS\"],\"uom_required\":true}'
+            />
+          </label>
+          <label className="grid">
+            <span className="kicker">allocation_policy_json</span>
+            <textarea
+              rows={4}
+              value={form.allocation_policy_json}
+              onChange={(e) => setForm((prev) => ({ ...prev, allocation_policy_json: e.target.value }))}
+              placeholder='{\"eligible_roles\":[\"OPS_MANAGER\",\"ASSISTANT_VALUER\",\"FIELD_VALUER\"],\"deny_roles\":[\"FINANCE\",\"HR\"],\"weights\":{\"open_assignments\":3,\"overdue_tasks\":8,\"due_soon\":4,\"inactive_penalty\":6},\"max_open_assignments_soft\":12}'
+            />
+          </label>
+        </div>
         <div>
           <button type="submit">Add Service Line</button>
         </div>
       </form>
 
       {loading ? (
-        <DataTable loading columns={6} rows={6} />
+        <DataTable loading columns={7} rows={6} />
       ) : serviceLines.length === 0 ? (
         <EmptyState>No service lines yet.</EmptyState>
       ) : (
@@ -1760,7 +1785,8 @@ function ServiceLinesTab({
                 <th>Name</th>
                 <th>Sort</th>
                 <th>Active</th>
-                <th>Policy</th>
+                <th>Land Policy</th>
+                <th>Allocation Policy</th>
                 <th />
               </tr>
             </thead>
@@ -1788,6 +1814,13 @@ function ServiceLinesTab({
                       rows={4}
                       value={drafts[serviceLine.id]?.policy_json || '{}'}
                       onChange={(e) => onDraftChange(serviceLine.id, 'policy_json', e.target.value)}
+                    />
+                  </td>
+                  <td style={{ minWidth: 280 }}>
+                    <textarea
+                      rows={4}
+                      value={drafts[serviceLine.id]?.allocation_policy_json || '{}'}
+                      onChange={(e) => onDraftChange(serviceLine.id, 'allocation_policy_json', e.target.value)}
                     />
                   </td>
                   <td style={{ textAlign: 'right' }}>

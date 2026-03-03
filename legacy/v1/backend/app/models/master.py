@@ -97,6 +97,7 @@ class ServiceLineMaster(IDMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    allocation_policy_json: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
     policy: Mapped[Optional["ServiceLinePolicy"]] = relationship(
         back_populates="service_line",

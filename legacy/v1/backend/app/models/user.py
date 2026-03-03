@@ -29,6 +29,10 @@ class User(IDMixin, TimestampMixin, Base):
         JSON().with_variant(JSONB, "postgresql"),
         nullable=True,
     )
+    allocation_prefs_json: Mapped[Optional[dict]] = mapped_column(
+        JSON().with_variant(JSONB, "postgresql"),
+        nullable=True,
+    )
     totp_secret: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
     backup_codes_hash: Mapped[Optional[list]] = mapped_column(

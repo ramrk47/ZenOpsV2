@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
-from typing import Optional, Dict, List
+from typing import Any, Optional, Dict, List
 
 from pydantic import Field, field_validator
 
@@ -33,6 +33,7 @@ class UserBase(ORMModel):
     roles: Optional[List[Role]] = None
     is_active: bool = True
     partner_id: Optional[int] = None
+    allocation_prefs_json: Optional[Dict[str, Any]] = None
 
     @field_validator("email")
     @classmethod
@@ -67,6 +68,7 @@ class UserUpdate(ORMModel):
     password: Optional[str] = Field(default=None, min_length=12)
     capability_overrides: Optional[Dict[str, bool]] = None
     partner_id: Optional[int] = None
+    allocation_prefs_json: Optional[Dict[str, Any]] = None
 
     @field_validator("email")
     @classmethod
@@ -135,6 +137,9 @@ class UserRead(UserBase):
 class UserSummary(UserRead):
     open_assignments: int = 0
     overdue_assignments: int = 0
+    due_soon_tasks: int = 0
+    last_active_at: Optional[datetime] = None
+    last_active_minutes: Optional[int] = None
     on_leave_today: bool = False
     login_count_30d: int = 0
     active_days_30d: int = 0

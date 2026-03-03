@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core import rbac
@@ -14,11 +15,20 @@ from app.db.session import get_db
 from app.models.approval import Approval
 from app.models.assignment import Assignment
 from app.models.audit import ActivityLog
-from app.models.enums import ApprovalActionType, ApprovalEntityType, ApprovalStatus, Role, NotificationType
+from app.models.enums import (
+    ApprovalActionType,
+    ApprovalEntityType,
+    ApprovalStatus,
+    NotificationType,
+    Role,
+    TaskStatus,
+)
 from app.models.partner import ExternalPartner
+from app.models.task import AssignmentTask
 from app.models.user import User
 from app.schemas.approval import ApprovalRead
 from app.schemas.user import ResetPasswordPayload, UserCreate, UserDirectory, UserRead, UserSummary, UserUpdate
+from app.services.activity import log_activity
 from app.services.approvals import request_approval, required_roles_for_approval
 from app.services.assignments import compute_due_info, get_assignment_assignee_ids, is_assignment_open
 from app.services.leave import users_on_leave
@@ -30,6 +40,45 @@ router = APIRouter(prefix="/api/auth/users", tags=["users"])
 def _require_manage_users(actor: User) -> None:
     if not rbac.get_capabilities_for_user(actor).get("manage_users"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorised to manage users")
+
+
+OPEN_TASK_STATUSES = {TaskStatus.TODO, TaskStatus.DOING, TaskStatus.BLOCKED}
+
+
+def _normalize_allocation_prefs_json(raw_value):
+    if raw_value is None:
+        return None
+    if not isinstance(raw_value, dict):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="allocation_prefs_json must be an object")
+
+    normalized = dict(raw_value)
+    overrides = raw_value.get("service_line_overrides")
+    if overrides is None:
+        return normalized
+    if not isinstance(overrides, dict):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="allocation_prefs_json.service_line_overrides must be an object",
+        )
+
+    normalized_overrides = {}
+    for key, value in overrides.items():
+        service_line_key = str(key or "").strip().upper()
+        if not service_line_key:
+            continue
+        if not isinstance(value, dict):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"allocation_prefs_json.service_line_overrides.{service_line_key} must be an object",
+            )
+        if "eligible" in value and value["eligible"] is not None and not isinstance(value["eligible"], bool):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"allocation_prefs_json.service_line_overrides.{service_line_key}.eligible must be boolean",
+            )
+        normalized_overrides[service_line_key] = {"eligible": value.get("eligible")}
+    normalized["service_line_overrides"] = normalized_overrides
+    return normalized
 
 
 @router.get("/directory", response_model=List[UserDirectory])
@@ -73,6 +122,8 @@ def list_users(
 
     now = datetime.now(timezone.utc)
     since = now - timedelta(days=30)
+    soon_cutoff = now + timedelta(hours=48)
+    user_ids = [u.id for u in users]
     login_rows = (
         db.query(ActivityLog)
         .filter(ActivityLog.type == "USER_LOGIN", ActivityLog.created_at >= since)
@@ -89,6 +140,7 @@ def list_users(
 
     open_counts: dict[int, int] = {u.id: 0 for u in users}
     overdue_counts: dict[int, int] = {u.id: 0 for u in users}
+    due_soon_task_counts: dict[int, int] = {u.id: 0 for u in users}
 
     for assignment in assignments:
         if not is_assignment_open(assignment.status):
@@ -99,11 +151,47 @@ def list_users(
             if compute_due_info(assignment).due_state == "OVERDUE":
                 overdue_counts[assignee_id] = overdue_counts.get(assignee_id, 0) + 1
 
+    if user_ids:
+        task_rows = (
+            db.query(AssignmentTask)
+            .filter(AssignmentTask.assigned_to_user_id.in_(user_ids))
+            .all()
+        )
+        for task in task_rows:
+            if not task.assigned_to_user_id:
+                continue
+            if task.status not in OPEN_TASK_STATUSES:
+                continue
+            if not task.due_at:
+                continue
+            due_at = task.due_at if task.due_at.tzinfo else task.due_at.replace(tzinfo=timezone.utc)
+            if now <= due_at <= soon_cutoff:
+                due_soon_task_counts[task.assigned_to_user_id] = due_soon_task_counts.get(task.assigned_to_user_id, 0) + 1
+
+    last_active_at_map: dict[int, datetime] = {}
+    last_active_minutes_map: dict[int, int] = {}
+    if user_ids:
+        activity_rows = (
+            db.query(ActivityLog.actor_user_id, func.max(ActivityLog.created_at))
+            .filter(ActivityLog.actor_user_id.in_(user_ids))
+            .group_by(ActivityLog.actor_user_id)
+            .all()
+        )
+        for user_id, last_active_at in activity_rows:
+            if not user_id or not last_active_at:
+                continue
+            timestamp = last_active_at if last_active_at.tzinfo else last_active_at.replace(tzinfo=timezone.utc)
+            last_active_at_map[user_id] = timestamp
+            last_active_minutes_map[user_id] = int(max((now - timestamp).total_seconds(), 0) // 60)
+
     result: List[UserSummary] = []
     for user in users:
         summary = UserSummary.model_validate(user)
         summary.open_assignments = open_counts.get(user.id, 0)
         summary.overdue_assignments = overdue_counts.get(user.id, 0)
+        summary.due_soon_tasks = due_soon_task_counts.get(user.id, 0)
+        summary.last_active_at = last_active_at_map.get(user.id)
+        summary.last_active_minutes = last_active_minutes_map.get(user.id)
         summary.on_leave_today = user.id in leave_today
         summary.login_count_30d = login_counts.get(user.id, 0)
         summary.active_days_30d = len(login_days.get(user.id, set()))
@@ -142,6 +230,7 @@ def create_user(
         roles=[role.value for role in roles],
         partner_id=user_in.partner_id,
         is_active=user_in.is_active,
+        allocation_prefs_json=_normalize_allocation_prefs_json(user_in.allocation_prefs_json),
     )
     if user_in.capability_overrides:
         base_caps = rbac.get_capabilities_for_roles(roles)
@@ -219,6 +308,8 @@ def update_user(
             if not overrides:
                 overrides = None
         user.capability_overrides = overrides
+    if "allocation_prefs_json" in update_data:
+        user.allocation_prefs_json = _normalize_allocation_prefs_json(update_data.get("allocation_prefs_json"))
 
     user.updated_at = datetime.now(timezone.utc)
     db.add(user)

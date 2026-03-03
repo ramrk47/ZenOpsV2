@@ -36,6 +36,8 @@ OPEN_ASSIGNMENT_STATUSES = {
     AssignmentStatus.UNDER_PROCESS,
     AssignmentStatus.SUBMITTED,
 }
+ALLOCATION_WEIGHT_KEYS = tuple(DEFAULT_ALLOCATION_POLICY["weights"].keys())
+VALID_ROLE_VALUES = {role.value for role in Role}
 
 
 @dataclass
@@ -58,6 +60,8 @@ def _normalize_role_list(values: Iterable[str] | None) -> list[str]:
     for raw in values or []:
         value = str(raw or "").strip().upper()
         if not value:
+            continue
+        if value not in VALID_ROLE_VALUES:
             continue
         if value not in normalized:
             normalized.append(value)
@@ -97,6 +101,53 @@ def normalize_allocation_policy(policy_json: Optional[dict[str, Any]]) -> dict[s
         "weights": weights,
         "max_open_assignments_soft": max_open_assignments_soft,
     }
+
+
+def validate_allocation_policy_json(policy_json: Optional[dict[str, Any]]) -> dict[str, Any]:
+    if policy_json is None:
+        return default_allocation_policy()
+    if not isinstance(policy_json, dict):
+        raise ValueError("allocation_policy_json must be a JSON object")
+    if not policy_json:
+        return default_allocation_policy()
+
+    if "eligible_roles" in policy_json and not isinstance(policy_json.get("eligible_roles"), list):
+        raise ValueError("allocation_policy_json.eligible_roles must be an array")
+    if "deny_roles" in policy_json and not isinstance(policy_json.get("deny_roles"), list):
+        raise ValueError("allocation_policy_json.deny_roles must be an array")
+
+    for field_name in ("eligible_roles", "deny_roles"):
+        for raw in policy_json.get(field_name) or []:
+            value = str(raw or "").strip().upper()
+            if value and value not in VALID_ROLE_VALUES:
+                raise ValueError(f"allocation_policy_json.{field_name} has invalid role: {value}")
+
+    weights = policy_json.get("weights")
+    if "weights" in policy_json and not isinstance(weights, dict):
+        raise ValueError("allocation_policy_json.weights must be an object")
+    if isinstance(weights, dict):
+        for key, raw_value in weights.items():
+            if key not in ALLOCATION_WEIGHT_KEYS:
+                raise ValueError(f"allocation_policy_json.weights has unknown key: {key}")
+            if not isinstance(raw_value, (int, float, str)):
+                raise ValueError(f"allocation_policy_json.weights.{key} must be numeric")
+            try:
+                int(raw_value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"allocation_policy_json.weights.{key} must be numeric") from exc
+
+    if "max_open_assignments_soft" in policy_json:
+        raw_soft_limit = policy_json.get("max_open_assignments_soft")
+        if not isinstance(raw_soft_limit, (int, float, str)):
+            raise ValueError("allocation_policy_json.max_open_assignments_soft must be numeric")
+        try:
+            soft_limit = int(raw_soft_limit)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("allocation_policy_json.max_open_assignments_soft must be numeric") from exc
+        if soft_limit < 0:
+            raise ValueError("allocation_policy_json.max_open_assignments_soft must be >= 0")
+
+    return normalize_allocation_policy(policy_json)
 
 
 def resolve_allocation_policy(service_line: Optional[ServiceLineMaster]) -> dict[str, Any]:

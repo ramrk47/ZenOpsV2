@@ -67,6 +67,7 @@ from app.services.checklist_rules_loader import (
     get_checklist_rules_snapshot,
     get_document_template_slots,
 )
+from app.services.allocation import resolve_allocation_policy, validate_allocation_policy_json
 
 router = APIRouter(prefix="/api/master", tags=["master-data"])
 
@@ -159,6 +160,7 @@ def _service_line_read(service_line: ServiceLineMaster) -> ServiceLineRead:
         is_active=service_line.is_active,
         sort_order=service_line.sort_order,
         policy_json=service_line.policy.policy_json if service_line.policy else None,
+        allocation_policy_json=resolve_allocation_policy(service_line),
         created_at=service_line.created_at,
         updated_at=service_line.updated_at,
     )
@@ -476,12 +478,17 @@ def create_service_line(
     existing_name = db.query(ServiceLineMaster).filter(ServiceLineMaster.name == name).first()
     if existing_name:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Service line name already exists")
+    try:
+        allocation_policy_json = validate_allocation_policy_json(payload.allocation_policy_json)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     service_line = ServiceLineMaster(
         key=key,
         name=name,
         is_active=payload.is_active,
         sort_order=payload.sort_order,
+        allocation_policy_json=allocation_policy_json,
     )
     db.add(service_line)
     db.flush()
@@ -525,6 +532,11 @@ def update_service_line(
         service_line.is_active = bool(update_data["is_active"])
     if "sort_order" in update_data and update_data["sort_order"] is not None:
         service_line.sort_order = int(update_data["sort_order"])
+    if "allocation_policy_json" in update_data:
+        try:
+            service_line.allocation_policy_json = validate_allocation_policy_json(update_data.get("allocation_policy_json"))
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     if "policy_json" in update_data:
         normalized = _normalize_policy_json(update_data["policy_json"])
