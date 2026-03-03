@@ -230,19 +230,25 @@ def v1_meta() -> dict[str, str]:
 
 
 @app.get("/healthz/deps", tags=["health"])
-def healthcheck_deps() -> dict[str, str | bool]:
+def healthcheck_deps(db: Session = Depends(get_db)) -> dict[str, str | bool | int | float]:
     """
-    Deep health check for all dependencies.
-    Checks database, uploads directory, and disk space.
+    Deep dependency health check.
+    Includes storage, queue backlogs, and rate-limit table sanity.
     """
     import shutil
-    
-    checks = {
+
+    from app.models.support import EmailDeliveryLog
+    from app.models.rate_limit_bucket import RateLimitBucket
+
+    checks: dict[str, bool | int | float] = {
         "database": False,
         "uploads_dir": False,
         "disk_space_ok": False,
+        "outbox_backlog_ok": True,
+        "email_backlog_ok": True,
+        "rate_limit_table_ok": True,
     }
-    
+
     # Database check
     try:
         with engine.connect() as connection:
@@ -250,32 +256,81 @@ def healthcheck_deps() -> dict[str, str | bool]:
         checks["database"] = True
     except Exception:
         pass
-    
+
     # Uploads directory check
     uploads_path = Path(settings.uploads_dir)
     try:
         if uploads_path.exists() and uploads_path.is_dir():
-            # Test write access
-            test_file = uploads_path / ".healthcheck"
-            test_file.touch()
-            test_file.unlink()
+            probe = uploads_path / ".healthcheck"
+            probe.touch()
+            probe.unlink()
             checks["uploads_dir"] = True
     except Exception:
         pass
-    
-    # Disk space check (warn if <10% free)
+
+    # Disk space check
     try:
         usage = shutil.disk_usage(uploads_path)
         free_percent = (usage.free / usage.total) * 100
         checks["disk_space_ok"] = free_percent > 10
         checks["disk_free_percent"] = round(free_percent, 1)
+        checks["uploads_free_bytes"] = int(usage.free)
     except Exception:
         pass
-    
-    all_ok = all(v for k, v in checks.items() if isinstance(v, bool))
+
+    bridge_enabled = bool((settings.v2_events_ingest_url or "").strip())
+    checks["bridge_enabled"] = bridge_enabled
+
+    # Outbox backlog check (only meaningful when bridge is configured)
+    outbox_backlog = 0
+    if bridge_enabled:
+        try:
+            from app.models.v1_outbox_event import V1OutboxEvent
+
+            outbox_backlog = (
+                db.query(V1OutboxEvent)
+                .filter(V1OutboxEvent.status != "DELIVERED")
+                .count()
+            )
+        except Exception:
+            checks["outbox_backlog_ok"] = False
+    checks["outbox_backlog_count"] = outbox_backlog
+    outbox_warn_threshold = int(os.getenv("WATCHDOG_OUTBOX_MAX", "200"))
+    checks["outbox_backlog_warn_threshold"] = outbox_warn_threshold
+    if outbox_backlog > outbox_warn_threshold:
+        checks["outbox_backlog_ok"] = False
+
+    # Email queue backlog
+    try:
+        email_pending = (
+            db.query(EmailDeliveryLog)
+            .filter(EmailDeliveryLog.status == "QUEUED")
+            .count()
+        )
+    except Exception:
+        email_pending = -1
+        checks["email_backlog_ok"] = False
+    checks["email_queue_pending_count"] = email_pending
+    email_warn_threshold = int(os.getenv("WATCHDOG_EMAIL_MAX", "100"))
+    checks["email_backlog_warn_threshold"] = email_warn_threshold
+    if email_pending > email_warn_threshold:
+        checks["email_backlog_ok"] = False
+
+    # Rate limit table sanity
+    try:
+        rl_table_size = db.query(RateLimitBucket).count()
+        checks["rate_limit_table_rows"] = rl_table_size
+        max_rows = int(os.getenv("RATE_LIMIT_TABLE_MAX_ROWS", "50000"))
+        checks["rate_limit_table_max_rows"] = max_rows
+        if rl_table_size > max_rows:
+            checks["rate_limit_table_ok"] = False
+    except Exception:
+        checks["rate_limit_table_ok"] = False
+
+    all_ok = all(v for v in checks.values() if isinstance(v, bool))
     if not all_ok:
         raise HTTPException(status_code=503, detail=checks)
-    
+
     return {"status": "ok", **checks}
 
 
