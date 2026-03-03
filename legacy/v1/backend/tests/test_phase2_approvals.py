@@ -255,7 +255,7 @@ def test_payment_requires_confirmation_before_invoice_becomes_paid(test_env):
     _as_user(auth_state, users["finance"])
     add_payment = client.post(
         f"/api/invoices/{invoice_id}/payments",
-        json={"amount": str(initial_due), "mode": "MANUAL"},
+        json={"amount": str(initial_due), "mode": "CASH"},
     )
     assert add_payment.status_code == 200, add_payment.text
     after_submit = add_payment.json()
