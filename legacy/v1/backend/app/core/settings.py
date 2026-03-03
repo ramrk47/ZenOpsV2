@@ -117,6 +117,23 @@ class Settings(BaseSettings):
         description="Directory for uploaded documents",
         validation_alias=AliasChoices("UPLOAD_DIR", "UPLOADS_DIR"),
     )
+    max_upload_mb: int = Field(default=25, description="Maximum upload size in MB")
+    allowed_upload_extensions: List[str] = Field(
+        default_factory=lambda: ["pdf", "jpg", "jpeg", "png", "docx", "xlsx", "txt"],
+        description="Allowed upload file extensions",
+    )
+    allowed_upload_content_types: List[str] = Field(
+        default_factory=lambda: [
+            "application/pdf",
+            "image/jpeg",
+            "image/png",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "text/plain",
+        ],
+        description="Allowed upload MIME content types",
+    )
+    av_scan_enabled: bool = Field(default=False, description="Enable antivirus scan hook for uploads")
 
     backup_dir: str = Field(
         default="./deploy/backups",
@@ -252,6 +269,15 @@ class Settings(BaseSettings):
         if mode not in {"POSTPAID", "CREDIT"}:
             return "POSTPAID"
         return mode
+
+    @field_validator("allowed_upload_extensions", "allowed_upload_content_types", mode="before")
+    @classmethod
+    def parse_csv_or_list(cls, value):
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
 
     def ensure_uploads_dir(self) -> Path:
         uploads_path = Path(self.uploads_dir).expanduser().resolve()

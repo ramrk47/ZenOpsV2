@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from decimal import Decimal
-from pathlib import Path
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import and_, func, or_
@@ -11,7 +9,6 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core import rbac
 from app.core.deps import get_current_user
-from app.core.settings import settings
 from app.db.session import get_db
 from app.models.approval import Approval
 from app.models.assignment import Assignment
@@ -58,6 +55,7 @@ from app.services.assignments import (
     ensure_assignment_access,
 )
 from app.services.notifications import create_notification_if_absent, notify_roles
+from app.services.upload_security import UploadSecurityError, build_upload_subdir, store_upload_file
 from app.utils.mentions import parse_and_resolve_mentions
 
 
@@ -438,16 +436,14 @@ def mobile_upload_document(
     assignment = _ensure_mobile_access(db, assignment_id, current_user)
     partner_mode = _is_partner_user(current_user)
 
-    base = settings.ensure_uploads_dir()
-    upload_dir = base / assignment.assignment_code
-    upload_dir.mkdir(parents=True, exist_ok=True)
-
-    safe_filename = Path(file.filename or "mobile-upload.bin").name
-    suffix = Path(safe_filename).suffix
-    stored_name = f"{uuid4().hex}{suffix}"
-    storage_path = upload_dir / stored_name
-    content = file.file.read()
-    storage_path.write_bytes(content)
+    upload_dir = build_upload_subdir(assignment.assignment_code)
+    try:
+        stored = store_upload_file(file, destination_dir=upload_dir)
+    except UploadSecurityError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
 
     version = (
         db.query(AssignmentDocument)
@@ -461,10 +457,10 @@ def mobile_upload_document(
     document = AssignmentDocument(
         assignment_id=assignment.id,
         uploaded_by_user_id=current_user.id,
-        original_name=file.filename or stored_name,
-        storage_path=str(storage_path),
-        mime_type=file.content_type,
-        size=len(content),
+        original_name=stored.original_name,
+        storage_path=stored.storage_path,
+        mime_type=stored.mime_type,
+        size=stored.size,
         category=category,
         version_number=version,
         is_final=False,
