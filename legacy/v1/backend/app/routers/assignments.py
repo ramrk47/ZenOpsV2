@@ -554,26 +554,6 @@ def create_assignment(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    service_line_master = _resolve_service_line_master(db, assignment_in.service_line_id)
-    if service_line_master is None:
-        service_line_master = (
-            db.query(ServiceLineMaster)
-            .filter(ServiceLineMaster.key == _legacy_service_line_default_key(assignment_in.service_line))
-            .first()
-        )
-    service_line_other_text = (assignment_in.service_line_other_text or "").strip() or None
-    if service_line_master and service_line_master.key == "OTHERS" and not service_line_other_text:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="service_line_other_text is required for Others")
-    if assignment_in.payment_timing or assignment_in.payment_completeness or assignment_in.preferred_payment_mode:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Draft assignments cannot set admin-only payment preferences")
-    if assignment_in.land_policy_override_json:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Draft assignments cannot override land policy")
-    policy = effective_land_policy(service_line_master, None)
-    if requires_land_block(policy, "SURVEY_ROWS") and not assignment_in.land_surveys:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Survey rows are required for this service line policy")
-    if policy.get("uom_required", True) and not (assignment_in.uom or "").strip():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="uom is required")
-
     if (assignment_in.fees is not None or assignment_in.is_paid) and not rbac.can_modify_money(current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not permitted to set financial fields")
 
@@ -735,6 +715,26 @@ def create_draft_assignment(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    service_line_master = _resolve_service_line_master(db, assignment_in.service_line_id)
+    if service_line_master is None:
+        service_line_master = (
+            db.query(ServiceLineMaster)
+            .filter(ServiceLineMaster.key == _legacy_service_line_default_key(assignment_in.service_line))
+            .first()
+        )
+    service_line_other_text = (assignment_in.service_line_other_text or "").strip() or None
+    if service_line_master and service_line_master.key == "OTHERS" and not service_line_other_text:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="service_line_other_text is required for Others")
+    if assignment_in.payment_timing or assignment_in.payment_completeness or assignment_in.preferred_payment_mode:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Draft assignments cannot set admin-only payment preferences")
+    if assignment_in.land_policy_override_json:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Draft assignments cannot override land policy")
+    policy = effective_land_policy(service_line_master, None)
+    if requires_land_block(policy, "SURVEY_ROWS") and not assignment_in.land_surveys:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Survey rows are required for this service line policy")
+    if policy.get("uom_required", True) and not (assignment_in.uom or "").strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="uom is required")
 
     override_on_leave = bool(getattr(assignment_in, "override_on_leave", False))
     assignee_ids = list(assignment_in.assignee_user_ids or [])
