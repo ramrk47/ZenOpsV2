@@ -526,7 +526,7 @@ def resolve_support_thread(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Thread not found")
     
     thread.status = SupportThreadStatus.RESOLVED
-    thread.resolved_at = datetime.now(timezone.utc)
+    thread.closed_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(thread)
     return thread
