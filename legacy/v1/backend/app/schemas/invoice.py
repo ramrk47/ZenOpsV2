@@ -59,6 +59,11 @@ class InvoicePaymentRead(ORMModel):
     reference_no: Optional[str] = None
     notes: Optional[str] = None
     created_by_user_id: int
+    confirmation_status: str
+    confirmed_by_user_id: Optional[int] = None
+    confirmed_at: Optional[datetime] = None
+    confirmation_reason: Optional[str] = None
+    approval_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 

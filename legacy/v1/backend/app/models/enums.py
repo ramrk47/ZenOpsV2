@@ -15,6 +15,8 @@ class Role(enum.StrEnum):
 
 
 class AssignmentStatus(enum.StrEnum):
+    DRAFT_PENDING_APPROVAL = "DRAFT_PENDING_APPROVAL"
+    DRAFT_REJECTED = "DRAFT_REJECTED"
     PENDING = "PENDING"
     SITE_VISIT = "SITE_VISIT"
     UNDER_PROCESS = "UNDER_PROCESS"
@@ -49,12 +51,19 @@ class ApprovalStatus(enum.StrEnum):
     REJECTED = "REJECTED"
 
 
+class ApprovalType(enum.StrEnum):
+    DRAFT_ASSIGNMENT = "DRAFT_ASSIGNMENT"
+    FINAL_DOC_REVIEW = "FINAL_DOC_REVIEW"
+    PAYMENT_CONFIRMATION = "PAYMENT_CONFIRMATION"
+
+
 class DocumentReviewStatus(enum.StrEnum):
     UPLOADED = "UPLOADED"
     RECEIVED = "RECEIVED"
     REVIEWED = "REVIEWED"
     NEEDS_CLARIFICATION = "NEEDS_CLARIFICATION"
     REJECTED = "REJECTED"
+    FINAL_PENDING_APPROVAL = "FINAL_PENDING_APPROVAL"
     FINAL = "FINAL"
 
 
@@ -65,6 +74,8 @@ class DocumentVisibility(enum.StrEnum):
 
 class ApprovalEntityType(enum.StrEnum):
     ASSIGNMENT = "ASSIGNMENT"
+    DOCUMENT = "DOCUMENT"
+    PAYMENT = "PAYMENT"
     USER = "USER"
     INVOICE = "INVOICE"
     LEAVE = "LEAVE"
