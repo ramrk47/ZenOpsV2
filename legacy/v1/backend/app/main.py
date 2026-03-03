@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 try:
@@ -48,6 +50,7 @@ def _resolve_repo_root() -> Path:
 
 v1_repo_root = _resolve_repo_root()
 v1_build_time = os.getenv("BUILD_TIME") or datetime.now(timezone.utc).isoformat()
+is_production = settings.environment.lower() in ("production", "prod")
 
 
 def _resolve_v1_git_sha() -> str:
@@ -63,7 +66,7 @@ def _resolve_v1_git_sha() -> str:
 
 # Always allow localhost during development (Vite often changes ports).
 allow_origin_regex = None
-if settings.environment != "production":
+if not is_production:
     allow_origin_regex = r"^http://(localhost|127\.0\.0\.1)(:\d+)?$"
 else:
     if any(origin.strip() == "*" for origin in settings.allow_origins):
@@ -72,6 +75,44 @@ else:
         raise RuntimeError("JWT_SECRET must be set in production")
     if "change_me" in settings.database_url:
         raise RuntimeError("DATABASE_URL password must be set in production")
+
+
+def _normalize_origin(value: str) -> str:
+    return value.strip().rstrip("/").lower()
+
+
+allowed_origin_set = {_normalize_origin(origin) for origin in settings.allow_origins if origin.strip()}
+
+
+def _origin_allowed(origin: str | None) -> bool:
+    if not origin:
+        return True
+    normalized = _normalize_origin(origin)
+    if normalized in allowed_origin_set:
+        return True
+    if allow_origin_regex and re.match(allow_origin_regex, normalized):
+        return True
+    return False
+
+
+def _harden_set_cookie_headers(response) -> None:
+    hardened_headers = []
+    for key, value in response.raw_headers:
+        if key.lower() != b"set-cookie":
+            hardened_headers.append((key, value))
+            continue
+
+        cookie = value.decode("latin-1")
+        lowered = cookie.lower()
+        if "httponly" not in lowered:
+            cookie = f"{cookie}; HttpOnly"
+        if "samesite=" not in lowered:
+            cookie = f"{cookie}; SameSite=Lax"
+        if is_production and "secure" not in lowered:
+            cookie = f"{cookie}; Secure"
+        hardened_headers.append((key, cookie.encode("latin-1")))
+
+    response.raw_headers = hardened_headers
 
 if ProxyHeadersMiddleware:
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
@@ -88,6 +129,43 @@ app.add_middleware(
 # Observability middleware
 app.add_middleware(PrometheusMiddleware)
 app.add_middleware(RequestLoggingMiddleware)
+
+
+@app.middleware("http")
+async def security_enforcement_middleware(request: Request, call_next):
+    origin = request.headers.get("origin")
+    origin_allowed = _origin_allowed(origin)
+
+    if is_production and origin and not origin_allowed:
+        return JSONResponse(
+            status_code=403,
+            content={"detail": {"code": "ORIGIN_NOT_ALLOWED", "origin": origin}},
+        )
+
+    response = await call_next(request)
+
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = (
+        "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
+        "microphone=(), payment=(), usb=()"
+    )
+    # Roll out in report-only mode to avoid unexpected SPA breakage.
+    response.headers["Content-Security-Policy-Report-Only"] = (
+        "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; "
+        "script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https: ws: wss:"
+    )
+
+    if is_production:
+        if origin and origin_allowed:
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+        elif "Access-Control-Allow-Credentials" in response.headers:
+            del response.headers["Access-Control-Allow-Credentials"]
+
+    _harden_set_cookie_headers(response)
+    return response
 
 # Prometheus metrics endpoint
 app.add_api_route("/metrics", metrics_endpoint, methods=["GET"], tags=["observability"], include_in_schema=False)
