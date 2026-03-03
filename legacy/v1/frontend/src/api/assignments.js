@@ -25,6 +25,11 @@ export async function createAssignment(payload) {
   return data
 }
 
+export async function createDraftAssignment(payload) {
+  const { data } = await api.post('/api/assignments/drafts', payload)
+  return data
+}
+
 export async function updateAssignment(id, payload) {
   const { data } = await api.patch(`/api/assignments/${id}`, payload)
   return data

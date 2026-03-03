@@ -651,7 +651,7 @@ export default function AssignmentDetail() {
         isFinal: documentForm.is_final,
       })
       setDocumentForm({ file: null, category: documentForm.category, use_other: false, is_final: false })
-      setNotice('Document uploaded.')
+      setNotice(documentForm.is_final ? 'Document uploaded and submitted for final approval.' : 'Document uploaded.')
       refresh()
     } catch (err) {
       console.error(err)
@@ -665,7 +665,7 @@ export default function AssignmentDetail() {
     setNotice(null)
     try {
       await markDocumentFinal(assignment.id, doc.id, !doc.is_final)
-      setNotice('Document final flag updated.')
+      setNotice(doc.is_final ? 'Document final flag removed.' : 'Final document submitted for approval.')
       refresh()
     } catch (err) {
       console.error(err)
@@ -1372,6 +1372,7 @@ export default function AssignmentDetail() {
                         switch (status) {
                           case 'REVIEWED': return 'ok'
                           case 'FINAL': return 'info'
+                          case 'FINAL_PENDING_APPROVAL': return 'warn'
                           case 'NEEDS_CLARIFICATION': return 'warn'
                           case 'REJECTED': return 'danger'
                           default: return 'muted'

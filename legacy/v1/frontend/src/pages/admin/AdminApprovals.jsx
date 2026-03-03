@@ -4,7 +4,7 @@ import Badge from '../../components/ui/Badge'
 import { Card, CardHeader } from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
 import DataTable from '../../components/ui/DataTable'
-import { fetchApprovalsInbox, approveApproval, rejectApproval } from '../../api/approvals'
+import { fetchApproval, fetchApprovalsInbox, approveApproval, rejectApproval } from '../../api/approvals'
 import { fetchLeaveInbox, approveLeave, rejectLeave } from '../../api/leave'
 import { fetchUsers } from '../../api/users'
 import {
@@ -19,6 +19,12 @@ import { toUserMessage } from '../../api/client'
 import { loadJson, saveJson } from '../../utils/storage'
 
 const FILTERS_KEY = 'zenops.approvals.filters.v1'
+const APPROVAL_TYPE_OPTIONS = ['DRAFT_ASSIGNMENT', 'FINAL_DOC_REVIEW', 'PAYMENT_CONFIRMATION']
+const APPROVAL_TYPE_LABELS = {
+  DRAFT_ASSIGNMENT: 'Draft Assignments',
+  FINAL_DOC_REVIEW: 'Doc Reviews',
+  PAYMENT_CONFIRMATION: 'Payment Confirmations',
+}
 
 export default function AdminApprovals() {
   const [approvals, setApprovals] = useState([])
@@ -29,15 +35,21 @@ export default function AdminApprovals() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [commissionError, setCommissionError] = useState(null)
-  const storedFilters = loadJson(FILTERS_KEY, { includeDecided: false, sectionFilter: 'ALL' })
+  const storedFilters = loadJson(FILTERS_KEY, {
+    includeDecided: false,
+    sectionFilter: 'ALL',
+    approvalTypeFilter: 'DRAFT_ASSIGNMENT',
+  })
   const [includeDecided, setIncludeDecided] = useState(Boolean(storedFilters.includeDecided))
   const [reloadKey, setReloadKey] = useState(0)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [sectionFilter, setSectionFilter] = useState(storedFilters.sectionFilter || 'ALL')
+  const [approvalTypeFilter, setApprovalTypeFilter] = useState(storedFilters.approvalTypeFilter || 'DRAFT_ASSIGNMENT')
+  const [selectedApproval, setSelectedApproval] = useState(null)
 
   useEffect(() => {
-    saveJson(FILTERS_KEY, { includeDecided, sectionFilter })
-  }, [includeDecided, sectionFilter])
+    saveJson(FILTERS_KEY, { includeDecided, sectionFilter, approvalTypeFilter })
+  }, [includeDecided, sectionFilter, approvalTypeFilter])
 
   useEffect(() => {
     let cancelled = false
@@ -48,7 +60,7 @@ export default function AdminApprovals() {
       setCommissionError(null)
       try {
         const [approvalData, leaveData, userData, commissionData] = await Promise.all([
-          fetchApprovalsInbox(includeDecided),
+          fetchApprovalsInbox(includeDecided, approvalTypeFilter),
           fetchLeaveInbox().catch(() => []),
           fetchUsers(),
           fetchAdminCommissions().catch(() => []),
@@ -90,7 +102,7 @@ export default function AdminApprovals() {
     return () => {
       cancelled = true
     }
-  }, [includeDecided, reloadKey])
+  }, [includeDecided, reloadKey, approvalTypeFilter])
 
   const userMap = useMemo(() => {
     const map = new Map()
@@ -110,17 +122,34 @@ export default function AdminApprovals() {
     try {
       const updated = await approveApproval(approval.id, null)
       setApprovals((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
+      if (selectedApproval?.id === updated.id) {
+        setSelectedApproval(updated)
+      }
     } catch (err) {
       console.error(err)
       setError(toUserMessage(err, 'Failed to approve request'))
     }
   }
 
+  async function handleOpenApproval(approval) {
+    try {
+      const detail = await fetchApproval(approval.id)
+      setSelectedApproval(detail)
+    } catch (err) {
+      console.error(err)
+      setError(toUserMessage(err, 'Failed to load approval detail'))
+    }
+  }
+
   async function handleReject(approval) {
-    const comment = window.prompt('Optional rejection reason:') || null
+    const comment = window.prompt('Rejection reason (required):')
+    if (!comment || !comment.trim()) return
     try {
       const updated = await rejectApproval(approval.id, comment)
       setApprovals((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
+      if (selectedApproval?.id === updated.id) {
+        setSelectedApproval(updated)
+      }
     } catch (err) {
       console.error(err)
       setError(toUserMessage(err, 'Failed to reject request'))
@@ -361,9 +390,26 @@ export default function AdminApprovals() {
         <Card>
           <CardHeader
             title="Requests"
-            subtitle={includeDecided ? 'Showing pending + decided approvals' : 'Showing pending approvals'}
+            subtitle={`${APPROVAL_TYPE_LABELS[approvalTypeFilter] || 'Approvals'} · ${includeDecided ? 'pending + decided' : 'pending only'}`}
             action={<Badge tone={pendingApprovals > 0 ? 'warn' : 'ok'}>{pendingApprovals} pending</Badge>}
           />
+
+          <div className="chip-row" style={{ marginBottom: '0.8rem' }}>
+            {APPROVAL_TYPE_OPTIONS.map((type) => (
+              <button
+                key={type}
+                type="button"
+                className={`chip ${approvalTypeFilter === type ? 'active' : ''}`.trim()}
+                onClick={() => {
+                  setApprovalTypeFilter(type)
+                  setSelectedApproval(null)
+                }}
+                aria-pressed={approvalTypeFilter === type}
+              >
+                {APPROVAL_TYPE_LABELS[type]}
+              </button>
+            ))}
+          </div>
 
           {loading ? (
             <DataTable loading columns={7} rows={7} />
@@ -374,7 +420,7 @@ export default function AdminApprovals() {
               <table className="approvals-table">
                 <thead>
                   <tr>
-                    <th>Action</th>
+                    <th>Type</th>
                     <th>Entity</th>
                     <th>Requester</th>
                     <th className="col-reason">Reason</th>
@@ -389,11 +435,12 @@ export default function AdminApprovals() {
                     const approver = approval.approver_user_id ? userMap.get(approval.approver_user_id) : null
                     const isPending = approval.status === 'PENDING'
                     const tone = approval.status === 'APPROVED' ? 'ok' : approval.status === 'REJECTED' ? 'danger' : 'warn'
+                    const typeLabel = APPROVAL_TYPE_LABELS[approval.approval_type] || titleCase(approval.approval_type || approval.action_type)
                     return (
                       <tr key={approval.id}>
                         <td>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <strong>{titleCase(approval.action_type)}</strong>
+                            <strong>{typeLabel}</strong>
                             <span className="muted" style={{ fontSize: 12 }}>{titleCase(approval.entity_type)}</span>
                           </div>
                         </td>
@@ -414,17 +461,20 @@ export default function AdminApprovals() {
                           </div>
                         </td>
                         <td className="col-reason">{approval.reason || '—'}</td>
-                        <td className="col-created">{formatDateTime(approval.created_at)}</td>
+                        <td className="col-created">{formatDateTime(approval.requested_at || approval.created_at)}</td>
                         <td><Badge tone={tone}>{titleCase(approval.status)}</Badge></td>
                         <td style={{ textAlign: 'right' }}>
-                          {isPending ? (
-                            <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                              <button type="button" className="secondary" onClick={() => handleApprove(approval)}>Approve</button>
-                              <button type="button" className="ghost" onClick={() => handleReject(approval)}>Reject</button>
-                            </div>
-                          ) : (
-                            <span className="muted" style={{ fontSize: 12 }}>{approval.decided_at ? formatDateTime(approval.decided_at) : 'Decided'}</span>
-                          )}
+                          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                            <button type="button" className="ghost" onClick={() => handleOpenApproval(approval)}>Open</button>
+                            {isPending ? (
+                              <>
+                                <button type="button" className="secondary" onClick={() => handleApprove(approval)}>Approve</button>
+                                <button type="button" className="ghost" onClick={() => handleReject(approval)}>Reject</button>
+                              </>
+                            ) : (
+                              <span className="muted" style={{ fontSize: 12 }}>{approval.decided_at ? formatDateTime(approval.decided_at) : 'Decided'}</span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )
@@ -433,6 +483,37 @@ export default function AdminApprovals() {
               </table>
             </DataTable>
           )}
+
+          {selectedApproval ? (
+            <div className="list-item" style={{ marginTop: '0.9rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+                <strong>Approval #{selectedApproval.id}</strong>
+                <Badge tone={selectedApproval.status === 'PENDING' ? 'warn' : selectedApproval.status === 'APPROVED' ? 'ok' : 'danger'}>
+                  {titleCase(selectedApproval.status)}
+                </Badge>
+              </div>
+              <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+                Requested by {selectedApproval.requester_user_id} · {formatDateTime(selectedApproval.requested_at || selectedApproval.created_at)}
+              </div>
+              <div className="grid" style={{ gap: 6 }}>
+                <div><strong>Reason:</strong> {selectedApproval.reason || '—'}</div>
+                <div><strong>Decision Reason:</strong> {selectedApproval.decision_reason || '—'}</div>
+                <div><strong>Entity:</strong> {selectedApproval.entity_type} #{selectedApproval.entity_id}</div>
+                <div>
+                  <strong>Snapshot:</strong>
+                  <pre style={{ marginTop: 6, fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'pre-wrap' }}>
+                    {JSON.stringify(selectedApproval.metadata_json || selectedApproval.payload_json || {}, null, 2)}
+                  </pre>
+                </div>
+              </div>
+              {selectedApproval.status === 'PENDING' ? (
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <button type="button" className="secondary" onClick={() => handleApprove(selectedApproval)}>Approve</button>
+                  <button type="button" className="ghost" onClick={() => handleReject(selectedApproval)}>Reject</button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </Card>
       ) : null}
 
