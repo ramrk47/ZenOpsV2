@@ -26,10 +26,13 @@ from app.models.audit import ActivityLog
 from app.models.enums import Role
 from app.models.partner import ExternalPartner
 from app.models.user import User
+from app.models.user_invite import UserInvite
 from app.schemas.auth import (
     BackupCodeLoginRequest,
     BackupCodesResponse,
     CapabilityResponse,
+    InviteAcceptRequest,
+    InviteValidateResponse,
     LoginResponse,
     MFAVerifyRequest,
     StepUpTokenResponse,
@@ -40,6 +43,7 @@ from app.schemas.auth import (
 from app.schemas.user import UserCreate, UserRead, UserSelfUpdate
 from app.services.activity import log_activity
 from app.services.attendance import record_heartbeat, close_session
+from app.services.invites import hash_invite_token
 from app.core.settings import settings
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -92,6 +96,20 @@ def _build_full_login_response(user: User, db: Session) -> LoginResponse:
         capabilities=capabilities,
         mfa_required=False,
     )
+
+
+def _ensure_external_associate_partner(db: Session, *, invite: UserInvite) -> ExternalPartner:
+    meta = invite.metadata_json or {}
+    partner = ExternalPartner(
+        display_name=meta.get("company_name") or meta.get("contact_name") or invite.email,
+        contact_name=meta.get("contact_name"),
+        email=invite.email,
+        phone=meta.get("phone"),
+        is_active=True,
+    )
+    db.add(partner)
+    db.flush()
+    return partner
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -177,6 +195,97 @@ def login(
     db.commit()
     db.refresh(user)
 
+    return _build_full_login_response(user, db)
+
+
+@router.get("/invite/validate", response_model=InviteValidateResponse)
+def validate_invite_token(
+    token: str,
+    db: Session = Depends(get_db),
+) -> InviteValidateResponse:
+    token_hash = hash_invite_token(token.strip())
+    now = datetime.now(timezone.utc)
+    invite = (
+        db.query(UserInvite)
+        .filter(
+            UserInvite.token_hash == token_hash,
+            UserInvite.used_at.is_(None),
+            UserInvite.expires_at > now,
+        )
+        .first()
+    )
+    if not invite:
+        return InviteValidateResponse(valid=False)
+    return InviteValidateResponse(
+        valid=True,
+        email=invite.email,
+        expires_at=invite.expires_at.isoformat(),
+    )
+
+
+@router.post("/invite/accept", response_model=LoginResponse)
+def accept_invite(
+    payload: InviteAcceptRequest,
+    db: Session = Depends(get_db),
+) -> LoginResponse:
+    token_hash = hash_invite_token(payload.token.strip())
+    now = datetime.now(timezone.utc)
+    invite = (
+        db.query(UserInvite)
+        .filter(UserInvite.token_hash == token_hash)
+        .first()
+    )
+    if not invite:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid invite token")
+    if invite.used_at:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite link already used")
+    if invite.expires_at <= now:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite link expired")
+    if len(payload.password or "") < 10:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 10 characters")
+
+    user = db.query(User).filter(User.email == invite.email.lower()).first()
+    if user and Role.EXTERNAL_PARTNER not in rbac.roles_for_user(user):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email is already used by an internal account")
+
+    if not user:
+        partner = _ensure_external_associate_partner(db, invite=invite)
+        user = User(
+            email=invite.email.lower(),
+            hashed_password=get_password_hash(payload.password),
+            full_name=(invite.metadata_json or {}).get("contact_name"),
+            phone=(invite.metadata_json or {}).get("phone"),
+            role=Role.EXTERNAL_PARTNER,
+            roles=[Role.EXTERNAL_PARTNER.value],
+            partner_id=partner.id,
+            is_active=True,
+        )
+        db.add(user)
+        db.flush()
+    else:
+        if not user.partner_id:
+            partner = _ensure_external_associate_partner(db, invite=invite)
+            user.partner_id = partner.id
+        user.role = Role.EXTERNAL_PARTNER
+        user.roles = [Role.EXTERNAL_PARTNER.value]
+        user.hashed_password = get_password_hash(payload.password)
+        user.is_active = True
+        db.add(user)
+        db.flush()
+
+    invite.used_at = now
+    db.add(invite)
+
+    log_activity(
+        db,
+        actor_user_id=user.id,
+        activity_type="ASSOCIATE_INVITE_ACCEPTED",
+        message="External Associate invite accepted",
+        payload={"invite_id": invite.id},
+    )
+    record_heartbeat(db, user_id=user.id)
+    db.commit()
+    db.refresh(user)
     return _build_full_login_response(user, db)
 
 
