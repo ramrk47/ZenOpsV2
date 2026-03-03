@@ -100,7 +100,7 @@ def test_list_invoices_has_totals(client):
     assert row["amount_due"] is not None
 
 
-def test_payment_updates_amount_due(client):
+def test_payment_submission_requires_confirmation(client):
     client_instance, assignment = client
     created = _create_invoice(client_instance, assignment.id)
     issue_resp = client_instance.post(f"/api/invoices/{created['id']}/issue", json={})
@@ -113,9 +113,11 @@ def test_payment_updates_amount_due(client):
         json={"amount": amount_due, "mode": "MANUAL"},
     )
     assert pay_resp.status_code == 200, pay_resp.text
-    paid = pay_resp.json()
-    assert Decimal(str(paid["amount_due"])) == Decimal("0")
-    assert paid["status"] == "PAID"
+    submitted = pay_resp.json()
+    assert Decimal(str(submitted["amount_due"])) == Decimal(str(amount_due))
+    assert submitted["status"] != "PAID"
+    assert submitted["payments"], "Expected payment submission to be stored"
+    assert submitted["payments"][-1]["confirmation_status"] == "PENDING_CONFIRMATION"
 
 
 def test_reminder_dedupe(client):
