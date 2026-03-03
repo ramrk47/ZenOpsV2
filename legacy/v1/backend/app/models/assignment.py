@@ -2,14 +2,15 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Numeric, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Enum, ForeignKey, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, IDMixin, TimestampMixin
 from app.models.assignment_assignee import AssignmentAssignee
 from app.models.assignment_floor import AssignmentFloorArea
+from app.models.assignment_land_survey import AssignmentLandSurvey
 from app.models.enums import AssignmentStatus, CaseType, ServiceLine
 
 
@@ -24,6 +25,17 @@ class Assignment(IDMixin, TimestampMixin, Base):
         nullable=False,
         index=True,
     )
+    service_line_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("service_lines.id"),
+        nullable=True,
+        index=True,
+    )
+    service_line_other_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    uom: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    land_policy_override_json: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    payment_timing: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    payment_completeness: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    preferred_payment_mode: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 
     partner_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("external_partners.id"),
@@ -96,6 +108,7 @@ class Assignment(IDMixin, TimestampMixin, Base):
     client: Mapped[Optional["Client"]] = relationship()
     property_type_ref: Mapped[Optional["PropertyType"]] = relationship()
     property_subtype_ref: Mapped[Optional["PropertySubtype"]] = relationship()
+    service_line_master: Mapped[Optional["ServiceLineMaster"]] = relationship()
 
     documents: Mapped[List["AssignmentDocument"]] = relationship(
         back_populates="assignment", cascade="all, delete-orphan"
@@ -122,6 +135,11 @@ class Assignment(IDMixin, TimestampMixin, Base):
         back_populates="assignment",
         cascade="all, delete-orphan",
         order_by=lambda: AssignmentFloorArea.order_index.asc(),
+    )
+    land_surveys: Mapped[List["AssignmentLandSurvey"]] = relationship(
+        back_populates="assignment",
+        cascade="all, delete-orphan",
+        order_by=lambda: AssignmentLandSurvey.serial_no.asc(),
     )
 
     partner: Mapped[Optional["ExternalPartner"]] = relationship()
@@ -154,3 +172,11 @@ class Assignment(IDMixin, TimestampMixin, Base):
     @property
     def property_subtype_name(self) -> Optional[str]:
         return self.property_subtype_ref.name if self.property_subtype_ref else None
+
+    @property
+    def service_line_name(self) -> Optional[str]:
+        if self.service_line_master and self.service_line_master.name:
+            return self.service_line_master.name
+        if self.service_line:
+            return str(self.service_line)
+        return None

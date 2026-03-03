@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import Field
 
@@ -276,3 +276,44 @@ class DocumentChecklistTemplateRead(DocumentChecklistTemplateBase):
     id: int
     created_at: datetime
     updated_at: datetime
+
+
+class ServiceLineBase(ORMModel):
+    key: str = Field(..., min_length=2, max_length=64)
+    name: str = Field(..., min_length=2, max_length=255)
+    is_active: bool = True
+    sort_order: int = 0
+
+
+class ServiceLineCreate(ServiceLineBase):
+    policy_json: Optional[Dict[str, Any]] = None
+
+
+class ServiceLineUpdate(ORMModel):
+    key: Optional[str] = Field(default=None, min_length=2, max_length=64)
+    name: Optional[str] = Field(default=None, min_length=2, max_length=255)
+    is_active: Optional[bool] = None
+    sort_order: Optional[int] = None
+    policy_json: Optional[Dict[str, Any]] = None
+
+
+class ServiceLineRead(ServiceLineBase):
+    id: int
+    policy_json: Optional[Dict[str, Any]] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ServiceLinePolicyRead(ORMModel):
+    service_line_id: int
+    service_line_key: str
+    service_line_name: str
+    policy_json: Dict[str, Any]
+
+
+class ServiceLinePolicyUpdate(ORMModel):
+    policy_json: Dict[str, Any]
+
+
+class ServiceLinePolicyList(ORMModel):
+    policies: List[ServiceLinePolicyRead]

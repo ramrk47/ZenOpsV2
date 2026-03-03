@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import Field, model_validator
 
@@ -33,9 +33,35 @@ class AssignmentFloorRead(AssignmentFloorBase):
     updated_at: datetime
 
 
+class AssignmentLandSurveyBase(ORMModel):
+    survey_no: str = Field(..., min_length=1, max_length=120)
+    acre: Decimal = Decimal("0")
+    gunta: Decimal = Decimal("0")
+    aana: Decimal = Decimal("0")
+    kharab_acre: Decimal = Decimal("0")
+    kharab_gunta: Decimal = Decimal("0")
+    kharab_aana: Decimal = Decimal("0")
+
+
+class AssignmentLandSurveyCreate(AssignmentLandSurveyBase):
+    serial_no: Optional[int] = None
+
+
+class AssignmentLandSurveyRead(AssignmentLandSurveyBase):
+    id: int
+    assignment_id: int
+    serial_no: int
+    created_at: datetime
+    updated_at: datetime
+
+
 class AssignmentBase(ORMModel):
     case_type: CaseType
     service_line: ServiceLine = ServiceLine.VALUATION
+    service_line_id: Optional[int] = None
+    service_line_other_text: Optional[str] = None
+    uom: Optional[str] = None
+    land_policy_override_json: Optional[Dict[str, Any]] = None
 
     bank_id: Optional[int] = None
     branch_id: Optional[int] = None
@@ -68,6 +94,10 @@ class AssignmentBase(ORMModel):
 
     notes: Optional[str] = None
     floors: List[AssignmentFloorCreate] = Field(default_factory=list)
+    land_surveys: List[AssignmentLandSurveyCreate] = Field(default_factory=list)
+    payment_timing: Optional[str] = None
+    payment_completeness: Optional[str] = None
+    preferred_payment_mode: Optional[str] = None
 
 
 class AssignmentCreate(AssignmentBase):
@@ -83,12 +113,18 @@ class AssignmentCreate(AssignmentBase):
                 raise ValueError("Non-bank assignments require client_id or valuer_client_name")
         if self.property_subtype_id and not self.property_type_id:
             raise ValueError("property_subtype_id requires property_type_id")
+        if not self.uom or not str(self.uom).strip():
+            raise ValueError("uom is required")
         return self
 
 
 class AssignmentUpdate(ORMModel):
     case_type: Optional[CaseType] = None
     service_line: Optional[ServiceLine] = None
+    service_line_id: Optional[int] = None
+    service_line_other_text: Optional[str] = None
+    uom: Optional[str] = None
+    land_policy_override_json: Optional[Dict[str, Any]] = None
 
     bank_id: Optional[int] = None
     branch_id: Optional[int] = None
@@ -125,6 +161,10 @@ class AssignmentUpdate(ORMModel):
 
     notes: Optional[str] = None
     floors: Optional[List[AssignmentFloorCreate]] = None
+    land_surveys: Optional[List[AssignmentLandSurveyCreate]] = None
+    payment_timing: Optional[str] = None
+    payment_completeness: Optional[str] = None
+    preferred_payment_mode: Optional[str] = None
     override_on_leave: Optional[bool] = None
 
 
@@ -138,6 +178,9 @@ class MissingDocsReminderRequest(ORMModel):
 class AssignmentRead(AssignmentBase):
     id: int
     assignment_code: str
+    service_line_name: Optional[str] = None
+    effective_land_policy: Optional[Dict[str, Any]] = None
+    land_survey_totals: Optional[Dict[str, Any]] = None
 
     created_by_user_id: int
     assigned_at: Optional[datetime] = None
@@ -153,6 +196,7 @@ class AssignmentRead(AssignmentBase):
     assignee_user_ids: List[int] = Field(default_factory=list)
     additional_assignee_user_ids: List[int] = Field(default_factory=list)
     floors: List[AssignmentFloorRead] = Field(default_factory=list)
+    land_surveys: List[AssignmentLandSurveyRead] = Field(default_factory=list)
 
 
 class DueInfo(ORMModel):
