@@ -1,0 +1,22 @@
+{
+  "service_lines": [
+    { "key": "VALUATION_LB", "name": "Valuation (Land & Building)", "sort_order": 10, "is_active": true },
+    { "key": "VALUATION_PLOT", "name": "Valuation (Plot)", "sort_order": 20, "is_active": true },
+    { "key": "VALUATION_AGRI", "name": "Valuation (Agri Land)", "sort_order": 30, "is_active": true },
+
+    { "key": "HOME_LOAN", "name": "Home Loans", "sort_order": 40, "is_active": true },
+
+    { "key": "PROJECT_REPORT", "name": "Project Report", "sort_order": 50, "is_active": true },
+
+    { "key": "LAND_DEVELOPMENT", "name": "Land Development", "sort_order": 60, "is_active": true },
+    { "key": "DCC", "name": "DCC", "sort_order": 70, "is_active": true },
+
+    { "key": "PROGRESS_COMPLETION", "name": "Progress / Completion Report", "sort_order": 80, "is_active": true },
+
+    { "key": "OTHERS", "name": "Others", "sort_order": 999, "is_active": true }
+  ],
+  "deprecated_service_lines": [
+    { "name": "CMA Industrial", "replacement_key": "PROJECT_REPORT" },
+    { "name": "DPR", "replacement_key": "PROJECT_REPORT" }
+  ]
+}

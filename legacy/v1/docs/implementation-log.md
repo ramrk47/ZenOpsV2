@@ -41,3 +41,37 @@ Last updated: 2026-03-03
 - Added terminology guard:
   - `scripts/terminology_check.sh`
   - Result: `PASS` (only technical partner references remain)
+
+## Phase 4 - Policy-Driven New Assignment (Service Lines + Land Survey Model)
+- Added migration `0037_phase4_policy_driven_land`:
+  - New tables: `service_lines`, `service_line_policies`, `assignment_land_surveys`
+  - New assignment columns: `service_line_id`, `service_line_other_text`, `uom`, `land_policy_override_json`,
+    `payment_timing`, `payment_completeness`, `preferred_payment_mode`
+  - Seeded service-line defaults and default policy JSON per service line.
+- Added backend models/schemas for:
+  - Service line master + policy
+  - Assignment land survey rows (with kharab values)
+- Added master-data APIs:
+  - `GET/POST/PATCH /api/master/service-lines`
+  - `GET /api/master/service-line-policies`
+  - `PATCH /api/master/service-lines/{id}/policy`
+- Updated assignment APIs:
+  - Enforced mandatory `uom`
+  - Enforced `Others` requires description
+  - Policy-driven survey row validation (`SURVEY_ROWS` required when configured)
+  - Admin-only enforcement for assignment-level policy/payment preference fields
+  - Assignment responses now include service-line label, effective land policy, survey rows, and survey totals.
+- Frontend updates:
+  - New Assignment now uses backend service-line master data and policy-driven block rendering.
+  - Added survey-row repeater + live totals for agri/land workflows.
+  - Restored create-time initial document upload section.
+  - Added admin-only assignment payment preference + policy override controls.
+  - Added `Service Lines` tab in Admin Master Data for CRUD + policy JSON updates.
+- Added phase 4 backend test file:
+  - `backend/tests/test_phase4_service_lines_assignments.py`
+
+Verification run:
+- `python3 -m compileall ...` on touched backend files: PASS
+- `docker compose -f docker-compose.dev.yml run --rm backend alembic upgrade head`: PASS
+- `npm --prefix frontend run build`: PASS
+- `docker compose ... run --rm backend pytest ...`: BLOCKED in this environment because backend image does not include `backend/tests` paths by default.
