@@ -13,15 +13,27 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user
 from app.core.settings import settings
 from app.db.session import get_db
+from app.models.approval import Approval
 from app.models.assignment import Assignment
 from app.models.document import AssignmentDocument
 from app.models.document_comment import CommentLane, DocumentComment
-from app.models.enums import DocumentReviewStatus, DocumentVisibility, NotificationType, Role
+from app.models.enums import (
+    ApprovalActionType,
+    ApprovalEntityType,
+    ApprovalStatus,
+    ApprovalType,
+    DocumentReviewStatus,
+    DocumentVisibility,
+    NotificationType,
+    Role,
+)
 from app.models.user import User
 from app.schemas.document import DocumentRead, DocumentReviewPayload, DocumentReviewResponse, MarkFinalPayload
 from app.services.activity import log_activity
+from app.services.approvals import request_approval, required_roles_for_approval
 from app.services.assignments import compute_missing_document_categories, ensure_assignment_access
-from app.services.notifications import create_notification, create_notification_if_absent
+from app.services.notifications import create_notification, create_notification_if_absent, notify_roles
+from app.services.v1_outbox import enqueue_v1_outbox_event
 from app.utils.mentions import parse_and_resolve_mentions
 
 logger = logging.getLogger(__name__)
@@ -55,6 +67,56 @@ def _next_version(db: Session, assignment_id: int, category: str | None) -> int:
     if category:
         query = query.filter(AssignmentDocument.category == category)
     return query.count() + 1
+
+
+def _request_final_document_approval(
+    db: Session,
+    *,
+    assignment: Assignment,
+    document: AssignmentDocument,
+    current_user: User,
+) -> Approval:
+    existing = (
+        db.query(Approval)
+        .filter(
+            Approval.status == ApprovalStatus.PENDING,
+            Approval.approval_type == ApprovalType.FINAL_DOC_REVIEW,
+            Approval.entity_type == ApprovalEntityType.DOCUMENT,
+            Approval.entity_id == document.id,
+        )
+        .first()
+    )
+    if existing:
+        return existing
+
+    approval = Approval(
+        approval_type=ApprovalType.FINAL_DOC_REVIEW,
+        entity_type=ApprovalEntityType.DOCUMENT,
+        entity_id=document.id,
+        action_type=ApprovalActionType.FINAL_REVIEW,
+        requester_user_id=current_user.id,
+        approver_user_id=None,
+        status=ApprovalStatus.PENDING,
+        reason="Final document submitted for review approval",
+        payload_json={"assignment_id": assignment.id, "document_id": document.id},
+        metadata_json={
+            "assignment_code": assignment.assignment_code,
+            "document_name": document.original_name,
+            "category": document.category,
+        },
+        assignment_id=assignment.id,
+    )
+    allowed_roles = required_roles_for_approval(approval.entity_type, approval.action_type, approval.approval_type)
+    request_approval(db, approval=approval, allowed_roles=allowed_roles, auto_assign=False)
+    notify_roles(
+        db,
+        roles=allowed_roles,
+        notif_type=NotificationType.APPROVAL_PENDING,
+        message="Final document review approval requested",
+        payload={"approval_id": approval.id, "assignment_id": assignment.id, "document_id": document.id},
+        exclude_user_ids=[current_user.id],
+    )
+    return approval
 
 
 @router.get("", response_model=list[DocumentRead])
@@ -123,20 +185,6 @@ def upload_document(
 
     version = _next_version(db, assignment_id, category)
 
-    if category and is_final:
-        existing_finals = (
-            db.query(AssignmentDocument)
-            .filter(
-                AssignmentDocument.assignment_id == assignment_id,
-                AssignmentDocument.category == category,
-                AssignmentDocument.is_final.is_(True),
-            )
-            .all()
-        )
-        for doc in existing_finals:
-            doc.is_final = False
-            db.add(doc)
-
     document = AssignmentDocument(
         assignment_id=assignment_id,
         uploaded_by_user_id=current_user.id,
@@ -146,10 +194,28 @@ def upload_document(
         size=len(content),
         category=category,
         version_number=version,
-        is_final=bool(is_final),
+        is_final=False,
     )
     db.add(document)
     db.flush()
+
+    if is_final:
+        document.review_status = DocumentReviewStatus.FINAL_PENDING_APPROVAL
+        db.add(document)
+        approval = _request_final_document_approval(
+            db,
+            assignment=assignment,
+            document=document,
+            current_user=current_user,
+        )
+        log_activity(
+            db,
+            actor_user_id=current_user.id,
+            activity_type="DOCUMENT_FINAL_REVIEW_REQUESTED",
+            assignment_id=assignment_id,
+            message=document.original_name,
+            payload={"document_id": document.id, "approval_id": approval.id},
+        )
 
     log_activity(
         db,
@@ -169,6 +235,20 @@ def upload_document(
             message=f"Still missing: {', '.join(missing[:4])}",
             payload={"assignment_id": assignment.id, "missing": missing},
         )
+
+    enqueue_v1_outbox_event(
+        db,
+        event_type="evidence.upsert",
+        payload={
+            "assignment_id": assignment.id,
+            "assignment_code": assignment.assignment_code,
+            "document_id": document.id,
+            "category": document.category,
+            "storage_path": document.storage_path,
+            "mime_type": document.mime_type,
+            "is_final": document.is_final,
+        },
+    )
 
     db.commit()
     db.refresh(document)
@@ -190,30 +270,47 @@ def mark_document_final(
     if not document or document.assignment_id != assignment_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
-    if document.category and payload.is_final:
-        existing_finals = (
-            db.query(AssignmentDocument)
-            .filter(
-                AssignmentDocument.assignment_id == assignment_id,
-                AssignmentDocument.category == document.category,
-                AssignmentDocument.is_final.is_(True),
-                AssignmentDocument.id != document.id,
-            )
-            .all()
+    if payload.is_final:
+        document.is_final = False
+        document.review_status = DocumentReviewStatus.FINAL_PENDING_APPROVAL
+        approval = _request_final_document_approval(
+            db,
+            assignment=assignment,
+            document=document,
+            current_user=current_user,
         )
-        for doc in existing_finals:
-            doc.is_final = False
-            db.add(doc)
-
-    document.is_final = payload.is_final
+        log_activity(
+            db,
+            actor_user_id=current_user.id,
+            activity_type="DOCUMENT_FINAL_REVIEW_REQUESTED",
+            assignment_id=assignment_id,
+            payload={"document_id": document.id, "approval_id": approval.id},
+        )
+    else:
+        document.is_final = False
+        if document.review_status in {DocumentReviewStatus.FINAL, DocumentReviewStatus.FINAL_PENDING_APPROVAL}:
+            document.review_status = DocumentReviewStatus.REVIEWED
+        log_activity(
+            db,
+            actor_user_id=current_user.id,
+            activity_type="DOCUMENT_FINAL_FLAGGED",
+            assignment_id=assignment_id,
+            payload={"document_id": document.id, "is_final": document.is_final},
+        )
     db.add(document)
 
-    log_activity(
+    enqueue_v1_outbox_event(
         db,
-        actor_user_id=current_user.id,
-        activity_type="DOCUMENT_FINAL_FLAGGED",
-        assignment_id=assignment_id,
-        payload={"document_id": document.id, "is_final": document.is_final},
+        event_type="evidence.upsert",
+        payload={
+            "assignment_id": assignment.id,
+            "assignment_code": assignment.assignment_code,
+            "document_id": document.id,
+            "category": document.category,
+            "storage_path": document.storage_path,
+            "mime_type": document.mime_type,
+            "is_final": document.is_final,
+        },
     )
 
     db.commit()
@@ -333,7 +430,17 @@ async def review_document(
         )
 
     # Update document
-    document.review_status = new_status
+    if new_status == DocumentReviewStatus.FINAL:
+        document.review_status = DocumentReviewStatus.FINAL_PENDING_APPROVAL
+        document.is_final = False
+        _request_final_document_approval(
+            db,
+            assignment=assignment,
+            document=document,
+            current_user=current_user,
+        )
+    else:
+        document.review_status = new_status
     document.reviewed_by_user_id = current_user.id
     document.reviewed_at = datetime.utcnow()
     db.add(document)
@@ -401,7 +508,7 @@ async def review_document(
         assignment_id=assignment_id,
         payload={
             "document_id": document.id,
-            "review_status": new_status.value,
+            "review_status": document.review_status.value,
             "comment_created": comment_created,
         },
     )

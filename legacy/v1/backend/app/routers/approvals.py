@@ -11,8 +11,15 @@ from app.core.deps import get_current_user
 from app.core.step_up import require_step_up
 from app.db.session import get_db
 from app.models.approval import Approval
-from app.models.enums import ApprovalStatus, NotificationType, Role, ApprovalEntityType, ApprovalActionType
-from app.models.invoice import Invoice
+from app.models.enums import (
+    ApprovalActionType,
+    ApprovalEntityType,
+    ApprovalStatus,
+    ApprovalType,
+    NotificationType,
+    Role,
+)
+from app.models.invoice import Invoice, InvoicePayment
 from app.models.user import User
 from app.schemas.approval import ApprovalDecisionPayload, ApprovalRead, ApprovalRequest, ApprovalTemplate
 from app.services.approvals import approve as approve_service
@@ -46,7 +53,8 @@ def _require_not_self_approval(approval: Approval, user: User) -> None:
 def list_approvals(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    status_filter: Optional[str] = Query(None, description="Filter by status"),
+    status_filter: Optional[ApprovalStatus] = Query(None, alias="status"),
+    approval_type: Optional[ApprovalType] = Query(None),
 ) -> List[ApprovalRead]:
     """List all approvals (admin sees all, others see own + inbox)."""
     query = db.query(Approval)
@@ -57,6 +65,8 @@ def list_approvals(
         )
     if status_filter:
         query = query.filter(Approval.status == status_filter)
+    if approval_type:
+        query = query.filter(Approval.approval_type == approval_type)
     return query.order_by(Approval.created_at.desc()).limit(100).all()
 
 
@@ -67,6 +77,7 @@ def request(
     current_user: User = Depends(get_current_user),
 ) -> ApprovalRead:
     approval = Approval(
+        approval_type=approval_in.approval_type,
         entity_type=approval_in.entity_type,
         entity_id=approval_in.entity_id,
         action_type=approval_in.action_type,
@@ -74,10 +85,12 @@ def request(
         approver_user_id=approval_in.approver_user_id,
         status=ApprovalStatus.PENDING,
         reason=approval_in.reason,
+        decision_reason=approval_in.decision_reason,
         payload_json=approval_in.payload_json,
+        metadata_json=approval_in.metadata_json,
         assignment_id=approval_in.assignment_id,
     )
-    allowed_roles = required_roles_for_approval(approval.entity_type, approval.action_type)
+    allowed_roles = required_roles_for_approval(approval.entity_type, approval.action_type, approval.approval_type)
     request_approval(db, approval=approval, allowed_roles=allowed_roles, auto_assign=False)
     db.flush()
 
@@ -107,6 +120,7 @@ def request(
 @router.get("/inbox", response_model=List[ApprovalRead])
 def inbox(
     include_decided: bool = Query(False),
+    approval_type: Optional[ApprovalType] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> List[ApprovalRead]:
@@ -115,6 +129,8 @@ def inbox(
     query = db.query(Approval)
     if not include_decided:
         query = query.filter(Approval.status == ApprovalStatus.PENDING)
+    if approval_type:
+        query = query.filter(Approval.approval_type == approval_type)
 
     approvals = (
         query.filter(or_(Approval.approver_user_id == current_user.id, Approval.approver_user_id.is_(None)))
@@ -127,6 +143,7 @@ def inbox(
 
 @router.get("/inbox-count", response_model=dict)
 def inbox_count(
+    approval_type: Optional[ApprovalType] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
@@ -137,6 +154,8 @@ def inbox_count(
         .order_by(Approval.created_at.desc())
         .all()
     )
+    if approval_type:
+        approvals = [a for a in approvals if a.approval_type == approval_type]
     eligible = [a for a in approvals if is_user_eligible_for_approval(a, current_user)]
     return {"pending": len(eligible)}
 
@@ -173,14 +192,32 @@ def templates(
 @router.get("/mine", response_model=List[ApprovalRead])
 def mine(
     include_decided: bool = Query(True),
+    approval_type: Optional[ApprovalType] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> List[ApprovalRead]:
     query = db.query(Approval).filter(Approval.requester_user_id == current_user.id)
     if not include_decided:
         query = query.filter(Approval.status == ApprovalStatus.PENDING)
+    if approval_type:
+        query = query.filter(Approval.approval_type == approval_type)
     approvals = query.order_by(Approval.created_at.desc()).all()
     return [ApprovalRead.model_validate(a) for a in approvals]
+
+
+@router.get("/{approval_id}", response_model=ApprovalRead)
+def get_approval(
+    approval_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ApprovalRead:
+    approval = db.get(Approval, approval_id)
+    if not approval:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found")
+    if not rbac.user_has_role(current_user, Role.ADMIN):
+        if approval.requester_user_id != current_user.id and not is_user_eligible_for_approval(approval, current_user):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not permitted to view this approval")
+    return ApprovalRead.model_validate(approval)
 
 
 # Actions that require step-up re-authentication to approve
@@ -212,14 +249,23 @@ def approve(
     if approval.action_type in _STEP_UP_ACTION_TYPES:
         require_step_up(request)
 
-    approved = approve_service(db, approval=approval, approver_user_id=current_user.id)
+    approved = approve_service(
+        db,
+        approval=approval,
+        approver_user_id=current_user.id,
+        comment=payload.comment if payload else None,
+    )
     log_activity(
         db,
         actor_user_id=current_user.id,
         activity_type="APPROVAL_APPROVED",
         assignment_id=approved.assignment_id,
         message=f"Approval {approved.id} approved",
-        payload={"approval_id": approved.id, "action_type": str(approved.action_type)},
+        payload={
+            "approval_id": approved.id,
+            "approval_type": str(approved.approval_type) if approved.approval_type else None,
+            "action_type": str(approved.action_type),
+        },
     )
     create_notification(
         db,
@@ -230,7 +276,21 @@ def approve(
     )
     db.commit()
     db.refresh(approved)
-    if approved.action_type == ApprovalActionType.MARK_PAID and approved.entity_type == ApprovalEntityType.INVOICE:
+    if approved.approval_type == ApprovalType.PAYMENT_CONFIRMATION and approved.entity_type == ApprovalEntityType.PAYMENT:
+        payment = db.get(InvoicePayment, approved.entity_id)
+        invoice = (
+            db.query(Invoice)
+            .options(selectinload(Invoice.payments))
+            .filter(Invoice.id == payment.invoice_id)
+            .first()
+            if payment
+            else None
+        )
+        if invoice and payment:
+            emit_invoice_event("payment_recorded", invoice, payment=payment, extra_payload={"source": "approval"})
+            if invoice.is_paid:
+                emit_invoice_event("invoice_paid", invoice, payment=payment, extra_payload={"source": "approval"})
+    elif approved.action_type == ApprovalActionType.MARK_PAID and approved.entity_type == ApprovalEntityType.INVOICE:
         invoice = (
             db.query(Invoice)
             .options(selectinload(Invoice.payments))
@@ -260,6 +320,12 @@ def reject(
     if not is_user_eligible_for_approval(approval, current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not permitted to reject this request")
     _require_not_self_approval(approval, current_user)
+    if approval.approval_type in {
+        ApprovalType.DRAFT_ASSIGNMENT,
+        ApprovalType.FINAL_DOC_REVIEW,
+        ApprovalType.PAYMENT_CONFIRMATION,
+    } and not (payload.comment and payload.comment.strip()):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rejection reason is required")
 
     rejected = reject_service(db, approval=approval, approver_user_id=current_user.id, comment=payload.comment)
     create_notification(

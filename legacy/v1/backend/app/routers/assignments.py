@@ -18,9 +18,11 @@ from app.models.enums import (
     ApprovalActionType,
     ApprovalEntityType,
     ApprovalStatus,
+    ApprovalType,
     AssignmentStatus,
     CaseType,
     NotificationType,
+    Role,
     ServiceLine,
     TaskStatus,
 )
@@ -52,6 +54,7 @@ from app.services.assignments import (
     compute_missing_document_categories,
     ensure_assignment_access,
     generate_assignment_code,
+    generate_draft_assignment_code,
     maybe_emit_due_soon_notifications,
     notify_assignment_assignees,
     sync_assignment_assignees,
@@ -61,6 +64,7 @@ from app.services.assignments import (
 )
 from app.services.calendar import upsert_assignment_events, upsert_task_due_event
 from app.services.leave import current_leave
+from app.services.v1_outbox import enqueue_v1_outbox_event
 
 router = APIRouter(prefix="/api/assignments", tags=["assignments"])
 
@@ -81,6 +85,7 @@ SORT_FIELDS = {
 
 
 OPEN_STATUSES = {
+    AssignmentStatus.DRAFT_PENDING_APPROVAL,
     AssignmentStatus.PENDING,
     AssignmentStatus.SITE_VISIT,
     AssignmentStatus.UNDER_PROCESS,
@@ -96,7 +101,11 @@ def _apply_completion_filter(query, completion: CompletionFilter):
     if completion == "PENDING":
         return query.filter(Assignment.status.in_(OPEN_STATUSES))
     if completion == "COMPLETED":
-        return query.filter(Assignment.status.in_([AssignmentStatus.COMPLETED, AssignmentStatus.CANCELLED]))
+        return query.filter(
+            Assignment.status.in_(
+                [AssignmentStatus.DRAFT_REJECTED, AssignmentStatus.COMPLETED, AssignmentStatus.CANCELLED]
+            )
+        )
     return query
 
 
@@ -452,6 +461,11 @@ def create_assignment(
     capabilities = rbac.get_capabilities_for_user(current_user)
     if not capabilities.get("create_assignment"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not permitted to create assignment")
+    if rbac.user_has_role(current_user, Role.FIELD_VALUER):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Field valuers must submit draft assignments for approval",
+        )
 
     try:
         validate_property_subtype(
@@ -545,6 +559,149 @@ def create_assignment(
         notif_type=NotificationType.ASSIGNMENT_ASSIGNED,
         message=f"New assignment assigned: {assignment.assignment_code}",
         payload={"assignment_id": assignment.id},
+        exclude_user_ids=[current_user.id],
+    )
+
+    enqueue_v1_outbox_event(
+        db,
+        event_type="assignment.upsert",
+        payload={
+            "assignment_id": assignment.id,
+            "assignment_code": assignment.assignment_code,
+            "bank_name": assignment.bank_name,
+            "status": assignment.status.value if assignment.status else None,
+            "report_due_date": assignment.report_due_date.isoformat() if assignment.report_due_date else None,
+        },
+    )
+    if assignment.status == AssignmentStatus.SUBMITTED:
+        enqueue_v1_outbox_event(
+            db,
+            event_type="assignment.ready_for_render",
+            payload={
+                "assignment_id": assignment.id,
+                "assignment_code": assignment.assignment_code,
+            },
+        )
+
+    db.commit()
+    db.refresh(assignment)
+    return AssignmentRead.model_validate(assignment)
+
+
+@router.post("/drafts", response_model=AssignmentRead, status_code=status.HTTP_201_CREATED)
+def create_draft_assignment(
+    assignment_in: AssignmentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AssignmentRead:
+    if not rbac.user_has_role(current_user, Role.FIELD_VALUER):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only field valuers can create draft assignments")
+    if assignment_in.fees is not None or assignment_in.is_paid:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Draft assignments cannot set financial fields")
+
+    try:
+        validate_property_subtype(
+            db,
+            property_type_id=assignment_in.property_type_id,
+            property_subtype_id=assignment_in.property_subtype_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    override_on_leave = bool(getattr(assignment_in, "override_on_leave", False))
+    assignee_ids = list(assignment_in.assignee_user_ids or [])
+    primary_assignee_id = assignment_in.assigned_to_user_id or (assignee_ids[0] if assignee_ids else None)
+
+    if not override_on_leave:
+        check_ids = {uid for uid in assignee_ids if uid} | ({primary_assignee_id} if primary_assignee_id else set())
+        for user_id in check_ids:
+            leave = current_leave(db, user_id=int(user_id))
+            if leave:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "message": "Assignee is currently on approved leave",
+                        "user_id": user_id,
+                        "leave_request_id": leave.id,
+                        "leave_start": leave.start_date.isoformat(),
+                        "leave_end": (leave.end_date or leave.start_date).isoformat(),
+                    },
+                )
+
+    assignment = Assignment(
+        assignment_code=generate_draft_assignment_code(db),
+        case_type=assignment_in.case_type,
+        service_line=assignment_in.service_line,
+        bank_id=assignment_in.bank_id,
+        branch_id=assignment_in.branch_id,
+        client_id=assignment_in.client_id,
+        property_type_id=assignment_in.property_type_id,
+        property_subtype_id=assignment_in.property_subtype_id,
+        bank_name=assignment_in.bank_name,
+        branch_name=assignment_in.branch_name,
+        valuer_client_name=assignment_in.valuer_client_name,
+        property_type=assignment_in.property_type,
+        borrower_name=assignment_in.borrower_name,
+        phone=assignment_in.phone,
+        address=assignment_in.address,
+        land_area=assignment_in.land_area,
+        builtup_area=assignment_in.builtup_area,
+        status=AssignmentStatus.DRAFT_PENDING_APPROVAL,
+        created_by_user_id=current_user.id,
+        assigned_to_user_id=primary_assignee_id,
+        assigned_at=datetime.now(timezone.utc) if primary_assignee_id else None,
+        site_visit_date=assignment_in.site_visit_date,
+        report_due_date=assignment_in.report_due_date,
+        notes=assignment_in.notes,
+    )
+    _enrich_names(db, assignment)
+    db.add(assignment)
+    db.flush()
+
+    sync_assignment_assignees(db, assignment, assignee_ids)
+    upsert_assignment_events(db, assignment=assignment, actor_user_id=current_user.id)
+    if assignment_in.floors:
+        total_area = sync_assignment_floors(db, assignment, assignment_in.floors)
+        if total_area is not None:
+            assignment.builtup_area = total_area
+            db.add(assignment)
+            db.flush()
+
+    approval = Approval(
+        approval_type=ApprovalType.DRAFT_ASSIGNMENT,
+        entity_type=ApprovalEntityType.ASSIGNMENT,
+        entity_id=assignment.id,
+        action_type=ApprovalActionType.FINAL_REVIEW,
+        requester_user_id=current_user.id,
+        approver_user_id=None,
+        status=ApprovalStatus.PENDING,
+        reason="Draft assignment submitted for approval",
+        payload_json={"temporary_code": assignment.assignment_code},
+        metadata_json={
+            "assignment_code": assignment.assignment_code,
+            "borrower_name": assignment.borrower_name,
+            "case_type": str(assignment.case_type),
+            "service_line": str(assignment.service_line),
+        },
+        assignment_id=assignment.id,
+    )
+    allowed_roles = required_roles_for_approval(approval.entity_type, approval.action_type, approval.approval_type)
+    request_approval(db, approval=approval, allowed_roles=allowed_roles, auto_assign=False)
+
+    log_activity(
+        db,
+        actor_user_id=current_user.id,
+        activity_type="ASSIGNMENT_DRAFT_CREATED",
+        assignment_id=assignment.id,
+        message=f"Draft assignment {assignment.assignment_code} created",
+        payload={"approval_id": approval.id},
+    )
+    notify_roles(
+        db,
+        roles=allowed_roles,
+        notif_type=NotificationType.APPROVAL_PENDING,
+        message="Draft assignment approval requested",
+        payload={"approval_id": approval.id, "assignment_id": assignment.id},
         exclude_user_ids=[current_user.id],
     )
 
@@ -696,6 +853,27 @@ def update_assignment(
             message=f"Assignment reassigned: {assignment.assignment_code}",
             payload={"assignment_id": assignment.id},
             exclude_user_ids=[current_user.id],
+        )
+
+    enqueue_v1_outbox_event(
+        db,
+        event_type="assignment.upsert",
+        payload={
+            "assignment_id": assignment.id,
+            "assignment_code": assignment.assignment_code,
+            "bank_name": assignment.bank_name,
+            "status": assignment.status.value if assignment.status else None,
+            "report_due_date": assignment.report_due_date.isoformat() if assignment.report_due_date else None,
+        },
+    )
+    if assignment.status == AssignmentStatus.SUBMITTED:
+        enqueue_v1_outbox_event(
+            db,
+            event_type="assignment.ready_for_render",
+            payload={
+                "assignment_id": assignment.id,
+                "assignment_code": assignment.assignment_code,
+            },
         )
 
     db.add(assignment)

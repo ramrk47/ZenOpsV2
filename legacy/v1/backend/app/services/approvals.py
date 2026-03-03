@@ -10,31 +10,46 @@ from app.core import rbac
 from app.core.security import get_password_hash
 from app.models.approval import Approval
 from app.models.assignment import Assignment
+from app.models.document import AssignmentDocument
 from app.models.enums import (
     ApprovalActionType,
     ApprovalEntityType,
     ApprovalStatus,
+    ApprovalType,
     AssignmentStatus,
+    DocumentReviewStatus,
     Role,
 )
-from app.models.invoice import Invoice
+from app.models.invoice import Invoice, InvoicePayment
 from app.models.user import User
 from app.services.activity import log_activity
-from app.services.invoices import mark_invoice_paid
+from app.services.assignments import generate_assignment_code
+from app.services.invoices import mark_invoice_paid, recompute_invoice_balance
 
 
 APPROVAL_ROUTING: dict[ApprovalEntityType, list[Role]] = {
     ApprovalEntityType.ASSIGNMENT: [Role.OPS_MANAGER, Role.ADMIN],
+    ApprovalEntityType.DOCUMENT: [Role.OPS_MANAGER, Role.ADMIN],
+    ApprovalEntityType.PAYMENT: [Role.FINANCE, Role.ADMIN],
     ApprovalEntityType.LEAVE: [Role.HR, Role.ADMIN],
     ApprovalEntityType.INVOICE: [Role.FINANCE, Role.ADMIN],
     ApprovalEntityType.USER: [Role.ADMIN],
+}
+
+APPROVAL_TYPE_ROUTING: dict[ApprovalType, list[Role]] = {
+    ApprovalType.DRAFT_ASSIGNMENT: [Role.OPS_MANAGER, Role.ADMIN],
+    ApprovalType.FINAL_DOC_REVIEW: [Role.OPS_MANAGER, Role.ADMIN],
+    ApprovalType.PAYMENT_CONFIRMATION: [Role.FINANCE, Role.ADMIN],
 }
 
 
 def required_roles_for_approval(
     entity_type: ApprovalEntityType,
     action_type: ApprovalActionType | None = None,
+    approval_type: ApprovalType | None = None,
 ) -> list[Role]:
+    if approval_type and approval_type in APPROVAL_TYPE_ROUTING:
+        return APPROVAL_TYPE_ROUTING[approval_type]
     # Default to entity routing when available; fall back to admin.
     return APPROVAL_ROUTING.get(entity_type, [Role.ADMIN])
 
@@ -60,7 +75,14 @@ def request_approval(
     allowed_roles: Optional[list[Role]] = None,
     auto_assign: bool = False,
 ) -> Approval:
-    roles = allowed_roles or required_roles_for_approval(approval.entity_type, approval.action_type)
+    if not approval.requested_at:
+        approval.requested_at = datetime.now(timezone.utc)
+
+    roles = allowed_roles or required_roles_for_approval(
+        approval.entity_type,
+        approval.action_type,
+        approval.approval_type,
+    )
     if approval.approver_user_id:
         approver = db.get(User, approval.approver_user_id)
         if not approver or not approver.is_active or not rbac.user_has_any_role(approver, roles):
@@ -237,7 +259,172 @@ def _apply_reset_mfa(db: Session, approval: Approval, actor_user_id: int) -> Non
     )
 
 
+def _apply_draft_assignment_approval(db: Session, approval: Approval, actor_user_id: int) -> None:
+    assignment = db.get(Assignment, approval.entity_id)
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+
+    previous_code = assignment.assignment_code
+    assignment.assignment_code = generate_assignment_code(db)
+    assignment.status = AssignmentStatus.PENDING
+    db.add(assignment)
+
+    meta = dict(approval.metadata_json or {})
+    meta["temporary_code"] = previous_code
+    meta["permanent_code"] = assignment.assignment_code
+    approval.metadata_json = meta
+    db.add(approval)
+
+    log_activity(
+        db,
+        actor_user_id=actor_user_id,
+        activity_type="ASSIGNMENT_DRAFT_APPROVED",
+        assignment_id=assignment.id,
+        message=f"Draft approved: {previous_code} -> {assignment.assignment_code}",
+        payload={"approval_id": approval.id},
+    )
+
+
+def _apply_draft_assignment_rejection(db: Session, approval: Approval, actor_user_id: int) -> None:
+    assignment = db.get(Assignment, approval.entity_id)
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+
+    assignment.status = AssignmentStatus.DRAFT_REJECTED
+    db.add(assignment)
+    log_activity(
+        db,
+        actor_user_id=actor_user_id,
+        activity_type="ASSIGNMENT_DRAFT_REJECTED",
+        assignment_id=assignment.id,
+        message="Draft assignment rejected",
+        payload={"approval_id": approval.id, "reason": approval.decision_reason},
+    )
+
+
+def _apply_final_doc_review_approval(db: Session, approval: Approval, actor_user_id: int) -> None:
+    document = db.get(AssignmentDocument, approval.entity_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if document.category:
+        existing_finals = (
+            db.query(AssignmentDocument)
+            .filter(
+                AssignmentDocument.assignment_id == document.assignment_id,
+                AssignmentDocument.category == document.category,
+                AssignmentDocument.is_final.is_(True),
+                AssignmentDocument.id != document.id,
+            )
+            .all()
+        )
+        for row in existing_finals:
+            row.is_final = False
+            db.add(row)
+
+    document.is_final = True
+    document.review_status = DocumentReviewStatus.FINAL
+    document.reviewed_by_user_id = actor_user_id
+    document.reviewed_at = datetime.now(timezone.utc)
+    db.add(document)
+
+    log_activity(
+        db,
+        actor_user_id=actor_user_id,
+        activity_type="DOCUMENT_FINAL_APPROVED",
+        assignment_id=document.assignment_id,
+        payload={"approval_id": approval.id, "document_id": document.id},
+    )
+
+
+def _apply_final_doc_review_rejection(db: Session, approval: Approval, actor_user_id: int) -> None:
+    document = db.get(AssignmentDocument, approval.entity_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    document.is_final = False
+    if document.review_status == DocumentReviewStatus.FINAL_PENDING_APPROVAL:
+        document.review_status = DocumentReviewStatus.REVIEWED
+    document.reviewed_by_user_id = actor_user_id
+    document.reviewed_at = datetime.now(timezone.utc)
+    db.add(document)
+
+    log_activity(
+        db,
+        actor_user_id=actor_user_id,
+        activity_type="DOCUMENT_FINAL_REJECTED",
+        assignment_id=document.assignment_id,
+        payload={"approval_id": approval.id, "document_id": document.id, "reason": approval.decision_reason},
+    )
+
+
+def _apply_payment_confirmation_approval(db: Session, approval: Approval, actor_user_id: int) -> None:
+    payment = db.get(InvoicePayment, approval.entity_id)
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    payment.confirmation_status = "CONFIRMED"
+    payment.confirmed_by_user_id = actor_user_id
+    payment.confirmed_at = datetime.now(timezone.utc)
+    payment.confirmation_reason = approval.decision_reason
+    payment.approval_id = approval.id
+    db.add(payment)
+
+    invoice = db.get(Invoice, payment.invoice_id)
+    if invoice:
+        recompute_invoice_balance(invoice)
+        db.add(invoice)
+        if invoice.assignment:
+            invoice.assignment.is_paid = invoice.is_paid
+            db.add(invoice.assignment)
+        log_activity(
+            db,
+            actor_user_id=actor_user_id,
+            activity_type="PAYMENT_CONFIRMATION_APPROVED",
+            assignment_id=invoice.assignment_id,
+            payload={"approval_id": approval.id, "invoice_id": invoice.id, "payment_id": payment.id},
+        )
+
+
+def _apply_payment_confirmation_rejection(db: Session, approval: Approval, actor_user_id: int) -> None:
+    payment = db.get(InvoicePayment, approval.entity_id)
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    payment.confirmation_status = "REJECTED"
+    payment.confirmed_by_user_id = actor_user_id
+    payment.confirmed_at = datetime.now(timezone.utc)
+    payment.confirmation_reason = approval.decision_reason
+    payment.approval_id = approval.id
+    db.add(payment)
+
+    invoice = db.get(Invoice, payment.invoice_id)
+    if invoice:
+        recompute_invoice_balance(invoice)
+        db.add(invoice)
+        if invoice.assignment:
+            invoice.assignment.is_paid = invoice.is_paid
+            db.add(invoice.assignment)
+        log_activity(
+            db,
+            actor_user_id=actor_user_id,
+            activity_type="PAYMENT_CONFIRMATION_REJECTED",
+            assignment_id=invoice.assignment_id,
+            payload={"approval_id": approval.id, "invoice_id": invoice.id, "payment_id": payment.id},
+        )
+
+
 def apply_approval_action(db: Session, approval: Approval, actor_user_id: int) -> None:
+    if approval.approval_type == ApprovalType.DRAFT_ASSIGNMENT:
+        _apply_draft_assignment_approval(db, approval, actor_user_id)
+        return
+    if approval.approval_type == ApprovalType.FINAL_DOC_REVIEW:
+        _apply_final_doc_review_approval(db, approval, actor_user_id)
+        return
+    if approval.approval_type == ApprovalType.PAYMENT_CONFIRMATION:
+        _apply_payment_confirmation_approval(db, approval, actor_user_id)
+        return
+
     action = approval.action_type
     if action == ApprovalActionType.DELETE_ASSIGNMENT:
         _apply_assignment_delete(db, approval, actor_user_id)
@@ -266,11 +453,19 @@ def apply_approval_action(db: Session, approval: Approval, actor_user_id: int) -
         )
 
 
-def approve(db: Session, *, approval: Approval, approver_user_id: int) -> Approval:
+def approve(
+    db: Session,
+    *,
+    approval: Approval,
+    approver_user_id: int,
+    comment: str | None = None,
+) -> Approval:
     _require_pending(approval)
     approval.status = ApprovalStatus.APPROVED
     approval.approver_user_id = approver_user_id
     approval.decided_at = datetime.now(timezone.utc)
+    if comment:
+        approval.decision_reason = comment
     db.add(approval)
     db.flush()
 
@@ -284,6 +479,7 @@ def reject(db: Session, *, approval: Approval, approver_user_id: int, comment: s
     approval.status = ApprovalStatus.REJECTED
     approval.approver_user_id = approver_user_id
     approval.decided_at = datetime.now(timezone.utc)
+    approval.decision_reason = comment
     payload = approval.payload_json or {}
     if comment:
         payload["rejection_comment"] = comment
@@ -291,14 +487,21 @@ def reject(db: Session, *, approval: Approval, approver_user_id: int, comment: s
     db.add(approval)
     db.flush()
 
-    log_activity(
-        db,
-        actor_user_id=approver_user_id,
-        activity_type="APPROVAL_REJECTED",
-        assignment_id=approval.assignment_id,
-        message=f"Approval {approval.id} rejected",
-        payload={"comment": comment, "action_type": str(approval.action_type)},
-    )
+    if approval.approval_type == ApprovalType.DRAFT_ASSIGNMENT:
+        _apply_draft_assignment_rejection(db, approval, approver_user_id)
+    elif approval.approval_type == ApprovalType.FINAL_DOC_REVIEW:
+        _apply_final_doc_review_rejection(db, approval, approver_user_id)
+    elif approval.approval_type == ApprovalType.PAYMENT_CONFIRMATION:
+        _apply_payment_confirmation_rejection(db, approval, approver_user_id)
+    else:
+        log_activity(
+            db,
+            actor_user_id=approver_user_id,
+            activity_type="APPROVAL_REJECTED",
+            assignment_id=approval.assignment_id,
+            message=f"Approval {approval.id} rejected",
+            payload={"comment": comment, "action_type": str(approval.action_type)},
+        )
     return approval
 
 
@@ -307,5 +510,5 @@ def is_user_eligible_for_approval(approval: Approval, user: User) -> bool:
         return False
     if approval.approver_user_id:
         return True
-    allowed_roles = required_roles_for_approval(approval.entity_type, approval.action_type)
+    allowed_roles = required_roles_for_approval(approval.entity_type, approval.action_type, approval.approval_type)
     return rbac.user_has_any_role(user, allowed_roles)

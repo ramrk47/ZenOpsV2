@@ -64,6 +64,7 @@ from app.utils.mentions import parse_and_resolve_mentions
 router = APIRouter(prefix="/api/mobile", tags=["mobile"])
 
 OPEN_ASSIGNMENT_STATUSES = {
+    AssignmentStatus.DRAFT_PENDING_APPROVAL,
     AssignmentStatus.PENDING,
     AssignmentStatus.SITE_VISIT,
     AssignmentStatus.UNDER_PROCESS,

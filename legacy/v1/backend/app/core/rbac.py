@@ -170,6 +170,10 @@ ROLE_CAPABILITIES: dict[Role, Dict[str, bool]] = {
     },
 }
 
+for _caps in ROLE_CAPABILITIES.values():
+    _caps.setdefault("create_assignment_draft", False)
+ROLE_CAPABILITIES[Role.FIELD_VALUER]["create_assignment_draft"] = True
+
 
 def merge_capabilities(
     base: Mapping[str, bool],
