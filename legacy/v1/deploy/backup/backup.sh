@@ -7,6 +7,7 @@ BACKUP_DIR="${BACKUP_DIR:-/backups}"
 UPLOADS_DIR="${UPLOADS_DIR:-/uploads}"
 RETAIN_LOCAL_DAYS="${RETAIN_LOCAL_DAYS:-7}"
 RETAIN_REMOTE_DAYS="${RETAIN_REMOTE_DAYS:-30}"
+BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-}"
 RCLONE_REMOTE="${RCLONE_REMOTE:-}"
 RCLONE_UPLOAD_MODE="${RCLONE_UPLOAD_MODE:-tiers}"
 BACKUP_ENCRYPTION_KEY="${BACKUP_ENCRYPTION_KEY:-}"
@@ -31,6 +32,10 @@ mkdir -p "$STRUCTURED_UPLOADS_DIR"
 log() {
   printf '[%s] %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$1"
 }
+
+if [ -n "$BACKUP_RETENTION_DAYS" ]; then
+  RETAIN_LOCAL_DAYS="$BACKUP_RETENTION_DAYS"
+fi
 
 encrypt_file() {
   local input="$1"
@@ -191,7 +196,13 @@ else
 fi
 
 log "[7/7] Local retention (>${RETAIN_LOCAL_DAYS} days)..."
-find "$BACKUP_DIR" -maxdepth 1 -type f -name "${APP_NAME}_*" -mtime "+${RETAIN_LOCAL_DAYS}" -delete || true
+deleted_local="$(find "$BACKUP_DIR" -maxdepth 1 -type f -name "${APP_NAME}_*" -mtime "+${RETAIN_LOCAL_DAYS}" -print -delete || true)"
+if [ -n "$deleted_local" ]; then
+  log "Deleted local backups:"
+  printf '%s\n' "$deleted_local"
+else
+  log "No local backup artifacts exceeded retention."
+fi
 
 if [ -n "$RCLONE_REMOTE" ]; then
   if [ "$RCLONE_UPLOAD_MODE" = "all" ]; then
