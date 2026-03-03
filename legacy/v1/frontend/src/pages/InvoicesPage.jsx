@@ -170,6 +170,38 @@ function canVoidInvoice(invoice) {
   return invoice.status !== 'VOID' && paid <= 0
 }
 
+const ACTIVE_PAYMENT_MODE_OPTIONS = [
+  { value: 'CASH', label: 'Cash' },
+  { value: 'UPI', label: 'UPI' },
+  { value: 'BANK_TRANSFER', label: 'Bank Transfer / Net Banking' },
+  { value: 'OTHER', label: 'Other Offline' },
+]
+
+const LEGACY_PAYMENT_MODES = new Set(['MANUAL', 'CARD', 'CHEQUE'])
+
+const PAYMENT_MODE_LABELS = {
+  CASH: 'Cash',
+  UPI: 'UPI',
+  BANK_TRANSFER: 'Bank Transfer / Net Banking',
+  OTHER: 'Other Offline',
+  MANUAL: 'Manual',
+  CARD: 'Card',
+  CHEQUE: 'Cheque',
+}
+
+const ADJUSTMENT_REASON_TEMPLATES = [
+  'Revised fee as per discussion',
+  'Rounding adjustment',
+  'Waiver approved by management',
+]
+
+function paymentModeLabel(mode) {
+  const key = String(mode || '').toUpperCase()
+  const label = PAYMENT_MODE_LABELS[key] || titleCase(key)
+  if (LEGACY_PAYMENT_MODES.has(key)) return `Legacy method: ${label}`
+  return label
+}
+
 function agingBucket(days) {
   if (days === null || days === undefined) return 'current'
   if (days <= 7) return '0-7'
@@ -225,7 +257,7 @@ export default function InvoicesPage() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailReloadKey, setDetailReloadKey] = useState(0)
 
-  const [paymentForm, setPaymentForm] = useState({ amount: '', mode: 'MANUAL', paid_at: '', reference_no: '', notes: '' })
+  const [paymentForm, setPaymentForm] = useState({ amount: '', mode: 'CASH', paid_at: '', reference_no: '', notes: '' })
   const [adjustmentForm, setAdjustmentForm] = useState({ amount: '', adjustment_type: 'CREDIT_NOTE', issued_at: '', reason: '' })
   const [attachmentCategory, setAttachmentCategory] = useState('')
   const [attachmentFile, setAttachmentFile] = useState(null)
@@ -945,11 +977,16 @@ export default function InvoicesPage() {
     e.preventDefault()
     if (!selectedInvoice) return
     try {
+      const notes = (paymentForm.notes || '').trim()
+      if (paymentForm.mode === 'OTHER' && !notes) {
+        setError('Other offline payments require a note.')
+        return
+      }
       const payload = {
         amount: Number(paymentForm.amount || selectedInvoice.amount_due || 0),
         mode: paymentForm.mode,
         reference_no: paymentForm.reference_no || null,
-        notes: paymentForm.notes || null,
+        notes: notes || null,
         paid_at: paymentForm.paid_at ? new Date(paymentForm.paid_at).toISOString() : null,
       }
       await addInvoicePayment(selectedInvoice.id, payload)
@@ -1629,7 +1666,6 @@ export default function InvoicesPage() {
                 <Tabs
                   tabs={[
                     { key: 'summary', label: 'Summary', title: 'Summary' },
-                    { key: 'items', label: 'Line Items', title: 'Line Items' },
                     { key: 'payments', label: 'Payments', title: 'Payments' },
                     { key: 'adjustments', label: 'Adjustments', title: 'Adjustments' },
                     { key: 'audit', label: 'Audit Trail', title: 'Audit Trail' },
@@ -1641,10 +1677,33 @@ export default function InvoicesPage() {
 
                 {drawerTab === 'summary' ? (
                   <div className="drawer-section">
+                    <div className="drawer-card">
+                      <div className="kicker">Assignment Summary</div>
+                      <div style={{ fontWeight: 700, marginTop: 4 }}>{selectedInvoice.assignment_code || '—'}</div>
+                      <div className="muted" style={{ marginTop: 4 }}>
+                        {titleCase(selectedInvoice.assignment_service_line || '—')} · {titleCase(selectedInvoice.assignment_case_type || '—')}
+                      </div>
+                      <div className="muted" style={{ marginTop: 6 }}>
+                        {selectedInvoice.party_name || selectedInvoice.bill_to_name || '—'}
+                      </div>
+                    </div>
+
                     <div className="summary-grid">
                       <div>
-                        <div className="kicker">Grand Total</div>
-                        <div className="stat-value drawer-stat">{formatMoney(selectedInvoice.grand_total, selectedInvoice.currency)}</div>
+                        <div className="kicker">Gross</div>
+                        <div className="stat-value drawer-stat">{formatMoney(selectedInvoice.base_total, selectedInvoice.currency)}</div>
+                      </div>
+                      <div>
+                        <div className="kicker">Tax</div>
+                        <div className="stat-value drawer-stat">{formatMoney(selectedInvoice.tax_total, selectedInvoice.currency)}</div>
+                      </div>
+                      <div>
+                        <div className="kicker">Adjustments</div>
+                        <div className="stat-value drawer-stat">{formatMoney(selectedInvoice.adjustments_total, selectedInvoice.currency)}</div>
+                      </div>
+                      <div>
+                        <div className="kicker">Net</div>
+                        <div className="stat-value drawer-stat">{formatMoney(selectedInvoice.net_total, selectedInvoice.currency)}</div>
                       </div>
                       <div>
                         <div className="kicker">Paid</div>
@@ -1688,37 +1747,6 @@ export default function InvoicesPage() {
                   </div>
                 ) : null}
 
-                {drawerTab === 'items' ? (
-                  <div className="drawer-section">
-                    {selectedInvoice.items?.length ? (
-                      <div className="table-wrap">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>Description</th>
-                              <th>Qty</th>
-                              <th>Unit</th>
-                              <th>Total</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedInvoice.items.map((item) => (
-                              <tr key={item.id}>
-                                <td>{item.description}</td>
-                                <td>{item.quantity}</td>
-                                <td>{formatMoney(item.unit_price, selectedInvoice.currency)}</td>
-                                <td>{formatMoney(item.line_total, selectedInvoice.currency)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <div className="muted">No line items.</div>
-                    )}
-                  </div>
-                ) : null}
-
                 {drawerTab === 'payments' ? (
                   <div className="drawer-section">
                     <div className="drawer-card">
@@ -1732,8 +1760,8 @@ export default function InvoicesPage() {
                           <label className="grid" style={{ gap: 6 }}>
                             <span className="kicker">Mode</span>
                             <select value={paymentForm.mode} onChange={(e) => setPaymentForm((prev) => ({ ...prev, mode: e.target.value }))}>
-                              {['MANUAL', 'CASH', 'BANK_TRANSFER', 'UPI', 'CHEQUE', 'CARD', 'OTHER'].map((mode) => (
-                                <option key={mode} value={mode}>{titleCase(mode)}</option>
+                              {ACTIVE_PAYMENT_MODE_OPTIONS.map((mode) => (
+                                <option key={mode.value} value={mode.value}>{mode.label}</option>
                               ))}
                             </select>
                           </label>
@@ -1764,7 +1792,13 @@ export default function InvoicesPage() {
                             <div key={payment.id} className="list-item">
                               <div>
                                 <strong>{formatMoney(payment.amount, selectedInvoice.currency)}</strong>
-                                <div className="muted" style={{ fontSize: 12 }}>{titleCase(payment.mode)}</div>
+                                <div className="muted" style={{ fontSize: 12 }}>{paymentModeLabel(payment.mode)}</div>
+                                <div className="muted" style={{ fontSize: 12 }}>
+                                  {titleCase(payment.confirmation_status || 'CONFIRMED')}
+                                </div>
+                                {payment.reference_no ? (
+                                  <div className="muted" style={{ fontSize: 12 }}>Ref: {payment.reference_no}</div>
+                                ) : null}
                               </div>
                               <div className="muted">{formatDateTime(payment.paid_at)}</div>
                             </div>
@@ -1805,6 +1839,18 @@ export default function InvoicesPage() {
                             <span className="kicker">Reason</span>
                             <input value={adjustmentForm.reason} onChange={(e) => setAdjustmentForm((prev) => ({ ...prev, reason: e.target.value }))} />
                           </label>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {ADJUSTMENT_REASON_TEMPLATES.map((template) => (
+                            <button
+                              key={template}
+                              type="button"
+                              className="chip"
+                              onClick={() => setAdjustmentForm((prev) => ({ ...prev, reason: template }))}
+                            >
+                              {template}
+                            </button>
+                          ))}
                         </div>
                         <button type="submit">Record Adjustment</button>
                       </form>
