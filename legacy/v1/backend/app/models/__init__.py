@@ -56,6 +56,7 @@ from app.models.invoice import (
 from app.models.leave import LeaveRequest
 from app.models.payroll_line_item import PayrollLineItem
 from app.models.payslip import Payslip
+from app.models.rate_limit_bucket import RateLimitBucket
 from app.models.salary_structure import SalaryStructure
 from app.models.payroll_run import PayrollRun
 from app.models.master import (
@@ -171,6 +172,7 @@ __all__ = [
     "PayrollLineItem",
     "Payslip",
     "SalaryStructure",
+    "RateLimitBucket",
     "PayrollRunStatus",
     "SalaryComponentType",
     "PayrollAdjustmentType",

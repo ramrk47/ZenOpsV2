@@ -3,13 +3,14 @@ from __future__ import annotations
 from datetime import datetime, timezone, timedelta
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core import rbac
 from app.core.deps import get_current_user
 from app.core.security import get_password_hash
+from app.core.settings import settings
 from app.core.step_up import require_step_up
 from app.db.session import get_db
 from app.models.approval import Approval
@@ -33,6 +34,7 @@ from app.services.approvals import request_approval, required_roles_for_approval
 from app.services.assignments import compute_due_info, get_assignment_assignee_ids, is_assignment_open
 from app.services.leave import users_on_leave
 from app.services.notifications import notify_roles
+from app.services.rate_limit import consume_rate_limit, get_client_ip
 
 router = APIRouter(prefix="/api/auth/users", tags=["users"])
 
@@ -343,6 +345,7 @@ def deactivate_user(user_id: int, db: Session = Depends(get_db), current_user: U
 def reset_password(
     user_id: int,
     payload: ResetPasswordPayload,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _step_up: dict = Depends(require_step_up),
@@ -350,6 +353,33 @@ def reset_password(
     user = db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    reset_limit = consume_rate_limit(
+        db,
+        key=f"password_reset:email:{user.email.lower()}",
+        limit=settings.rate_limit_password_reset_email_max,
+        window_seconds=settings.rate_limit_password_reset_email_window_seconds,
+    )
+    if not reset_limit.allowed:
+        log_activity(
+            db,
+            actor_user_id=current_user.id,
+            activity_type="PASSWORD_RESET_RATE_LIMIT_HIT",
+            message="Password reset rate limited",
+            payload={
+                "target_user_id": user.id,
+                "target_email": user.email,
+                "ip": get_client_ip(request),
+                "count": reset_limit.count,
+                "limit": reset_limit.limit,
+                "retry_after_seconds": reset_limit.retry_after_seconds,
+            },
+        )
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"code": "RATE_LIMITED", "message": "Too many password reset attempts"},
+        )
 
     # Admins and HR can reset directly. Others must request approval.
     if rbac.user_has_any_role(current_user, {Role.ADMIN, Role.HR}):

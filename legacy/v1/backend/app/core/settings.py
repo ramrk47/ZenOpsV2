@@ -71,6 +71,31 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = Field(default=60, description="Access token expiry in minutes")
     login_max_attempts: int = Field(default=10, description="Login attempts allowed per window")
     login_window_minutes: int = Field(default=15, description="Login rate limit window in minutes")
+    rate_limit_login_ip_max: int = Field(default=10, description="Max login attempts per IP per window")
+    rate_limit_login_ip_window_seconds: int = Field(default=60, description="Window for login attempts per IP")
+    rate_limit_login_email_max: int = Field(default=5, description="Max login attempts per email per window")
+    rate_limit_login_email_window_seconds: int = Field(default=60, description="Window for login attempts per email")
+    rate_limit_request_access_ip_max: int = Field(default=3, description="Max request-access attempts per IP per window")
+    rate_limit_request_access_ip_window_seconds: int = Field(
+        default=86400,
+        description="Window for request-access attempts per IP",
+    )
+    rate_limit_request_access_email_max: int = Field(
+        default=2,
+        description="Max request-access attempts per email per window",
+    )
+    rate_limit_request_access_email_window_seconds: int = Field(
+        default=86400,
+        description="Window for request-access attempts per email",
+    )
+    rate_limit_password_reset_email_max: int = Field(
+        default=3,
+        description="Max password reset requests per email per window",
+    )
+    rate_limit_password_reset_email_window_seconds: int = Field(
+        default=3600,
+        description="Window for password reset attempts per email",
+    )
 
     # Session management
     idle_timeout_admin_minutes: int = Field(default=30, description="Idle timeout for admin roles (minutes)")

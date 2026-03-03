@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import hashlib
 import secrets
 from typing import List
@@ -29,11 +29,9 @@ from app.services.activity import log_activity
 from app.services.email_delivery import create_email_delivery
 from app.services.invites import create_invite
 from app.services.notifications import notify_roles
+from app.services.rate_limit import consume_rate_limit, get_client_ip
 
 router = APIRouter(tags=["partner-onboarding"])
-
-_MAX_REQUESTS_PER_IP_PER_DAY = 3
-_MAX_REQUESTS_PER_EMAIL_PER_DAY = 2
 
 
 def _associate_onboarding_url(path: str) -> str:
@@ -58,38 +56,23 @@ def _record_attempt(db: Session, *, email: str, request_ip: str | None, user_age
     db.flush()
 
 
-def _enforce_request_rate_limits(db: Session, *, email: str, request_ip: str | None) -> None:
-    now = datetime.now(timezone.utc)
-    window_start = now - timedelta(hours=24)
-
-    email_attempts = (
-        db.query(PartnerRequestAttempt)
-        .filter(
-            PartnerRequestAttempt.email == email,
-            PartnerRequestAttempt.created_at >= window_start,
-        )
-        .count()
-    )
-    if email_attempts >= _MAX_REQUESTS_PER_EMAIL_PER_DAY:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many access requests for this email in the last 24 hours",
-        )
-
+def _consume_request_rate_limits(db: Session, *, email: str, request_ip: str | None):
+    ip_limit = None
     if request_ip:
-        ip_attempts = (
-            db.query(PartnerRequestAttempt)
-            .filter(
-                PartnerRequestAttempt.request_ip == request_ip,
-                PartnerRequestAttempt.created_at >= window_start,
-            )
-            .count()
+        ip_limit = consume_rate_limit(
+            db,
+            key=f"request_access:ip:{request_ip}",
+            limit=settings.rate_limit_request_access_ip_max,
+            window_seconds=settings.rate_limit_request_access_ip_window_seconds,
         )
-        if ip_attempts >= _MAX_REQUESTS_PER_IP_PER_DAY:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many access requests from this network in the last 24 hours",
-            )
+
+    email_limit = consume_rate_limit(
+        db,
+        key=f"request_access:email:{email}",
+        limit=settings.rate_limit_request_access_email_max,
+        window_seconds=settings.rate_limit_request_access_email_window_seconds,
+    )
+    return ip_limit, email_limit
 
 
 def _queue_verification_email(db: Session, req: PartnerAccountRequest, *, raw_token: str) -> None:
@@ -156,7 +139,7 @@ def request_access(
 ):
     """Submit an External Associate account request (public endpoint)."""
     email = body.email.lower().strip()
-    request_ip = request.client.host if request.client else None
+    request_ip = get_client_ip(request)
     user_agent = request.headers.get("user-agent")
 
     if settings.environment.lower() in ("production", "prod") and settings.associate_request_require_captcha_in_production:
@@ -166,7 +149,39 @@ def request_access(
                 detail="captcha_token is required in production",
             )
 
-    _enforce_request_rate_limits(db, email=email, request_ip=request_ip)
+    ip_limit, email_limit = _consume_request_rate_limits(db, email=email, request_ip=request_ip)
+    if (ip_limit and not ip_limit.allowed) or (not email_limit.allowed):
+        log_activity(
+            db,
+            actor_user_id=None,
+            activity_type="ASSOCIATE_ACCESS_RATE_LIMIT",
+            message="Associate request-access rate limited",
+            payload={
+                "email": email,
+                "ip": request_ip,
+                "limits": {
+                    "ip": (
+                        {
+                            "count": ip_limit.count,
+                            "limit": ip_limit.limit,
+                            "retry_after_seconds": ip_limit.retry_after_seconds,
+                        }
+                        if ip_limit
+                        else None
+                    ),
+                    "email": {
+                        "count": email_limit.count,
+                        "limit": email_limit.limit,
+                        "retry_after_seconds": email_limit.retry_after_seconds,
+                    },
+                },
+            },
+        )
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"code": "RATE_LIMITED", "message": "Too many access requests"},
+        )
 
     # Prevent duplicate active requests for same email.
     existing_pending = (
