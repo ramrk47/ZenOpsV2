@@ -110,27 +110,53 @@ def recompute_invoice_totals(invoice: Invoice) -> Invoice:
     return invoice
 
 
-def recompute_invoice_balance(invoice: Invoice) -> Invoice:
+def compute_invoice_financials(invoice: Invoice) -> dict[str, Decimal]:
+    """Canonical invoice totals used across invoice/detail/analytics views."""
     confirmed_payments = [
         payment
         for payment in invoice.payments
         if str(payment.confirmation_status or "CONFIRMED") == "CONFIRMED"
     ]
-    amount_paid = sum((payment.amount for payment in confirmed_payments), start=Decimal("0.00"))
-    amount_credited = sum((adj.amount for adj in invoice.adjustments), start=Decimal("0.00"))
-    total = Decimal(invoice.total_amount or Decimal("0.00"))
-    amount_due = total - amount_paid - amount_credited
-    if amount_due < Decimal("0.00"):
-        amount_due = Decimal("0.00")
+    base_total = _q(Decimal(invoice.total_amount or Decimal("0.00")))
+    paid_total = _q(sum((payment.amount for payment in confirmed_payments), start=Decimal("0.00")))
 
-    invoice.amount_paid = _q(amount_paid)
-    invoice.amount_credited = _q(amount_credited)
-    invoice.amount_due = _q(amount_due)
+    # Adjustments currently represent credits/write-offs that reduce net receivable.
+    credited_total = _q(sum((adj.amount for adj in invoice.adjustments), start=Decimal("0.00")))
+    adjustments_total = _q(Decimal("0.00") - credited_total)
+    net_total = _q(base_total + adjustments_total)
+    if net_total < Decimal("0.00"):
+        net_total = Decimal("0.00")
+
+    due_total = _q(net_total - paid_total)
+    if due_total < Decimal("0.00"):
+        due_total = Decimal("0.00")
+
+    return {
+        "base_total": base_total,
+        "adjustments_total": adjustments_total,
+        "net_total": net_total,
+        "paid_total": paid_total,
+        "due_total": due_total,
+        "credited_total": credited_total,
+    }
+
+
+def recompute_invoice_balance(invoice: Invoice) -> Invoice:
+    totals = compute_invoice_financials(invoice)
+
+    invoice.amount_paid = totals["paid_total"]
+    invoice.amount_credited = totals["credited_total"]
+    invoice.amount_due = totals["due_total"]
 
     if invoice.status not in {InvoiceStatus.DRAFT, InvoiceStatus.VOID}:
         if invoice.amount_due <= Decimal("0.00"):
             invoice.is_paid = True
             invoice.status = InvoiceStatus.PAID
+            confirmed_payments = [
+                payment
+                for payment in invoice.payments
+                if str(payment.confirmation_status or "CONFIRMED") == "CONFIRMED"
+            ]
             if confirmed_payments:
                 invoice.paid_at = max(p.paid_at for p in confirmed_payments)
         elif invoice.amount_paid > Decimal("0.00") or invoice.amount_credited > Decimal("0.00"):
@@ -291,7 +317,7 @@ def mark_invoice_paid(db: Session, *, invoice: Invoice, actor_user_id: int) -> I
         invoice_id=invoice.id,
         amount=amount_due,
         paid_at=datetime.now(timezone.utc),
-        mode=PaymentMode.MANUAL,
+        mode=PaymentMode.OTHER,
         created_by_user_id=actor_user_id,
         confirmation_status="CONFIRMED",
         confirmed_by_user_id=actor_user_id,
