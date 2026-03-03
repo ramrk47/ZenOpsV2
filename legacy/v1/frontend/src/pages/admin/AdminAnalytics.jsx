@@ -505,7 +505,7 @@ export default function AdminAnalytics() {
         }
       } catch (err) {
         console.error(err)
-        if (!cancelled) setPartnerSummaryError(toUserMessage(err, 'Partner summary unavailable'))
+        if (!cancelled) setPartnerSummaryError(toUserMessage(err, 'Associate summary unavailable'))
       } finally {
         if (!cancelled) setPartnerLoading(false)
       }
@@ -529,7 +529,7 @@ export default function AdminAnalytics() {
         if (!cancelled) setPartnerBreakdown(data)
       } catch (err) {
         console.error(err)
-        if (!cancelled) setPartnerBreakdownError(toUserMessage(err, 'Partner breakdown unavailable'))
+        if (!cancelled) setPartnerBreakdownError(toUserMessage(err, 'Associate breakdown unavailable'))
       }
     }
     loadPartnerBreakdown()
@@ -1318,8 +1318,8 @@ export default function AdminAnalytics() {
           <div className="split" style={{ marginTop: '1rem', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr)' }}>
             <Card>
               <CardHeader
-                title="Partner Insights"
-                subtitle="Partner-sourced commissions and outstanding exposure."
+                title="Associate Insights"
+                subtitle="Associate-sourced commissions and outstanding exposure."
                 action={<Badge tone="info">{partnerSummary.length} partners</Badge>}
               />
               {partnerSummaryError ? <div className="muted">{partnerSummaryError}</div> : null}
@@ -1330,7 +1330,7 @@ export default function AdminAnalytics() {
               ) : (
                 <div className="grid cols-2">
                   <div>
-                    <div className="kicker" style={{ marginBottom: 6 }}>Top Partners by Volume</div>
+                    <div className="kicker" style={{ marginBottom: 6 }}>Top Associates by Volume</div>
                     <div className="list">
                       {topPartnersByVolume.map((row) => (
                         <div key={row.id} className="list-item" style={{ justifyContent: 'space-between' }}>
@@ -1344,7 +1344,7 @@ export default function AdminAnalytics() {
                     </div>
                   </div>
                   <div>
-                    <div className="kicker" style={{ marginBottom: 6 }}>Top Partners by Outstanding</div>
+                    <div className="kicker" style={{ marginBottom: 6 }}>Top Associates by Outstanding</div>
                     <div className="list">
                       {topPartnersByOutstanding.map((row) => (
                         <div key={row.id} className="list-item" style={{ justifyContent: 'space-between' }}>
@@ -1363,8 +1363,8 @@ export default function AdminAnalytics() {
 
             <Card>
               <CardHeader
-                title="Partner Bank/Branch Breakdown"
-                subtitle={selectedPartner ? `Activity for ${selectedPartner.display_name}` : 'Select a partner to drill down'}
+                title="Associate Bank/Branch Breakdown"
+                subtitle={selectedPartner ? `Activity for ${selectedPartner.display_name}` : 'Select an associate to drill down'}
                 action={(
                   <select value={selectedPartnerId} onChange={(e) => setSelectedPartnerId(e.target.value)}>
                     <option value="">Select partner</option>
@@ -1378,7 +1378,7 @@ export default function AdminAnalytics() {
               {!selectedPartnerId ? (
                 <EmptyState>Select a partner to view bank/branch breakdown.</EmptyState>
               ) : partnerBreakdown.length === 0 ? (
-                <EmptyState>No partner-linked assignments yet.</EmptyState>
+                <EmptyState>No associate-linked assignments yet.</EmptyState>
               ) : (
                 <div className="table-wrap">
                   <table>

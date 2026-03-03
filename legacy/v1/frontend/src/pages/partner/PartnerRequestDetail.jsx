@@ -268,7 +268,7 @@ export default function PartnerRequestDetail() {
       {activeTab === 'overview' ? (
         <div className="grid" style={{ gap: '1rem' }}>
           <Card>
-            <CardHeader title="Status" subtitle="Partner-safe timeline" />
+            <CardHeader title="Status" subtitle="Associate-safe timeline" />
             {timelineItems.length === 0 ? (
               <EmptyState>No timeline events yet.</EmptyState>
             ) : (
@@ -349,7 +349,7 @@ export default function PartnerRequestDetail() {
           </Card>
 
           <Card>
-            <CardHeader title="What happens next" subtitle="Your next action" action={<InfoTip text="Only partner-visible steps are shown here." />} />
+            <CardHeader title="What happens next" subtitle="Your next action" action={<InfoTip text="Only associate-visible steps are shown here." />} />
             <div className="muted">{nextStepText(commission, assignment)}</div>
           </Card>
         </div>

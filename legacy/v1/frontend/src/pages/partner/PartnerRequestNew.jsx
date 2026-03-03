@@ -204,7 +204,7 @@ export default function PartnerRequestNew() {
     <div>
       <PageHeader
         title={commissionId ? 'Edit Commission Request' : 'New Commission Request'}
-        subtitle="Share only partner-required details. Internal workflow stays private."
+        subtitle="Share only associate-required details. Internal workflow stays private."
       />
 
       {error ? <div className="empty" style={{ marginBottom: '0.9rem' }}>{error}</div> : null}

@@ -41,7 +41,7 @@ const TABS = [
   { key: 'banks', label: 'Banks' },
   { key: 'branches', label: 'Branches' },
   { key: 'clients', label: 'Clients' },
-  { key: 'partners', label: 'Partners' },
+  { key: 'partners', label: 'Associates' },
   { key: 'property', label: 'Property Types' },
   { key: 'subtypes', label: 'Property Subtypes' },
   { key: 'templates', label: 'Doc Templates' },
@@ -484,7 +484,7 @@ export default function AdminMasterData() {
     e.preventDefault()
     try {
       if (!partnerForm.display_name.trim()) {
-        setError('Partner name is required')
+        setError('Associate name is required')
         return
       }
       await createExternalPartner({
@@ -530,7 +530,7 @@ export default function AdminMasterData() {
       refresh()
     } catch (err) {
       console.error(err)
-      setError(toUserMessage(err, 'Failed to create partner'))
+      setError(toUserMessage(err, 'Failed to create associate'))
     }
   }
 
@@ -560,7 +560,7 @@ export default function AdminMasterData() {
       refresh()
     } catch (err) {
       console.error(err)
-      setError(toUserMessage(err, 'Failed to update partner'))
+      setError(toUserMessage(err, 'Failed to update associate'))
     }
   }
 
@@ -809,7 +809,7 @@ export default function AdminMasterData() {
         <Stat label="Banks" value={stats.banks} help="Active bank records in master data." />
         <Stat label="Branches" value={stats.branches} help="Branches tied to bank records." />
         <Stat label="Clients" value={stats.clients} help="Non-bank client accounts." />
-        <Stat label="Partners" value={stats.partners} help="External partner firms in master data." />
+        <Stat label="Associates" value={stats.partners} help="External associate firms in master data." />
         <Stat label="Doc Templates" value={stats.templates} tone="info" help="Checklist templates used for document requirements." />
         <Stat label="Subtypes" value={stats.subtypes} help="Property subtypes mapped to property types." />
         <Stat label="Calendar Labels" value={stats.calendar} help="Custom labels for calendar events." />
@@ -1189,7 +1189,7 @@ function PartnersTab({ partners, drafts, form, setForm, onDraftChange, onCreate,
       <form className="grid" onSubmit={onCreate}>
         <div className="grid cols-3">
           <input
-            placeholder="Partner firm name"
+            placeholder="Associate firm name"
             value={form.display_name}
             onChange={(e) => setForm((prev) => ({ ...prev, display_name: e.target.value }))}
           />
@@ -1311,13 +1311,13 @@ function PartnersTab({ partners, drafts, form, setForm, onDraftChange, onCreate,
           <input type="checkbox" checked={form.is_active} onChange={(e) => setForm((prev) => ({ ...prev, is_active: e.target.checked }))} />
           Active
         </label>
-        <button type="submit">Add Partner</button>
+        <button type="submit">Add Associate</button>
       </form>
 
       {loading ? (
         <DataTable loading columns={12} rows={6} />
       ) : partners.length === 0 ? (
-        <EmptyState>No partners yet.</EmptyState>
+        <EmptyState>No associates yet.</EmptyState>
       ) : (
         <DataTable>
           <table>

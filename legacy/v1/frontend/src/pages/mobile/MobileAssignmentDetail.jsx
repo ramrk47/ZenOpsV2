@@ -340,7 +340,7 @@ export default function MobileAssignmentDetail() {
                     onChange={(event) => setVisibleToClient(event.target.checked)}
                     disabled={!canComment || submittingComment}
                   />
-                  Visible to client/partner
+                  Visible to client/associate
                 </label>
               ) : null}
 

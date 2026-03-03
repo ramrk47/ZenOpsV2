@@ -159,7 +159,7 @@ export default function AdminApprovals() {
   }
 
   async function handleRejectCommission(commission) {
-    const reason = window.prompt('Rejection reason (visible to partner):') || ''
+    const reason = window.prompt('Rejection reason (visible to associate):') || ''
     try {
       const updated = await rejectAdminCommission(commission.id, { reason })
       setCommissions((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
@@ -250,7 +250,7 @@ export default function AdminApprovals() {
         <Card>
           <CardHeader
             title="External Requests Inbox"
-            subtitle="Commission requests submitted by external partners."
+            subtitle="Commission requests submitted by external associates."
             action={<Badge tone={openCommissions.length > 0 ? 'warn' : 'ok'}>{openCommissions.length} open</Badge>}
           />
           {loading ? (

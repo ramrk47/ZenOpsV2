@@ -152,7 +152,7 @@ export default function PartnerRequests() {
       <Card>
         <CardHeader
           title="Requests"
-          subtitle="Partner-facing status and next actions only."
+          subtitle="Associate-facing status and next actions only."
           action={<InfoTip text="Payment status updates after invoice requests and proof verification." />}
         />
 

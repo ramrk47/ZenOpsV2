@@ -55,7 +55,7 @@ export default function PartnerHome() {
         setNotifications(notifData)
       } catch (err) {
         console.error(err)
-        if (!cancelled) setError(toUserMessage(err, 'Failed to load partner dashboard'))
+        if (!cancelled) setError(toUserMessage(err, 'Failed to load associate dashboard'))
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -78,7 +78,7 @@ export default function PartnerHome() {
   return (
     <div>
       <PageHeader
-        title="Partner Console"
+        title="Associate Console"
         subtitle="Submit new commissions, respond to requests, and track payments in one place."
         actions={(
           <Link className="nav-link" to="/partner/requests/new">New Commission Request</Link>
@@ -88,7 +88,7 @@ export default function PartnerHome() {
       {error ? <div className="empty" style={{ marginBottom: '0.9rem' }}>{error}</div> : null}
 
       {loading ? (
-        <div className="muted">Loading partner dashboard…</div>
+        <div className="muted">Loading associate dashboard…</div>
       ) : (
         <>
           <PageGrid cols={{ base: 1, md: 2, lg: 3 }} style={{ marginBottom: '1rem' }}>

@@ -160,7 +160,7 @@ export default function AdminSystemConfig() {
               />
               Enable WhatsApp Support Bubble
               <small className="form-hint">
-                Shows floating WhatsApp button on external partner portal.
+                Shows floating WhatsApp button on external associate portal.
               </small>
             </label>
           </div>

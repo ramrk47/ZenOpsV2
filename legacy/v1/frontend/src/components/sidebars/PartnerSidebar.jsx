@@ -138,15 +138,15 @@ export default function PartnerSidebar() {
         {bubbleError ? <div className="muted" style={{ fontSize: 11 }}>{bubbleError}</div> : null}
 
         <div className="nav-section">
-          <div className="nav-title">Partner Portal</div>
+          <div className="nav-title">Associate Portal</div>
           {links.map(renderLink)}
         </div>
       </div>
 
       <div className="nav-footer">
-        <div style={{ fontWeight: 600 }}>{partnerName || user?.full_name || 'External Partner'}</div>
+        <div style={{ fontWeight: 600 }}>{partnerName || user?.full_name || 'External Associate'}</div>
         <div className="muted" style={{ marginTop: 2 }}>{user?.email}</div>
-        <div className="muted" style={{ marginTop: 2 }}>External Partner</div>
+        <div className="muted" style={{ marginTop: 2 }}>External Associate</div>
         <label className="nav-toggle">
           <input
             type="checkbox"

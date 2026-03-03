@@ -1411,7 +1411,7 @@ export default function AssignmentDetail() {
                               </Badge>
                               {doc.is_final && <Badge tone="ok">Final</Badge>}
                               {doc.visibility === 'PARTNER_RELEASED' && (
-                                <span style={{ fontSize: 11, color: 'var(--muted)' }}>👁️ Partner</span>
+                                <span style={{ fontSize: 11, color: 'var(--muted)' }}>👁️ Associate</span>
                               )}
                             </div>
                           </td>

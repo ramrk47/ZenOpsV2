@@ -28,7 +28,7 @@ export default function AdminPartnerRequests() {
   }
 
   async function handleApprove(id) {
-    if (!window.confirm('Approve this partner request? An account will be created.')) return
+    if (!window.confirm('Approve this associate request? An account will be created.')) return
     setActionLoading(id)
     try {
       await api.post(`/api/admin/partner-account-requests/${id}/approve`)
@@ -60,8 +60,8 @@ export default function AdminPartnerRequests() {
   return (
     <div>
       <PageHeader
-        title="Partner Access Requests"
-        subtitle="Review and approve external partner account requests."
+        title="Associate Access Requests"
+        subtitle="Review and approve external associate account requests."
         actions={
           <Badge tone={pending.length > 0 ? 'warn' : 'muted'}>
             {pending.length} pending

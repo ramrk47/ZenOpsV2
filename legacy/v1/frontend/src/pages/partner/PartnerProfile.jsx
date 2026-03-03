@@ -20,7 +20,7 @@ export default function PartnerProfile() {
         if (!cancelled) setProfile(data)
       } catch (err) {
         console.error(err)
-        if (!cancelled) setError(toUserMessage(err, 'Failed to load partner profile'))
+        if (!cancelled) setError(toUserMessage(err, 'Failed to load associate profile'))
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -34,7 +34,7 @@ export default function PartnerProfile() {
   return (
     <div>
       <PageHeader
-        title="Partner Profile"
+        title="Associate Profile"
         subtitle="Your firm information used for reports and invoicing."
       />
 
@@ -46,7 +46,7 @@ export default function PartnerProfile() {
         <EmptyState>Profile data unavailable.</EmptyState>
       ) : (
         <Card>
-          <CardHeader title={profile.display_name || 'Partner'} subtitle="Read-only firm details" />
+          <CardHeader title={profile.display_name || 'Associate'} subtitle="Read-only firm details" />
           <div className="grid cols-2">
             <div>
               <div className="kicker">Contact</div>

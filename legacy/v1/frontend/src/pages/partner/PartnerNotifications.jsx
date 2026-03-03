@@ -60,7 +60,7 @@ export default function PartnerNotifications() {
     <div>
       <PageHeader
         title="Notifications"
-        subtitle="Partner-visible updates only."
+        subtitle="Associate-visible updates only."
         actions={(
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <Badge tone={unreadCount > 0 ? 'warn' : 'ok'}>{unreadCount} unread</Badge>

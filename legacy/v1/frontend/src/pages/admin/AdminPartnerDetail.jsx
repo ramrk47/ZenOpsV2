@@ -39,7 +39,7 @@ export default function AdminPartnerDetail() {
         setCommissions(commissionData)
       } catch (err) {
         console.error(err)
-        if (!cancelled) setError(toUserMessage(err, 'Failed to load partner detail'))
+        if (!cancelled) setError(toUserMessage(err, 'Failed to load associate detail'))
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -61,8 +61,8 @@ export default function AdminPartnerDetail() {
     return (
       <div>
         <PageHeader
-          title="Partner"
-          subtitle="Loading partner overview."
+          title="Associate"
+          subtitle="Loading associate overview."
           actions={<Badge tone="info">Loading</Badge>}
         />
 
@@ -82,7 +82,7 @@ export default function AdminPartnerDetail() {
           </Card>
 
           <Card>
-            <CardHeader title="Bank/Branch Breakdown" subtitle="Assignments sourced by this partner." />
+            <CardHeader title="Bank/Branch Breakdown" subtitle="Assignments sourced by this associate." />
             <DataTable loading columns={6} rows={4} />
           </Card>
         </div>
@@ -90,7 +90,7 @@ export default function AdminPartnerDetail() {
     )
   }
   if (error) return <div className="empty">{error}</div>
-  if (!partner) return <EmptyState>Partner not found.</EmptyState>
+  if (!partner) return <EmptyState>Associate not found.</EmptyState>
 
   return (
     <div>
@@ -146,9 +146,9 @@ export default function AdminPartnerDetail() {
         </Card>
 
         <Card>
-          <CardHeader title="Bank/Branch Breakdown" subtitle="Assignments sourced by this partner." />
+          <CardHeader title="Bank/Branch Breakdown" subtitle="Assignments sourced by this associate." />
           {breakdown.length === 0 ? (
-            <EmptyState>No partner-linked assignments yet.</EmptyState>
+            <EmptyState>No associate-linked assignments yet.</EmptyState>
           ) : (
             <div className="table-wrap">
               <table>

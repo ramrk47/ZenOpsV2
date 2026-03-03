@@ -204,7 +204,7 @@ export default function AdminSidebar() {
   const configLinks = [
     { to: '/admin/support', label: 'Support Inbox', enabled: canSeeAdmin(capabilities) },
     { to: '/admin/system-config', label: 'System Config', enabled: canSeeAdmin(capabilities) },
-    { to: '/admin/partner-requests', label: 'Partner Requests', enabled: canSeeAdmin(capabilities) },
+    { to: '/admin/partner-requests', label: 'Associate Requests', enabled: canSeeAdmin(capabilities) },
     { to: '/admin/personnel', label: 'Personnel', enabled: canManageUsers(capabilities) },
     { to: '/admin/masterdata', label: 'Master Data', enabled: showMasterData },
     { to: '/admin/company', label: 'Company Accts', enabled: showCompanyAccounts },

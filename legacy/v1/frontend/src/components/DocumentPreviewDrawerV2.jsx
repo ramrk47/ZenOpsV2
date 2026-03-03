@@ -413,7 +413,7 @@ export default function DocumentPreviewDrawerV2({
                 {document.review_status?.replace(/_/g, ' ')}
               </span>
               {document.visibility === 'PARTNER_RELEASED' && (
-                <span className="badge" style={{ fontSize: '0.75rem' }}>👁️ Partner Visible</span>
+                <span className="badge" style={{ fontSize: '0.75rem' }}>👁️ Associate Visible</span>
               )}
               {commentsCount > 0 && (
                 <span className="badge info" style={{ fontSize: '0.75rem' }}>

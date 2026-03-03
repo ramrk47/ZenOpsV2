@@ -38,7 +38,7 @@ const CAPABILITY_OPTIONS = [
 
 const PERSONNEL_TABS = [
   { key: 'employees', label: 'Employees' },
-  { key: 'partners', label: 'Partners' },
+  { key: 'partners', label: 'Associates' },
 ]
 
 const FILTERS_KEY = 'zenops.personnel.filters.v1'
@@ -184,7 +184,7 @@ export default function AdminPersonnel() {
         setPartnerSummary(summaryData)
       } catch (err) {
         console.error(err)
-        if (!cancelled) setPartnerError(toUserMessage(err, 'Failed to load partners'))
+        if (!cancelled) setPartnerError(toUserMessage(err, 'Failed to load associates'))
       } finally {
         if (!cancelled) setPartnerLoading(false)
       }
@@ -453,11 +453,11 @@ export default function AdminPersonnel() {
     setPartnerNotice(null)
     try {
       if (!partnerForm.display_name.trim()) {
-        setPartnerError('Partner firm name is required')
+        setPartnerError('Associate firm name is required')
         return
       }
       if (!partnerForm.email.trim()) {
-        setPartnerError('Partner email is required for login')
+        setPartnerError('Associate email is required for login')
         return
       }
       const partnerPayload = {
@@ -512,12 +512,12 @@ export default function AdminPersonnel() {
         password: 'password',
         is_active: true,
       })
-      setPartnerNotice('Partner firm and account created.')
+      setPartnerNotice('Associate firm and account created.')
       setPartnerReloadKey((k) => k + 1)
       setReloadKey((k) => k + 1)
     } catch (err) {
       console.error(err)
-      setPartnerError(toUserMessage(err, 'Failed to create partner account'))
+      setPartnerError(toUserMessage(err, 'Failed to create associate account'))
     }
   }
 
@@ -527,7 +527,7 @@ export default function AdminPersonnel() {
       setPartners((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
     } catch (err) {
       console.error(err)
-      setPartnerError(toUserMessage(err, 'Failed to update partner status'))
+      setPartnerError(toUserMessage(err, 'Failed to update associate status'))
     }
   }
 
@@ -537,7 +537,7 @@ export default function AdminPersonnel() {
       setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, is_active: updated.is_active } : u)))
     } catch (err) {
       console.error(err)
-      setPartnerError(toUserMessage(err, 'Failed to update partner user status'))
+      setPartnerError(toUserMessage(err, 'Failed to update associate user status'))
     }
   }
 
@@ -685,7 +685,7 @@ export default function AdminPersonnel() {
       <PageHeader
         title="Personnel"
         subtitle={activeTab === 'partners'
-          ? 'Manage external partner firms, accounts, and activity.'
+          ? 'Manage external associate firms, accounts, and activity.'
           : 'Manage roles, access, and workload visibility across the firm.'}
         actions={activeTab === 'partners'
           ? <Badge tone="info">{partnerStats.active} active</Badge>
@@ -715,9 +715,9 @@ export default function AdminPersonnel() {
         </>
       ) : (
         <div className="grid cols-3" style={{ marginBottom: '0.9rem' }}>
-          <Stat label="Partners" value={partnerStats.total} help="Total partner firms." />
-          <Stat label="Active Partners" value={partnerStats.active} tone="ok" help="Active partner firms able to submit requests." />
-          <Stat label="Outstanding" value={formatMoney(partnerStats.unpaidTotal)} tone="warn" help="Total unpaid invoice exposure across partners." />
+          <Stat label="Associates" value={partnerStats.total} help="Total associate firms." />
+          <Stat label="Active Associates" value={partnerStats.active} tone="ok" help="Active associate firms able to submit requests." />
+          <Stat label="Outstanding" value={formatMoney(partnerStats.unpaidTotal)} tone="warn" help="Total unpaid invoice exposure across associates." />
         </div>
       )}
 
@@ -1165,8 +1165,8 @@ export default function AdminPersonnel() {
         <div className="grid" style={{ gap: '1rem' }}>
           <Card>
             <CardHeader
-              title="Partner Firms"
-              subtitle="External partner organizations and relationship metrics."
+              title="Associate Firms"
+              subtitle="External associate organizations and relationship metrics."
               action={<button type="button" className="secondary" onClick={() => setPartnerReloadKey((k) => k + 1)}>Refresh</button>}
             />
             <div className="filter-shell" style={{ marginBottom: '0.8rem' }}>
@@ -1216,7 +1216,7 @@ export default function AdminPersonnel() {
             {partnerLoading ? (
               <DataTable loading columns={9} rows={6} />
             ) : filteredPartners.length === 0 ? (
-              <EmptyState>No partner firms yet.</EmptyState>
+              <EmptyState>No associate firms yet.</EmptyState>
             ) : (
               <DataTable>
                 <table className="personnel-table">
@@ -1276,13 +1276,13 @@ export default function AdminPersonnel() {
 
           <Card>
             <CardHeader
-              title="Partner Accounts"
-              subtitle="Login accounts tied to partner firms."
+              title="Associate Accounts"
+              subtitle="Login accounts tied to associate firms."
             />
             {loading ? (
               <DataTable loading columns={5} rows={5} />
             ) : partnerUsers.length === 0 ? (
-              <EmptyState>No partner accounts yet.</EmptyState>
+              <EmptyState>No associate accounts yet.</EmptyState>
             ) : (
               <DataTable>
                 <table className="personnel-table">
@@ -1328,8 +1328,8 @@ export default function AdminPersonnel() {
 
           <Card>
             <CardHeader
-              title="Create Partner Account"
-              subtitle="Add a partner firm and provision login access."
+              title="Create Associate Account"
+              subtitle="Add an associate firm and provision login access."
             />
             <form className="grid" onSubmit={handleCreatePartner}>
               <label className="grid" style={{ gap: 6 }}>
@@ -1423,7 +1423,7 @@ export default function AdminPersonnel() {
                 <input type="checkbox" checked={partnerForm.is_active} onChange={(e) => setPartnerForm((prev) => ({ ...prev, is_active: e.target.checked }))} />
                 <span>Active</span>
               </label>
-              <button type="submit">Create Partner</button>
+              <button type="submit">Create Associate</button>
             </form>
           </Card>
         </div>
