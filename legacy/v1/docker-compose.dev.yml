@@ -24,11 +24,7 @@ services:
     environment:
       PYTHONPATH: /app
     volumes:
-      - ./backend/app:/app/app
-      - ./backend/alembic:/app/alembic
-      - ./backend/alembic.ini:/app/alembic.ini
-      - ./backend/scripts:/app/scripts
-      - ./backend/tests:/app/tests
+      - ./backend:/app
       - ./uploads:/app/uploads
     ports:
       - "8000:8000"
@@ -42,10 +38,7 @@ services:
     env_file:
       - .env.backend
     volumes:
-      - ./backend/app:/app/app
-      - ./backend/alembic:/app/alembic
-      - ./backend/alembic.ini:/app/alembic.ini
-      - ./backend/scripts:/app/scripts
+      - ./backend:/app
     depends_on:
       - db
 
