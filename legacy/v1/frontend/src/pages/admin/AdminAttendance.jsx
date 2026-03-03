@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { fetchAttendance, exportAttendanceCsvUrl } from '../../api/attendance'
+import { fetchAttendance, exportAttendanceCsv } from '../../api/attendance'
 import api from '../../api/client'
 import PageHeader from '../../components/ui/PageHeader'
 import { Card, CardHeader } from '../../components/ui/Card'
@@ -29,25 +29,21 @@ export default function AdminAttendance() {
       .finally(() => setLoading(false))
   }, [filters])
 
-  function handleExport() {
-    const url = exportAttendanceCsvUrl({
-      userId: filters.userId || undefined,
-      fromDate: filters.fromDate || undefined,
-      toDate: filters.toDate || undefined,
-    })
-    const token = localStorage.getItem('token')
-    const base = api.defaults.baseURL || ''
-    const fullUrl = `${base}${url}`
-    fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.blob())
-      .then((blob) => {
-        const a = document.createElement('a')
-        a.href = URL.createObjectURL(blob)
-        a.download = 'attendance.csv'
-        a.click()
-        URL.revokeObjectURL(a.href)
+  async function handleExport() {
+    try {
+      const blob = await exportAttendanceCsv({
+        userId: filters.userId || undefined,
+        fromDate: filters.fromDate || undefined,
+        toDate: filters.toDate || undefined,
       })
-      .catch(() => alert('Export failed'))
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = 'attendance.csv'
+      a.click()
+      URL.revokeObjectURL(a.href)
+    } catch {
+      alert('Export failed')
+    }
   }
 
   const userMap = Object.fromEntries(users.map((u) => [u.id, u]))

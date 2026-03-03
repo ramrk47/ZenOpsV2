@@ -7,14 +7,17 @@ Last updated: 2026-03-03
 - Regenerated `docs/openapi.json` from live FastAPI app routes.
 - Verified contract snapshot health:
   - `python3 scripts/contract_check.py`
-  - Result: `Scanned 229 call sites. Mismatches: 0`
+  - Result: `Scanned 230 call sites. Mismatches: 0`
 
 ## Phase 0.2 - Frontend API Client Consistency
 - Removed non-canonical axios usage from:
   - `frontend/src/pages/AdminDashboard.jsx`
   - `frontend/src/pages/PartnerRequestAccess.jsx`
   - `frontend/src/components/ErrorBoundary.jsx`
-- Standardized all three to use shared `frontend/src/api/client.js` client wrappers/interceptors.
+- Removed remaining raw `fetch` auth bypass in attendance export:
+  - `frontend/src/pages/admin/AdminAttendance.jsx`
+  - `frontend/src/api/attendance.js`
+- Standardized updated callsites to use shared `frontend/src/api/client.js` client wrappers/interceptors.
 - Verified remaining axios usage is centralized in `frontend/src/core/api/client.js`.
 
 ## Phase 0.3 - Support Resolve Timestamp Persistence

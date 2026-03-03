@@ -20,6 +20,7 @@ The format is based on Keep a Changelog, and this project adheres to Conventiona
 - CORS and JWT safety checks for production startup validation.
 - Regenerated `docs/openapi.json` to align with current FastAPI routes (including bridge-token and mobile endpoints).
 - Frontend API calls now consistently use the shared API client/interceptors (no rogue local axios instances).
+- Attendance CSV export now uses shared API client transport instead of raw fetch/manual auth headers.
 - User-facing terminology updated from Partner to Associate across navigation, headings, and admin/portal labels.
 
 ### Fixed

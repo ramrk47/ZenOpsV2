@@ -1,18 +1,24 @@
 import api from './client'
 
-export async function fetchAttendance({ userId, fromDate, toDate } = {}) {
-  const params = new URLSearchParams()
-  if (userId) params.set('user_id', userId)
-  if (fromDate) params.set('from_date', fromDate)
-  if (toDate) params.set('to_date', toDate)
-  const res = await api.get(`/api/attendance?${params}`)
-  return res.data
+function buildAttendanceParams({ userId, fromDate, toDate } = {}) {
+  const params = {}
+  if (userId) params.user_id = userId
+  if (fromDate) params.from_date = fromDate
+  if (toDate) params.to_date = toDate
+  return params
 }
 
-export function exportAttendanceCsvUrl({ userId, fromDate, toDate } = {}) {
-  const params = new URLSearchParams()
-  if (userId) params.set('user_id', userId)
-  if (fromDate) params.set('from_date', fromDate)
-  if (toDate) params.set('to_date', toDate)
-  return `/api/attendance/export?${params}`
+export async function fetchAttendance({ userId, fromDate, toDate } = {}) {
+  const { data } = await api.get('/api/attendance', {
+    params: buildAttendanceParams({ userId, fromDate, toDate }),
+  })
+  return data
+}
+
+export async function exportAttendanceCsv({ userId, fromDate, toDate } = {}) {
+  const response = await api.get('/api/attendance/export', {
+    params: buildAttendanceParams({ userId, fromDate, toDate }),
+    responseType: 'blob',
+  })
+  return response.data
 }
