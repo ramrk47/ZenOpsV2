@@ -76,6 +76,33 @@ Verification run:
 - `npm --prefix frontend run build`: PASS
 - `docker compose ... run --rm backend pytest ...`: BLOCKED in this environment because backend image does not include `backend/tests` paths by default.
 
+## Phase 6 - Associate Self-Onboarding (Mode-Based, Email-Verified)
+- Added onboarding mode controls in backend settings:
+  - `ASSOCIATE_ONBOARDING_MODE` (`INVITE_ONLY`, `REQUEST_ACCESS_REVIEW`, `REQUEST_ACCESS_AUTO_APPROVE`)
+  - `ASSOCIATE_EMAIL_VERIFY_REQUIRED`
+  - `ASSOCIATE_VERIFY_TOKEN_TTL_MINUTES`
+  - `ASSOCIATE_AUTO_APPROVE_DOMAINS`
+  - `ASSOCIATE_AUTO_APPROVE_MAX_PER_DAY`
+- Added migration `0041_phase6_associate_self_onboarding` to extend `partner_account_requests` with:
+  - `city`, `role_intent`, `requested_interface`, `metadata_json`
+  - `token_expires_at`, `token_consumed_at`
+  - `approved_at`
+- Updated onboarding backend flow:
+  - `POST /api/partner/request-access` now mode-aware and email-verification-first by default.
+  - Added `POST /api/partner/verify-access-token` (retained `/api/partner/verify` alias).
+  - Added `POST /api/partner/resend-verification`.
+  - Auto-approve path now provisions associate account/profile after successful verification.
+- Updated frontend onboarding UX:
+  - `PartnerRequestAccess.jsx` now posts richer payload and routes to new `/partner/request-access/sent`.
+  - Added `PartnerRequestAccessSent.jsx` with resend-verification action.
+  - `PartnerVerifyAccess.jsx` now calls `/api/partner/verify-access-token` and surfaces activation/review outcomes.
+- Admin associate requests page now treats `PENDING_EMAIL_VERIFY` / `VERIFIED_PENDING_REVIEW` as pending review states.
+- Added/updated backend tests in `backend/tests/test_phase6_onboarding.py` for:
+  - pending request creation + verification mail
+  - one-time token consumption
+  - auto-approve provisioning
+  - review-mode approval invite and partner RBAC isolation
+
 ## Phase 8.6 - Stabilization Patchset (Console-Clean + Guardrails)
 - P1-A DOM nesting warning on `/assignments` KPI tiles:
   - Updated `frontend/src/components/ui/KpiTile.jsx` to render `InfoTip` as non-button when tile is clickable.

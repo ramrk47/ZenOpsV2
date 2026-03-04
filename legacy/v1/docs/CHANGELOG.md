@@ -22,6 +22,10 @@ The format is based on Keep a Changelog, and this project adheres to Conventiona
   - `docs/seed/service_lines.seed.json`
   - `docs/seed/service_line_policies.seed.json`
 - Service line master-data APIs under `/api/master/service-lines` and `/api/master/service-line-policies`.
+- Phase 6 associate onboarding guide: `docs/PHASE6_ASSOCIATE_ONBOARDING.md`.
+- Public onboarding endpoint `POST /api/partner/verify-access-token` with backward-compatible alias `/api/partner/verify`.
+- Public onboarding helper endpoint `POST /api/partner/resend-verification`.
+- Alembic migration `0041_phase6_associate_self_onboarding` for onboarding lifecycle fields.
 
 ### Changed
 - Reverse proxy configuration to preserve `/api` paths and support localhost HTTP/HTTPS.
@@ -37,6 +41,8 @@ The format is based on Keep a Changelog, and this project adheres to Conventiona
   - admin-only assignment payment preference fields.
 - New Assignment UI now renders land detail blocks from service-line policy, restores create-time document upload, and supports admin override controls.
 - Admin Master Data page now includes Service Lines tab with policy JSON editing.
+- Associate onboarding now supports mode-based behavior (`INVITE_ONLY`, `REQUEST_ACCESS_REVIEW`, `REQUEST_ACCESS_AUTO_APPROVE`).
+- Public request-access UX now routes to `/partner/request-access/sent` with resend-verification support.
 
 ### Fixed
 - Frontend API base handling to avoid double `/api` pathing.
@@ -45,3 +51,5 @@ The format is based on Keep a Changelog, and this project adheres to Conventiona
 
 ### Security
 - Login rate limiting based on ActivityLog window and IP/email tracking.
+- Associate onboarding verification tokens are one-time, hashed, and TTL-bound.
+- Associate onboarding verify/resend endpoints now enforce DB-backed rate limits.
