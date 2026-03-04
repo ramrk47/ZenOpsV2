@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Iterable, List, Optional
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, JSON, String, or_, type_coerce
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, JSON, String, cast, or_
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -144,9 +144,9 @@ class User(IDMixin, TimestampMixin, Base):
 
     @classmethod
     def has_role(cls, role: Role):
-        # Use generic JSON containment expression so SQLite test DBs do not
-        # emit PostgreSQL-only operators like "@>".
-        roles_expr = type_coerce(cls.roles, JSON).contains([role.value])
+        # Force JSONB comparator for PostgreSQL so this compiles to @>,
+        # not text LIKE against JSONB.
+        roles_expr = cast(cls.roles, JSONB).contains([role.value])
         return or_(cls.role == role, roles_expr)
 
     @classmethod
