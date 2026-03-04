@@ -122,7 +122,7 @@ export default function AdminSidebar() {
     },
     {
       key: 'approvals',
-      label: 'Approvals',
+      label: 'Requests',
       icon: '📝',
       count: bubbles.approvals,
       to: '/admin/approvals',
@@ -184,7 +184,7 @@ export default function AdminSidebar() {
   ].filter((l) => l.enabled)
 
   const reviewLinks = [
-    { to: '/admin/approvals', label: 'Approvals', enabled: canApprove },
+    { to: '/admin/approvals', label: 'Requests', enabled: canApprove },
     { to: '/admin/activity', label: 'Activity', enabled: canSeeAdmin(capabilities) },
     { to: '/admin/billing-monitor', label: 'Billing Monitor', enabled: canSeeAdmin(capabilities) },
     { to: '/admin/notification-deliveries', label: 'Email Deliveries', enabled: canSeeAdmin(capabilities) },

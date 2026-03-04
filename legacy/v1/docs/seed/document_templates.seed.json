@@ -1,0 +1,77 @@
+{
+  "schema_version": "v1",
+  "template_groups": [
+    {
+      "key": "VALUATION_CORE",
+      "label": "Valuation Core Pack",
+      "applies_to_service_lines": ["VALUATION_LB", "VALUATION_PLOT", "VALUATION_AGRI", "HOME_LOAN"],
+      "slots": [
+        { "category": "REQUEST_LETTER", "label": "Bank/Request Letter", "required": true, "max_files": 1 },
+        { "category": "TITLE_DEED", "label": "Title Deed / Sale Deed", "required": true, "max_files": 3 },
+        { "category": "EC", "label": "Encumbrance Certificate (EC)", "required": true, "max_files": 2 },
+        { "category": "SITE_PHOTOS", "label": "Site Photos", "required": true, "max_files": 30 },
+        { "category": "LOCATION_MAP", "label": "Google Map / Location Screenshot", "required": true, "max_files": 5 },
+        { "category": "GUIDELINE_SCREENSHOT", "label": "Guideline Value Screenshot", "required": true, "max_files": 5 },
+
+        { "category": "KHATA", "label": "Khata / E-Khata", "required": false, "max_files": 2 },
+        { "category": "TAX_RECEIPT", "label": "Tax Receipt", "required": false, "max_files": 2 },
+        { "category": "AADHAR", "label": "Aadhaar (KYC)", "required": false, "max_files": 2 },
+        { "category": "PAN", "label": "PAN (KYC)", "required": false, "max_files": 2 },
+        { "category": "OTHER", "label": "Other Supporting Docs", "required": false, "max_files": 10 }
+      ]
+    },
+    {
+      "key": "SURVEY_BLOCK",
+      "label": "Survey Records (when SURVEY_ROWS enabled)",
+      "requires_land_blocks": ["SURVEY_ROWS"],
+      "slots": [
+        { "category": "RTC", "label": "RTC / Record of Rights", "required": true, "max_files": 5 },
+        { "category": "MUTATION", "label": "Mutation / MR Extract", "required": true, "max_files": 5 },
+        { "category": "PAHANI", "label": "Pahani / Phani", "required": false, "max_files": 5 },
+        { "category": "TIPPANI", "label": "Tippani", "required": false, "max_files": 3 },
+        { "category": "PT_SHEET", "label": "PT Sheet / Atlas", "required": false, "max_files": 3 },
+        { "category": "A_KHARAB", "label": "A-Kharab Details", "required": false, "max_files": 3 }
+      ]
+    },
+    {
+      "key": "BUILTUP_BLOCK",
+      "label": "Building Records (when BUILT_UP enabled)",
+      "requires_land_blocks": ["BUILT_UP"],
+      "slots": [
+        { "category": "PLAN_APPROVAL", "label": "Sanction Plan / Approval", "required": true, "max_files": 3 },
+        { "category": "BUILDING_PLAN", "label": "Building Plan / Drawing", "required": false, "max_files": 5 },
+        { "category": "ESTIMATE", "label": "Estimate / BOQ", "required": false, "max_files": 5 },
+        { "category": "COMPLETION_CERT", "label": "Completion Certificate", "required": false, "max_files": 2 },
+        { "category": "OCCUPANCY_CERT", "label": "Occupancy Certificate", "required": false, "max_files": 2 }
+      ]
+    },
+    {
+      "key": "PROGRESS_COMPLETION_PACK",
+      "label": "Progress/Completion Pack",
+      "applies_to_service_lines": ["PROGRESS_COMPLETION"],
+      "slots": [
+        { "category": "REQUEST_LETTER", "label": "Request / Work Order", "required": true, "max_files": 1 },
+        { "category": "SITE_PHOTOS", "label": "Progress Photos", "required": true, "max_files": 40 },
+        { "category": "LOCATION_MAP", "label": "Location Screenshot", "required": false, "max_files": 5 },
+        { "category": "PLAN_APPROVAL", "label": "Sanction Plan / Approval", "required": true, "max_files": 3 },
+        { "category": "ESTIMATE", "label": "Estimate / BOQ", "required": false, "max_files": 5 },
+        { "category": "OTHER", "label": "Other Proofs", "required": false, "max_files": 10 }
+      ]
+    },
+    {
+      "key": "PROJECT_REPORT_PACK",
+      "label": "Project Report Pack",
+      "applies_to_service_lines": ["PROJECT_REPORT", "LAND_DEVELOPMENT", "DCC", "OTHERS"],
+      "slots": [
+        { "category": "REQUEST_LETTER", "label": "Request / Requirement Note", "required": true, "max_files": 1 },
+        { "category": "TITLE_DEED", "label": "Basic Ownership Proof", "required": true, "max_files": 3 },
+        { "category": "EC", "label": "Encumbrance Certificate", "required": false, "max_files": 2 },
+        { "category": "LOCATION_MAP", "label": "Location Screenshot", "required": true, "max_files": 5 },
+        { "category": "PLAN_APPROVAL", "label": "Approvals (if any)", "required": false, "max_files": 5 },
+        { "category": "ESTIMATE", "label": "Estimate / BOQ", "required": false, "max_files": 5 },
+        { "category": "SITE_PHOTOS", "label": "Site Photos (if any)", "required": false, "max_files": 30 },
+        { "category": "OTHER", "label": "Other Inputs", "required": false, "max_files": 15 }
+      ]
+    }
+  ]
+}

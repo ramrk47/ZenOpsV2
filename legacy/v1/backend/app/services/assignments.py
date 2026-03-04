@@ -17,6 +17,12 @@ from app.models.enums import AssignmentStatus, CaseType, NotificationType, Role
 from app.models.master import DocumentChecklistTemplate, PropertySubtype, ServiceLineMaster
 from app.models.user import User
 from app.schemas.assignment import AssignmentFloorCreate, AssignmentLandSurveyCreate, DueInfo
+from app.services.checklist_rules_loader import (
+    active_land_blocks,
+    build_checklist_for_service_line,
+    category_label_map,
+    resolve_service_line_key,
+)
 from app.services.notifications import create_notification, create_notification_if_absent, notify_roles, notify_roles_if_absent
 from app.utils import sla
 
@@ -124,15 +130,39 @@ def _specificity_score(template: DocumentChecklistTemplate) -> int:
     return score
 
 
-def get_required_document_categories(db: Session, assignment: Assignment) -> list[str]:
+def _applicable_templates(db: Session, assignment: Assignment) -> list[DocumentChecklistTemplate]:
     templates: Iterable[DocumentChecklistTemplate] = db.query(DocumentChecklistTemplate).all()
     applicable = [t for t in templates if _template_matches(assignment, t)]
-
-    # Prefer more specific templates first; keep order stable.
     applicable.sort(key=_specificity_score, reverse=True)
+    return applicable
+
+
+def _policy_driven_categories(assignment: Assignment) -> dict[str, list[str]] | None:
+    service_line_key = resolve_service_line_key(
+        assignment.service_line_master.key if assignment.service_line_master else None,
+        assignment.service_line.value if assignment.service_line else None,
+    )
+    if not service_line_key:
+        return None
+    policy = effective_land_policy(assignment.service_line_master, assignment.land_policy_override_json)
+    blocks = active_land_blocks(policy)
+    categories = build_checklist_for_service_line(service_line_key, blocks)
+    if not categories.get("required") and not categories.get("optional"):
+        return None
+    return categories
+
+
+def get_required_document_categories(db: Session, assignment: Assignment) -> list[str]:
+    policy_categories = _policy_driven_categories(assignment)
+    if policy_categories is not None:
+        return list(policy_categories.get("required") or [])
+
+    applicable = _applicable_templates(db, assignment)
 
     categories: "OrderedDict[str, None]" = OrderedDict()
     for template in applicable:
+        if not template.required:
+            continue
         categories.setdefault(template.category.strip(), None)
 
     if categories:
@@ -144,11 +174,51 @@ def get_required_document_categories(db: Session, assignment: Assignment) -> lis
     return ["Client Request", "Photos", "Draft Report", "Final Report"]
 
 
-def compute_missing_document_categories(db: Session, assignment: Assignment) -> list[str]:
+def get_optional_document_categories(db: Session, assignment: Assignment) -> list[str]:
+    policy_categories = _policy_driven_categories(assignment)
+    if policy_categories is not None:
+        return [c for c in policy_categories.get("optional") or [] if c not in (policy_categories.get("required") or [])]
+
+    applicable = _applicable_templates(db, assignment)
+    categories: "OrderedDict[str, None]" = OrderedDict()
     required = set(get_required_document_categories(db, assignment))
-    present = {d.category for d in assignment.documents if d.category}
-    missing = sorted(required - present)
-    return missing
+    for template in applicable:
+        category = template.category.strip()
+        if not category or template.required or category in required:
+            continue
+        categories.setdefault(category, None)
+    return list(categories.keys())
+
+
+def compute_document_checklist(db: Session, assignment: Assignment) -> dict[str, Any]:
+    required = get_required_document_categories(db, assignment)
+    optional = [c for c in get_optional_document_categories(db, assignment) if c not in required]
+    present = sorted({d.category for d in assignment.documents if d.category})
+    present_set = set(present)
+
+    missing_required = sorted(set(required) - present_set)
+    missing_optional = sorted(set(optional) - present_set)
+    missing = sorted(set(missing_required + missing_optional))
+
+    labels = category_label_map()
+    visible_categories = sorted(set(required + optional + present))
+    category_labels = {category: labels.get(category, category.replace("_", " ").title()) for category in visible_categories}
+
+    return {
+        "required_categories": required,
+        "optional_categories": optional,
+        "present_categories": present,
+        "missing_required_categories": missing_required,
+        "missing_optional_categories": missing_optional,
+        "missing_categories": missing,
+        "missing_required_count": len(missing_required),
+        "category_labels": category_labels,
+    }
+
+
+def compute_missing_document_categories(db: Session, assignment: Assignment) -> list[str]:
+    checklist = compute_document_checklist(db, assignment)
+    return list(checklist["missing_required_categories"])
 
 
 def get_assignment_assignee_ids(assignment: Assignment, *, include_primary: bool = True) -> list[int]:

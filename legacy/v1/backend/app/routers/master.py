@@ -23,6 +23,7 @@ from app.models.master import (
     ServiceLinePolicy,
 )
 from app.models.partner import ExternalPartner
+from app.models.enums import Role
 from app.models.user import User
 from app.schemas.master import (
     BankCreate,
@@ -59,6 +60,13 @@ from app.schemas.master import (
     ServiceLineUpdate,
 )
 from app.schemas.partner import ExternalPartnerCreate, ExternalPartnerRead, ExternalPartnerUpdate
+from app.services.checklist_rules_loader import (
+    active_land_blocks,
+    build_checklist_for_service_line,
+    category_label_map,
+    get_checklist_rules_snapshot,
+    get_document_template_slots,
+)
 
 router = APIRouter(prefix="/api/master", tags=["master-data"])
 
@@ -71,6 +79,11 @@ def _require_master_manage(user: User) -> None:
 def _require_company_manage(user: User) -> None:
     if not rbac.can_manage_company_accounts(user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorised to manage company accounts")
+
+
+def _require_internal_user(user: User) -> None:
+    if rbac.user_has_role(user, Role.EXTERNAL_PARTNER):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorised for internal master data")
 
 
 def _get_or_404(db: Session, model, obj_id: int, name: str):
@@ -129,6 +142,13 @@ def _normalize_policy_json(policy_json: Optional[dict]) -> dict:
     if notes is not None:
         normalized["notes"] = str(notes)
     return normalized
+
+
+def _parse_blocks(raw_blocks: Optional[str], policy_json: Optional[dict] = None) -> list[str]:
+    if raw_blocks:
+        values = [part.strip().upper() for part in raw_blocks.split(",") if part.strip()]
+        return [value for value in values if value in LAND_POLICY_BLOCKS]
+    return active_land_blocks(policy_json or {})
 
 
 def _service_line_read(service_line: ServiceLineMaster) -> ServiceLineRead:
@@ -569,6 +589,71 @@ def update_service_line_policy(
         service_line_name=service_line.name,
         policy_json=policy.policy_json,
     )
+
+
+@router.get("/document-categories", response_model=dict)
+def list_document_categories(
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    _require_internal_user(current_user)
+    snapshot = get_checklist_rules_snapshot()
+    return snapshot.get("categories", {})
+
+
+@router.get("/checklist-rules", response_model=dict)
+def get_checklist_rules(
+    service_line_key: Optional[str] = Query(None),
+    blocks: Optional[str] = Query(None, description="Comma-separated land policy blocks"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    _require_internal_user(current_user)
+
+    snapshot = get_checklist_rules_snapshot()
+    if not service_line_key:
+        return snapshot
+
+    normalized_key = service_line_key.strip().upper()
+    service_line = (
+        db.query(ServiceLineMaster)
+        .filter(ServiceLineMaster.key == normalized_key)
+        .first()
+    )
+    resolved_blocks = _parse_blocks(blocks, service_line.policy.policy_json if service_line and service_line.policy else None)
+    merged = build_checklist_for_service_line(normalized_key, resolved_blocks)
+    labels = category_label_map()
+    categories = sorted(set(merged.get("required", []) + merged.get("optional", [])))
+    category_labels = {category: labels.get(category, category.replace("_", " ").title()) for category in categories}
+    return {
+        "service_line_key": normalized_key,
+        "blocks": resolved_blocks,
+        "required_categories": merged.get("required", []),
+        "optional_categories": merged.get("optional", []),
+        "category_labels": category_labels,
+    }
+
+
+@router.get("/document-template-slots", response_model=dict)
+def get_document_template_slots_endpoint(
+    service_line_key: str = Query(...),
+    blocks: Optional[str] = Query(None, description="Comma-separated land policy blocks"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    _require_internal_user(current_user)
+    normalized_key = service_line_key.strip().upper()
+    service_line = (
+        db.query(ServiceLineMaster)
+        .filter(ServiceLineMaster.key == normalized_key)
+        .first()
+    )
+    resolved_blocks = _parse_blocks(blocks, service_line.policy.policy_json if service_line and service_line.policy else None)
+    slots = get_document_template_slots(normalized_key, resolved_blocks)
+    return {
+        "service_line_key": normalized_key,
+        "blocks": resolved_blocks,
+        "slots": slots,
+    }
 
 
 # Company accounts

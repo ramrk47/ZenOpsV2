@@ -67,7 +67,7 @@ export default function AdminOpenQueue() {
       <div className="grid cols-3" style={{ marginBottom: '0.9rem' }}>
         <Stat label="Unassigned Assignments" value={stats.unassigned} tone={stats.unassigned > 0 ? 'warn' : 'ok'} help="Assignments without a primary assignee." loading={loading} />
         <Stat label="Blocked Tasks" value={stats.blocked} tone={stats.blocked > 0 ? 'danger' : 'ok'} help="Tasks marked blocked that need escalation." loading={loading} />
-        <Stat label="Approvals Pending" value={stats.approvals} tone={stats.approvals > 0 ? 'info' : 'ok'} help="Approvals waiting in your inbox." loading={loading} />
+        <Stat label="Requests Pending" value={stats.approvals} tone={stats.approvals > 0 ? 'info' : 'ok'} help="Approval requests waiting in your inbox." loading={loading} />
       </div>
 
       {loading ? (
@@ -81,7 +81,7 @@ export default function AdminOpenQueue() {
             <ListSkeleton rows={4} />
           </Card>
           <Card>
-            <CardHeader title="Approvals Pending" subtitle="Requests waiting for decisions." />
+            <CardHeader title="Requests Pending" subtitle="Approval requests waiting for decisions." />
             <ListSkeleton rows={4} />
           </Card>
         </div>
@@ -133,7 +133,7 @@ export default function AdminOpenQueue() {
           </Card>
 
           <Card>
-            <CardHeader title="Approvals Pending" subtitle="Requests waiting for decisions." action={<Link to="/admin/approvals" className="nav-link">Open Inbox</Link>} />
+            <CardHeader title="Requests Pending" subtitle="Approval requests waiting for decisions." action={<Link to="/admin/approvals" className="nav-link">Open Requests</Link>} />
             {approvals.length === 0 ? (
               <EmptyState>No approvals pending.</EmptyState>
             ) : (

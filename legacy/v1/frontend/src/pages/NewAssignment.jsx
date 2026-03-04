@@ -14,6 +14,7 @@ import {
   fetchClients,
   fetchPropertyTypes,
   fetchPropertySubtypes,
+  fetchDocumentTemplateSlots,
   fetchServiceLinePolicies,
   fetchServiceLines,
 } from '../api/master'
@@ -106,6 +107,8 @@ export default function NewAssignment() {
   const [propertySubtypes, setPropertySubtypes] = useState([])
   const [serviceLines, setServiceLines] = useState([])
   const [serviceLinePolicies, setServiceLinePolicies] = useState([])
+  const [templateSlots, setTemplateSlots] = useState([])
+  const [slotFiles, setSlotFiles] = useState({})
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -250,6 +253,45 @@ export default function NewAssignment() {
 
   const effectivePolicy = overrideEnabled && canManageAdminPrefs ? normalizePolicy(overridePolicy) : basePolicy
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadTemplateSlots() {
+      if (!selectedServiceLine?.key) {
+        setTemplateSlots([])
+        setSlotFiles({})
+        return
+      }
+      try {
+        const blocks = [...(effectivePolicy?.requires || []), ...(effectivePolicy?.optional || [])].join(',')
+        const response = await fetchDocumentTemplateSlots({
+          serviceLineKey: selectedServiceLine.key,
+          blocks: blocks || undefined,
+        })
+        if (cancelled) return
+        const slots = response?.slots || []
+        setTemplateSlots(slots)
+        setSlotFiles((prev) => {
+          const next = {}
+          slots.forEach((slot) => {
+            next[slot.category] = prev[slot.category] || []
+          })
+          return next
+        })
+      } catch (_err) {
+        if (!cancelled) {
+          setTemplateSlots([])
+          setSlotFiles({})
+        }
+      }
+    }
+
+    loadTemplateSlots()
+    return () => {
+      cancelled = true
+    }
+  }, [selectedServiceLine?.key, effectivePolicy])
+
   const filteredBranches = useMemo(() => {
     if (!form.bank_id) return branches
     return branches.filter((branch) => String(branch.bank_id) === String(form.bank_id))
@@ -279,6 +321,8 @@ export default function NewAssignment() {
   const showNormalLand = policyBlockEnabled(effectivePolicy, 'NORMAL_LAND')
   const showSurveyRows = policyBlockEnabled(effectivePolicy, 'SURVEY_ROWS')
   const showBuiltUp = policyBlockEnabled(effectivePolicy, 'BUILT_UP')
+  const requiredSlots = useMemo(() => templateSlots.filter((slot) => slot.required), [templateSlots])
+  const optionalSlots = useMemo(() => templateSlots.filter((slot) => !slot.required), [templateSlots])
 
   function updateForm(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -366,6 +410,11 @@ export default function NewAssignment() {
     setInitialDocs((prev) => prev.filter((_, i) => i !== index))
   }
 
+  function updateSlotFiles(category, fileList) {
+    const files = Array.from(fileList || [])
+    setSlotFiles((prev) => ({ ...prev, [category]: files }))
+  }
+
   function validateForm() {
     if (!form.case_type) return 'Case type is required.'
     if (!form.service_line_id) return 'Service line is required.'
@@ -398,6 +447,19 @@ export default function NewAssignment() {
   }
 
   async function uploadInitialDocuments(assignmentId) {
+    const slotUploads = Object.entries(slotFiles).flatMap(([category, files]) =>
+      (files || []).map((file) => ({ file, category, isFinal: false })),
+    )
+    for (const doc of slotUploads) {
+      // Slot uploads are deterministic and category-bound by checklist templates.
+      // eslint-disable-next-line no-await-in-loop
+      await uploadDocumentWithMeta(assignmentId, {
+        file: doc.file,
+        category: doc.category,
+        isFinal: false,
+      })
+    }
+
     const uploads = initialDocs.filter((doc) => doc.file)
     for (const doc of uploads) {
       // Sequential upload keeps user-facing failures deterministic.
@@ -979,33 +1041,98 @@ export default function NewAssignment() {
           </Card>
 
           <Card>
-            <CardHeader title="Initial Documents" subtitle="Restore create-time document upload for assignment bootstrap." />
-            <div className="grid" style={{ gap: 8 }}>
-              {initialDocs.map((doc, index) => (
-                <div key={`initial-doc-${index}`} className="grid cols-4" style={{ gap: 8 }}>
-                  <input
-                    type="file"
-                    onChange={(e) => updateInitialDoc(index, 'file', e.target.files?.[0] || null)}
-                  />
-                  <input
-                    placeholder="Category (optional)"
-                    value={doc.category}
-                    onChange={(e) => updateInitialDoc(index, 'category', e.target.value)}
-                  />
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(doc.isFinal)}
-                      onChange={(e) => updateInitialDoc(index, 'isFinal', e.target.checked)}
-                    />
-                    Mark as final submission
-                  </label>
-                  <button type="button" className="ghost" onClick={() => removeInitialDoc(index)} disabled={initialDocs.length === 1}>Remove</button>
+            <CardHeader title="Initial Documents" subtitle="Guided upload slots from service line + land policy blocks." />
+            {templateSlots.length === 0 ? (
+              <EmptyState>No configured upload slots for this service line yet.</EmptyState>
+            ) : (
+              <div className="grid" style={{ gap: 10 }}>
+                <div>
+                  <div className="kicker" style={{ marginBottom: 6 }}>Required Slots</div>
+                  {requiredSlots.length === 0 ? (
+                    <div className="muted">No required slots.</div>
+                  ) : (
+                    <div className="list">
+                      {requiredSlots.map((slot) => (
+                        <div key={`required-slot-${slot.category}`} className="list-item">
+                          <div className="grid cols-3" style={{ gap: 8, alignItems: 'center' }}>
+                            <div>
+                              <strong>{slot.label || slot.category}</strong>
+                              <div className="muted" style={{ fontSize: 12 }}>{slot.category}</div>
+                            </div>
+                            <div className="muted" style={{ fontSize: 12 }}>
+                              Max files: {slot.max_files} · Selected: {(slotFiles[slot.category] || []).length}
+                            </div>
+                            <input
+                              type="file"
+                              multiple={Number(slot.max_files) > 1}
+                              onChange={(e) => updateSlotFiles(slot.category, e.target.files)}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-            <div style={{ marginTop: 8 }}>
-              <button type="button" className="secondary" onClick={addInitialDoc}>Add Document Row</button>
+
+                <div>
+                  <div className="kicker" style={{ marginBottom: 6 }}>Optional Slots</div>
+                  {optionalSlots.length === 0 ? (
+                    <div className="muted">No optional slots.</div>
+                  ) : (
+                    <div className="list">
+                      {optionalSlots.map((slot) => (
+                        <div key={`optional-slot-${slot.category}`} className="list-item">
+                          <div className="grid cols-3" style={{ gap: 8, alignItems: 'center' }}>
+                            <div>
+                              <strong>{slot.label || slot.category}</strong>
+                              <div className="muted" style={{ fontSize: 12 }}>{slot.category}</div>
+                            </div>
+                            <div className="muted" style={{ fontSize: 12 }}>
+                              Max files: {slot.max_files} · Selected: {(slotFiles[slot.category] || []).length}
+                            </div>
+                            <input
+                              type="file"
+                              multiple={Number(slot.max_files) > 1}
+                              onChange={(e) => updateSlotFiles(slot.category, e.target.files)}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div style={{ marginTop: 10 }}>
+              <div className="kicker" style={{ marginBottom: 6 }}>Additional Uploads</div>
+              <div className="grid" style={{ gap: 8 }}>
+                {initialDocs.map((doc, index) => (
+                  <div key={`initial-doc-${index}`} className="grid cols-4" style={{ gap: 8 }}>
+                    <input
+                      type="file"
+                      onChange={(e) => updateInitialDoc(index, 'file', e.target.files?.[0] || null)}
+                    />
+                    <input
+                      placeholder="Category (optional)"
+                      value={doc.category}
+                      onChange={(e) => updateInitialDoc(index, 'category', e.target.value)}
+                    />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(doc.isFinal)}
+                        onChange={(e) => updateInitialDoc(index, 'isFinal', e.target.checked)}
+                      />
+                      Mark as final submission
+                    </label>
+                    <button type="button" className="ghost" onClick={() => removeInitialDoc(index)} disabled={initialDocs.length === 1}>Remove</button>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <button type="button" className="secondary" onClick={addInitialDoc}>Add Document Row</button>
+              </div>
             </div>
           </Card>
 

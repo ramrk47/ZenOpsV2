@@ -4,12 +4,14 @@ import PageHeader from '../../components/ui/PageHeader'
 import Badge from '../../components/ui/Badge'
 import { Card, CardHeader } from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
-import { fetchDashboardOverview } from '../../api/dashboard'
+import { fetchDashboardActivitySummary, fetchDashboardOverview } from '../../api/dashboard'
 import { toUserMessage } from '../../api/client'
 import InfoTip from '../../components/ui/InfoTip'
+import { formatDateTime } from '../../utils/format'
 
 export default function AdminDashboard() {
   const [overview, setOverview] = useState(null)
+  const [activitySummary, setActivitySummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -20,8 +22,14 @@ export default function AdminDashboard() {
       setLoading(true)
       setError(null)
       try {
-        const data = await fetchDashboardOverview()
-        if (!cancelled) setOverview(data)
+        const [overviewData, activityData] = await Promise.all([
+          fetchDashboardOverview(),
+          fetchDashboardActivitySummary().catch(() => null),
+        ])
+        if (!cancelled) {
+          setOverview(overviewData)
+          setActivitySummary(activityData)
+        }
       } catch (err) {
         console.error(err)
         if (!cancelled) setError(toUserMessage(err, 'Failed to load dashboard overview'))
@@ -79,7 +87,12 @@ export default function AdminDashboard() {
             <SummaryCard label="Approvals Pending" value={overview.approvals_pending} tone="info" help="Requests waiting for decision." />
             <SummaryCard label="Payments Pending" value={overview.payments_pending} tone="warn" help="Invoices or assignments not marked paid." />
             <SummaryCard label="Overdue Radar" value={overview.overdue_assignments} tone="danger" help="Count of overdue assignments across the firm." />
-            <SummaryCard label="Cash at Risk" value="—" tone="muted" help="Future: overdue payments total." />
+            <SummaryCard
+              label="Work in Progress"
+              value={activitySummary?.assignments_in_progress_count ?? 0}
+              tone={(activitySummary?.assignments_in_progress_count || 0) > 0 ? 'info' : 'ok'}
+              help="Assignments with recent activity or open tasks in the last 24h."
+            />
           </div>
 
           <div className="split" style={{ gridTemplateColumns: 'minmax(0, 1.6fr) minmax(340px, 1fr)' }}>
@@ -131,10 +144,49 @@ export default function AdminDashboard() {
 
             <div className="grid">
               <Card>
+                <CardHeader
+                  title="Work in Progress"
+                  subtitle="Watchdog-lite activity signal from recent operations."
+                  action={<Link to="/admin/activity" className="nav-link">Open Activity</Link>}
+                />
+                {!activitySummary ? (
+                  <div className="muted">No activity snapshot available.</div>
+                ) : (
+                  <div className="grid" style={{ gap: 8 }}>
+                    <Signal label="Assignments in Progress" value={activitySummary.assignments_in_progress_count} tone={activitySummary.assignments_in_progress_count > 0 ? 'info' : 'ok'} />
+                    <Signal label="Active Users (1h)" value={activitySummary.active_users_count} tone={activitySummary.active_users_count > 0 ? 'ok' : 'warn'} />
+                    <Signal label="Recent Uploads (24h)" value={activitySummary.recent_uploads_count} tone="info" />
+                    <Signal label="Recent Downloads (24h)" value={activitySummary.recent_downloads_count} tone="info" />
+                    <div className="kicker" style={{ marginTop: 4 }}>Top Active Assignments</div>
+                    {activitySummary.top_active_assignments?.length ? (
+                      <div className="list">
+                        {activitySummary.top_active_assignments.map((row) => (
+                          <Link key={row.assignment_id} to={`/assignments/${row.assignment_id}`} className="list-item">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                              <strong>{row.assignment_code || `Assignment #${row.assignment_id}`}</strong>
+                              <Badge tone="info">{row.last_action_type || 'Update'}</Badge>
+                            </div>
+                            <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                              {row.actor_name || 'System'} · {row.last_action_at ? formatDateTime(row.last_action_at) : '—'}
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="muted" style={{ fontSize: 12 }}>No recently active assignments.</div>
+                    )}
+                    <div className="muted" style={{ fontSize: 11 }}>
+                      Last updated: {activitySummary.generated_at ? formatDateTime(activitySummary.generated_at) : '—'}
+                    </div>
+                  </div>
+                )}
+              </Card>
+
+              <Card>
                 <CardHeader title="Action Center" subtitle="Jump into the highest leverage workflows." />
                 <div className="grid" style={{ gap: 8 }}>
                   <Link to="/admin/open-queue" className="nav-link">Open Queue</Link>
-                  <Link to="/admin/approvals" className="nav-link">Approvals Inbox</Link>
+                  <Link to="/admin/approvals" className="nav-link">Requests Inbox</Link>
                   <Link to="/admin/workload" className="nav-link">Rebalance Workload</Link>
                   <Link to="/admin/personnel" className="nav-link">Manage Personnel</Link>
                   <Link to="/admin/masterdata" className="nav-link">Master Data</Link>

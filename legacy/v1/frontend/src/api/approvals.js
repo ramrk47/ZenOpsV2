@@ -1,10 +1,11 @@
 import api from './client'
 
-export async function fetchApprovalsInbox(includeDecided = false, approvalType = null) {
+export async function fetchApprovalsInbox(includeDecided = false, approvalType = null, status = null) {
   const { data } = await api.get('/api/approvals/inbox', {
     params: {
       include_decided: includeDecided,
       approval_type: approvalType || undefined,
+      status: status || undefined,
     },
   })
   return data
@@ -42,7 +43,15 @@ export async function fetchApprovalTemplates() {
   return data
 }
 
-export async function fetchApprovalsInboxCount() {
-  const { data } = await api.get('/api/approvals/inbox-count')
+export async function fetchApprovalsInboxCount(approvalType = null) {
+  const { data } = await api.get('/api/approvals/inbox-count', {
+    params: { approval_type: approvalType || undefined },
+  })
   return data
+}
+
+export async function fetchApprovalsInboxCountsByType(approvalTypes = []) {
+  const requests = approvalTypes.map((approvalType) => fetchApprovalsInboxCount(approvalType).then((res) => [approvalType, res?.pending || 0]))
+  const pairs = await Promise.all(requests)
+  return Object.fromEntries(pairs)
 }

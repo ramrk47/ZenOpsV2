@@ -50,6 +50,7 @@ from app.services.approvals import request_approval, required_roles_for_approval
 from app.services.notifications import notify_roles
 from app.services.assignments import (
     apply_access_filter,
+    compute_document_checklist,
     compute_land_survey_totals,
     compute_due_info,
     compute_missing_document_categories,
@@ -448,15 +449,7 @@ def get_assignment_document_checklist(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assignment not found")
     _require_assignment_access(assignment, current_user)
 
-    required = set(compute_missing_document_categories(db, assignment) + [d.category for d in assignment.documents if d.category])
-    present = {d.category for d in assignment.documents if d.category}
-    missing = sorted(required - present)
-
-    return DocumentChecklist(
-        required_categories=sorted(required),
-        present_categories=sorted(present),
-        missing_categories=missing,
-    )
+    return DocumentChecklist(**compute_document_checklist(db, assignment))
 
 
 @router.post("/{assignment_id}/documents/remind", response_model=dict)

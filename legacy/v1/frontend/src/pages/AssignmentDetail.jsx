@@ -63,6 +63,7 @@ const DEFAULT_APPROVAL_ACTIONS = [
   'EXCEPTION',
 ]
 const MENTION_TOKEN_RE = /@\[[^\]]+\]\((\d+)\)/g
+const ENABLE_REPOGEN_INPUTS = String(import.meta.env.VITE_ENABLE_REPOGEN_INPUTS || '0') === '1'
 
 function renderMessageText(text, userMap) {
   if (!text) return ''
@@ -341,7 +342,11 @@ export default function AssignmentDetail() {
 
   const documentCategoryOptions = useMemo(() => {
     if (!checklist) return []
-    const combined = new Set([...(checklist.required_categories || []), ...(checklist.present_categories || [])])
+    const combined = new Set([
+      ...(checklist.required_categories || []),
+      ...(checklist.optional_categories || []),
+      ...(checklist.present_categories || []),
+    ])
     return Array.from(combined).sort()
   }, [checklist])
 
@@ -370,7 +375,14 @@ export default function AssignmentDetail() {
 
   const assignment = detail?.assignment || null
   const due = detail?.due || null
-  const missingDocs = detail?.missing_documents || []
+  const missingDocs = checklist?.missing_required_categories || detail?.missing_documents || []
+  const repogenInputs = useMemo(() => {
+    if (!assignment || !assignment.land_policy_override_json) return null
+    const jsonField = assignment.land_policy_override_json
+    const candidate = jsonField.repogen_inputs || jsonField.repogen_inputs_json || jsonField.repogen || null
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null
+    return candidate
+  }, [assignment])
 
   useEffect(() => {
     if (!documentCategoryOptions.length) return
@@ -1335,6 +1347,25 @@ export default function AssignmentDetail() {
                 <ContextRow label="Assigned" value={teamLabel} />
               </div>
             </Card>
+
+            {ENABLE_REPOGEN_INPUTS ? (
+              <Card>
+                <CardHeader
+                  title="Repogen Inputs (Phase 9 Placeholder)"
+                  subtitle="Read-only preview from assignment JSON when present. No schema changes in Phase 5."
+                />
+                {!repogenInputs ? (
+                  <EmptyState>No repogen inputs found in assignment JSON.</EmptyState>
+                ) : (
+                  <pre style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'pre-wrap' }}>
+                    {JSON.stringify(repogenInputs, null, 2)}
+                  </pre>
+                )}
+                <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>
+                  External Associate workflows are unchanged.
+                </div>
+              </Card>
+            ) : null}
           </div>
         </div>
       ) : activeTab === 'documents' ? (
@@ -1486,14 +1517,20 @@ export default function AssignmentDetail() {
             </Card>
 
             <Card>
-            <CardHeader title="Checklist" subtitle="Required, present, and missing categories." />
+            <CardHeader title="Checklist" subtitle="Required vs optional categories based on service line and land policy." />
             {!checklist ? (
               <EmptyState>Checklist unavailable.</EmptyState>
             ) : (
               <div className="grid" style={{ gap: 10 }}>
-                <ChecklistGroup label="Missing" items={checklist.missing_categories} tone="warn" />
-                <ChecklistGroup label="Present" items={checklist.present_categories} tone="ok" />
-                <ChecklistGroup label="Required" items={checklist.required_categories} tone="info" />
+                <ChecklistGroup
+                  label={`Missing Required (${checklist.missing_required_count || 0})`}
+                  items={checklist.missing_required_categories || []}
+                  tone="warn"
+                  labels={checklist.category_labels}
+                />
+                <ChecklistGroup label="Required" items={checklist.required_categories || []} tone="info" labels={checklist.category_labels} />
+                <ChecklistGroup label="Optional" items={checklist.optional_categories || []} tone="ok" labels={checklist.category_labels} />
+                <ChecklistGroup label="Present" items={checklist.present_categories || []} tone="ok" labels={checklist.category_labels} />
               </div>
             )}
           </Card>
@@ -2105,7 +2142,7 @@ function ContextRow({ label, value }) {
   )
 }
 
-function ChecklistGroup({ label, items, tone }) {
+function ChecklistGroup({ label, items, tone, labels = {} }) {
   return (
     <div>
       <div className="kicker" style={{ marginBottom: 6 }}>{label}</div>
@@ -2113,7 +2150,7 @@ function ChecklistGroup({ label, items, tone }) {
         <div className="list">
           {items.map((item) => (
             <div key={item} className="list-item" style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>{item}</span>
+              <span>{labels[item] || item}</span>
               <Badge tone={tone}>{label}</Badge>
             </div>
           ))}

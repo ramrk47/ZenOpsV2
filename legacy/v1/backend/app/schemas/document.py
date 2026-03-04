@@ -34,8 +34,13 @@ class DocumentRead(ORMModel):
 
 class DocumentChecklist(ORMModel):
     required_categories: List[str]
+    optional_categories: List[str] = []
     present_categories: List[str]
+    missing_required_categories: List[str] = []
+    missing_optional_categories: List[str] = []
     missing_categories: List[str]
+    missing_required_count: int = 0
+    category_labels: dict[str, str] = {}
 
 
 class MarkFinalPayload(ORMModel):
