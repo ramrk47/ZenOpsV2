@@ -28,7 +28,7 @@ export default function AdminPartnerRequests() {
   }
 
   async function handleApprove(id) {
-    if (!window.confirm('Approve this External Associate request and send invite?')) return
+    if (!window.confirm('Approve this External Associate request?')) return
     setActionLoading(id)
     try {
       await api.post(`/api/admin/associate-access-requests/${id}/approve`)
@@ -54,8 +54,9 @@ export default function AdminPartnerRequests() {
     }
   }
 
-  const pending = requests.filter((r) => ['PENDING', 'VERIFIED'].includes(r.status))
-  const decided = requests.filter((r) => !['PENDING', 'VERIFIED'].includes(r.status))
+  const pendingStatuses = ['PENDING_EMAIL_VERIFY', 'VERIFIED_PENDING_REVIEW', 'PENDING', 'VERIFIED']
+  const pending = requests.filter((r) => pendingStatuses.includes(r.status))
+  const decided = requests.filter((r) => !pendingStatuses.includes(r.status))
 
   return (
     <div>
@@ -111,9 +112,9 @@ export default function AdminPartnerRequests() {
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button
                           onClick={() => handleApprove(r.id)}
-                          disabled={actionLoading === r.id}
+                          disabled={actionLoading === r.id || !r.email_verified_at}
                         >
-                          {actionLoading === r.id ? '...' : 'Approve & Invite'}
+                          {actionLoading === r.id ? '...' : (r.email_verified_at ? 'Approve' : 'Await Verify')}
                         </button>
                         <button
                           className="secondary"

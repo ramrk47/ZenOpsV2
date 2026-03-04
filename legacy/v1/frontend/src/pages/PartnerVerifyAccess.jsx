@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import api, { toUserMessage } from '../api/client'
+import { toUserMessage } from '../api/client'
+import { verifyAssociateAccessToken } from '../api/partner'
 
 export default function PartnerVerifyAccess() {
   const [searchParams] = useSearchParams()
@@ -20,10 +21,14 @@ export default function PartnerVerifyAccess() {
       }
       setLoading(true)
       try {
-        await api.post('/api/partner/verify', { token })
+        const response = await verifyAssociateAccessToken(token)
         if (!cancelled) {
           setStatus('success')
-          setMessage('Email verified. Your External Associate request is now ready for admin review.')
+          if (response?.status === 'APPROVED') {
+            setMessage('Email verified and account activated. You can sign in now.')
+          } else {
+            setMessage('Email verified. Your External Associate request is now ready for review.')
+          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -46,7 +51,7 @@ export default function PartnerVerifyAccess() {
         <h2 style={{ marginTop: 0 }}>External Associate Verification</h2>
         {loading ? <p className="muted">Verifying your email…</p> : <p>{message}</p>}
         {!loading && status === 'success' ? (
-          <p className="muted">You will receive an invite email once approved.</p>
+          <p className="muted">Continue to login after activation, or wait for review completion.</p>
         ) : null}
         <div style={{ marginTop: 16 }}>
           <Link to="/login" style={linkStyle}>Back to Login</Link>
