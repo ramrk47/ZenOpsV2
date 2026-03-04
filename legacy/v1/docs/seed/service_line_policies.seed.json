@@ -1,0 +1,95 @@
+{
+  "policy_schema_version": "v1",
+  "blocks": [
+    "NORMAL_LAND",
+    "SURVEY_ROWS",
+    "BUILT_UP"
+  ],
+  "defaults": {
+    "uom_required": true,
+    "allow_assignment_override": true
+  },
+  "policies": [
+    {
+      "service_line_key": "VALUATION_LB",
+      "policy_json": {
+        "requires": ["NORMAL_LAND", "BUILT_UP"],
+        "optional": ["SURVEY_ROWS"],
+        "uom_required": true,
+        "notes": "Standard L&B valuation. Survey rows optional if site data includes survey breakdown."
+      }
+    },
+    {
+      "service_line_key": "VALUATION_PLOT",
+      "policy_json": {
+        "requires": ["NORMAL_LAND"],
+        "optional": ["SURVEY_ROWS"],
+        "uom_required": true,
+        "notes": "Plot valuations typically only need land area; survey rows optional."
+      }
+    },
+    {
+      "service_line_key": "VALUATION_AGRI",
+      "policy_json": {
+        "requires": ["SURVEY_ROWS"],
+        "optional": ["NORMAL_LAND"],
+        "uom_required": true,
+        "notes": "Agri valuations need survey-wise breakup + kharab. Normal land area can be derived, optional."
+      }
+    },
+    {
+      "service_line_key": "HOME_LOAN",
+      "policy_json": {
+        "requires": ["NORMAL_LAND", "BUILT_UP"],
+        "optional": ["SURVEY_ROWS"],
+        "uom_required": true,
+        "notes": "Home loan valuations typically need land + built-up; survey rows optional."
+      }
+    },
+    {
+      "service_line_key": "PROGRESS_COMPLETION",
+      "policy_json": {
+        "requires": ["BUILT_UP"],
+        "optional": ["NORMAL_LAND"],
+        "uom_required": true,
+        "notes": "Progress/completion is construction-focused; land can be optional."
+      }
+    },
+    {
+      "service_line_key": "LAND_DEVELOPMENT",
+      "policy_json": {
+        "requires": ["NORMAL_LAND"],
+        "optional": ["SURVEY_ROWS"],
+        "uom_required": true,
+        "notes": "Land development generally requires land details; built-up usually not required."
+      }
+    },
+    {
+      "service_line_key": "DCC",
+      "policy_json": {
+        "requires": ["NORMAL_LAND"],
+        "optional": ["BUILT_UP", "SURVEY_ROWS"],
+        "uom_required": true,
+        "notes": "DCC can vary; keep flexible with optional blocks."
+      }
+    },
+    {
+      "service_line_key": "PROJECT_REPORT",
+      "policy_json": {
+        "requires": ["NORMAL_LAND"],
+        "optional": ["BUILT_UP", "SURVEY_ROWS"],
+        "uom_required": true,
+        "notes": "Project reports vary; start with land required, others optional."
+      }
+    },
+    {
+      "service_line_key": "OTHERS",
+      "policy_json": {
+        "requires": [],
+        "optional": ["NORMAL_LAND", "BUILT_UP", "SURVEY_ROWS"],
+        "uom_required": true,
+        "notes": "Others requires manual selection/override at assignment time."
+      }
+    }
+  ]
+}

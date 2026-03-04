@@ -27,6 +27,16 @@ export async function fetchPropertySubtypes(propertyTypeId) {
   return data
 }
 
+export async function fetchServiceLines(params = {}) {
+  const { data } = await api.get('/api/master/service-lines', { params })
+  return data
+}
+
+export async function fetchServiceLinePolicies(params = {}) {
+  const { data } = await api.get('/api/master/service-line-policies', { params })
+  return data?.policies || []
+}
+
 export async function fetchCompanyAccounts({ bankId } = {}) {
   const { data } = await api.get('/api/master/company-accounts', {
     params: { bank_id: bankId || undefined },
@@ -101,6 +111,21 @@ export async function createPropertySubtype(payload) {
 
 export async function updatePropertySubtype(id, payload) {
   const { data } = await api.patch(`/api/master/property-subtypes/${id}`, payload)
+  return data
+}
+
+export async function createServiceLine(payload) {
+  const { data } = await api.post('/api/master/service-lines', payload)
+  return data
+}
+
+export async function updateServiceLine(id, payload) {
+  const { data } = await api.patch(`/api/master/service-lines/${id}`, payload)
+  return data
+}
+
+export async function updateServiceLinePolicy(id, payload) {
+  const { data } = await api.patch(`/api/master/service-lines/${id}/policy`, payload)
   return data
 }
 

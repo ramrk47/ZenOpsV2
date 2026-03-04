@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy import Boolean, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, IDMixin, TimestampMixin
@@ -88,6 +88,36 @@ class PropertySubtype(IDMixin, TimestampMixin, Base):
         back_populates="property_subtype",
         cascade="all, delete-orphan",
     )
+
+
+class ServiceLineMaster(IDMixin, TimestampMixin, Base):
+    __tablename__ = "service_lines"
+
+    key: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    policy: Mapped[Optional["ServiceLinePolicy"]] = relationship(
+        back_populates="service_line",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    assignments: Mapped[List["Assignment"]] = relationship(back_populates="service_line_master")
+
+
+class ServiceLinePolicy(IDMixin, TimestampMixin, Base):
+    __tablename__ = "service_line_policies"
+
+    service_line_id: Mapped[int] = mapped_column(
+        ForeignKey("service_lines.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    policy_json: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+
+    service_line: Mapped[ServiceLineMaster] = relationship(back_populates="policy")
 
 
 class CompanyAccount(IDMixin, TimestampMixin, Base):

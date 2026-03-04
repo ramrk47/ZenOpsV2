@@ -14,6 +14,14 @@ The format is based on Keep a Changelog, and this project adheres to Conventiona
 - Deterministic OpenAPI generator script at `scripts/generate_openapi.py` for refreshing `docs/openapi.json`.
 - Support resolve regression test (`backend/tests/test_support_api_resolve.py`) to verify resolved timestamp persistence.
 - Terminology guard script (`scripts/terminology_check.sh`) to catch accidental Partner copy in UI text.
+- Phase 4 data model primitives for policy-driven assignments:
+  - `service_lines` + `service_line_policies`
+  - `assignment_land_surveys`
+  - assignment fields for `uom`, service-line master linkage, per-assignment land policy override, and admin payment preferences.
+- Seed packs for service lines and land policy defaults:
+  - `docs/seed/service_lines.seed.json`
+  - `docs/seed/service_line_policies.seed.json`
+- Service line master-data APIs under `/api/master/service-lines` and `/api/master/service-line-policies`.
 
 ### Changed
 - Reverse proxy configuration to preserve `/api` paths and support localhost HTTP/HTTPS.
@@ -22,6 +30,13 @@ The format is based on Keep a Changelog, and this project adheres to Conventiona
 - Frontend API calls now consistently use the shared API client/interceptors (no rogue local axios instances).
 - Attendance CSV export now uses shared API client transport instead of raw fetch/manual auth headers.
 - User-facing terminology updated from Partner to Associate across navigation, headings, and admin/portal labels.
+- Assignment create/update flows now support:
+  - master-driven service lines (`service_line_id`) with `Others` validation,
+  - mandatory `uom`,
+  - policy-gated survey rows,
+  - admin-only assignment payment preference fields.
+- New Assignment UI now renders land detail blocks from service-line policy, restores create-time document upload, and supports admin override controls.
+- Admin Master Data page now includes Service Lines tab with policy JSON editing.
 
 ### Fixed
 - Frontend API base handling to avoid double `/api` pathing.

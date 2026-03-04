@@ -26,7 +26,7 @@ from app.models.enums import (
     ServiceLine,
     TaskStatus,
 )
-from app.models.master import Bank, Branch, Client, PropertySubtype, PropertyType
+from app.models.master import Bank, Branch, Client, PropertySubtype, PropertyType, ServiceLineMaster
 from app.models.message import AssignmentMessage
 from app.models.task import AssignmentTask
 from app.models.user import User
@@ -50,13 +50,19 @@ from app.services.approvals import request_approval, required_roles_for_approval
 from app.services.notifications import notify_roles
 from app.services.assignments import (
     apply_access_filter,
+    compute_land_survey_totals,
     compute_due_info,
     compute_missing_document_categories,
+    effective_land_policy,
     ensure_assignment_access,
     generate_assignment_code,
     generate_draft_assignment_code,
+    map_service_line_key_to_legacy_enum_value,
     maybe_emit_due_soon_notifications,
     notify_assignment_assignees,
+    normalize_land_policy,
+    requires_land_block,
+    sync_assignment_land_surveys,
     sync_assignment_assignees,
     sync_assignment_floors,
     validate_property_subtype,
@@ -91,6 +97,8 @@ OPEN_STATUSES = {
     AssignmentStatus.UNDER_PROCESS,
     AssignmentStatus.SUBMITTED,
 }
+
+ADMIN_PREF_ROLES = [Role.ADMIN, Role.OPS_MANAGER]
 
 
 def _base_query(db: Session):
@@ -142,10 +150,76 @@ def _require_assignment_access(assignment: Assignment, current_user: User) -> No
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
 
+def _can_manage_admin_assignment_fields(user: User) -> bool:
+    return rbac.user_has_any_role(user, ADMIN_PREF_ROLES)
+
+
+def _resolve_service_line_master(db: Session, service_line_id: Optional[int]) -> Optional[ServiceLineMaster]:
+    if not service_line_id:
+        return None
+    service_line_master = db.get(ServiceLineMaster, service_line_id)
+    if not service_line_master:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid service_line_id")
+    return service_line_master
+
+
+def _legacy_service_line_default_key(value: Optional[ServiceLine]) -> str:
+    if value in {ServiceLine.DPR, ServiceLine.INDUSTRIAL, ServiceLine.CMA}:
+        return "PROJECT_REPORT"
+    return "VALUATION_LB"
+
+
+def _resolve_legacy_service_line(service_line_master: Optional[ServiceLineMaster], fallback: Optional[ServiceLine]) -> ServiceLine:
+    if service_line_master:
+        mapped = map_service_line_key_to_legacy_enum_value(service_line_master.key)
+        return ServiceLine(mapped)
+    if fallback:
+        return fallback
+    return ServiceLine.VALUATION
+
+
+def _sanitize_admin_only_fields(payload: dict, *, current_user: User) -> tuple[Optional[str], Optional[str], Optional[str], Optional[dict]]:
+    admin_field_values = [
+        payload.get("payment_timing"),
+        payload.get("payment_completeness"),
+        payload.get("preferred_payment_mode"),
+        payload.get("land_policy_override_json"),
+    ]
+    if not any(value not in (None, "", {}) for value in admin_field_values):
+        return None, None, None, None
+
+    if not _can_manage_admin_assignment_fields(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not permitted to set admin-only assignment fields",
+        )
+    payment_timing = payload.get("payment_timing")
+    payment_completeness = payload.get("payment_completeness")
+    preferred_payment_mode = payload.get("preferred_payment_mode")
+    override_policy = payload.get("land_policy_override_json")
+    normalized_override = normalize_land_policy(override_policy) if override_policy else None
+    return payment_timing, payment_completeness, preferred_payment_mode, normalized_override
+
+
+def _serialize_assignment(assignment: Assignment, *, current_user: User) -> AssignmentRead:
+    payload = AssignmentRead.model_validate(assignment).model_dump()
+    payload["service_line_name"] = assignment.service_line_name
+    policy = effective_land_policy(assignment.service_line_master, assignment.land_policy_override_json)
+    payload["effective_land_policy"] = policy
+    payload["land_survey_totals"] = compute_land_survey_totals(assignment.land_surveys or [])
+    if not _can_manage_admin_assignment_fields(current_user):
+        payload["payment_timing"] = None
+        payload["payment_completeness"] = None
+        payload["preferred_payment_mode"] = None
+        payload["land_policy_override_json"] = None
+    return AssignmentRead(**payload)
+
+
 @router.get("", response_model=List[AssignmentRead])
 def list_assignments(
     case_type: Optional[CaseType] = Query(None),
     service_line: Optional[ServiceLine] = Query(None),
+    service_line_id: Optional[int] = Query(None),
     status_filter: Optional[AssignmentStatus] = Query(None, alias="status"),
     bank_id: Optional[int] = Query(None),
     branch_id: Optional[int] = Query(None),
@@ -185,6 +259,8 @@ def list_assignments(
         query = query.filter(Assignment.case_type == case_type)
     if service_line:
         query = query.filter(Assignment.service_line == service_line)
+    if service_line_id:
+        query = query.filter(Assignment.service_line_id == service_line_id)
     if status_filter:
         query = query.filter(Assignment.status == status_filter)
     if bank_id:
@@ -232,13 +308,14 @@ def list_assignments(
     query = _apply_sort(query, sort_by, sort_dir)
 
     assignments = query.offset(skip).limit(limit).all()
-    return [AssignmentRead.model_validate(a) for a in assignments]
+    return [_serialize_assignment(a, current_user=current_user) for a in assignments]
 
 
 @router.get("/with-due", response_model=List[AssignmentWithDue])
 def list_assignments_with_due(
     case_type: Optional[CaseType] = Query(None),
     service_line: Optional[ServiceLine] = Query(None),
+    service_line_id: Optional[int] = Query(None),
     status_filter: Optional[AssignmentStatus] = Query(None, alias="status"),
     bank_id: Optional[int] = Query(None),
     branch_id: Optional[int] = Query(None),
@@ -263,6 +340,7 @@ def list_assignments_with_due(
     assignments = list_assignments(
         case_type=case_type,
         service_line=service_line,
+        service_line_id=service_line_id,
         status_filter=status_filter,
         bank_id=bank_id,
         branch_id=branch_id,
@@ -314,7 +392,7 @@ def get_assignment(
     if not assignment or assignment.is_deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assignment not found")
     _require_assignment_access(assignment, current_user)
-    return AssignmentRead.model_validate(assignment)
+    return _serialize_assignment(assignment, current_user=current_user)
 
 
 @router.get("/{assignment_id}/detail", response_model=AssignmentDetail)
@@ -347,7 +425,7 @@ def get_assignment_detail(
     )
 
     return AssignmentDetail(
-        assignment=AssignmentRead.model_validate(assignment),
+        assignment=_serialize_assignment(assignment, current_user=current_user),
         due=due_info,
         documents=documents,
         tasks=tasks,
@@ -479,6 +557,27 @@ def create_assignment(
     if (assignment_in.fees is not None or assignment_in.is_paid) and not rbac.can_modify_money(current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not permitted to set financial fields")
 
+    service_line_master = _resolve_service_line_master(db, assignment_in.service_line_id)
+    if service_line_master is None:
+        service_line_master = (
+            db.query(ServiceLineMaster)
+            .filter(ServiceLineMaster.key == _legacy_service_line_default_key(assignment_in.service_line))
+            .first()
+        )
+    service_line_other_text = (assignment_in.service_line_other_text or "").strip() or None
+    if service_line_master and service_line_master.key == "OTHERS" and not service_line_other_text:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="service_line_other_text is required for Others")
+
+    payment_timing, payment_completeness, preferred_payment_mode, override_policy = _sanitize_admin_only_fields(
+        assignment_in.model_dump(exclude_unset=False),
+        current_user=current_user,
+    )
+    policy = effective_land_policy(service_line_master, override_policy)
+    if requires_land_block(policy, "SURVEY_ROWS") and not assignment_in.land_surveys:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Survey rows are required for this service line policy")
+    if policy.get("uom_required", True) and not (assignment_in.uom or "").strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="uom is required")
+
     override_on_leave = bool(getattr(assignment_in, "override_on_leave", False))
     assignee_ids = list(assignment_in.assignee_user_ids or [])
     primary_assignee_id = assignment_in.assigned_to_user_id or (assignee_ids[0] if assignee_ids else None)
@@ -502,7 +601,11 @@ def create_assignment(
     assignment = Assignment(
         assignment_code=generate_assignment_code(db),
         case_type=assignment_in.case_type,
-        service_line=assignment_in.service_line,
+        service_line=_resolve_legacy_service_line(service_line_master, assignment_in.service_line),
+        service_line_id=service_line_master.id if service_line_master else None,
+        service_line_other_text=service_line_other_text,
+        uom=(assignment_in.uom or "").strip() or None,
+        land_policy_override_json=override_policy,
         bank_id=assignment_in.bank_id,
         branch_id=assignment_in.branch_id,
         client_id=assignment_in.client_id,
@@ -525,6 +628,9 @@ def create_assignment(
         report_due_date=assignment_in.report_due_date,
         fees=assignment_in.fees,
         is_paid=assignment_in.is_paid,
+        payment_timing=payment_timing,
+        payment_completeness=payment_completeness,
+        preferred_payment_mode=preferred_payment_mode,
         notes=assignment_in.notes,
     )
     _enrich_names(db, assignment)
@@ -540,6 +646,7 @@ def create_assignment(
             assignment.builtup_area = total_area
             db.add(assignment)
             db.flush()
+    sync_assignment_land_surveys(db, assignment, assignment_in.land_surveys)
 
     log_activity(
         db,
@@ -549,6 +656,7 @@ def create_assignment(
         message=f"Assignment {assignment.assignment_code} created",
         payload={
             "case_type": str(assignment.case_type),
+            "service_line_id": assignment.service_line_id,
             "assignee_user_ids": assignment.assignee_user_ids,
         },
     )
@@ -585,7 +693,7 @@ def create_assignment(
 
     db.commit()
     db.refresh(assignment)
-    return AssignmentRead.model_validate(assignment)
+    return _serialize_assignment(assignment, current_user=current_user)
 
 
 @router.post("/drafts", response_model=AssignmentRead, status_code=status.HTTP_201_CREATED)
@@ -607,6 +715,26 @@ def create_draft_assignment(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    service_line_master = _resolve_service_line_master(db, assignment_in.service_line_id)
+    if service_line_master is None:
+        service_line_master = (
+            db.query(ServiceLineMaster)
+            .filter(ServiceLineMaster.key == _legacy_service_line_default_key(assignment_in.service_line))
+            .first()
+        )
+    service_line_other_text = (assignment_in.service_line_other_text or "").strip() or None
+    if service_line_master and service_line_master.key == "OTHERS" and not service_line_other_text:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="service_line_other_text is required for Others")
+    if assignment_in.payment_timing or assignment_in.payment_completeness or assignment_in.preferred_payment_mode:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Draft assignments cannot set admin-only payment preferences")
+    if assignment_in.land_policy_override_json:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Draft assignments cannot override land policy")
+    policy = effective_land_policy(service_line_master, None)
+    if requires_land_block(policy, "SURVEY_ROWS") and not assignment_in.land_surveys:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Survey rows are required for this service line policy")
+    if policy.get("uom_required", True) and not (assignment_in.uom or "").strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="uom is required")
 
     override_on_leave = bool(getattr(assignment_in, "override_on_leave", False))
     assignee_ids = list(assignment_in.assignee_user_ids or [])
@@ -631,7 +759,10 @@ def create_draft_assignment(
     assignment = Assignment(
         assignment_code=generate_draft_assignment_code(db),
         case_type=assignment_in.case_type,
-        service_line=assignment_in.service_line,
+        service_line=_resolve_legacy_service_line(service_line_master, assignment_in.service_line),
+        service_line_id=service_line_master.id if service_line_master else None,
+        service_line_other_text=service_line_other_text,
+        uom=(assignment_in.uom or "").strip() or None,
         bank_id=assignment_in.bank_id,
         branch_id=assignment_in.branch_id,
         client_id=assignment_in.client_id,
@@ -666,6 +797,7 @@ def create_draft_assignment(
             assignment.builtup_area = total_area
             db.add(assignment)
             db.flush()
+    sync_assignment_land_surveys(db, assignment, assignment_in.land_surveys)
 
     approval = Approval(
         approval_type=ApprovalType.DRAFT_ASSIGNMENT,
@@ -681,7 +813,7 @@ def create_draft_assignment(
             "assignment_code": assignment.assignment_code,
             "borrower_name": assignment.borrower_name,
             "case_type": str(assignment.case_type),
-            "service_line": str(assignment.service_line),
+            "service_line": assignment.service_line_name or str(assignment.service_line),
         },
         assignment_id=assignment.id,
     )
@@ -707,7 +839,7 @@ def create_draft_assignment(
 
     db.commit()
     db.refresh(assignment)
-    return AssignmentRead.model_validate(assignment)
+    return _serialize_assignment(assignment, current_user=current_user)
 
 
 @router.patch("/{assignment_id}", response_model=AssignmentRead)
@@ -727,6 +859,20 @@ def update_assignment(
     assignee_user_ids = update_data.pop("assignee_user_ids", None)
     override_on_leave = bool(update_data.pop("override_on_leave", False))
     floors_payload = update_data.pop("floors", None)
+    land_surveys_payload = update_data.pop("land_surveys", None)
+    service_line_update = update_data.pop("service_line", None) if "service_line" in update_data else None
+
+    service_line_id = update_data.pop("service_line_id", None) if "service_line_id" in update_data else assignment.service_line_id
+    service_line_other_text = (
+        (update_data.pop("service_line_other_text", None) if "service_line_other_text" in update_data else assignment.service_line_other_text)
+        or ""
+    ).strip() or None
+    uom_value = (update_data.pop("uom", assignment.uom) or "").strip() or None
+    override_policy_raw = update_data.pop("land_policy_override_json", assignment.land_policy_override_json)
+
+    payment_timing = update_data.pop("payment_timing", assignment.payment_timing)
+    payment_completeness = update_data.pop("payment_completeness", assignment.payment_completeness)
+    preferred_payment_mode = update_data.pop("preferred_payment_mode", assignment.preferred_payment_mode)
 
     property_type_id = update_data.get("property_type_id", assignment.property_type_id)
     property_subtype_id = update_data.get("property_subtype_id", assignment.property_subtype_id)
@@ -738,6 +884,44 @@ def update_assignment(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    touched_fields = set(getattr(assignment_update, "model_fields_set", set()))
+    admin_only_fields = {"payment_timing", "payment_completeness", "preferred_payment_mode", "land_policy_override_json"}
+    if touched_fields.intersection(admin_only_fields) and not _can_manage_admin_assignment_fields(current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not permitted to modify admin-only assignment fields")
+
+    if not uom_value:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="uom is required")
+
+    service_line_master = _resolve_service_line_master(db, service_line_id)
+    if service_line_master is None:
+        fallback_legacy = service_line_update or assignment.service_line
+        service_line_master = (
+            db.query(ServiceLineMaster)
+            .filter(ServiceLineMaster.key == _legacy_service_line_default_key(fallback_legacy))
+            .first()
+        )
+
+    if service_line_master and service_line_master.key == "OTHERS" and not service_line_other_text:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="service_line_other_text is required for Others")
+
+    override_policy = normalize_land_policy(override_policy_raw) if override_policy_raw else None
+    policy = effective_land_policy(service_line_master, override_policy)
+    final_survey_payload = land_surveys_payload if land_surveys_payload is not None else (assignment.land_surveys or [])
+    if requires_land_block(policy, "SURVEY_ROWS") and not final_survey_payload:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Survey rows are required for this service line policy")
+
+    assignment.service_line_id = service_line_master.id if service_line_master else None
+    assignment.service_line_other_text = service_line_other_text
+    assignment.uom = uom_value
+    assignment.land_policy_override_json = override_policy
+    assignment.payment_timing = payment_timing
+    assignment.payment_completeness = payment_completeness
+    assignment.preferred_payment_mode = preferred_payment_mode
+    if service_line_update is not None:
+        assignment.service_line = service_line_update
+    else:
+        assignment.service_line = _resolve_legacy_service_line(service_line_master, assignment.service_line)
 
     reassign_requested = "assigned_to_user_id" in update_data or assignee_user_ids is not None
     if reassign_requested and not capabilities.get("reassign") and assignment.assigned_to_user_id != current_user.id:
@@ -823,6 +1007,16 @@ def update_assignment(
             },
         )
 
+    if land_surveys_payload is not None:
+        surveys = sync_assignment_land_surveys(db, assignment, land_surveys_payload)
+        log_activity(
+            db,
+            actor_user_id=current_user.id,
+            activity_type="ASSIGNMENT_LAND_SURVEYS_UPDATED",
+            assignment_id=assignment.id,
+            payload={"survey_count": len(surveys)},
+        )
+
     if assignment.status == AssignmentStatus.COMPLETED and not assignment.completed_at:
         assignment.completed_at = now
     if assignment.status == AssignmentStatus.SUBMITTED and not assignment.report_submitted_at:
@@ -879,7 +1073,7 @@ def update_assignment(
     db.add(assignment)
     db.commit()
     db.refresh(assignment)
-    return AssignmentRead.model_validate(assignment)
+    return _serialize_assignment(assignment, current_user=current_user)
 
 
 @router.delete("/{assignment_id}", response_model=AssignmentRead | ApprovalRead, status_code=status.HTTP_202_ACCEPTED)
@@ -910,7 +1104,7 @@ def delete_assignment(
         )
         db.commit()
         db.refresh(assignment)
-        return AssignmentRead.model_validate(assignment)
+        return _serialize_assignment(assignment, current_user=current_user)
 
     approval = Approval(
         entity_type=ApprovalEntityType.ASSIGNMENT,

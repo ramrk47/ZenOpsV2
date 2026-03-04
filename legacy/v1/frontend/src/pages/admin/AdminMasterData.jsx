@@ -12,6 +12,7 @@ import {
   fetchClients,
   fetchPropertyTypes,
   fetchPropertySubtypes,
+  fetchServiceLines,
   fetchDocTemplates,
   fetchCalendarLabels,
   fetchCompanyProfile,
@@ -26,6 +27,9 @@ import {
   updatePropertyType,
   createPropertySubtype,
   updatePropertySubtype,
+  createServiceLine,
+  updateServiceLine,
+  updateServiceLinePolicy,
   createDocTemplate,
   updateDocTemplate,
   createCalendarLabel,
@@ -44,6 +48,7 @@ const TABS = [
   { key: 'partners', label: 'Associates' },
   { key: 'property', label: 'Property Types' },
   { key: 'subtypes', label: 'Property Subtypes' },
+  { key: 'service-lines', label: 'Service Lines' },
   { key: 'templates', label: 'Doc Templates' },
   { key: 'calendar', label: 'Calendar Labels' },
   { key: 'company', label: 'Company Profile' },
@@ -68,6 +73,7 @@ export default function AdminMasterData() {
   const [partners, setPartners] = useState([])
   const [propertyTypes, setPropertyTypes] = useState([])
   const [propertySubtypes, setPropertySubtypes] = useState([])
+  const [serviceLines, setServiceLines] = useState([])
   const [templates, setTemplates] = useState([])
   const [calendarLabels, setCalendarLabels] = useState([])
   const [companyProfile, setCompanyProfile] = useState(null)
@@ -82,6 +88,7 @@ export default function AdminMasterData() {
   const [partnerDrafts, setPartnerDrafts] = useState({})
   const [propertyDrafts, setPropertyDrafts] = useState({})
   const [propertySubtypeDrafts, setPropertySubtypeDrafts] = useState({})
+  const [serviceLineDrafts, setServiceLineDrafts] = useState({})
   const [templateDrafts, setTemplateDrafts] = useState({})
   const [calendarLabelDrafts, setCalendarLabelDrafts] = useState({})
 
@@ -114,6 +121,13 @@ export default function AdminMasterData() {
     name: '',
     description: '',
     is_active: true,
+  })
+  const [serviceLineForm, setServiceLineForm] = useState({
+    key: '',
+    name: '',
+    is_active: true,
+    sort_order: 0,
+    policy_json: '{\"requires\":[],\"optional\":[\"NORMAL_LAND\"],\"uom_required\":true,\"allow_assignment_override\":true}',
   })
   const [templateForm, setTemplateForm] = useState({
     bank_id: '',
@@ -165,6 +179,7 @@ export default function AdminMasterData() {
           partnerData,
           propertyData,
           subtypeData,
+          serviceLineData,
           templateData,
           labelData,
           profileData,
@@ -175,6 +190,7 @@ export default function AdminMasterData() {
           fetchExternalPartners().catch(() => []),
           fetchPropertyTypes(),
           fetchPropertySubtypes().catch(() => []),
+          fetchServiceLines({ include_inactive: true }).catch(() => []),
           fetchDocTemplates(),
           fetchCalendarLabels().catch(() => []),
           fetchCompanyProfile().catch(() => null),
@@ -186,6 +202,7 @@ export default function AdminMasterData() {
         setPartners(partnerData)
         setPropertyTypes(propertyData)
         setPropertySubtypes(subtypeData)
+        setServiceLines(serviceLineData)
         setTemplates(templateData)
         setCalendarLabels(labelData)
         setCompanyProfile(profileData)
@@ -295,6 +312,20 @@ export default function AdminMasterData() {
 
   useEffect(() => {
     const drafts = {}
+    serviceLines.forEach((line) => {
+      drafts[line.id] = {
+        key: line.key || '',
+        name: line.name || '',
+        is_active: line.is_active !== false,
+        sort_order: line.sort_order ?? 0,
+        policy_json: JSON.stringify(line.policy_json || {}, null, 2),
+      }
+    })
+    setServiceLineDrafts(drafts)
+  }, [serviceLines])
+
+  useEffect(() => {
+    const drafts = {}
     templates.forEach((template) => {
       drafts[template.id] = {
         bank_id: template.bank_id ? String(template.bank_id) : '',
@@ -366,6 +397,7 @@ export default function AdminMasterData() {
     partners: partners.length,
     property: propertyTypes.length,
     subtypes: propertySubtypes.length,
+    serviceLines: serviceLines.length,
     templates: templates.length,
     calendar: calendarLabels.length,
   }), [
@@ -375,6 +407,7 @@ export default function AdminMasterData() {
     partners.length,
     propertyTypes.length,
     propertySubtypes.length,
+    serviceLines.length,
     templates.length,
     calendarLabels.length,
   ])
@@ -661,6 +694,77 @@ export default function AdminMasterData() {
     }
   }
 
+  async function handleCreateServiceLine(e) {
+    e.preventDefault()
+    try {
+      if (!serviceLineForm.key.trim()) {
+        setError('Service line key is required')
+        return
+      }
+      if (!serviceLineForm.name.trim()) {
+        setError('Service line name is required')
+        return
+      }
+      let policyJson = {}
+      if (serviceLineForm.policy_json.trim()) {
+        policyJson = JSON.parse(serviceLineForm.policy_json)
+      }
+      await createServiceLine({
+        key: serviceLineForm.key.trim().toUpperCase(),
+        name: serviceLineForm.name.trim(),
+        is_active: serviceLineForm.is_active,
+        sort_order: Number(serviceLineForm.sort_order || 0),
+        policy_json: policyJson,
+      })
+      setServiceLineForm({
+        key: '',
+        name: '',
+        is_active: true,
+        sort_order: 0,
+        policy_json: '{\"requires\":[],\"optional\":[\"NORMAL_LAND\"],\"uom_required\":true,\"allow_assignment_override\":true}',
+      })
+      refresh()
+    } catch (err) {
+      console.error(err)
+      if (err instanceof SyntaxError) {
+        setError('Service line policy_json must be valid JSON')
+      } else {
+        setError(toUserMessage(err, 'Failed to create service line'))
+      }
+    }
+  }
+
+  async function handleSaveServiceLine(serviceLineId) {
+    const draft = serviceLineDrafts[serviceLineId]
+    if (!draft) return
+    try {
+      if (!draft.key.trim()) {
+        setError('Service line key is required')
+        return
+      }
+      if (!draft.name.trim()) {
+        setError('Service line name is required')
+        return
+      }
+      const policyJson = draft.policy_json?.trim() ? JSON.parse(draft.policy_json) : {}
+      await updateServiceLine(serviceLineId, {
+        key: draft.key.trim().toUpperCase(),
+        name: draft.name.trim(),
+        is_active: draft.is_active,
+        sort_order: Number(draft.sort_order || 0),
+      })
+      await updateServiceLinePolicy(serviceLineId, { policy_json: policyJson })
+      refresh()
+    } catch (err) {
+      console.error(err)
+      if (err instanceof SyntaxError) {
+        setError('Service line policy_json must be valid JSON')
+      } else {
+        setError(toUserMessage(err, 'Failed to update service line'))
+      }
+    }
+  }
+
   async function handleCreateTemplate(e) {
     e.preventDefault()
     try {
@@ -810,6 +914,7 @@ export default function AdminMasterData() {
         <Stat label="Branches" value={stats.branches} help="Branches tied to bank records." />
         <Stat label="Clients" value={stats.clients} help="Non-bank client accounts." />
         <Stat label="Associates" value={stats.partners} help="External associate firms in master data." />
+        <Stat label="Service Lines" value={stats.serviceLines} help="Policy-driven service lines for assignment creation." />
         <Stat label="Doc Templates" value={stats.templates} tone="info" help="Checklist templates used for document requirements." />
         <Stat label="Subtypes" value={stats.subtypes} help="Property subtypes mapped to property types." />
         <Stat label="Calendar Labels" value={stats.calendar} help="Custom labels for calendar events." />
@@ -892,6 +997,17 @@ export default function AdminMasterData() {
             onDraftChange={(id, key, value) => updateDraft(setPropertySubtypeDrafts, id, key, value)}
             onCreate={handleCreatePropertySubtype}
             onSave={handleSavePropertySubtype}
+          />
+        ) : activeTab === 'service-lines' ? (
+          <ServiceLinesTab
+            loading={loading}
+            serviceLines={serviceLines}
+            drafts={serviceLineDrafts}
+            form={serviceLineForm}
+            setForm={setServiceLineForm}
+            onDraftChange={(id, key, value) => updateDraft(setServiceLineDrafts, id, key, value)}
+            onCreate={handleCreateServiceLine}
+            onSave={handleSaveServiceLine}
           />
         ) : activeTab === 'templates' ? (
           <TemplatesTab
@@ -1571,6 +1687,111 @@ function PropertySubtypesTab({
                   </td>
                   <td style={{ textAlign: 'right' }}>
                     <button type="button" className="secondary" onClick={() => onSave(subtype.id)}>Save</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </DataTable>
+      )}
+    </div>
+  )
+}
+
+function ServiceLinesTab({
+  serviceLines,
+  drafts,
+  form,
+  setForm,
+  onDraftChange,
+  onCreate,
+  onSave,
+  loading,
+}) {
+  return (
+    <div className="grid">
+      <form className="grid" onSubmit={onCreate}>
+        <div className="grid cols-4">
+          <input
+            placeholder="Key (e.g., PROJECT_REPORT)"
+            value={form.key}
+            onChange={(e) => setForm((prev) => ({ ...prev, key: e.target.value }))}
+          />
+          <input
+            placeholder="Display name"
+            value={form.name}
+            onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+          />
+          <input
+            type="number"
+            placeholder="Sort order"
+            value={form.sort_order}
+            onChange={(e) => setForm((prev) => ({ ...prev, sort_order: e.target.value }))}
+          />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input type="checkbox" checked={form.is_active} onChange={(e) => setForm((prev) => ({ ...prev, is_active: e.target.checked }))} />
+            Active
+          </label>
+        </div>
+        <label className="grid">
+          <span className="kicker">policy_json</span>
+          <textarea
+            rows={4}
+            value={form.policy_json}
+            onChange={(e) => setForm((prev) => ({ ...prev, policy_json: e.target.value }))}
+            placeholder='{\"requires\":[\"NORMAL_LAND\"],\"optional\":[\"SURVEY_ROWS\"],\"uom_required\":true}'
+          />
+        </label>
+        <div>
+          <button type="submit">Add Service Line</button>
+        </div>
+      </form>
+
+      {loading ? (
+        <DataTable loading columns={6} rows={6} />
+      ) : serviceLines.length === 0 ? (
+        <EmptyState>No service lines yet.</EmptyState>
+      ) : (
+        <DataTable>
+          <table>
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Name</th>
+                <th>Sort</th>
+                <th>Active</th>
+                <th>Policy</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {serviceLines.map((serviceLine) => (
+                <tr key={serviceLine.id}>
+                  <td>
+                    <input value={drafts[serviceLine.id]?.key || ''} onChange={(e) => onDraftChange(serviceLine.id, 'key', e.target.value)} />
+                  </td>
+                  <td>
+                    <input value={drafts[serviceLine.id]?.name || ''} onChange={(e) => onDraftChange(serviceLine.id, 'name', e.target.value)} />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      value={drafts[serviceLine.id]?.sort_order ?? 0}
+                      onChange={(e) => onDraftChange(serviceLine.id, 'sort_order', e.target.value)}
+                    />
+                  </td>
+                  <td>
+                    <input type="checkbox" checked={Boolean(drafts[serviceLine.id]?.is_active)} onChange={(e) => onDraftChange(serviceLine.id, 'is_active', e.target.checked)} />
+                  </td>
+                  <td style={{ minWidth: 280 }}>
+                    <textarea
+                      rows={4}
+                      value={drafts[serviceLine.id]?.policy_json || '{}'}
+                      onChange={(e) => onDraftChange(serviceLine.id, 'policy_json', e.target.value)}
+                    />
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <button type="button" className="secondary" onClick={() => onSave(serviceLine.id)}>Save</button>
                   </td>
                 </tr>
               ))}

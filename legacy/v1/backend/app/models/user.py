@@ -7,7 +7,6 @@ from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, JSON, String, or_, t
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.settings import settings
 from app.db.base import Base, IDMixin, TimestampMixin
 from app.models.enums import Role
 
@@ -141,11 +140,9 @@ class User(IDMixin, TimestampMixin, Base):
 
     @classmethod
     def has_role(cls, role: Role):
-        roles_expr = (
-            type_coerce(cls.roles, JSON).contains([role.value])
-            if settings.database_url.startswith("sqlite")
-            else type_coerce(cls.roles, JSONB).contains([role.value])
-        )
+        # Use generic JSON containment expression so SQLite test DBs do not
+        # emit PostgreSQL-only operators like "@>".
+        roles_expr = type_coerce(cls.roles, JSON).contains([role.value])
         return or_(cls.role == role, roles_expr)
 
     @classmethod

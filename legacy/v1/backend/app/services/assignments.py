@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import OrderedDict
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Iterable, Optional, Sequence, Set
+from typing import Any, Dict, Iterable, Optional, Sequence, Set
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Query, Session
@@ -12,12 +12,26 @@ from app.core import rbac
 from app.models.assignment import Assignment
 from app.models.assignment_assignee import AssignmentAssignee
 from app.models.assignment_floor import AssignmentFloorArea
+from app.models.assignment_land_survey import AssignmentLandSurvey
 from app.models.enums import AssignmentStatus, CaseType, NotificationType, Role
-from app.models.master import DocumentChecklistTemplate, PropertySubtype
+from app.models.master import DocumentChecklistTemplate, PropertySubtype, ServiceLineMaster
 from app.models.user import User
-from app.schemas.assignment import AssignmentFloorCreate, DueInfo
+from app.schemas.assignment import AssignmentFloorCreate, AssignmentLandSurveyCreate, DueInfo
 from app.services.notifications import create_notification, create_notification_if_absent, notify_roles, notify_roles_if_absent
 from app.utils import sla
+
+LAND_DETAIL_BLOCKS = {"NORMAL_LAND", "SURVEY_ROWS", "BUILT_UP"}
+DEFAULT_LAND_POLICY: dict[str, Any] = {
+    "requires": [],
+    "optional": ["NORMAL_LAND", "BUILT_UP"],
+    "uom_required": True,
+    "allow_assignment_override": True,
+}
+
+SERVICE_LINE_KEY_TO_LEGACY = {
+    "PROJECT_REPORT": "DPR",
+    "DCC": "DPR",
+}
 
 
 def generate_assignment_code(db: Session) -> str:
@@ -210,6 +224,124 @@ def sync_assignment_floors(
         )
     db.flush()
     return total.quantize(Decimal("0.01"))
+
+
+def _clean_block_list(values: Sequence[Any] | None) -> list[str]:
+    result: list[str] = []
+    for raw in values or []:
+        value = str(raw or "").strip().upper()
+        if not value or value not in LAND_DETAIL_BLOCKS:
+            continue
+        if value not in result:
+            result.append(value)
+    return result
+
+
+def normalize_land_policy(policy: Optional[dict[str, Any]]) -> dict[str, Any]:
+    if not policy:
+        return dict(DEFAULT_LAND_POLICY)
+    requires = _clean_block_list(policy.get("requires"))
+    optional = [block for block in _clean_block_list(policy.get("optional")) if block not in requires]
+    normalized: dict[str, Any] = {
+        "requires": requires,
+        "optional": optional,
+        "uom_required": bool(policy.get("uom_required", True)),
+        "allow_assignment_override": bool(policy.get("allow_assignment_override", True)),
+    }
+    notes = policy.get("notes")
+    if notes is not None:
+        normalized["notes"] = str(notes)
+    return normalized
+
+
+def effective_land_policy(
+    service_line: Optional[ServiceLineMaster],
+    assignment_override: Optional[dict[str, Any]],
+) -> dict[str, Any]:
+    if assignment_override:
+        return normalize_land_policy(assignment_override)
+    if service_line and service_line.policy and service_line.policy.policy_json:
+        return normalize_land_policy(service_line.policy.policy_json)
+    return dict(DEFAULT_LAND_POLICY)
+
+
+def requires_land_block(policy: dict[str, Any], block: str) -> bool:
+    return str(block).upper() in {str(v).upper() for v in (policy.get("requires") or [])}
+
+
+def map_service_line_key_to_legacy_enum_value(service_line_key: Optional[str]) -> str:
+    normalized = str(service_line_key or "").strip().upper()
+    if normalized in SERVICE_LINE_KEY_TO_LEGACY:
+        return SERVICE_LINE_KEY_TO_LEGACY[normalized]
+    return "VALUATION"
+
+
+def sync_assignment_land_surveys(
+    db: Session,
+    assignment: Assignment,
+    surveys_payload: Optional[Sequence[AssignmentLandSurveyCreate | dict]],
+) -> list[AssignmentLandSurvey]:
+    if surveys_payload is None:
+        return list(assignment.land_surveys or [])
+
+    for survey in list(assignment.land_surveys or []):
+        db.delete(survey)
+    db.flush()
+
+    created: list[AssignmentLandSurvey] = []
+    for idx, survey in enumerate(surveys_payload):
+        payload = survey.model_dump() if hasattr(survey, "model_dump") else dict(survey)
+        survey_no = str(payload.get("survey_no", "")).strip()
+        if not survey_no:
+            continue
+        row = AssignmentLandSurvey(
+            assignment_id=assignment.id,
+            serial_no=int(payload.get("serial_no") or idx + 1),
+            survey_no=survey_no,
+            acre=_decimal(payload.get("acre", 0)),
+            gunta=_decimal(payload.get("gunta", 0)),
+            aana=_decimal(payload.get("aana", 0)),
+            kharab_acre=_decimal(payload.get("kharab_acre", 0)),
+            kharab_gunta=_decimal(payload.get("kharab_gunta", 0)),
+            kharab_aana=_decimal(payload.get("kharab_aana", 0)),
+        )
+        db.add(row)
+        created.append(row)
+    db.flush()
+    return created
+
+
+def compute_land_survey_totals(surveys: Sequence[AssignmentLandSurvey]) -> dict[str, str]:
+    totals = {
+        "total_area_acre": Decimal("0"),
+        "total_area_gunta": Decimal("0"),
+        "total_area_aana": Decimal("0"),
+        "total_kharab_acre": Decimal("0"),
+        "total_kharab_gunta": Decimal("0"),
+        "total_kharab_aana": Decimal("0"),
+    }
+    for survey in surveys:
+        totals["total_area_acre"] += _decimal(survey.acre or 0)
+        totals["total_area_gunta"] += _decimal(survey.gunta or 0)
+        totals["total_area_aana"] += _decimal(survey.aana or 0)
+        totals["total_kharab_acre"] += _decimal(survey.kharab_acre or 0)
+        totals["total_kharab_gunta"] += _decimal(survey.kharab_gunta or 0)
+        totals["total_kharab_aana"] += _decimal(survey.kharab_aana or 0)
+
+    net_acre = totals["total_area_acre"] - totals["total_kharab_acre"]
+    net_gunta = totals["total_area_gunta"] - totals["total_kharab_gunta"]
+    net_aana = totals["total_area_aana"] - totals["total_kharab_aana"]
+    return {
+        "total_area_acre": str(totals["total_area_acre"].quantize(Decimal("0.001"))),
+        "total_area_gunta": str(totals["total_area_gunta"].quantize(Decimal("0.001"))),
+        "total_area_aana": str(totals["total_area_aana"].quantize(Decimal("0.001"))),
+        "total_kharab_acre": str(totals["total_kharab_acre"].quantize(Decimal("0.001"))),
+        "total_kharab_gunta": str(totals["total_kharab_gunta"].quantize(Decimal("0.001"))),
+        "total_kharab_aana": str(totals["total_kharab_aana"].quantize(Decimal("0.001"))),
+        "net_area_acre": str(net_acre.quantize(Decimal("0.001"))),
+        "net_area_gunta": str(net_gunta.quantize(Decimal("0.001"))),
+        "net_area_aana": str(net_aana.quantize(Decimal("0.001"))),
+    }
 
 
 def notify_assignment_assignees(
