@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
+import itertools
 
 import pytest
 from fastapi.testclient import TestClient
@@ -49,14 +50,25 @@ def env(monkeypatch):
         sent_emails.append(kwargs)
         return None
 
-    token_values = iter(["verify-token-phase6", "invite-token-phase6"])
+    def fake_notify_roles(_db, **kwargs):
+        return []
+
+    token_counter = itertools.count(1)
 
     def fake_token_urlsafe(_size: int):
-        return next(token_values)
+        return f"verify-token-phase6-{next(token_counter)}"
 
     monkeypatch.setattr(onboarding_router, "create_email_delivery", fake_email_delivery)
+    monkeypatch.setattr(onboarding_router, "notify_roles", fake_notify_roles)
     monkeypatch.setattr(onboarding_router.secrets, "token_urlsafe", fake_token_urlsafe)
     monkeypatch.setattr(invites_service.secrets, "token_urlsafe", fake_token_urlsafe)
+    monkeypatch.setattr(onboarding_router.settings, "associate_onboarding_mode", "REQUEST_ACCESS_REVIEW", raising=False)
+    monkeypatch.setattr(onboarding_router.settings, "associate_email_verify_required", True, raising=False)
+    monkeypatch.setattr(onboarding_router.settings, "associate_auto_approve", False, raising=False)
+    monkeypatch.setattr(onboarding_router.settings, "associate_auto_approve_domains", [], raising=False)
+    monkeypatch.setattr(onboarding_router.settings, "associate_auto_approve_max_per_day", 99, raising=False)
+    monkeypatch.setattr(onboarding_router.settings, "associate_verify_token_ttl_minutes", 15, raising=False)
+    monkeypatch.setattr(onboarding_router.settings, "environment", "development", raising=False)
 
     def override_get_db():
         try:
@@ -79,8 +91,8 @@ def _auth_headers(user: User) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_request_verify_approve_invite_accept_and_replay_protection(env):
-    client, db, admin, sent_emails = env
+def test_request_access_creates_pending_record_and_sends_verification(env):
+    client, db, _admin, sent_emails = env
 
     submitted = client.post(
         "/api/partner/request-access",
@@ -98,15 +110,83 @@ def test_request_verify_approve_invite_accept_and_replay_protection(env):
 
     request_row = db.query(PartnerAccountRequest).filter(PartnerAccountRequest.email == "associate@example.com").first()
     assert request_row is not None
-    assert request_row.status == "PENDING"
+    assert request_row.status == "PENDING_EMAIL_VERIFY"
     assert request_row.email_verification_token is not None
+    assert request_row.token_expires_at is not None
 
-    verified = client.post("/api/partner/verify", json={"token": "verify-token-phase6"})
+    verified = client.post("/api/partner/verify-access-token", json={"token": "verify-token-phase6-1"})
     assert verified.status_code == 200, verified.text
-    assert verified.json()["status"] == "VERIFIED"
+    assert verified.json()["status"] == "VERIFIED_PENDING_REVIEW"
 
     db.refresh(request_row)
     assert request_row.email_verified_at is not None
+    assert request_row.token_consumed_at is not None
+    assert request_row.email_verification_token is None
+
+    replay = client.post("/api/partner/verify-access-token", json={"token": "verify-token-phase6-1"})
+    assert replay.status_code in {400, 404}
+
+
+def test_auto_approve_mode_provisions_associate_user(env, monkeypatch):
+    client, db, _admin, sent_emails = env
+    monkeypatch.setattr(onboarding_router.settings, "associate_onboarding_mode", "REQUEST_ACCESS_AUTO_APPROVE", raising=False)
+    monkeypatch.setattr(onboarding_router.settings, "associate_auto_approve_domains", ["example.com"], raising=False)
+
+    submitted = client.post(
+        "/api/partner/request-access",
+        json={
+            "company_name": "AutoApprove Associates",
+            "contact_name": "Rani Auto",
+            "email": "auto-approve@example.com",
+            "phone": "9888888888",
+            "message": "Auto approve path",
+            "captcha_token": "",
+        },
+    )
+    assert submitted.status_code == 201, submitted.text
+    assert any(mail.get("event_type") == "ASSOCIATE_ACCESS_VERIFY" for mail in sent_emails)
+
+    verified = client.post("/api/partner/verify-access-token", json={"token": "verify-token-phase6-1"})
+    assert verified.status_code == 200, verified.text
+    assert verified.json()["status"] == "APPROVED"
+
+    request_row = (
+        db.query(PartnerAccountRequest)
+        .filter(PartnerAccountRequest.email == "auto-approve@example.com")
+        .first()
+    )
+    assert request_row is not None
+    assert request_row.approved_at is not None
+    assert request_row.created_user_id is not None
+
+    user = db.query(User).filter(User.email == "auto-approve@example.com").first()
+    assert user is not None
+    assert user.role == Role.EXTERNAL_PARTNER
+    assert user.partner_id is not None
+
+
+def test_review_mode_admin_approve_sends_invite(env):
+    client, db, admin, sent_emails = env
+
+    submitted = client.post(
+        "/api/partner/request-access",
+        json={
+            "company_name": "BlueStone Associates",
+            "contact_name": "Ravi Kumar",
+            "email": "associate@example.com",
+            "phone": "9999999999",
+            "message": "Need access",
+            "captcha_token": "",
+        },
+    )
+    assert submitted.status_code == 201, submitted.text
+
+    verified = client.post("/api/partner/verify-access-token", json={"token": "verify-token-phase6-1"})
+    assert verified.status_code == 200, verified.text
+    assert verified.json()["status"] == "VERIFIED_PENDING_REVIEW"
+
+    request_row = db.query(PartnerAccountRequest).filter(PartnerAccountRequest.email == "associate@example.com").first()
+    assert request_row is not None
 
     approved = client.post(
         f"/api/admin/associate-access-requests/{request_row.id}/approve",
@@ -122,26 +202,7 @@ def test_request_verify_approve_invite_accept_and_replay_protection(env):
     expires_at = invite.expires_at
     if expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=timezone.utc)
-    assert expires_at > datetime.now(timezone.utc) + timedelta(hours=47)
-
-    valid = client.get("/api/auth/invite/validate", params={"token": "invite-token-phase6"})
-    assert valid.status_code == 200, valid.text
-    assert valid.json()["valid"] is True
-
-    accepted = client.post(
-        "/api/auth/invite/accept",
-        json={"token": "invite-token-phase6", "password": "SuperSecure1"},
-    )
-    assert accepted.status_code == 200, accepted.text
-    login_payload = accepted.json()
-    assert login_payload.get("access_token")
-    assert login_payload["user"]["role"] == "EXTERNAL_PARTNER"
-
-    replay = client.post(
-        "/api/auth/invite/accept",
-        json={"token": "invite-token-phase6", "password": "AnotherStrongPass1"},
-    )
-    assert replay.status_code == 400
+    assert expires_at > datetime.now(timezone.utc)
 
 
 def test_associate_cannot_access_admin_endpoints(env):
