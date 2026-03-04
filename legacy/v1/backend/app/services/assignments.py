@@ -30,6 +30,16 @@ def generate_assignment_code(db: Session) -> str:
     return f"{prefix}{seq:04d}"
 
 
+def generate_draft_assignment_code(db: Session) -> str:
+    """Generate deterministic draft assignment codes without consuming permanent sequence."""
+    today = datetime.now(timezone.utc)
+    date_part = today.strftime("%Y%m%d")
+    prefix = f"DRAFT-{date_part}-"
+    day_count = db.query(Assignment).filter(Assignment.assignment_code.like(f"{prefix}%")).count()
+    seq = day_count + 1
+    return f"{prefix}{seq:04d}"
+
+
 def _assignee_subquery(user_id: int):
     return select(AssignmentAssignee.assignment_id).where(AssignmentAssignee.user_id == user_id)
 

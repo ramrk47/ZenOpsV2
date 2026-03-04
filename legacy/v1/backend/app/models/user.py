@@ -7,6 +7,7 @@ from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, JSON, String, or_, t
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.settings import settings
 from app.db.base import Base, IDMixin, TimestampMixin
 from app.models.enums import Role
 
@@ -140,7 +141,12 @@ class User(IDMixin, TimestampMixin, Base):
 
     @classmethod
     def has_role(cls, role: Role):
-        return or_(cls.role == role, type_coerce(cls.roles, JSONB).contains([role.value]))
+        roles_expr = (
+            type_coerce(cls.roles, JSON).contains([role.value])
+            if settings.database_url.startswith("sqlite")
+            else type_coerce(cls.roles, JSONB).contains([role.value])
+        )
+        return or_(cls.role == role, roles_expr)
 
     @classmethod
     def has_any_role(cls, roles: Iterable[Role]):

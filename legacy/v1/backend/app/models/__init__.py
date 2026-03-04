@@ -17,6 +17,7 @@ from app.models.enums import (
     ApprovalActionType,
     ApprovalEntityType,
     ApprovalStatus,
+    ApprovalType,
     AssignmentStatus,
     CalendarEventType,
     CaseType,
@@ -85,6 +86,7 @@ from app.models.support import SupportThread, SupportMessage
 from app.models.task import AssignmentTask
 from app.models.user import User
 from app.models.work_session import WorkSession
+from app.models.v1_outbox_event import V1OutboxEvent
 
 __all__ = [
     "Base",
@@ -104,6 +106,7 @@ __all__ = [
     "ApprovalStatus",
     "ApprovalEntityType",
     "ApprovalActionType",
+    "ApprovalType",
     "LeaveRequest",
     "LeaveType",
     "LeaveStatus",
@@ -152,6 +155,7 @@ __all__ = [
     "UserNotificationPreference",
     "RevokedToken",
     "WorkSession",
+    "V1OutboxEvent",
     "PartnerAccountRequest",
     "PayrollRun",
     "PayrollLineItem",

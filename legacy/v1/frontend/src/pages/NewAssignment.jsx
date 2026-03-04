@@ -5,13 +5,13 @@ import Badge from '../components/ui/Badge'
 import { Card, CardHeader } from '../components/ui/Card'
 import EmptyState from '../components/ui/EmptyState'
 import InfoTip from '../components/ui/InfoTip'
-import { createAssignment } from '../api/assignments'
+import { createAssignment, createDraftAssignment } from '../api/assignments'
 import { fetchUserDirectory } from '../api/users'
 import { fetchBanks, fetchBranches, fetchClients, fetchPropertyTypes, fetchPropertySubtypes } from '../api/master'
 import { titleCase } from '../utils/format'
 import { toUserMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
-import { hasCapability } from '../utils/rbac'
+import { hasCapability, userHasRole } from '../utils/rbac'
 
 const CASE_TYPES = ['BANK', 'EXTERNAL_VALUER', 'DIRECT_CLIENT']
 const SERVICE_LINES = ['VALUATION', 'INDUSTRIAL', 'DPR', 'CMA']
@@ -29,6 +29,8 @@ export default function NewAssignment() {
   const { user, capabilities } = useAuth()
   const canModifyMoney = hasCapability(capabilities, 'modify_money')
   const canCreateAssignment = hasCapability(capabilities, 'create_assignment')
+  const canCreateDraftAssignment = hasCapability(capabilities, 'create_assignment_draft')
+  const draftMode = userHasRole(user, 'FIELD_VALUER') && canCreateDraftAssignment
 
   const [users, setUsers] = useState([])
   const [banks, setBanks] = useState([])
@@ -39,6 +41,7 @@ export default function NewAssignment() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [notice, setNotice] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
   const [form, setForm] = useState({
@@ -68,7 +71,7 @@ export default function NewAssignment() {
   const [multiFloorEnabled, setMultiFloorEnabled] = useState(false)
   const [floors, setFloors] = useState([{ floor_name: 'Ground Floor', area: '' }])
 
-  if (!canCreateAssignment) {
+  if (!canCreateAssignment && !canCreateDraftAssignment) {
     return (
       <div>
         <PageHeader
@@ -216,6 +219,7 @@ export default function NewAssignment() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError(null)
+    setNotice(null)
     const validationError = validateForm()
     if (validationError) {
       setError(validationError)
@@ -281,15 +285,27 @@ export default function NewAssignment() {
         payload.floors = floorsPayload
       }
 
-      const created = await createAssignment(payload)
-      navigate(`/assignments/${created.id}`)
+      const created = draftMode
+        ? await createDraftAssignment(payload)
+        : await createAssignment(payload)
+      if (draftMode) {
+        setNotice(`Draft submitted for approval. Temporary code: ${created.assignment_code}`)
+      } else {
+        navigate(`/assignments/${created.id}`)
+      }
     } catch (err) {
       console.error(err)
       const detail = err?.response?.data?.detail
       if (err?.response?.status === 409 && payload && confirmLeaveOverride(detail)) {
         try {
-          const created = await createAssignment({ ...payload, override_on_leave: true })
-          navigate(`/assignments/${created.id}`)
+          const created = draftMode
+            ? await createDraftAssignment({ ...payload, override_on_leave: true })
+            : await createAssignment({ ...payload, override_on_leave: true })
+          if (draftMode) {
+            setNotice(`Draft submitted for approval. Temporary code: ${created.assignment_code}`)
+          } else {
+            navigate(`/assignments/${created.id}`)
+          }
           return
         } catch (innerErr) {
           console.error(innerErr)
@@ -307,10 +323,11 @@ export default function NewAssignment() {
     <div>
       <PageHeader
         title="New Assignment"
-        subtitle="Capture the essentials quickly, then drive the workflow from the command center."
+        subtitle={draftMode ? 'Submit assignment drafts for OPS/Admin approval.' : 'Capture the essentials quickly, then drive the workflow from the command center.'}
         actions={selectedBank ? <Badge tone="info">{selectedBank.name}</Badge> : selectedClient ? <Badge tone="info">{selectedClient.name}</Badge> : null}
       />
 
+      {notice ? <div className="empty" style={{ marginBottom: '0.9rem' }}>{notice}</div> : null}
       {error ? <div className="empty" style={{ marginBottom: '0.9rem' }}>{error}</div> : null}
 
       {loading ? (
@@ -346,14 +363,21 @@ export default function NewAssignment() {
                 </select>
               </label>
 
-              <label className="grid" style={{ gap: 6 }}>
-                <span className="kicker">Status</span>
-                <select value={form.status} onChange={(e) => updateForm('status', e.target.value)}>
-                  {STATUSES.map((status) => (
-                    <option key={status} value={status}>{titleCase(status)}</option>
-                  ))}
-                </select>
-              </label>
+              {draftMode ? (
+                <label className="grid" style={{ gap: 6 }}>
+                  <span className="kicker">Status</span>
+                  <input value="Draft Pending Approval" disabled />
+                </label>
+              ) : (
+                <label className="grid" style={{ gap: 6 }}>
+                  <span className="kicker">Status</span>
+                  <select value={form.status} onChange={(e) => updateForm('status', e.target.value)}>
+                    {STATUSES.map((status) => (
+                      <option key={status} value={status}>{titleCase(status)}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
 
               <label className="grid" style={{ gap: 6 }}>
                 <span className="kicker">Property Type</span>

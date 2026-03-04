@@ -111,7 +111,12 @@ def recompute_invoice_totals(invoice: Invoice) -> Invoice:
 
 
 def recompute_invoice_balance(invoice: Invoice) -> Invoice:
-    amount_paid = sum((payment.amount for payment in invoice.payments), start=Decimal("0.00"))
+    confirmed_payments = [
+        payment
+        for payment in invoice.payments
+        if str(payment.confirmation_status or "CONFIRMED") == "CONFIRMED"
+    ]
+    amount_paid = sum((payment.amount for payment in confirmed_payments), start=Decimal("0.00"))
     amount_credited = sum((adj.amount for adj in invoice.adjustments), start=Decimal("0.00"))
     total = Decimal(invoice.total_amount or Decimal("0.00"))
     amount_due = total - amount_paid - amount_credited
@@ -126,8 +131,8 @@ def recompute_invoice_balance(invoice: Invoice) -> Invoice:
         if invoice.amount_due <= Decimal("0.00"):
             invoice.is_paid = True
             invoice.status = InvoiceStatus.PAID
-            if invoice.payments:
-                invoice.paid_at = max(p.paid_at for p in invoice.payments)
+            if confirmed_payments:
+                invoice.paid_at = max(p.paid_at for p in confirmed_payments)
         elif invoice.amount_paid > Decimal("0.00") or invoice.amount_credited > Decimal("0.00"):
             invoice.is_paid = False
             invoice.status = InvoiceStatus.PARTIALLY_PAID
@@ -288,6 +293,9 @@ def mark_invoice_paid(db: Session, *, invoice: Invoice, actor_user_id: int) -> I
         paid_at=datetime.now(timezone.utc),
         mode=PaymentMode.MANUAL,
         created_by_user_id=actor_user_id,
+        confirmation_status="CONFIRMED",
+        confirmed_by_user_id=actor_user_id,
+        confirmed_at=datetime.now(timezone.utc),
         notes="Marked paid",
     )
     db.add(payment)

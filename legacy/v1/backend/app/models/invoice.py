@@ -178,6 +178,11 @@ class InvoicePayment(IDMixin, TimestampMixin, Base):
     reference_no: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    confirmation_status: Mapped[str] = mapped_column(String(32), default="CONFIRMED", nullable=False, index=True)
+    confirmed_by_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    confirmation_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    approval_id: Mapped[Optional[int]] = mapped_column(ForeignKey("approvals.id"), nullable=True, index=True)
 
     invoice: Mapped[Invoice] = relationship(back_populates="payments")
 

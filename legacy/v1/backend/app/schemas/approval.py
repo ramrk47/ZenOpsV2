@@ -5,31 +5,40 @@ from typing import Optional
 
 from pydantic import Field
 
-from app.models.enums import ApprovalActionType, ApprovalEntityType, ApprovalStatus
+from app.models.enums import ApprovalActionType, ApprovalEntityType, ApprovalStatus, ApprovalType
 from app.schemas.base import ORMModel
 
 
 class ApprovalRequest(ORMModel):
+    approval_type: Optional[ApprovalType] = None
     entity_type: ApprovalEntityType
     entity_id: int
     action_type: ApprovalActionType
     reason: Optional[str] = None
+    decision_reason: Optional[str] = None
     payload_json: Optional[dict] = None
+    metadata_json: Optional[dict] = None
     approver_user_id: Optional[int] = None
     assignment_id: Optional[int] = None
 
 
 class ApprovalRead(ORMModel):
     id: int
+    approval_type: Optional[ApprovalType] = None
     entity_type: ApprovalEntityType
     entity_id: int
     action_type: ApprovalActionType
+    requested_by_user_id: int
     requester_user_id: int
+    decided_by_user_id: Optional[int] = None
     approver_user_id: Optional[int] = None
     status: ApprovalStatus
     reason: Optional[str] = None
+    decision_reason: Optional[str] = None
     payload_json: Optional[dict] = None
+    metadata_json: Optional[dict] = None
     assignment_id: Optional[int] = None
+    requested_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     decided_at: Optional[datetime] = None

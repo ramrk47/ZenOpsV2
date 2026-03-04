@@ -1,8 +1,11 @@
 import api from './client'
 
-export async function fetchApprovalsInbox(includeDecided = false) {
+export async function fetchApprovalsInbox(includeDecided = false, approvalType = null) {
   const { data } = await api.get('/api/approvals/inbox', {
-    params: { include_decided: includeDecided },
+    params: {
+      include_decided: includeDecided,
+      approval_type: approvalType || undefined,
+    },
   })
   return data
 }
@@ -16,6 +19,11 @@ export async function fetchMyApprovals(includeDecided = true) {
 
 export async function requestApproval(payload) {
   const { data } = await api.post('/api/approvals/request', payload)
+  return data
+}
+
+export async function fetchApproval(id) {
+  const { data } = await api.get(`/api/approvals/${id}`)
   return data
 }
 

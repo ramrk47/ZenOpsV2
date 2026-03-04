@@ -41,6 +41,7 @@ from app.models.enums import (
     ApprovalActionType,
     ApprovalEntityType,
     ApprovalStatus,
+    ApprovalType,
     InvoiceStatus,
     PaymentMode,
     NotificationType,
@@ -88,7 +89,6 @@ from app.services.invoices import (
     snapshot_tax_breakdown,
 )
 from app.services.studio_billing import emit_invoice_event
-from app.services.partners import notify_partner_users
 
 router = APIRouter(prefix="/api/invoices", tags=["invoices"])
 logger = logging.getLogger(__name__)
@@ -1058,15 +1058,19 @@ def add_payment(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Issue the invoice before recording payment")
 
     amount = Decimal(payload.amount)
+    pending_amount = sum(
+        (Decimal(p.amount) for p in invoice.payments if str(p.confirmation_status or "") == "PENDING_CONFIRMATION"),
+        start=Decimal("0.00"),
+    )
+    available_due = Decimal(invoice.amount_due) - pending_amount
     if amount <= Decimal("0.00"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment amount must be positive")
-    if invoice.amount_due <= Decimal("0.00"):
+    if available_due <= Decimal("0.00"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invoice already settled")
-    if amount > invoice.amount_due:
+    if amount > available_due:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment exceeds amount due")
 
     paid_at = payload.paid_at or datetime.now(timezone.utc)
-    was_paid = invoice.is_paid
     payment = InvoicePayment(
         invoice_id=invoice.id,
         amount=amount,
@@ -1075,7 +1079,37 @@ def add_payment(
         reference_no=payload.reference_no,
         notes=payload.notes,
         created_by_user_id=current_user.id,
+        confirmation_status="PENDING_CONFIRMATION",
     )
+    db.add(payment)
+    db.flush()
+
+    approval = Approval(
+        approval_type=ApprovalType.PAYMENT_CONFIRMATION,
+        entity_type=ApprovalEntityType.PAYMENT,
+        entity_id=payment.id,
+        action_type=ApprovalActionType.MARK_PAID,
+        requester_user_id=current_user.id,
+        approver_user_id=None,
+        status=ApprovalStatus.PENDING,
+        reason="Payment confirmation required",
+        payload_json={
+            "invoice_id": invoice.id,
+            "payment_id": payment.id,
+            "amount": str(amount),
+            "mode": str(payload.mode),
+        },
+        metadata_json={
+            "invoice_number": invoice.invoice_number,
+            "assignment_id": invoice.assignment_id,
+            "reference_no": payload.reference_no,
+        },
+        assignment_id=invoice.assignment_id,
+    )
+    allowed_roles = required_roles_for_approval(approval.entity_type, approval.action_type, approval.approval_type)
+    request_approval(db, approval=approval, allowed_roles=allowed_roles, auto_assign=False)
+
+    payment.approval_id = approval.id
     db.add(payment)
     invoice.payments.append(payment)
     recompute_invoice_balance(invoice)
@@ -1084,7 +1118,7 @@ def add_payment(
     add_invoice_audit_log(
         db,
         invoice_id=invoice.id,
-        event_type="payment_recorded",
+        event_type="payment_pending_confirmation",
         actor_user_id=current_user.id,
         diff={"amount": str(amount), "mode": str(payload.mode)},
     )
@@ -1092,26 +1126,23 @@ def add_payment(
     log_activity(
         db,
         actor_user_id=current_user.id,
-        activity_type="INVOICE_PAYMENT_RECORDED",
+        activity_type="INVOICE_PAYMENT_SUBMITTED",
         assignment_id=invoice.assignment_id,
-        message=f"Payment recorded for {invoice.invoice_number or invoice.id}",
-        payload={"invoice_id": invoice.id, "amount": str(amount)},
+        message=f"Payment submitted for confirmation: {invoice.invoice_number or invoice.id}",
+        payload={"invoice_id": invoice.id, "payment_id": payment.id, "approval_id": approval.id, "amount": str(amount)},
     )
 
-    if invoice.partner_id and invoice.is_paid and not was_paid:
-        notify_partner_users(
-            db,
-            partner_id=invoice.partner_id,
-            notif_type=NotificationType.PARTNER_PAYMENT_VERIFIED,
-            message=f"Payment verified for invoice {invoice.invoice_number or invoice.id}",
-            payload={"invoice_id": invoice.id, "assignment_id": invoice.assignment_id},
-        )
+    notify_roles(
+        db,
+        roles=allowed_roles,
+        notif_type=NotificationType.APPROVAL_PENDING,
+        message="Payment confirmation approval requested",
+        payload={"approval_id": approval.id, "invoice_id": invoice.id, "payment_id": payment.id},
+        exclude_user_ids=[current_user.id],
+    )
 
     db.commit()
     db.refresh(invoice)
-    emit_invoice_event("payment_recorded", invoice, payment=payment)
-    if invoice.is_paid and not was_paid:
-        emit_invoice_event("invoice_paid", invoice, payment=payment)
     return InvoiceRead.model_validate(invoice)
 
 
