@@ -16,6 +16,7 @@ import {
 } from '../../utils/rbac'
 
 function NavGroup({ id, label, children, defaultOpen = false }) {
+  const panelId = `nav-group-${id}`
   const [open, setOpen] = useState(() => {
     try {
       const stored = localStorage.getItem(`zenops:nav:${id}`)
@@ -33,11 +34,17 @@ function NavGroup({ id, label, children, defaultOpen = false }) {
 
   return (
     <div className="nav-section">
-      <div className="nav-group-header" onClick={toggle}>
+      <button
+        type="button"
+        className="nav-group-header"
+        onClick={toggle}
+        aria-expanded={open}
+        aria-controls={panelId}
+      >
         <div className="nav-title">{label}</div>
         <span className={`nav-group-chevron ${open ? 'open' : ''}`}>&#9654;</span>
-      </div>
-      <div className={`nav-group-items ${open ? 'open' : ''}`}>
+      </button>
+      <div id={panelId} className={`nav-group-items ${open ? 'open' : ''}`} aria-hidden={!open}>
         <div>{children}</div>
       </div>
     </div>

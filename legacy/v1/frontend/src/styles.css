@@ -807,14 +807,18 @@ tbody tr[role='button'] {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
   padding: 0.5rem 0.5rem;
   margin-bottom: 0.25rem;
   cursor: pointer;
+  text-align: left;
   border-radius: var(--radius-sm);
   user-select: none;
   transition: background var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard);
   border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
 }
 
 .nav-group-header:hover {
@@ -847,11 +851,16 @@ tbody tr[role='button'] {
   transition: grid-template-rows var(--duration-base) var(--ease-standard),
     opacity var(--duration-base) var(--ease-standard);
   opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  position: relative;
+  z-index: 0;
 }
 
 .nav-group-items.open {
   grid-template-rows: 1fr;
   opacity: 1;
+  pointer-events: auto;
 }
 
 .nav-group-items > div {
