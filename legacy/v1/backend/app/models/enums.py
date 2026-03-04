@@ -232,6 +232,9 @@ class WorkSessionType(enum.StrEnum):
 
 
 class PartnerAccountRequestStatus(enum.StrEnum):
+    PENDING_EMAIL_VERIFY = "PENDING_EMAIL_VERIFY"
+    VERIFIED_PENDING_REVIEW = "VERIFIED_PENDING_REVIEW"
+    EXPIRED = "EXPIRED"
     PENDING = "PENDING"
     VERIFIED = "VERIFIED"
     INVITED = "INVITED"

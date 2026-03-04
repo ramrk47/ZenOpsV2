@@ -9,6 +9,13 @@ from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, DotEnvSettingsSource, EnvSettingsSource, SettingsConfigDict
 
 
+ASSOCIATE_ONBOARDING_MODES = {
+    "INVITE_ONLY",
+    "REQUEST_ACCESS_REVIEW",
+    "REQUEST_ACCESS_AUTO_APPROVE",
+}
+
+
 class _FallbackEnvSettingsSource(EnvSettingsSource):
     """Allow ALLOW_ORIGINS to be comma-separated instead of strict JSON."""
 
@@ -180,6 +187,31 @@ class Settings(BaseSettings):
         description="Auto-approve associate request-access in non-production environments only",
         validation_alias=AliasChoices("ASSOCIATE_AUTO_APPROVE"),
     )
+    associate_onboarding_mode: str = Field(
+        default="REQUEST_ACCESS_AUTO_APPROVE",
+        description="Associate onboarding mode: INVITE_ONLY, REQUEST_ACCESS_REVIEW, REQUEST_ACCESS_AUTO_APPROVE",
+        validation_alias=AliasChoices("ASSOCIATE_ONBOARDING_MODE"),
+    )
+    associate_email_verify_required: bool = Field(
+        default=True,
+        description="Require email verification before associate onboarding can proceed",
+        validation_alias=AliasChoices("ASSOCIATE_EMAIL_VERIFY_REQUIRED"),
+    )
+    associate_verify_token_ttl_minutes: int = Field(
+        default=15,
+        description="Minutes until an associate verification token expires",
+        validation_alias=AliasChoices("ASSOCIATE_VERIFY_TOKEN_TTL_MINUTES"),
+    )
+    associate_auto_approve_domains: List[str] = Field(
+        default_factory=list,
+        description="Optional email-domain allowlist for auto-approve mode",
+        validation_alias=AliasChoices("ASSOCIATE_AUTO_APPROVE_DOMAINS"),
+    )
+    associate_auto_approve_max_per_day: int = Field(
+        default=25,
+        description="Maximum automatic associate approvals per day",
+        validation_alias=AliasChoices("ASSOCIATE_AUTO_APPROVE_MAX_PER_DAY"),
+    )
     associate_auto_approve_password: str = Field(
         default="password",
         description="Password assigned when ASSOCIATE_AUTO_APPROVE is enabled (non-production only)",
@@ -280,7 +312,12 @@ class Settings(BaseSettings):
             return "POSTPAID"
         return mode
 
-    @field_validator("allowed_upload_extensions", "allowed_upload_content_types", mode="before")
+    @field_validator(
+        "allowed_upload_extensions",
+        "allowed_upload_content_types",
+        "associate_auto_approve_domains",
+        mode="before",
+    )
     @classmethod
     def parse_csv_or_list(cls, value):
         if isinstance(value, list):
@@ -288,6 +325,14 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
+
+    @field_validator("associate_onboarding_mode")
+    @classmethod
+    def normalize_associate_onboarding_mode(cls, value: str) -> str:
+        mode = (value or "").strip().upper()
+        if mode not in ASSOCIATE_ONBOARDING_MODES:
+            return "REQUEST_ACCESS_AUTO_APPROVE"
+        return mode
 
     def ensure_uploads_dir(self) -> Path:
         uploads_path = Path(self.uploads_dir).expanduser().resolve()
@@ -303,6 +348,13 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.environment.lower() in ("production", "prod")
+
+    @property
+    def associate_onboarding_mode_effective(self) -> str:
+        mode = self.associate_onboarding_mode
+        if self.is_production and not mode:
+            return "INVITE_ONLY"
+        return mode or "REQUEST_ACCESS_AUTO_APPROVE"
 
     @classmethod
     def settings_customise_sources(
