@@ -107,9 +107,35 @@ class Invoice(IDMixin, TimestampMixin, Base):
         return self.total_amount
 
     @property
+    def base_total(self) -> Decimal:
+        return Decimal(self.total_amount or Decimal("0.00"))
+
+    @property
+    def net_total(self) -> Decimal:
+        paid = Decimal(self.amount_paid or Decimal("0.00"))
+        due = Decimal(self.amount_due or Decimal("0.00"))
+        return paid + due
+
+    @property
+    def adjustments_total(self) -> Decimal:
+        return self.net_total - self.base_total
+
+    @property
     def assignment_code(self) -> Optional[str]:
         if self.assignment:
             return self.assignment.assignment_code
+        return None
+
+    @property
+    def assignment_service_line(self) -> Optional[str]:
+        if self.assignment and self.assignment.service_line:
+            return str(self.assignment.service_line)
+        return None
+
+    @property
+    def assignment_case_type(self) -> Optional[str]:
+        if self.assignment and self.assignment.case_type:
+            return str(self.assignment.case_type)
         return None
 
     @property
@@ -174,7 +200,7 @@ class InvoicePayment(IDMixin, TimestampMixin, Base):
     invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
     paid_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    mode: Mapped[PaymentMode] = mapped_column(Enum(PaymentMode, name="payment_mode"), default=PaymentMode.MANUAL, nullable=False)
+    mode: Mapped[PaymentMode] = mapped_column(Enum(PaymentMode, name="payment_mode"), default=PaymentMode.CASH, nullable=False)
     reference_no: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)

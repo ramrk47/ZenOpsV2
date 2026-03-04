@@ -507,6 +507,13 @@ def _accumulate_assignments(metrics: dict[str, _Metric], rows: Iterable[tuple], 
                 metric.last_assignment_at = created_at
 
 
+def _invoice_rollup(invoice: Invoice) -> tuple[Decimal, Decimal, Decimal]:
+    paid_total = Decimal(invoice.amount_paid or Decimal("0.00"))
+    due_total = Decimal(invoice.amount_due or Decimal("0.00"))
+    net_total = paid_total + due_total
+    return net_total, paid_total, due_total
+
+
 def _accumulate_invoices(metrics: dict[str, _Metric], rows: Iterable[tuple], key_fn) -> None:
     for invoice, bank_id, branch_id, service_line, case_type, client_id in rows:
         key = key_fn(
@@ -520,15 +527,13 @@ def _accumulate_invoices(metrics: dict[str, _Metric], rows: Iterable[tuple], key
         if not key:
             continue
         metric = metrics.setdefault(key, _Metric())
-        total = Decimal(invoice.total_amount or Decimal("0.00"))
-        metric.billed += total
-        if invoice.is_paid:
-            metric.collected += total
-        else:
-            metric.outstanding += total
+        net_total, paid_total, due_total = _invoice_rollup(invoice)
+        metric.billed += net_total
+        metric.collected += paid_total
+        metric.outstanding += due_total
         if invoice.issued_date:
             month = invoice.issued_date.strftime("%Y-%m")
-            metric.monthly_billed[month] += total
+            metric.monthly_billed[month] += net_total
 
 
 @router.get("/source-intel", response_model=AnalyticsResponse)
@@ -614,7 +619,8 @@ def source_intel(
         if not assignment:
             continue
         key, _meta = _resolve_source(assignment)
-        prev_revenue[key] += Decimal(invoice.total_amount or Decimal("0.00"))
+        net_total, _paid_total, _due_total = _invoice_rollup(invoice)
+        prev_revenue[key] += net_total
 
     for assignment in current_assignments:
         key, meta = _resolve_source(assignment)
@@ -637,12 +643,10 @@ def source_intel(
         if not row:
             row = AnalyticsSourceRow(source_key=key, **meta)
             metrics[key] = row
-        total = Decimal(invoice.total_amount or Decimal("0.00"))
-        row.revenue += total
-        if invoice.is_paid:
-            row.collected += total
-        else:
-            row.outstanding += total
+        net_total, paid_total, due_total = _invoice_rollup(invoice)
+        row.revenue += net_total
+        row.collected += paid_total
+        row.outstanding += due_total
 
     for key, row in metrics.items():
         prev_assignments = prev_assignment_counts.get(key, 0)
@@ -722,7 +726,8 @@ def source_intel(
     for invoice in current_invoices:
         if invoice.issued_date:
             month = invoice.issued_date.strftime("%Y-%m")
-            revenue_trend[month] += Decimal(invoice.total_amount or Decimal("0.00"))
+            net_total, _paid_total, _due_total = _invoice_rollup(invoice)
+            revenue_trend[month] += net_total
 
     trends = [
         AnalyticsTrendPoint(
@@ -1950,10 +1955,9 @@ def partner_bank_breakdown(
                 invoice_paid=Decimal("0.00"),
                 invoice_unpaid=Decimal("0.00"),
             )
-        total = Decimal(invoice.total_amount or Decimal("0.00"))
-        due = Decimal(invoice.amount_due or Decimal("0.00"))
-        counters[key].invoice_total += total
-        counters[key].invoice_unpaid += due
-        counters[key].invoice_paid += total - due
+        net_total, paid_total, due_total = _invoice_rollup(invoice)
+        counters[key].invoice_total += net_total
+        counters[key].invoice_unpaid += due_total
+        counters[key].invoice_paid += paid_total
 
     return list(counters.values())

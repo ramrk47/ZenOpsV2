@@ -9,6 +9,13 @@ from pydantic import Field
 from app.models.enums import InvoiceAdjustmentType, InvoiceStatus, PaymentMode
 from app.schemas.base import ORMModel
 
+ACTIVE_PAYMENT_MODES = {
+    PaymentMode.CASH,
+    PaymentMode.UPI,
+    PaymentMode.BANK_TRANSFER,
+    PaymentMode.OTHER,
+}
+
 
 class InvoiceItemBase(ORMModel):
     description: str = Field(..., min_length=1, max_length=255)
@@ -45,7 +52,7 @@ class InvoiceItemRead(InvoiceItemBase):
 class InvoicePaymentCreate(ORMModel):
     amount: Decimal = Field(..., gt=Decimal("0.00"))
     paid_at: Optional[datetime] = None
-    mode: PaymentMode = PaymentMode.MANUAL
+    mode: PaymentMode = PaymentMode.CASH
     reference_no: Optional[str] = Field(default=None, max_length=100)
     notes: Optional[str] = None
 
@@ -188,6 +195,9 @@ class InvoiceLedgerRow(ORMModel):
     currency: str
     subtotal: Decimal
     tax_total: Decimal
+    base_total: Decimal
+    adjustments_total: Decimal
+    net_total: Decimal
     grand_total: Decimal
     amount_paid: Decimal
     amount_due: Decimal
@@ -216,6 +226,8 @@ class InvoiceRead(ORMModel):
     id: int
     assignment_id: int
     assignment_code: Optional[str] = None
+    assignment_service_line: Optional[str] = None
+    assignment_case_type: Optional[str] = None
     invoice_number: Optional[str] = None
     status: InvoiceStatus
     issued_date: date
@@ -226,6 +238,9 @@ class InvoiceRead(ORMModel):
     tax_rate: Decimal
     tax_amount: Decimal
     total_amount: Decimal
+    base_total: Decimal
+    adjustments_total: Decimal
+    net_total: Decimal
     tax_total: Decimal
     grand_total: Decimal
     amount_paid: Decimal

@@ -60,6 +60,7 @@ from app.models.task import AssignmentTask
 from app.models.user import User
 from app.schemas.approval import ApprovalRead
 from app.schemas.invoice import (
+    ACTIVE_PAYMENT_MODES,
     InvoiceAdjustmentCreate,
     InvoiceAttachmentRead,
     InvoiceCreate,
@@ -97,6 +98,7 @@ REMINDER_SCOPE = "invoice_remind"
 REMINDER_COOLDOWN_HOURS = 24
 REMINDER_USER_LIMIT = 10
 REMINDER_USER_WINDOW_MINUTES = 10
+LEGACY_PAYMENT_MODES = {PaymentMode.MANUAL, PaymentMode.CARD, PaymentMode.CHEQUE}
 
 SortDir = Literal["asc", "desc"]
 
@@ -323,6 +325,9 @@ def _invoice_to_ledger_row(invoice: Invoice) -> InvoiceLedgerRow:
         "currency": invoice.currency,
         "subtotal": invoice.subtotal,
         "tax_total": invoice.tax_amount,
+        "base_total": invoice.base_total,
+        "adjustments_total": invoice.adjustments_total,
+        "net_total": invoice.net_total,
         "grand_total": invoice.total_amount,
         "amount_paid": invoice.amount_paid,
         "amount_due": invoice.amount_due,
@@ -337,6 +342,21 @@ def _invoice_to_ledger_row(invoice: Invoice) -> InvoiceLedgerRow:
         "created_at": invoice.created_at,
     }
     return InvoiceLedgerRow(**payload)
+
+
+def _validate_payment_mode(payload: InvoicePaymentCreate) -> None:
+    if payload.mode not in ACTIVE_PAYMENT_MODES:
+        if payload.mode in LEGACY_PAYMENT_MODES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"{payload.mode.value} is a legacy payment method and cannot be used for new payments",
+            )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported payment mode")
+    if payload.mode == PaymentMode.OTHER and not (payload.notes or "").strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Other offline payments require notes",
+        )
 
 
 @router.get("", response_model=InvoiceListResponse)
@@ -562,6 +582,9 @@ def export_invoices_csv(
             "currency",
             "subtotal",
             "tax_total",
+            "base_total",
+            "adjustments_total",
+            "net_total",
             "grand_total",
             "amount_paid",
             "amount_due",
@@ -589,6 +612,9 @@ def export_invoices_csv(
                 invoice.currency,
                 invoice.subtotal,
                 invoice.tax_amount,
+                invoice.base_total,
+                invoice.adjustments_total,
+                invoice.net_total,
                 invoice.total_amount,
                 invoice.amount_paid,
                 invoice.amount_due,
@@ -1051,6 +1077,7 @@ def add_payment(
     _require_invoice_money(current_user)
     invoice = _get_invoice_or_404(db, invoice_id)
     _ensure_assignment_access(db, invoice.assignment_id, current_user)
+    _validate_payment_mode(payload)
 
     if invoice.status == InvoiceStatus.VOID:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot pay a voided invoice")
@@ -1221,7 +1248,7 @@ def mark_paid(
             invoice_id=invoice.id,
             amount=amount,
             paid_at=datetime.now(timezone.utc),
-            mode=PaymentMode.MANUAL,
+            mode=PaymentMode.OTHER,
             created_by_user_id=current_user.id,
             notes="Marked paid",
         )
@@ -1235,7 +1262,7 @@ def mark_paid(
             invoice_id=invoice.id,
             event_type="payment_recorded",
             actor_user_id=current_user.id,
-            diff={"amount": str(amount), "mode": str(PaymentMode.MANUAL)},
+            diff={"amount": str(amount), "mode": str(PaymentMode.OTHER)},
         )
 
         log_activity(
