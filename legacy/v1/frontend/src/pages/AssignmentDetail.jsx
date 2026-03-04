@@ -334,6 +334,12 @@ export default function AssignmentDetail() {
     () => approvalTemplates.find((t) => t.action_type === approvalForm.action_type),
     [approvalTemplates, approvalForm.action_type],
   )
+  const approvalActionOptions = useMemo(() => {
+    const source = approvalTemplates.length > 0
+      ? approvalTemplates.map((template) => template.action_type)
+      : DEFAULT_APPROVAL_ACTIONS
+    return Array.from(new Set(source))
+  }, [approvalTemplates])
 
   const orderedTimeline = useMemo(() => {
     const items = detail?.timeline ? [...detail.timeline] : []
@@ -2006,7 +2012,7 @@ export default function AssignmentDetail() {
               <label className="grid" style={{ gap: 6 }}>
                 <span className="kicker">Action</span>
                 <select value={approvalForm.action_type} onChange={(e) => setApprovalForm((prev) => ({ ...prev, action_type: e.target.value }))}>
-                  {(approvalTemplates.length > 0 ? approvalTemplates.map((t) => t.action_type) : DEFAULT_APPROVAL_ACTIONS).map((action) => (
+                  {approvalActionOptions.map((action) => (
                     <option key={action} value={action}>{titleCase(action)}</option>
                   ))}
                 </select>
