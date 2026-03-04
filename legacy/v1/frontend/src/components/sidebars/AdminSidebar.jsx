@@ -12,6 +12,7 @@ import {
   canSeeAdmin,
   hasCapability,
   getUserRoles,
+  userHasRole,
 } from '../../utils/rbac'
 
 function NavGroup({ id, label, children, defaultOpen = false }) {
@@ -150,6 +151,7 @@ export default function AdminSidebar() {
   ]), [bubbles, capabilities, canApprove])
 
   const canCreateAssignment = hasCapability(capabilities, 'create_assignment')
+  const canAccessBackups = userHasRole(user, 'ADMIN')
 
   function renderLink(link) {
     return (
@@ -208,7 +210,7 @@ export default function AdminSidebar() {
     { to: '/admin/personnel', label: 'Personnel', enabled: canManageUsers(capabilities) },
     { to: '/admin/masterdata', label: 'Master Data', enabled: showMasterData },
     { to: '/admin/company', label: 'Company Accts', enabled: showCompanyAccounts },
-    { to: '/admin/backups', label: 'Backups', enabled: canSeeAdmin(capabilities) },
+    { to: '/admin/backups', label: 'Backups', enabled: canAccessBackups },
   ].filter((l) => l.enabled)
 
   return (

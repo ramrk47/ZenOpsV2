@@ -49,7 +49,7 @@ import PartnerNotifications from './pages/partner/PartnerNotifications.jsx'
 import PartnerProfile from './pages/partner/PartnerProfile.jsx'
 import PartnerHelp from './pages/partner/PartnerHelp.jsx'
 import Forbidden from './pages/Forbidden.jsx'
-import { canSeeAdmin, hasCapability, isPartner, resolveHomeRoute } from './utils/rbac.js'
+import { canSeeAdmin, hasCapability, isPartner, resolveHomeRoute, userHasRole } from './utils/rbac.js'
 
 function RequireCapability({ children, capability }) {
   const { user, capabilities, initialising } = useAuth()
@@ -101,6 +101,16 @@ function RequireAdminArea({ children }) {
   if (!user) return <Navigate to="/login" replace />
   if (isPartner(user)) return <Forbidden />
   if (!canSeeAdmin(capabilities)) return <Forbidden />
+  return children
+}
+
+function RequireAdminRole({ children }) {
+  const { user, initialising } = useAuth()
+  if (initialising) {
+    return <div style={{ padding: '2rem' }}>Loading…</div>
+  }
+  if (!user) return <Navigate to="/login" replace />
+  if (!userHasRole(user, 'ADMIN')) return <Forbidden />
   return children
 }
 
@@ -210,7 +220,9 @@ export default function App() {
           path="/admin/backups"
           element={(
             <RequireAdminArea>
-              <AdminBackups />
+              <RequireAdminRole>
+                <AdminBackups />
+              </RequireAdminRole>
             </RequireAdminArea>
           )}
         />
