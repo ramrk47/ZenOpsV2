@@ -6,6 +6,38 @@ The format is based on Keep a Changelog, and this project adheres to Conventiona
 
 ## [Unreleased]
 
+## [v1-pilot-rc1-2026-03-04]
+
+### Added
+- Pilot RC integration branch `codex/v1-phase9-pilot-rc` merging completed phase streams:
+  - Phase 2 approvals + draft assignments
+  - Phase 3 invoices/payments/adjustments
+  - Phase 4 policy-driven land + service-line master data
+  - Phase 5 ops UX surfaces
+  - Phase 6 associate onboarding (self-serve + verification)
+  - Phase 7 allocation eligibility/workload policy
+  - Phase 8 deploy/security hardening
+  - Phase 8.6 stabilization patchset
+- PostgreSQL-only test session helper for Phase RC suites: `backend/tests/postgres_utils.py`.
+- Alembic migration `0042_phase9_partner_request_status_len` to support Phase 6 onboarding status values.
+
+### Changed
+- RC phase suites now run against PostgreSQL (Docker Compose DB) instead of SQLite shims.
+- `scripts/smoke_prod_like.sh` now validates:
+  - `/healthz`, `/readyz`, `/version`
+  - production CORS deny for unknown origin
+  - login rate-limit threshold behavior
+  - non-prod associate request-access + verify flow (201 + token verification)
+  - backups endpoint admin-only guard (non-admin denied)
+  - isolated host-port binding and clean DB volume startup for deterministic local smoke runs.
+
+### Fixed
+- Added missing outbox integration artifacts required by merged branches:
+  - `app/models/v1_outbox_event.py`
+  - `alembic/versions/0035_add_v1_outbox_events.py`
+  - `app/services/v1_outbox.py`
+- Widened `partner_account_requests.status` model column to `String(40)` to avoid Postgres truncation failures on `VERIFIED_PENDING_REVIEW`.
+
 ### Added
 - Multi-role user model with capability union and partner single-role enforcement.
 - Notification delivery tracking and email worker processing for queued notifications.
