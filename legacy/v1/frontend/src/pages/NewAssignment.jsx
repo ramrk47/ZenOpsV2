@@ -35,6 +35,8 @@ const LAND_BLOCKS = ['NORMAL_LAND', 'SURVEY_ROWS', 'BUILT_UP']
 const PAYMENT_TIMING_OPTIONS = ['PRE', 'POST']
 const PAYMENT_COMPLETENESS_OPTIONS = ['FULL', 'PARTIAL']
 const PREFERRED_PAYMENT_MODE_OPTIONS = ['CASH', 'UPI', 'BANK_TRANSFER']
+const DEFAULT_ELIGIBLE_ROLES = ['ADMIN', 'OPS_MANAGER', 'ASSISTANT_VALUER', 'FIELD_VALUER', 'EMPLOYEE']
+const DEFAULT_DENY_ROLES = ['FINANCE', 'HR']
 
 function toIso(value) {
   if (!value) return null
@@ -90,6 +92,39 @@ function sumSurveyRows(rows) {
   )
 }
 
+function normalizeRoleList(values, fallback = []) {
+  if (!Array.isArray(values)) return [...fallback]
+  const normalized = values
+    .map((value) => String(value || '').trim().toUpperCase())
+    .filter(Boolean)
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : [...fallback]
+}
+
+function resolveAllocationPolicy(policyJson) {
+  return {
+    eligibleRoles: normalizeRoleList(policyJson?.eligible_roles, DEFAULT_ELIGIBLE_ROLES),
+    denyRoles: normalizeRoleList(policyJson?.deny_roles, DEFAULT_DENY_ROLES),
+  }
+}
+
+function evaluateAssigneeEligibility(candidate, policy) {
+  const primaryRole = String(candidate?.role || '').trim().toUpperCase()
+  if (!candidate?.is_active) return false
+  if (!primaryRole) return false
+  if (primaryRole === 'EXTERNAL_PARTNER') return false
+  if ((policy?.denyRoles || []).includes(primaryRole)) return false
+  const allowedRoles = policy?.eligibleRoles || []
+  if (allowedRoles.length > 0 && !allowedRoles.includes(primaryRole)) return false
+  return true
+}
+
+function assigneeEligibilityError(detail) {
+  if (!detail || detail.code !== 'ASSIGNEE_NOT_ELIGIBLE') return null
+  const userLabel = detail.user_id != null ? `User ${detail.user_id}` : 'Selected assignee'
+  const reason = detail.reason ? String(detail.reason).replaceAll('_', ' ').toLowerCase() : 'not eligible'
+  return `${userLabel} is not eligible (${reason}). Update assignee selection and retry.`
+}
+
 export default function NewAssignment() {
   const navigate = useNavigate()
   const { user, capabilities } = useAuth()
@@ -132,7 +167,7 @@ export default function NewAssignment() {
     builtup_area: '',
     uom: '',
     status: 'PENDING',
-    assigned_to_user_id: user?.id ? String(user.id) : '',
+    assigned_to_user_id: '',
     assignee_user_ids: [],
     site_visit_date: '',
     report_due_date: '',
@@ -214,9 +249,6 @@ export default function NewAssignment() {
         setServiceLinePolicies(policyData)
         setUsers(userData)
 
-        if (!form.assigned_to_user_id && user?.id) {
-          setForm((prev) => ({ ...prev, assigned_to_user_id: String(user.id) }))
-        }
         if (!form.service_line_id && serviceLineData.length > 0) {
           setForm((prev) => ({ ...prev, service_line_id: String(serviceLineData[0].id) }))
         }
@@ -301,6 +333,36 @@ export default function NewAssignment() {
   const selectedClient = clients.find((client) => String(client.id) === String(form.client_id)) || null
 
   const isBankCase = form.case_type === 'BANK'
+  const selectedAllocationPolicy = useMemo(
+    () => resolveAllocationPolicy(selectedServiceLine?.allocation_policy_json),
+    [selectedServiceLine?.allocation_policy_json],
+  )
+  const eligibleAssignees = useMemo(
+    () => users.filter((candidate) => evaluateAssigneeEligibility(candidate, selectedAllocationPolicy)),
+    [users, selectedAllocationPolicy],
+  )
+  const eligibleAssigneeIds = useMemo(
+    () => new Set(eligibleAssignees.map((candidate) => String(candidate.id))),
+    [eligibleAssignees],
+  )
+
+  useEffect(() => {
+    setForm((prev) => {
+      const nextPrimary = eligibleAssigneeIds.has(String(prev.assigned_to_user_id)) ? prev.assigned_to_user_id : ''
+      const nextAdditional = prev.assignee_user_ids
+        .map(String)
+        .filter((id) => eligibleAssigneeIds.has(id) && id !== String(nextPrimary))
+      const samePrimary = nextPrimary === prev.assigned_to_user_id
+      const sameAdditional = nextAdditional.length === prev.assignee_user_ids.length
+        && nextAdditional.every((id, index) => id === String(prev.assignee_user_ids[index]))
+      if (samePrimary && sameAdditional) return prev
+      return {
+        ...prev,
+        assigned_to_user_id: nextPrimary,
+        assignee_user_ids: nextAdditional,
+      }
+    })
+  }, [eligibleAssigneeIds])
 
   const propertySubtypesForType = useMemo(() => {
     if (!form.property_type_id) return []
@@ -338,7 +400,9 @@ export default function NewAssignment() {
 
   function toggleAssignee(userId) {
     const id = String(userId)
+    if (!eligibleAssigneeIds.has(id)) return
     setForm((prev) => {
+      if (id === String(prev.assigned_to_user_id)) return prev
       const current = new Set(prev.assignee_user_ids.map(String))
       if (current.has(id)) {
         current.delete(id)
@@ -577,6 +641,11 @@ export default function NewAssignment() {
       }
     } catch (err) {
       console.error(err)
+      const eligibilityError = assigneeEligibilityError(err?.response?.data?.detail)
+      if (eligibilityError) {
+        setError(eligibilityError)
+        return
+      }
       const detail = err?.response?.data?.detail
       if (err?.response?.status === 409 && payload && confirmLeaveOverride(detail)) {
         try {
@@ -725,12 +794,25 @@ export default function NewAssignment() {
 
               <label className="grid" style={{ gap: 6 }}>
                 <span className="kicker">Assigned To</span>
-                <select value={form.assigned_to_user_id} onChange={(e) => updateForm('assigned_to_user_id', e.target.value)}>
+                <select
+                  value={form.assigned_to_user_id}
+                  onChange={(e) => {
+                    const nextPrimary = String(e.target.value || '')
+                    setForm((prev) => ({
+                      ...prev,
+                      assigned_to_user_id: nextPrimary,
+                      assignee_user_ids: prev.assignee_user_ids.filter((id) => String(id) !== nextPrimary),
+                    }))
+                  }}
+                >
                   <option value="">Unassigned</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
+                  {eligibleAssignees.map((u) => (
+                    <option key={u.id} value={u.id}>{u.full_name || u.email} ({titleCase(u.role)})</option>
                   ))}
                 </select>
+                <span className="muted" style={{ fontSize: 12 }}>
+                  Eligible roles are filtered by service-line allocation policy. Finance/HR are excluded for ops allocation.
+                </span>
               </label>
             </div>
 
@@ -799,11 +881,11 @@ export default function NewAssignment() {
               </div>
             ) : null}
 
-            {users.length > 0 ? (
+            {eligibleAssignees.length > 0 ? (
               <div style={{ marginTop: '0.9rem' }}>
                 <div className="kicker" style={{ marginBottom: 6 }}>Additional Assignees</div>
                 <div className="grid cols-4" style={{ gap: 8 }}>
-                  {users.map((u) => {
+                  {eligibleAssignees.map((u) => {
                     const isPrimary = String(u.id) === String(form.assigned_to_user_id)
                     const checked = form.assignee_user_ids.includes(String(u.id))
                     return (
@@ -816,13 +898,17 @@ export default function NewAssignment() {
                         />
                         <div>
                           <div style={{ fontWeight: 600 }}>{u.full_name || u.email}</div>
-                          <div className="muted" style={{ fontSize: 12 }}>{u.role}</div>
+                          <div className="muted" style={{ fontSize: 12 }}>{titleCase(u.role)}</div>
                           {isPrimary ? <Badge tone="info">Primary</Badge> : null}
                         </div>
                       </label>
                     )
                   })}
                 </div>
+              </div>
+            ) : (
+              <div className="empty" style={{ marginTop: '0.9rem' }}>
+                No eligible assignees available for the selected service line. Keep assignment unassigned or adjust policy in master data.
               </div>
             ) : null}
 
