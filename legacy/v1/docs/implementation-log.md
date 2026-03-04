@@ -1,6 +1,6 @@
 # ZenOps V1 Implementation Log
 
-Last updated: 2026-03-03
+Last updated: 2026-03-04
 
 ## Phase 0.1 - OpenAPI Drift Stabilization
 - Added deterministic schema generator: `scripts/generate_openapi.py`.
@@ -75,3 +75,24 @@ Verification run:
 - `docker compose -f docker-compose.dev.yml run --rm backend alembic upgrade head`: PASS
 - `npm --prefix frontend run build`: PASS
 - `docker compose ... run --rm backend pytest ...`: BLOCKED in this environment because backend image does not include `backend/tests` paths by default.
+
+## Phase 8.6 - Stabilization Patchset (Console-Clean + Guardrails)
+- P1-A DOM nesting warning on `/assignments` KPI tiles:
+  - Updated `frontend/src/components/ui/KpiTile.jsx` to render `InfoTip` as non-button when tile is clickable.
+  - Updated `frontend/src/components/ui/InfoTip.jsx` to support `as=\"span\"` and stop click propagation.
+- P1-B Duplicate React key (`FINAL_REVIEW`) in Assignment approvals action selector:
+  - Updated `frontend/src/pages/AssignmentDetail.jsx` to deduplicate action list via `Set` before rendering options.
+- P1-C New Assignment assignee eligibility guardrail:
+  - Updated `frontend/src/pages/NewAssignment.jsx` to remove default self-assignment, filter assignee options by service-line allocation policy + deny roles, auto-clear stale ineligible selections, and surface `ASSIGNEE_NOT_ELIGIBLE` with clear UI text.
+- P2 Backups page 403 noise for non-admin roles:
+  - Updated `frontend/src/App.jsx` with strict admin-role guard on `/admin/backups`.
+  - Updated `frontend/src/components/sidebars/AdminSidebar.jsx` to show Backups only for admins.
+  - Updated `frontend/src/pages/admin/AdminBackups.jsx` to short-circuit fetch/trigger logic for non-admin users.
+- P3-A Sidebar navigation click stability:
+  - Updated `frontend/src/components/sidebars/AdminSidebar.jsx` group toggles to semantic `<button>` with `aria-expanded`/`aria-controls`.
+  - Updated `frontend/src/styles.css` to disable pointer events on collapsed nav groups and prevent hidden overlay interception.
+- P3-B Logout consistency hardening:
+  - Updated `frontend/src/auth/AuthContext.jsx` for atomic local teardown, stale-refresh epoch guard, and redirect fallback.
+- Added Playwright stabilization smoke coverage:
+  - `frontend/playwright/utils/console-guard.ts`
+  - `frontend/playwright/tests/stabilization_smoke.spec.ts`

@@ -161,13 +161,19 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     if (logoutInProgressRef.current) return
+    const token = localStorage.getItem('token')
+    const logoutUrl = `${api.defaults.baseURL || ''}/api/auth/logout`
     logoutInProgressRef.current = true
     authEpochRef.current += 1
     clearLocalAuthState()
 
     // Best-effort server-side token revocation after local teardown.
     try {
-      await api.post('/api/auth/logout')
+      await fetch(logoutUrl, {
+        method: 'POST',
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      })
     } catch {
       // Ignore — local teardown + redirect is the safety net.
     }

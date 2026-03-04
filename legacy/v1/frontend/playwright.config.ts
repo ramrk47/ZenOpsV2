@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test'
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:5173'
 const apiURL = process.env.E2E_API_URL || 'http://localhost:8000'
+const includeRunnerHeader = String(process.env.E2E_INCLUDE_RUNNER_HEADER || '0') === '1'
 
 export default defineConfig({
   testDir: './playwright/tests',
@@ -21,9 +22,7 @@ export default defineConfig({
     trace: 'on-first-retry',
     actionTimeout: 30_000,
     navigationTimeout: 45_000,
-    extraHTTPHeaders: {
-      'X-E2E-Runner': 'phase8.5',
-    },
+    extraHTTPHeaders: includeRunnerHeader ? { 'X-E2E-Runner': 'phase8.5' } : undefined,
   },
   expect: {
     timeout: 10_000,

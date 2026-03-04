@@ -910,7 +910,7 @@ export default function NewAssignment() {
               <div className="empty" style={{ marginTop: '0.9rem' }}>
                 No eligible assignees available for the selected service line. Keep assignment unassigned or adjust policy in master data.
               </div>
-            ) : null}
+            )}
 
             {isBankCase ? (
               <div className="grid cols-3" style={{ marginTop: '0.8rem' }}>
