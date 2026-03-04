@@ -24,7 +24,7 @@ class PartnerAccountRequest(Base):
     role_intent: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     requested_interface: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     metadata_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="PENDING")
+    status: Mapped[str] = mapped_column(String(40), nullable=False, default="PENDING")
     email_verification_token: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, index=True)
     token_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     token_consumed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
