@@ -1,5 +1,20 @@
 import api from './client'
 
+export async function requestAssociateAccess(payload) {
+  const { data } = await api.post('/api/partner/request-access', payload)
+  return data
+}
+
+export async function verifyAssociateAccessToken(token) {
+  const { data } = await api.post('/api/partner/verify-access-token', { token })
+  return data
+}
+
+export async function resendAssociateVerification(email) {
+  const { data } = await api.post('/api/partner/resend-verification', { email })
+  return data
+}
+
 export async function fetchPartnerCommissions(params = {}) {
   const { data } = await api.get('/api/partner/commissions', { params })
   return data

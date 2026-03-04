@@ -32,6 +32,8 @@ from app.models.task import AssignmentTask
 from app.models.user import User
 from app.schemas.approval import ApprovalRead
 from app.schemas.assignment import (
+    AllocationAssignBestResponse,
+    AllocationCandidate,
     AssignmentCreate,
     AssignmentDetail,
     AssignmentRead,
@@ -47,6 +49,11 @@ from app.schemas.message import MessageRead
 from app.schemas.task import TaskRead
 from app.services.activity import log_activity
 from app.services.approvals import request_approval, required_roles_for_approval
+from app.services.allocation import (
+    AssigneeNotEligibleError,
+    assert_assignees_eligible,
+    build_allocation_candidates,
+)
 from app.services.notifications import notify_roles
 from app.services.assignments import (
     apply_access_filter,
@@ -153,6 +160,12 @@ def _require_assignment_access(assignment: Assignment, current_user: User) -> No
 
 def _can_manage_admin_assignment_fields(user: User) -> bool:
     return rbac.user_has_any_role(user, ADMIN_PREF_ROLES)
+
+
+def _require_assignment_allocate(user: User) -> None:
+    capabilities = rbac.get_capabilities_for_user(user)
+    if not capabilities.get("assignment_allocate"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not permitted to allocate assignments")
 
 
 def _resolve_service_line_master(db: Session, service_line_id: Optional[int]) -> Optional[ServiceLineMaster]:
@@ -383,6 +396,92 @@ def list_assignments_with_due(
     return response
 
 
+@router.get("/{assignment_id}/allocation/candidates", response_model=List[AllocationCandidate])
+def list_allocation_candidates(
+    assignment_id: int,
+    include_ineligible: bool = Query(True),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> List[AllocationCandidate]:
+    _require_assignment_allocate(current_user)
+    assignment = db.get(Assignment, assignment_id)
+    if not assignment or assignment.is_deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assignment not found")
+    _require_assignment_access(assignment, current_user)
+
+    rows = build_allocation_candidates(db, assignment=assignment, include_ineligible=include_ineligible)
+    return [AllocationCandidate(**row) for row in rows]
+
+
+@router.post("/{assignment_id}/allocation/assign-best", response_model=AllocationAssignBestResponse)
+def assign_best_candidate(
+    assignment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AllocationAssignBestResponse:
+    _require_assignment_allocate(current_user)
+    assignment = db.get(Assignment, assignment_id)
+    if not assignment or assignment.is_deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assignment not found")
+    _require_assignment_access(assignment, current_user)
+
+    candidates = build_allocation_candidates(db, assignment=assignment, include_ineligible=False)
+    if not candidates:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No eligible candidates available for assignment allocation",
+        )
+
+    best = candidates[0]
+    assignee_id = int(best["user_id"])
+    try:
+        assert_assignees_eligible(
+            db,
+            assignee_ids=[assignee_id],
+            service_line=assignment.service_line_master,
+            assignment=assignment,
+        )
+    except AssigneeNotEligibleError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=exc.to_detail()) from exc
+
+    now = datetime.now(timezone.utc)
+    assignment.assigned_to_user_id = assignee_id
+    assignment.assigned_at = now
+    sync_assignment_assignees(db, assignment, [assignee_id])
+    upsert_assignment_events(db, assignment=assignment, actor_user_id=current_user.id)
+
+    log_activity(
+        db,
+        actor_user_id=current_user.id,
+        activity_type="ASSIGNMENT_AUTO_ASSIGNED",
+        assignment_id=assignment.id,
+        message=f"Auto-assigned to best candidate {assignee_id}",
+        payload={
+            "assignee_user_id": assignee_id,
+            "score": best.get("score"),
+            "signals": best.get("signals"),
+            "reason": best.get("reason"),
+        },
+    )
+
+    notify_assignment_assignees(
+        db,
+        assignment,
+        notif_type=NotificationType.ASSIGNMENT_REASSIGNED,
+        message=f"Assignment auto-assigned: {assignment.assignment_code}",
+        payload={"assignment_id": assignment.id, "assignee_user_id": assignee_id},
+        exclude_user_ids=[current_user.id],
+    )
+
+    db.add(assignment)
+    db.commit()
+    db.refresh(assignment)
+    return AllocationAssignBestResponse(
+        assignment=_serialize_assignment(assignment, current_user=current_user),
+        candidate=AllocationCandidate(**best),
+    )
+
+
 @router.get("/{assignment_id}", response_model=AssignmentRead)
 def get_assignment(
     assignment_id: int,
@@ -591,6 +690,16 @@ def create_assignment(
                     },
                 )
 
+    try:
+        assert_assignees_eligible(
+            db,
+            assignee_ids={uid for uid in assignee_ids if uid} | ({primary_assignee_id} if primary_assignee_id else set()),
+            service_line=service_line_master,
+            assignment=None,
+        )
+    except AssigneeNotEligibleError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=exc.to_detail()) from exc
+
     assignment = Assignment(
         assignment_code=generate_assignment_code(db),
         case_type=assignment_in.case_type,
@@ -748,6 +857,16 @@ def create_draft_assignment(
                         "leave_end": (leave.end_date or leave.start_date).isoformat(),
                     },
                 )
+
+    try:
+        assert_assignees_eligible(
+            db,
+            assignee_ids={uid for uid in assignee_ids if uid} | ({primary_assignee_id} if primary_assignee_id else set()),
+            service_line=service_line_master,
+            assignment=None,
+        )
+    except AssigneeNotEligibleError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=exc.to_detail()) from exc
 
     assignment = Assignment(
         assignment_code=generate_draft_assignment_code(db),
@@ -944,6 +1063,24 @@ def update_assignment(
                         "leave_end": (leave.end_date or leave.start_date).isoformat(),
                     },
                 )
+
+    eligibility_check_ids = set()
+    if assigned_to_present and assigned_to_value:
+        eligibility_check_ids.add(int(assigned_to_value))
+    if assignee_user_ids is not None:
+        eligibility_check_ids.update({int(uid) for uid in assignee_user_ids if uid})
+        if not assigned_to_present and assignment.assigned_to_user_id:
+            eligibility_check_ids.add(int(assignment.assigned_to_user_id))
+    try:
+        assert_assignees_eligible(
+            db,
+            assignee_ids=eligibility_check_ids,
+            service_line=service_line_master,
+            assignment=assignment,
+        )
+    except AssigneeNotEligibleError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=exc.to_detail()) from exc
+
     if assigned_to_present:
         assignment.assigned_to_user_id = int(assigned_to_value) if assigned_to_value else None
         assignment.assigned_at = now if assignment.assigned_to_user_id else None

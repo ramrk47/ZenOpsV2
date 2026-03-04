@@ -22,14 +22,16 @@ from app.core.security import (
 )
 from app.core.token_blacklist import revoke_token
 from app.db.session import get_db
-from app.models.audit import ActivityLog
 from app.models.enums import Role
 from app.models.partner import ExternalPartner
 from app.models.user import User
+from app.models.user_invite import UserInvite
 from app.schemas.auth import (
     BackupCodeLoginRequest,
     BackupCodesResponse,
     CapabilityResponse,
+    InviteAcceptRequest,
+    InviteValidateResponse,
     LoginResponse,
     MFAVerifyRequest,
     StepUpTokenResponse,
@@ -40,6 +42,8 @@ from app.schemas.auth import (
 from app.schemas.user import UserCreate, UserRead, UserSelfUpdate
 from app.services.activity import log_activity
 from app.services.attendance import record_heartbeat, close_session
+from app.services.invites import hash_invite_token
+from app.services.rate_limit import consume_rate_limit, get_client_ip
 from app.core.settings import settings
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -61,26 +65,6 @@ def _log_auth_event(event: str, *, request: Request, extra: dict | None = None) 
     logger.info(json.dumps(payload, default=str))
 
 
-def _login_rate_limited(db: Session, *, email: str, client_ip: str) -> bool:
-    window_start = datetime.now(timezone.utc) - timedelta(minutes=settings.login_window_minutes)
-    recent = (
-        db.query(ActivityLog)
-        .filter(
-            ActivityLog.type == "USER_LOGIN_FAILED",
-            ActivityLog.created_at >= window_start,
-        )
-        .order_by(ActivityLog.created_at.desc())
-        .limit(200)
-        .all()
-    )
-    hits = 0
-    for log in recent:
-        payload = log.payload_json or {}
-        if payload.get("email") == email or payload.get("ip") == client_ip:
-            hits += 1
-    return hits >= settings.login_max_attempts
-
-
 def _build_full_login_response(user: User, db: Session) -> LoginResponse:
     """Build a full LoginResponse with access token and capabilities."""
     capabilities = rbac.get_capabilities_for_user(user)
@@ -94,6 +78,20 @@ def _build_full_login_response(user: User, db: Session) -> LoginResponse:
     )
 
 
+def _ensure_external_associate_partner(db: Session, *, invite: UserInvite) -> ExternalPartner:
+    meta = invite.metadata_json or {}
+    partner = ExternalPartner(
+        display_name=meta.get("company_name") or meta.get("contact_name") or invite.email,
+        contact_name=meta.get("contact_name"),
+        email=invite.email,
+        phone=meta.get("phone"),
+        is_active=True,
+    )
+    db.add(partner)
+    db.flush()
+    return partner
+
+
 @router.post("/login", response_model=LoginResponse)
 def login(
     request: Request,
@@ -101,23 +99,53 @@ def login(
     db: Session = Depends(get_db),
 ) -> LoginResponse:
     email = form_data.username.lower()
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_client_ip(request)
+    ip_limit = consume_rate_limit(
+        db,
+        key=f"login:ip:{client_ip}",
+        limit=settings.rate_limit_login_ip_max,
+        window_seconds=settings.rate_limit_login_ip_window_seconds,
+    )
+    email_limit = consume_rate_limit(
+        db,
+        key=f"login:user:{email}",
+        limit=settings.rate_limit_login_email_max,
+        window_seconds=settings.rate_limit_login_email_window_seconds,
+    )
+    if not ip_limit.allowed or not email_limit.allowed:
+        log_activity(
+            db,
+            actor_user_id=None,
+            activity_type="USER_LOGIN_RATE_LIMIT",
+            message="Login rate limited",
+            payload={
+                "email": email,
+                "ip": client_ip,
+                "limits": {
+                    "ip": {
+                        "count": ip_limit.count,
+                        "limit": ip_limit.limit,
+                        "retry_after_seconds": ip_limit.retry_after_seconds,
+                    },
+                    "email": {
+                        "count": email_limit.count,
+                        "limit": email_limit.limit,
+                        "retry_after_seconds": email_limit.retry_after_seconds,
+                    },
+                },
+            },
+        )
+        db.commit()
+        _log_auth_event("login_rate_limited", request=request, extra={"email": email})
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"code": "RATE_LIMITED", "message": "Too many login attempts"},
+        )
+
     user = db.query(User).filter(User.email == email).first()
     password_valid = bool(user and verify_password(form_data.password, user.hashed_password))
-    rate_limited = _login_rate_limited(db, email=email, client_ip=client_ip)
 
     if not password_valid:
-        if rate_limited:
-            log_activity(
-                db,
-                actor_user_id=None,
-                activity_type="USER_LOGIN_RATE_LIMIT",
-                message="Login rate limited",
-                payload={"email": email, "ip": client_ip},
-            )
-            db.commit()
-            _log_auth_event("login_rate_limited", request=request, extra={"email": email})
-            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many login attempts")
         log_activity(
             db,
             actor_user_id=None,
@@ -128,8 +156,6 @@ def login(
         db.commit()
         _log_auth_event("login_failed", request=request, extra={"email": email})
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect email or password")
-    if rate_limited:
-        _log_auth_event("login_rate_limited_bypass_valid_credentials", request=request, extra={"email": email})
     if not user.is_active:
         _log_auth_event("login_inactive", request=request, extra={"user_id": user.id})
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is inactive")
@@ -177,6 +203,100 @@ def login(
     db.commit()
     db.refresh(user)
 
+    return _build_full_login_response(user, db)
+
+
+@router.get("/invite/validate", response_model=InviteValidateResponse)
+def validate_invite_token(
+    token: str,
+    db: Session = Depends(get_db),
+) -> InviteValidateResponse:
+    token_hash = hash_invite_token(token.strip())
+    now = datetime.now(timezone.utc)
+    invite = (
+        db.query(UserInvite)
+        .filter(
+            UserInvite.token_hash == token_hash,
+            UserInvite.used_at.is_(None),
+            UserInvite.expires_at > now,
+        )
+        .first()
+    )
+    if not invite:
+        return InviteValidateResponse(valid=False)
+    return InviteValidateResponse(
+        valid=True,
+        email=invite.email,
+        expires_at=invite.expires_at.isoformat(),
+    )
+
+
+@router.post("/invite/accept", response_model=LoginResponse)
+def accept_invite(
+    payload: InviteAcceptRequest,
+    db: Session = Depends(get_db),
+) -> LoginResponse:
+    token_hash = hash_invite_token(payload.token.strip())
+    now = datetime.now(timezone.utc)
+    invite = (
+        db.query(UserInvite)
+        .filter(UserInvite.token_hash == token_hash)
+        .first()
+    )
+    if not invite:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid invite token")
+    if invite.used_at:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite link already used")
+    expires_at = invite.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at <= now:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite link expired")
+    if len(payload.password or "") < 10:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 10 characters")
+
+    user = db.query(User).filter(User.email == invite.email.lower()).first()
+    if user and Role.EXTERNAL_PARTNER not in rbac.roles_for_user(user):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email is already used by an internal account")
+
+    if not user:
+        partner = _ensure_external_associate_partner(db, invite=invite)
+        user = User(
+            email=invite.email.lower(),
+            hashed_password=get_password_hash(payload.password),
+            full_name=(invite.metadata_json or {}).get("contact_name"),
+            phone=(invite.metadata_json or {}).get("phone"),
+            role=Role.EXTERNAL_PARTNER,
+            roles=[Role.EXTERNAL_PARTNER.value],
+            partner_id=partner.id,
+            is_active=True,
+        )
+        db.add(user)
+        db.flush()
+    else:
+        if not user.partner_id:
+            partner = _ensure_external_associate_partner(db, invite=invite)
+            user.partner_id = partner.id
+        user.role = Role.EXTERNAL_PARTNER
+        user.roles = [Role.EXTERNAL_PARTNER.value]
+        user.hashed_password = get_password_hash(payload.password)
+        user.is_active = True
+        db.add(user)
+        db.flush()
+
+    invite.used_at = now
+    db.add(invite)
+
+    log_activity(
+        db,
+        actor_user_id=user.id,
+        activity_type="ASSOCIATE_INVITE_ACCEPTED",
+        message="External Associate invite accepted",
+        payload={"invite_id": invite.id},
+    )
+    record_heartbeat(db, user_id=user.id)
+    db.commit()
+    db.refresh(user)
     return _build_full_login_response(user, db)
 
 

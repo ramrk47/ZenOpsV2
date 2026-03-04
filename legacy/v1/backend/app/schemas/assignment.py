@@ -247,3 +247,26 @@ class UserWorkload(ORMModel):
     due_soon: int
     ok: int
     buckets: List[WorkloadBucket]
+
+
+class AllocationSignals(ORMModel):
+    open_assignments: int = 0
+    overdue_tasks: int = 0
+    due_soon: int = 0
+    last_active_minutes: Optional[int] = None
+
+
+class AllocationCandidate(ORMModel):
+    user_id: int
+    name: str
+    roles: List[str] = Field(default_factory=list)
+    eligible: bool = False
+    reason: Optional[str] = None
+    score: int = 0
+    overloaded: bool = False
+    signals: AllocationSignals
+
+
+class AllocationAssignBestResponse(ORMModel):
+    assignment: AssignmentRead
+    candidate: AllocationCandidate

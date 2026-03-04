@@ -63,3 +63,26 @@ class CapabilityResponse(ORMModel):
     role: str
     capabilities: Dict[str, bool]
     meta: Dict[str, Any] | None = None
+
+
+class BridgeTokenIssueRequest(ORMModel):
+    aud: str = "zenops-v2-bridge"
+    expires_in_seconds: int = Field(default=300, ge=60, le=3600)
+    tenant_key: Optional[str] = None
+
+
+class BridgeTokenIssueResponse(ORMModel):
+    bridge_token: str
+    token_type: str = "Bearer"
+    expires_at: str
+
+
+class InviteValidateResponse(ORMModel):
+    valid: bool
+    email: Optional[str] = None
+    expires_at: Optional[str] = None
+
+
+class InviteAcceptRequest(ORMModel):
+    token: str = Field(..., min_length=10, max_length=256)
+    password: str = Field(..., min_length=10, max_length=256)

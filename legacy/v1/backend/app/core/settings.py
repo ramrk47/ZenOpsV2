@@ -9,6 +9,13 @@ from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, DotEnvSettingsSource, EnvSettingsSource, SettingsConfigDict
 
 
+ASSOCIATE_ONBOARDING_MODES = {
+    "INVITE_ONLY",
+    "REQUEST_ACCESS_REVIEW",
+    "REQUEST_ACCESS_AUTO_APPROVE",
+}
+
+
 class _FallbackEnvSettingsSource(EnvSettingsSource):
     """Allow ALLOW_ORIGINS to be comma-separated instead of strict JSON."""
 
@@ -71,6 +78,31 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = Field(default=60, description="Access token expiry in minutes")
     login_max_attempts: int = Field(default=10, description="Login attempts allowed per window")
     login_window_minutes: int = Field(default=15, description="Login rate limit window in minutes")
+    rate_limit_login_ip_max: int = Field(default=10, description="Max login attempts per IP per window")
+    rate_limit_login_ip_window_seconds: int = Field(default=60, description="Window for login attempts per IP")
+    rate_limit_login_email_max: int = Field(default=5, description="Max login attempts per email per window")
+    rate_limit_login_email_window_seconds: int = Field(default=60, description="Window for login attempts per email")
+    rate_limit_request_access_ip_max: int = Field(default=3, description="Max request-access attempts per IP per window")
+    rate_limit_request_access_ip_window_seconds: int = Field(
+        default=86400,
+        description="Window for request-access attempts per IP",
+    )
+    rate_limit_request_access_email_max: int = Field(
+        default=2,
+        description="Max request-access attempts per email per window",
+    )
+    rate_limit_request_access_email_window_seconds: int = Field(
+        default=86400,
+        description="Window for request-access attempts per email",
+    )
+    rate_limit_password_reset_email_max: int = Field(
+        default=3,
+        description="Max password reset requests per email per window",
+    )
+    rate_limit_password_reset_email_window_seconds: int = Field(
+        default=3600,
+        description="Window for password reset attempts per email",
+    )
 
     # Session management
     idle_timeout_admin_minutes: int = Field(default=30, description="Idle timeout for admin roles (minutes)")
@@ -92,6 +124,23 @@ class Settings(BaseSettings):
         description="Directory for uploaded documents",
         validation_alias=AliasChoices("UPLOAD_DIR", "UPLOADS_DIR"),
     )
+    max_upload_mb: int = Field(default=25, description="Maximum upload size in MB")
+    allowed_upload_extensions: List[str] = Field(
+        default_factory=lambda: ["pdf", "jpg", "jpeg", "png", "docx", "xlsx", "txt"],
+        description="Allowed upload file extensions",
+    )
+    allowed_upload_content_types: List[str] = Field(
+        default_factory=lambda: [
+            "application/pdf",
+            "image/jpeg",
+            "image/png",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "text/plain",
+        ],
+        description="Allowed upload MIME content types",
+    )
+    av_scan_enabled: bool = Field(default=False, description="Enable antivirus scan hook for uploads")
 
     backup_dir: str = Field(
         default="./deploy/backups",
@@ -129,6 +178,45 @@ class Settings(BaseSettings):
     email_retry_minutes: int = Field(default=5, description="Minutes between delivery retries")
     email_dedupe_minutes: int = Field(default=60, description="Deduplicate identical emails within minutes")
     email_daily_limit: int = Field(default=20, description="Max emails per user per day")
+    associate_request_require_captcha_in_production: bool = Field(
+        default=True,
+        description="Require captcha token presence for associate access requests in production",
+    )
+    associate_auto_approve: bool = Field(
+        default=False,
+        description="Auto-approve associate request-access in non-production environments only",
+        validation_alias=AliasChoices("ASSOCIATE_AUTO_APPROVE"),
+    )
+    associate_onboarding_mode: str = Field(
+        default="REQUEST_ACCESS_AUTO_APPROVE",
+        description="Associate onboarding mode: INVITE_ONLY, REQUEST_ACCESS_REVIEW, REQUEST_ACCESS_AUTO_APPROVE",
+        validation_alias=AliasChoices("ASSOCIATE_ONBOARDING_MODE"),
+    )
+    associate_email_verify_required: bool = Field(
+        default=True,
+        description="Require email verification before associate onboarding can proceed",
+        validation_alias=AliasChoices("ASSOCIATE_EMAIL_VERIFY_REQUIRED"),
+    )
+    associate_verify_token_ttl_minutes: int = Field(
+        default=15,
+        description="Minutes until an associate verification token expires",
+        validation_alias=AliasChoices("ASSOCIATE_VERIFY_TOKEN_TTL_MINUTES"),
+    )
+    associate_auto_approve_domains: List[str] = Field(
+        default_factory=list,
+        description="Optional email-domain allowlist for auto-approve mode",
+        validation_alias=AliasChoices("ASSOCIATE_AUTO_APPROVE_DOMAINS"),
+    )
+    associate_auto_approve_max_per_day: int = Field(
+        default=25,
+        description="Maximum automatic associate approvals per day",
+        validation_alias=AliasChoices("ASSOCIATE_AUTO_APPROVE_MAX_PER_DAY"),
+    )
+    associate_auto_approve_password: str = Field(
+        default="password",
+        description="Password assigned when ASSOCIATE_AUTO_APPROVE is enabled (non-production only)",
+        validation_alias=AliasChoices("ASSOCIATE_AUTO_APPROVE_PASSWORD"),
+    )
 
     smtp_host: str | None = Field(default=None, description="SMTP host")
     smtp_port: int = Field(default=587, description="SMTP port")
@@ -169,6 +257,40 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("STUDIO_STATUS_CACHE_SECONDS"),
     )
 
+    # V1 -> V2 identity bridge
+    v1_bridge_jwt_secret: str | None = Field(
+        default=None,
+        description="Shared secret used to sign V1 bridge exchange tokens",
+        validation_alias=AliasChoices("V1_BRIDGE_JWT_SECRET"),
+    )
+    v1_bridge_issuer: str = Field(
+        default="zenops-v1",
+        description="Issuer value used in V1 bridge tokens",
+        validation_alias=AliasChoices("V1_BRIDGE_ISSUER"),
+    )
+
+    # V1 -> V2 events bridge
+    v2_events_ingest_url: str | None = Field(
+        default=None,
+        description="V2 endpoint URL for V1 outbox event ingestion",
+        validation_alias=AliasChoices("V2_EVENTS_INGEST_URL"),
+    )
+    v2_events_service_token: str | None = Field(
+        default=None,
+        description="Service token header value for V1 -> V2 event ingest",
+        validation_alias=AliasChoices("V2_EVENTS_SERVICE_TOKEN", "V1_EVENTS_SERVICE_TOKEN"),
+    )
+    v2_events_batch_size: int = Field(
+        default=20,
+        description="Max outbox events dispatched per bridge worker cycle",
+        validation_alias=AliasChoices("V2_EVENTS_BATCH_SIZE"),
+    )
+    v1_default_tenant_id: str | None = Field(
+        default=None,
+        description="Fallback V2 tenant UUID used for V1 bridge ingest payloads",
+        validation_alias=AliasChoices("V1_DEFAULT_TENANT_ID"),
+    )
+
     @field_validator("allow_origins", mode="before")
     @classmethod
     def parse_allow_origins(cls, value: str | List[str]) -> List[str]:
@@ -190,6 +312,28 @@ class Settings(BaseSettings):
             return "POSTPAID"
         return mode
 
+    @field_validator(
+        "allowed_upload_extensions",
+        "allowed_upload_content_types",
+        "associate_auto_approve_domains",
+        mode="before",
+    )
+    @classmethod
+    def parse_csv_or_list(cls, value):
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
+
+    @field_validator("associate_onboarding_mode")
+    @classmethod
+    def normalize_associate_onboarding_mode(cls, value: str) -> str:
+        mode = (value or "").strip().upper()
+        if mode not in ASSOCIATE_ONBOARDING_MODES:
+            return "REQUEST_ACCESS_AUTO_APPROVE"
+        return mode
+
     def ensure_uploads_dir(self) -> Path:
         uploads_path = Path(self.uploads_dir).expanduser().resolve()
         uploads_path.mkdir(parents=True, exist_ok=True)
@@ -200,6 +344,17 @@ class Settings(BaseSettings):
         if self.environment.lower() in ("production", "prod"):
             return bool(self.allow_destructive_actions)
         return True
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment.lower() in ("production", "prod")
+
+    @property
+    def associate_onboarding_mode_effective(self) -> str:
+        mode = self.associate_onboarding_mode
+        if self.is_production and not mode:
+            return "INVITE_ONLY"
+        return mode or "REQUEST_ACCESS_AUTO_APPROVE"
 
     @classmethod
     def settings_customise_sources(

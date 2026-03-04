@@ -7,6 +7,9 @@ import EmployeeLayout from './components/layout/EmployeeLayout.jsx'
 import PartnerLayout from './components/layout/PartnerLayout.jsx'
 import Login from './pages/Login'
 import PartnerRequestAccess from './pages/PartnerRequestAccess'
+import PartnerRequestAccessSent from './pages/PartnerRequestAccessSent'
+import PartnerVerifyAccess from './pages/PartnerVerifyAccess'
+import InviteAccept from './pages/InviteAccept'
 import Account from './pages/Account'
 import Assignments from './pages/Assignments'
 import NewAssignment from './pages/NewAssignment'
@@ -47,7 +50,7 @@ import PartnerNotifications from './pages/partner/PartnerNotifications.jsx'
 import PartnerProfile from './pages/partner/PartnerProfile.jsx'
 import PartnerHelp from './pages/partner/PartnerHelp.jsx'
 import Forbidden from './pages/Forbidden.jsx'
-import { canSeeAdmin, hasCapability, isPartner, resolveHomeRoute } from './utils/rbac.js'
+import { canSeeAdmin, hasCapability, isPartner, resolveHomeRoute, userHasRole } from './utils/rbac.js'
 
 function RequireCapability({ children, capability }) {
   const { user, capabilities, initialising } = useAuth()
@@ -102,6 +105,16 @@ function RequireAdminArea({ children }) {
   return children
 }
 
+function RequireAdminRole({ children }) {
+  const { user, initialising } = useAuth()
+  if (initialising) {
+    return <div style={{ padding: '2rem' }}>Loading…</div>
+  }
+  if (!user) return <Navigate to="/login" replace />
+  if (!userHasRole(user, 'ADMIN')) return <Forbidden />
+  return children
+}
+
 function InternalLayoutSwitch() {
   const { capabilities } = useAuth()
   if (canSeeAdmin(capabilities)) return <AdminLayout />
@@ -121,6 +134,9 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/partner/request-access" element={<PartnerRequestAccess />} />
+      <Route path="/partner/request-access/sent" element={<PartnerRequestAccessSent />} />
+      <Route path="/partner/verify" element={<PartnerVerifyAccess />} />
+      <Route path="/invite/accept" element={<InviteAccept />} />
       <Route
         path="/m"
         element={(
@@ -206,7 +222,9 @@ export default function App() {
           path="/admin/backups"
           element={(
             <RequireAdminArea>
-              <AdminBackups />
+              <RequireAdminRole>
+                <AdminBackups />
+              </RequireAdminRole>
             </RequireAdminArea>
           )}
         />

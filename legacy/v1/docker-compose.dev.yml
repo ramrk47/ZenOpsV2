@@ -23,6 +23,8 @@ services:
       - .env.backend
     environment:
       PYTHONPATH: /app
+      ASSOCIATE_AUTO_APPROVE: ${ASSOCIATE_AUTO_APPROVE:-0}
+      ASSOCIATE_AUTO_APPROVE_PASSWORD: ${ASSOCIATE_AUTO_APPROVE_PASSWORD:-password}
     volumes:
       - ./backend:/app
       - ./uploads:/app/uploads

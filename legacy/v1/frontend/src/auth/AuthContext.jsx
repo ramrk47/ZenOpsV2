@@ -26,6 +26,19 @@ export function AuthProvider({ children }) {
   const lastActivityRef = useRef(Date.now())
   const idleTimerRef = useRef(null)
   const heartbeatRef = useRef(null)
+  const logoutInProgressRef = useRef(false)
+  const authEpochRef = useRef(0)
+
+  const clearLocalAuthState = useCallback(() => {
+    localStorage.removeItem('token')
+    sessionStorage.removeItem('step_up_token')
+    setUser(null)
+    setCapabilities({})
+    setMfaPending(null)
+    setShowIdleWarning(false)
+    clearTimeout(idleTimerRef.current)
+    clearInterval(heartbeatRef.current)
+  }, [])
 
   // Listen for step-up MFA challenge events from the API interceptor
   useEffect(() => {
@@ -35,24 +48,29 @@ export function AuthProvider({ children }) {
   }, [])
 
   async function refreshAuth({ allowAnonymous = false } = {}) {
+    const epoch = authEpochRef.current
     try {
       const [me, caps] = await Promise.all([
         api.get('/api/auth/me'),
         api.get('/api/auth/capabilities'),
       ])
+      if (logoutInProgressRef.current || epoch !== authEpochRef.current) return false
       setUser(me.data)
       setCapabilities(caps.data?.capabilities || {})
       return true
     } catch (err) {
       console.error(err)
-      if (!allowAnonymous) logout()
+      if (!allowAnonymous) {
+        if (!logoutInProgressRef.current) logout()
+      }
       else {
+        if (logoutInProgressRef.current || epoch !== authEpochRef.current) return false
         setUser(null)
         setCapabilities({})
       }
       return false
     } finally {
-      setInitialising(false)
+      if (epoch === authEpochRef.current) setInitialising(false)
     }
   }
 
@@ -73,11 +91,14 @@ export function AuthProvider({ children }) {
 
       // Check if MFA is required
       if (res.data.mfa_required && res.data.mfa_token) {
+        logoutInProgressRef.current = false
         setMfaPending({ mfa_token: res.data.mfa_token, user: res.data.user })
         return { mfaRequired: true }
       }
 
       // No MFA — complete login
+      logoutInProgressRef.current = false
+      authEpochRef.current += 1
       if (!useCookieAuth) localStorage.setItem('token', res.data.access_token)
       if (res.data.user) setUser(res.data.user)
       if (res.data.capabilities) setCapabilities(res.data.capabilities)
@@ -98,6 +119,8 @@ export function AuthProvider({ children }) {
         totp_code: totpCode,
       })
 
+      logoutInProgressRef.current = false
+      authEpochRef.current += 1
       if (!useCookieAuth) localStorage.setItem('token', res.data.access_token)
       if (res.data.user) setUser(res.data.user)
       if (res.data.capabilities) setCapabilities(res.data.capabilities)
@@ -118,6 +141,8 @@ export function AuthProvider({ children }) {
         backup_code: backupCode,
       })
 
+      logoutInProgressRef.current = false
+      authEpochRef.current += 1
       if (!useCookieAuth) localStorage.setItem('token', res.data.access_token)
       if (res.data.user) setUser(res.data.user)
       if (res.data.capabilities) setCapabilities(res.data.capabilities)
@@ -135,24 +160,42 @@ export function AuthProvider({ children }) {
   }
 
   const logout = useCallback(async () => {
-    // Best-effort server-side token revocation
+    if (logoutInProgressRef.current) return
+    const token = localStorage.getItem('token')
+    const logoutUrl = `${api.defaults.baseURL || ''}/api/auth/logout`
+    logoutInProgressRef.current = true
+    authEpochRef.current += 1
+    clearLocalAuthState()
+
+    // Best-effort server-side token revocation after local teardown.
     try {
-      await api.post('/api/auth/logout')
+      await fetch(logoutUrl, {
+        method: 'POST',
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      })
     } catch {
-      // Ignore — clearing local token is sufficient fallback
+      // Ignore — local teardown + redirect is the safety net.
     }
-    localStorage.removeItem('token')
-    setUser(null)
-    setCapabilities({})
-    setMfaPending(null)
-    navigate('/login')
-  }, [navigate])
+    navigate('/login', { replace: true })
+    window.setTimeout(() => {
+      if (window.location.pathname !== '/login') {
+        window.location.assign('/login')
+      }
+    }, 150)
+    window.setTimeout(() => {
+      logoutInProgressRef.current = false
+    }, 800)
+  }, [clearLocalAuthState, navigate])
 
   useEffect(() => {
     const interceptor = api.interceptors.response.use(
       (response) => response,
       (error) => {
         if (error?.response?.status === 401) {
+          if (logoutInProgressRef.current) {
+            return Promise.reject(error)
+          }
           const detail = error?.response?.data?.detail
           if (detail === 'session_expired') {
             console.warn('[session] expired — logging out')
@@ -167,8 +210,9 @@ export function AuthProvider({ children }) {
 
   // ── Heartbeat — refresh token every 5 min while logged in ──────────
   useEffect(() => {
-    if (!user) return
+    if (!user || logoutInProgressRef.current) return
     async function sendHeartbeat() {
+      if (logoutInProgressRef.current) return
       try {
         const res = await api.post('/api/auth/heartbeat')
         if (res.data?.access_token && !useCookieAuth) {
@@ -216,6 +260,7 @@ export function AuthProvider({ children }) {
 
   // Handlers for the warning modal
   const handleStayLoggedIn = useCallback(async () => {
+    if (logoutInProgressRef.current) return
     setShowIdleWarning(false)
     lastActivityRef.current = Date.now()
     // Fire an immediate heartbeat to refresh the token

@@ -18,7 +18,7 @@ export default function KpiTile({
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div className="kicker">{label}</div>
-        {help ? <InfoTip text={help} /> : null}
+        {help ? <InfoTip text={help} as={onClick ? 'span' : 'button'} /> : null}
       </div>
       <div className="stat-value" style={tone ? { color: `var(--${tone})` } : undefined}>
         {value}

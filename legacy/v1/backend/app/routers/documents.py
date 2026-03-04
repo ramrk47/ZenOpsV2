@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime
 import logging
 from pathlib import Path
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
@@ -11,7 +10,6 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
-from app.core.settings import settings
 from app.db.session import get_db
 from app.models.approval import Approval
 from app.models.assignment import Assignment
@@ -33,6 +31,7 @@ from app.services.activity import log_activity
 from app.services.approvals import request_approval, required_roles_for_approval
 from app.services.assignments import compute_missing_document_categories, ensure_assignment_access
 from app.services.notifications import create_notification, create_notification_if_absent, notify_roles
+from app.services.upload_security import UploadSecurityError, build_upload_subdir, store_upload_file
 from app.services.v1_outbox import enqueue_v1_outbox_event
 from app.utils.mentions import parse_and_resolve_mentions
 
@@ -56,10 +55,7 @@ def _require_access(assignment: Assignment, user: User) -> None:
 
 
 def _assignment_upload_dir(assignment: Assignment) -> Path:
-    base = settings.ensure_uploads_dir()
-    path = base / assignment.assignment_code
-    path.mkdir(parents=True, exist_ok=True)
-    return path
+    return build_upload_subdir(assignment.assignment_code)
 
 
 def _next_version(db: Session, assignment_id: int, category: str | None) -> int:
@@ -174,24 +170,23 @@ def upload_document(
     _require_access(assignment, current_user)
 
     upload_dir = _assignment_upload_dir(assignment)
-    # Sanitize filename to prevent path traversal
-    safe_filename = Path(file.filename or "upload.bin").name
-    suffix = Path(safe_filename).suffix
-    filename = f"{uuid4().hex}{suffix}"
-    storage_path = upload_dir / filename
-
-    content = file.file.read()
-    storage_path.write_bytes(content)
+    try:
+        stored = store_upload_file(file, destination_dir=upload_dir)
+    except UploadSecurityError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
 
     version = _next_version(db, assignment_id, category)
 
     document = AssignmentDocument(
         assignment_id=assignment_id,
         uploaded_by_user_id=current_user.id,
-        original_name=file.filename or filename,
-        storage_path=str(storage_path),
-        mime_type=file.content_type,
-        size=len(content),
+        original_name=stored.original_name,
+        storage_path=stored.storage_path,
+        mime_type=stored.mime_type,
+        size=stored.size,
         category=category,
         version_number=version,
         is_final=False,

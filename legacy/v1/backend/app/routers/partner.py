@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from pathlib import Path
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
@@ -10,7 +8,6 @@ from sqlalchemy.orm import Session
 
 from app.core import rbac
 from app.core.deps import get_current_user
-from app.core.settings import settings
 from app.db.session import get_db
 from app.models.assignment import Assignment
 from app.models.document import AssignmentDocument
@@ -56,6 +53,7 @@ from app.schemas.notification import NotificationRead
 from app.services.assignments import validate_property_subtype
 from app.services.commissions import generate_commission_code, sync_commission_floors
 from app.services.notifications import notify_roles
+from app.services.upload_security import UploadSecurityError, build_upload_subdir, store_upload_file
 
 router = APIRouter(prefix="/api/partner", tags=["partner"])
 
@@ -80,18 +78,12 @@ def _get_commission_or_404(db: Session, commission_id: int, partner_id: int) -> 
     return commission
 
 
-def _commission_upload_dir(commission: CommissionRequest) -> Path:
-    base = settings.ensure_uploads_dir()
-    path = base / "commissions" / commission.request_code
-    path.mkdir(parents=True, exist_ok=True)
-    return path
+def _commission_upload_dir(commission: CommissionRequest):
+    return build_upload_subdir("commissions", commission.request_code)
 
 
-def _partner_request_upload_dir(request: PartnerRequest) -> Path:
-    base = settings.ensure_uploads_dir()
-    path = base / "partner_requests" / str(request.partner_id) / str(request.id)
-    path.mkdir(parents=True, exist_ok=True)
-    return path
+def _partner_request_upload_dir(request: PartnerRequest):
+    return build_upload_subdir("partner_requests", str(request.partner_id), str(request.id))
 
 
 def _validate_refs(
@@ -371,21 +363,21 @@ def upload_commission_document(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploads are locked for this request")
 
     upload_dir = _commission_upload_dir(commission)
-    # Sanitize filename to prevent path traversal
-    safe_filename = Path(file.filename or "upload.bin").name
-    suffix = Path(safe_filename).suffix
-    filename = f"{uuid4().hex}{suffix}"
-    storage_path = upload_dir / filename
-    content = file.file.read()
-    storage_path.write_bytes(content)
+    try:
+        stored = store_upload_file(file, destination_dir=upload_dir)
+    except UploadSecurityError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
 
     document = CommissionRequestDocument(
         commission_request_id=commission.id,
         uploaded_by_user_id=current_user.id,
-        original_name=file.filename or filename,
-        storage_path=str(storage_path),
-        mime_type=file.content_type,
-        size=len(content),
+        original_name=stored.original_name,
+        storage_path=stored.storage_path,
+        mime_type=stored.mime_type,
+        size=stored.size,
         category=category,
     )
     db.add(document)
@@ -538,21 +530,21 @@ def upload_partner_request_document(
     db.flush()
 
     upload_dir = _partner_request_upload_dir(response)
-    # Sanitize filename to prevent path traversal
-    safe_filename = Path(file.filename or "upload.bin").name
-    suffix = Path(safe_filename).suffix
-    filename = f"{uuid4().hex}{suffix}"
-    storage_path = upload_dir / filename
-    content = file.file.read()
-    storage_path.write_bytes(content)
+    try:
+        stored = store_upload_file(file, destination_dir=upload_dir)
+    except UploadSecurityError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
 
     attachment = PartnerRequestAttachment(
         partner_request_id=response.id,
         uploaded_by_partner_user_id=current_user.id,
-        original_name=file.filename or filename,
-        storage_path=str(storage_path),
-        mime_type=file.content_type,
-        size=len(content),
+        original_name=stored.original_name,
+        storage_path=stored.storage_path,
+        mime_type=stored.mime_type,
+        size=stored.size,
         category=category,
     )
     db.add(attachment)

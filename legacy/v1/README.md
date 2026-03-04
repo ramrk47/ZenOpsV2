@@ -164,9 +164,26 @@ Manual invoice checklist:
 - Second reminder within 24h is blocked unless Idempotency-Key is reused.
 - Overdue follow-up task created once per invoice and calendar event shows PAYMENT_FOLLOWUP.
 
+## Phase Verification (Pinned)
+
+Known unrelated failures are tracked in `docs/TEST_KNOWN_FAILURES.md`. Do not block phase releases on full-suite failures outside the active scope.
+
+Phase 6 official verification:
+
+```bash
+cd /Users/sriramrk/ZenOpsV2/legacy/v1
+docker compose -f docker-compose.dev.yml run --rm backend alembic upgrade head
+docker compose -f docker-compose.dev.yml run --rm backend pytest -q \
+  tests/test_phase2_approvals.py \
+  tests/test_phase4_service_lines_assignments.py \
+  tests/test_phase5_ops_ux.py \
+  tests/test_phase6_onboarding.py
+cd frontend && npm run build
+```
+
 ## Linting and Testing
 
-This repository does not yet include full automated tests. The smoke script above validates the most critical flows. You can run `flake8` or similar tools manually to check code style. A `pre-commit` configuration can be added later.
+This repository includes mixed legacy and phase-specific tests. Use pinned phase suites for release decisions and track quarantined failures in `docs/TEST_KNOWN_FAILURES.md`. You can run `flake8` or similar tools manually to check code style. A `pre-commit` configuration can be added later.
 
 ## Hostinger VPS Deployment (Traefik)
 

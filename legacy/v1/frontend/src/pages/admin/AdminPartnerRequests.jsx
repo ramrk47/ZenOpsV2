@@ -18,7 +18,7 @@ export default function AdminPartnerRequests() {
   async function loadRequests() {
     setLoading(true)
     try {
-      const res = await api.get('/api/admin/partner-account-requests')
+      const res = await api.get('/api/admin/associate-access-requests')
       setRequests(res.data)
     } catch {
       setRequests([])
@@ -28,10 +28,10 @@ export default function AdminPartnerRequests() {
   }
 
   async function handleApprove(id) {
-    if (!window.confirm('Approve this associate request? An account will be created.')) return
+    if (!window.confirm('Approve this External Associate request?')) return
     setActionLoading(id)
     try {
-      await api.post(`/api/admin/partner-account-requests/${id}/approve`)
+      await api.post(`/api/admin/associate-access-requests/${id}/approve`)
       await loadRequests()
     } catch (err) {
       alert(toUserMessage(err, 'Approval failed'))
@@ -45,7 +45,7 @@ export default function AdminPartnerRequests() {
     if (reason === null) return
     setActionLoading(id)
     try {
-      await api.post(`/api/admin/partner-account-requests/${id}/reject`, { rejection_reason: reason || null })
+      await api.post(`/api/admin/associate-access-requests/${id}/reject`, { rejection_reason: reason || null })
       await loadRequests()
     } catch (err) {
       alert(toUserMessage(err, 'Rejection failed'))
@@ -54,8 +54,9 @@ export default function AdminPartnerRequests() {
     }
   }
 
-  const pending = requests.filter((r) => r.status === 'PENDING')
-  const decided = requests.filter((r) => r.status !== 'PENDING')
+  const pendingStatuses = ['PENDING_EMAIL_VERIFY', 'VERIFIED_PENDING_REVIEW', 'PENDING', 'VERIFIED']
+  const pending = requests.filter((r) => pendingStatuses.includes(r.status))
+  const decided = requests.filter((r) => !pendingStatuses.includes(r.status))
 
   return (
     <div>
@@ -79,7 +80,7 @@ export default function AdminPartnerRequests() {
         {loading ? (
           <div className="muted">Loading requests...</div>
         ) : pending.length === 0 ? (
-          <EmptyState>No pending partner requests.</EmptyState>
+          <EmptyState>No pending external associate requests.</EmptyState>
         ) : (
           <div className="table-wrap">
             <table>
@@ -90,6 +91,7 @@ export default function AdminPartnerRequests() {
                   <th>Email</th>
                   <th>Phone</th>
                   <th>Submitted</th>
+                  <th>Email Verified</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -102,12 +104,17 @@ export default function AdminPartnerRequests() {
                     <td>{r.phone || '—'}</td>
                     <td>{formatDate(r.created_at)}</td>
                     <td>
+                      <Badge tone={r.email_verified_at ? 'ok' : 'warn'}>
+                        {r.email_verified_at ? 'Verified' : 'Pending'}
+                      </Badge>
+                    </td>
+                    <td>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button
                           onClick={() => handleApprove(r.id)}
-                          disabled={actionLoading === r.id}
+                          disabled={actionLoading === r.id || !r.email_verified_at}
                         >
-                          {actionLoading === r.id ? '...' : 'Approve'}
+                          {actionLoading === r.id ? '...' : (r.email_verified_at ? 'Approve' : 'Await Verify')}
                         </button>
                         <button
                           className="secondary"
@@ -140,6 +147,7 @@ export default function AdminPartnerRequests() {
                   <th>Contact</th>
                   <th>Email</th>
                   <th>Status</th>
+                  <th>Email Verified</th>
                   <th>Reviewed</th>
                   <th>Reason</th>
                 </tr>
@@ -155,6 +163,7 @@ export default function AdminPartnerRequests() {
                         {r.status}
                       </Badge>
                     </td>
+                    <td>{r.email_verified_at ? formatDate(r.email_verified_at) : '—'}</td>
                     <td>{r.reviewed_at ? formatDate(r.reviewed_at) : '—'}</td>
                     <td className="muted">{r.rejection_reason || '—'}</td>
                   </tr>

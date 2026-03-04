@@ -9,7 +9,7 @@ import EmptyState from '../../components/ui/EmptyState'
 import DataTable from '../../components/ui/DataTable'
 import { fetchAssignments, updateAssignment } from '../../api/assignments'
 import { fetchUsers, createUser, updateUser, resetPassword } from '../../api/users'
-import { fetchExternalPartners, createExternalPartner, updateExternalPartner } from '../../api/master'
+import { fetchExternalPartners, createExternalPartner, updateExternalPartner, fetchServiceLines } from '../../api/master'
 import { fetchPartnerSummary } from '../../api/analytics'
 import { formatDateTime, formatMoney, titleCase } from '../../utils/format'
 import { toUserMessage } from '../../api/client'
@@ -19,6 +19,9 @@ import { getUserRoles, userHasAnyRole, userHasRole } from '../../utils/rbac'
 
 const ROLES = ['ADMIN', 'OPS_MANAGER', 'HR', 'FINANCE', 'ASSISTANT_VALUER', 'FIELD_VALUER', 'EMPLOYEE']
 const SERVICE_LINES = ['VALUATION', 'INDUSTRIAL', 'DPR', 'CMA']
+const ELIGIBILITY_KEYS = ['VALUATION_LB', 'VALUATION_PLOT', 'VALUATION_AGRI', 'PROJECT_REPORT']
+const DEFAULT_ELIGIBLE_ROLES = ['ADMIN', 'OPS_MANAGER', 'ASSISTANT_VALUER', 'FIELD_VALUER', 'EMPLOYEE']
+const DEFAULT_DENY_ROLES = ['FINANCE', 'HR']
 const CAPABILITY_OPTIONS = [
   { key: 'view_all_assignments', label: 'View All Assignments', help: 'Allow viewing all assignments, not just mine.' },
   { key: 'create_assignment', label: 'Create Assignments', help: 'Allow creating new assignments.' },
@@ -58,6 +61,7 @@ export default function AdminPersonnel() {
   const [saving, setSaving] = useState(false)
   const [partnerReloadKey, setPartnerReloadKey] = useState(0)
   const [partners, setPartners] = useState([])
+  const [serviceLines, setServiceLines] = useState([])
   const [partnerSummary, setPartnerSummary] = useState([])
   const [partnerLoading, setPartnerLoading] = useState(false)
   const [partnerError, setPartnerError] = useState(null)
@@ -73,6 +77,8 @@ export default function AdminPersonnel() {
   const [roleFilter, setRoleFilter] = useState(storedFilters.roleFilter || 'ALL')
   const [statusFilter, setStatusFilter] = useState(storedFilters.statusFilter || 'ALL')
   const [sortBy, setSortBy] = useState(storedFilters.sortBy || 'workload')
+  const [eligibleServiceLineFilter, setEligibleServiceLineFilter] = useState(storedFilters.eligibleServiceLineFilter || 'ALL')
+  const [overloadedOnly, setOverloadedOnly] = useState(Boolean(storedFilters.overloadedOnly))
 
   const [selectedAssignments, setSelectedAssignments] = useState([])
   const [queueLoading, setQueueLoading] = useState(false)
@@ -90,10 +96,12 @@ export default function AdminPersonnel() {
       roleFilter,
       statusFilter,
       sortBy,
+      eligibleServiceLineFilter,
+      overloadedOnly,
       partnerQuery,
       partnerStatusFilter,
     })
-  }, [activeTab, query, roleFilter, statusFilter, sortBy, partnerQuery, partnerStatusFilter])
+  }, [activeTab, query, roleFilter, statusFilter, sortBy, eligibleServiceLineFilter, overloadedOnly, partnerQuery, partnerStatusFilter])
 
   const [editForm, setEditForm] = useState({
     email: '',
@@ -168,6 +176,22 @@ export default function AdminPersonnel() {
   }, [reloadKey])
 
   useEffect(() => {
+    let cancelled = false
+    async function loadServiceLines() {
+      try {
+        const data = await fetchServiceLines({ include_inactive: true })
+        if (!cancelled) setServiceLines(data || [])
+      } catch (_err) {
+        if (!cancelled) setServiceLines([])
+      }
+    }
+    loadServiceLines()
+    return () => {
+      cancelled = true
+    }
+  }, [reloadKey])
+
+  useEffect(() => {
     if (activeTab !== 'partners') return () => {}
     let cancelled = false
 
@@ -209,6 +233,66 @@ export default function AdminPersonnel() {
     return { total, active, onLeave, overloaded, activeDays, loginCount }
   }, [employeeUsers])
 
+  const keyServiceLines = useMemo(() => {
+    const byKey = new Map(serviceLines.map((line) => [line.key, line]))
+    return ELIGIBILITY_KEYS.map((key) => byKey.get(key) || { key, name: titleCase(key) })
+  }, [serviceLines])
+
+  function workloadMetrics(user) {
+    const open = Number(user?.open_assignments || 0)
+    const overdue = Number(user?.overdue_assignments || 0)
+    const dueSoon = Number(user?.due_soon_tasks || 0)
+    const lastActiveMinutes = user?.last_active_minutes ?? null
+    return { open, overdue, dueSoon, lastActiveMinutes }
+  }
+
+  function allocationPrefs(user) {
+    const raw = user?.allocation_prefs_json
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+    return raw
+  }
+
+  function serviceLinePolicy(line) {
+    const raw = line?.allocation_policy_json
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return {
+        eligible_roles: DEFAULT_ELIGIBLE_ROLES,
+        deny_roles: DEFAULT_DENY_ROLES,
+      }
+    }
+    const eligible = Array.isArray(raw.eligible_roles) && raw.eligible_roles.length ? raw.eligible_roles : DEFAULT_ELIGIBLE_ROLES
+    const deny = Array.isArray(raw.deny_roles) && raw.deny_roles.length ? raw.deny_roles : DEFAULT_DENY_ROLES
+    return { eligible_roles: eligible, deny_roles: deny }
+  }
+
+  function allocationPreferenceFor(user, serviceLineKey) {
+    const prefs = allocationPrefs(user)
+    const overrides = prefs?.service_line_overrides
+    if (!overrides || typeof overrides !== 'object') return null
+    const pref = overrides[serviceLineKey]
+    if (!pref || typeof pref !== 'object') return null
+    if (pref.eligible === true) return true
+    if (pref.eligible === false) return false
+    return null
+  }
+
+  function isEligibleForServiceLine(user, serviceLine) {
+    const override = allocationPreferenceFor(user, serviceLine.key)
+    if (override === true) return true
+    if (override === false) return false
+
+    const roles = getUserRoles(user)
+    const roleSet = new Set(roles)
+    const primary = String(user?.role || '').toUpperCase()
+    const policy = serviceLinePolicy(serviceLine)
+    const eligibleRoles = new Set((policy.eligible_roles || []).map((r) => String(r).toUpperCase()))
+    const denyRoles = new Set((policy.deny_roles || []).map((r) => String(r).toUpperCase()))
+
+    if (roleSet.has('EXTERNAL_PARTNER')) return false
+    if (denyRoles.has(primary)) return false
+    return roles.some((role) => eligibleRoles.has(String(role).toUpperCase()))
+  }
+
   const filteredUsers = useMemo(() => {
     const term = query.trim().toLowerCase()
     const rows = employeeUsers
@@ -217,6 +301,11 @@ export default function AdminPersonnel() {
         if (statusFilter === 'ACTIVE' && !user.is_active) return false
         if (statusFilter === 'INACTIVE' && user.is_active) return false
         if (statusFilter === 'ON_LEAVE' && !user.on_leave_today) return false
+        if (overloadedOnly && Number(user.open_assignments || 0) <= 12) return false
+        if (eligibleServiceLineFilter !== 'ALL') {
+          const serviceLine = keyServiceLines.find((line) => line.key === eligibleServiceLineFilter)
+          if (serviceLine && !isEligibleForServiceLine(user, serviceLine)) return false
+        }
         if (!term) return true
         return (
           (user.full_name || '').toLowerCase().includes(term)
@@ -236,15 +325,24 @@ export default function AdminPersonnel() {
         const bTime = b.last_login_at ? new Date(b.last_login_at).getTime() : 0
         if (aTime !== bTime) return bTime - aTime
       }
+      if (sortBy === 'last_active') {
+        const aTime = a.last_active_at ? new Date(a.last_active_at).getTime() : 0
+        const bTime = b.last_active_at ? new Date(b.last_active_at).getTime() : 0
+        if (aTime !== bTime) return bTime - aTime
+      }
       return (a.full_name || a.email || '').localeCompare(b.full_name || b.email || '')
     })
 
     return rows
-  }, [employeeUsers, query, roleFilter, statusFilter, sortBy])
+  }, [employeeUsers, query, roleFilter, statusFilter, sortBy, overloadedOnly, eligibleServiceLineFilter, keyServiceLines])
 
   const selectedUser = useMemo(
     () => employeeUsers.find((u) => u.id === selectedUserId) || null,
     [employeeUsers, selectedUserId],
+  )
+  const selectedUserMetrics = useMemo(
+    () => workloadMetrics(selectedUser),
+    [selectedUser],
   )
 
   const partnerStats = useMemo(() => {
@@ -680,6 +778,31 @@ export default function AdminPersonnel() {
     }
   }
 
+  async function handleToggleAllocationEligibility(serviceLineKey, enabled) {
+    if (!selectedUser) return
+    setError(null)
+    const currentPrefs = allocationPrefs(selectedUser)
+    const nextPrefs = {
+      ...currentPrefs,
+      service_line_overrides: {
+        ...(currentPrefs.service_line_overrides || {}),
+        [serviceLineKey]: { eligible: Boolean(enabled) },
+      },
+    }
+    try {
+      const updated = await updateUser(selectedUser.id, { allocation_prefs_json: nextPrefs })
+      setUsers((prev) => prev.map((u) => (
+        u.id === selectedUser.id
+          ? { ...u, ...updated, allocation_prefs_json: updated.allocation_prefs_json || nextPrefs }
+          : u
+      )))
+      setNotice(`Updated allocation preference for ${serviceLineKey}.`)
+    } catch (err) {
+      console.error(err)
+      setError(toUserMessage(err, 'Failed to update allocation preference'))
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -763,6 +886,14 @@ export default function AdminPersonnel() {
                 >
                   On Leave
                 </button>
+                <button
+                  type="button"
+                  className={`chip ${overloadedOnly ? 'active' : ''}`.trim()}
+                  onClick={() => setOverloadedOnly((prev) => !prev)}
+                  aria-pressed={overloadedOnly}
+                >
+                  Overloaded
+                </button>
               </div>
               <button type="button" className="secondary" onClick={() => setFiltersOpen((open) => !open)}>
                 {filtersOpen ? 'Hide Filters' : 'Filters'}
@@ -788,7 +919,14 @@ export default function AdminPersonnel() {
                   <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
                     <option value="workload">Sort: Workload</option>
                     <option value="recent_login">Sort: Recent Login</option>
+                    <option value="last_active">Sort: Last Active</option>
                     <option value="name">Sort: Name</option>
+                  </select>
+                  <select value={eligibleServiceLineFilter} onChange={(e) => setEligibleServiceLineFilter(e.target.value)}>
+                    <option value="ALL">Eligible: Any Service Line</option>
+                    {keyServiceLines.map((line) => (
+                      <option key={line.key} value={line.key}>{line.name}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -796,7 +934,7 @@ export default function AdminPersonnel() {
           </div>
 
           {loading ? (
-            <DataTable loading columns={10} rows={8} />
+            <DataTable loading columns={11} rows={8} />
           ) : filteredUsers.length === 0 ? (
             <EmptyState>No users found for current filters.</EmptyState>
           ) : (
@@ -809,15 +947,17 @@ export default function AdminPersonnel() {
                     <th>Active</th>
                     <th>Open</th>
                     <th>Overdue</th>
+                    <th>Due Soon</th>
+                    <th>Last Active</th>
+                    <th>Eligibility</th>
                     <th>Leave</th>
-                    <th className="col-activity">Active Days (30d)</th>
-                    <th className="col-logins">Logins (30d)</th>
-                    <th className="col-last-login">Last Login</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.map((user) => (
+                  {filteredUsers.map((user) => {
+                    const metrics = workloadMetrics(user)
+                    return (
                     <tr key={user.id} style={user.id === selectedUserId ? { outline: '2px solid rgba(91, 140, 255, 0.4)' } : undefined}>
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -836,16 +976,25 @@ export default function AdminPersonnel() {
                       </td>
                       <td>{user.open_assignments}</td>
                       <td>{user.overdue_assignments}</td>
+                      <td>{metrics.dueSoon}</td>
+                      <td>{metrics.lastActiveMinutes != null ? `${metrics.lastActiveMinutes}m` : '—'}</td>
+                      <td>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {keyServiceLines.map((line) => (
+                            <Badge key={`${user.id}-${line.key}`} tone={isEligibleForServiceLine(user, line) ? 'ok' : 'danger'}>
+                              {line.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      </td>
                       <td>{user.on_leave_today ? <Badge tone="warn">On Leave</Badge> : '—'}</td>
-                      <td className="col-activity">{user.active_days_30d ?? 0}</td>
-                      <td className="col-logins">{user.login_count_30d ?? 0}</td>
-                      <td className="col-last-login">{user.last_login_at ? formatDateTime(user.last_login_at) : '—'}</td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <button type="button" className="ghost" onClick={() => setSelectedUserId(user.id)}>Edit</button>
                         <button type="button" className="ghost row-reset-action" onClick={() => handleResetPassword(user)}>Reset</button>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </DataTable>
@@ -871,19 +1020,19 @@ export default function AdminPersonnel() {
                 <div className="grid cols-2 tight-cols" style={{ marginBottom: '0.75rem' }}>
                   <div className="card tight">
                     <div className="kicker">Open</div>
-                    <div className="stat-value">{selectedUser.open_assignments || 0}</div>
+                    <div className="stat-value">{selectedUserMetrics.open}</div>
                   </div>
                   <div className="card tight">
                     <div className="kicker">Overdue</div>
-                    <div className="stat-value" style={{ color: 'var(--danger)' }}>{selectedUser.overdue_assignments || 0}</div>
+                    <div className="stat-value" style={{ color: 'var(--danger)' }}>{selectedUserMetrics.overdue}</div>
                   </div>
                   <div className="card tight">
-                    <div className="kicker">Active Days (30d)</div>
-                    <div className="stat-value">{selectedUser.active_days_30d || 0}</div>
+                    <div className="kicker">Due Soon</div>
+                    <div className="stat-value">{selectedUserMetrics.dueSoon}</div>
                   </div>
                   <div className="card tight">
-                    <div className="kicker">Logins (30d)</div>
-                    <div className="stat-value">{selectedUser.login_count_30d || 0}</div>
+                    <div className="kicker">Last Active</div>
+                    <div className="stat-value">{selectedUserMetrics.lastActiveMinutes != null ? `${selectedUserMetrics.lastActiveMinutes}m` : '—'}</div>
                   </div>
                 </div>
                 <div className="muted" style={{ fontSize: 12, marginBottom: '0.6rem' }}>
@@ -898,6 +1047,22 @@ export default function AdminPersonnel() {
                       Reset Password
                     </button>
                   ) : null}
+                </div>
+                <div className="grid" style={{ gap: 8, marginTop: '0.8rem' }}>
+                  <div className="kicker">Eligible For Allocation</div>
+                  {keyServiceLines.map((line) => {
+                    const enabled = isEligibleForServiceLine(selectedUser, line)
+                    return (
+                      <label key={`selected-${line.key}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                          type="checkbox"
+                          checked={enabled}
+                          onChange={(e) => handleToggleAllocationEligibility(line.key, e.target.checked)}
+                        />
+                        <span>{line.name}</span>
+                      </label>
+                    )
+                  })}
                 </div>
               </>
             )}

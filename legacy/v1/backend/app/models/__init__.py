@@ -56,6 +56,7 @@ from app.models.invoice import (
 from app.models.leave import LeaveRequest
 from app.models.payroll_line_item import PayrollLineItem
 from app.models.payslip import Payslip
+from app.models.rate_limit_bucket import RateLimitBucket
 from app.models.salary_structure import SalaryStructure
 from app.models.payroll_run import PayrollRun
 from app.models.master import (
@@ -85,9 +86,11 @@ from app.models.partner import (
     PartnerRequestAttachment,
 )
 from app.models.partner_account_request import PartnerAccountRequest
+from app.models.partner_request_attempt import PartnerRequestAttempt
 from app.models.support import SupportThread, SupportMessage
 from app.models.task import AssignmentTask
 from app.models.user import User
+from app.models.user_invite import UserInvite
 from app.models.work_session import WorkSession
 from app.models.v1_outbox_event import V1OutboxEvent
 
@@ -163,10 +166,13 @@ __all__ = [
     "WorkSession",
     "V1OutboxEvent",
     "PartnerAccountRequest",
+    "PartnerRequestAttempt",
+    "UserInvite",
     "PayrollRun",
     "PayrollLineItem",
     "Payslip",
     "SalaryStructure",
+    "RateLimitBucket",
     "PayrollRunStatus",
     "SalaryComponentType",
     "PayrollAdjustmentType",

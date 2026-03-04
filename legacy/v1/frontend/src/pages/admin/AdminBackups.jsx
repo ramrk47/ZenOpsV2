@@ -7,6 +7,8 @@ import InfoTip from '../../components/ui/InfoTip'
 import { fetchBackups, triggerBackup, backupDownloadUrl } from '../../api/backups'
 import { formatDateTime, titleCase } from '../../utils/format'
 import { toUserMessage } from '../../api/client'
+import { useAuth } from '../../auth/AuthContext'
+import { userHasRole } from '../../utils/rbac'
 
 function formatBytes(bytes) {
   if (!bytes && bytes !== 0) return '—'
@@ -21,6 +23,8 @@ function formatBytes(bytes) {
 }
 
 export default function AdminBackups() {
+  const { user } = useAuth()
+  const isAdmin = userHasRole(user, 'ADMIN')
   const [payload, setPayload] = useState({ files: [], status: null })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -29,6 +33,12 @@ export default function AdminBackups() {
   const [message, setMessage] = useState(null)
 
   const refresh = async () => {
+    if (!isAdmin) {
+      setPayload({ files: [], status: null })
+      setError('Access restricted: admin role required for backups.')
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError(null)
     try {
@@ -43,8 +53,14 @@ export default function AdminBackups() {
   }
 
   useEffect(() => {
+    if (!isAdmin) {
+      setPayload({ files: [], status: null })
+      setLoading(false)
+      setError('Access restricted: admin role required for backups.')
+      return
+    }
     refresh()
-  }, [])
+  }, [isAdmin])
 
   const tierFiles = useMemo(
     () => payload.files.filter((file) => file.location === 'tier'),
@@ -65,6 +81,10 @@ export default function AdminBackups() {
         : 'muted'
 
   const triggerBackupNow = async () => {
+    if (!isAdmin) {
+      setMessage('Access restricted: admin role required for backups.')
+      return
+    }
     setTriggering(true)
     setMessage(null)
     try {
@@ -77,6 +97,19 @@ export default function AdminBackups() {
     } finally {
       setTriggering(false)
     }
+  }
+
+  if (!isAdmin) {
+    return (
+      <div>
+        <PageHeader
+          title="Backups"
+          subtitle="Monitor, verify, and trigger backup runs. Requires admin role and a backup PIN."
+          actions={<Badge tone="danger">restricted</Badge>}
+        />
+        <EmptyState>Access restricted. Backup operations are admin-only.</EmptyState>
+      </div>
+    )
   }
 
   return (

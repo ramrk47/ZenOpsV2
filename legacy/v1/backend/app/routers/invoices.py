@@ -8,7 +8,6 @@ import json
 import logging
 from io import StringIO
 from pathlib import Path
-from uuid import uuid4
 from typing import List, Optional, Literal
 
 from fastapi import (
@@ -79,6 +78,7 @@ from app.services.assignments import apply_access_filter, ensure_assignment_acce
 from app.services.calendar import upsert_task_due_event
 from app.services.notifications import create_notification_if_absent, notify_roles, notify_roles_if_absent
 from app.services.invoice_pdf import generate_invoice_pdf
+from app.services.upload_security import UploadSecurityError, build_upload_subdir, store_upload_file
 from app.services.invoices import (
     add_invoice_audit_log,
     default_issued_date,
@@ -1511,11 +1511,8 @@ def invoice_context(
 
 
 def _invoice_upload_dir(invoice: Invoice) -> Path:
-    base = settings.ensure_uploads_dir()
     ref = invoice.invoice_number or f"draft-{invoice.id}"
-    path = base / "invoices" / ref
-    path.mkdir(parents=True, exist_ok=True)
-    return path
+    return build_upload_subdir("invoices", ref)
 
 
 @router.get("/{invoice_id}/attachments", response_model=list[InvoiceAttachmentRead])
@@ -1543,22 +1540,21 @@ def upload_invoice_attachment(
     _ensure_assignment_access(db, invoice.assignment_id, current_user)
 
     upload_dir = _invoice_upload_dir(invoice)
-    # Sanitize filename to prevent path traversal
-    safe_filename = Path(file.filename or "upload.bin").name
-    suffix = Path(safe_filename).suffix
-    filename = f"{uuid4().hex}{suffix}"
-    storage_path = upload_dir / filename
-
-    content = file.file.read()
-    storage_path.write_bytes(content)
+    try:
+        stored = store_upload_file(file, destination_dir=upload_dir)
+    except UploadSecurityError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
 
     attachment = InvoiceAttachment(
         invoice_id=invoice.id,
         uploaded_by_user_id=current_user.id,
-        original_name=file.filename or filename,
-        storage_path=str(storage_path),
-        mime_type=file.content_type,
-        size=len(content),
+        original_name=stored.original_name,
+        storage_path=stored.storage_path,
+        mime_type=stored.mime_type,
+        size=stored.size,
         category=category,
     )
     db.add(attachment)

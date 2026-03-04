@@ -6,7 +6,15 @@ import Tabs from '../components/ui/Tabs'
 import { Card, CardHeader } from '../components/ui/Card'
 import EmptyState from '../components/ui/EmptyState'
 import InfoTip from '../components/ui/InfoTip'
-import { fetchAssignment, fetchAssignmentChecklist, remindMissingDocs, updateAssignment, deleteAssignment } from '../api/assignments'
+import {
+  fetchAssignment,
+  fetchAssignmentChecklist,
+  remindMissingDocs,
+  updateAssignment,
+  deleteAssignment,
+  fetchAllocationCandidates,
+  assignBestCandidate,
+} from '../api/assignments'
 import { createTask, updateTask, deleteTask } from '../api/tasks'
 import { createMessage, pinMessage, unpinMessage, deleteMessage } from '../api/messages'
 import { uploadDocumentWithMeta, markDocumentFinal, documentDownloadUrl, documentPreviewUrl } from '../api/documents'
@@ -114,6 +122,23 @@ function initTaskDrafts(tasks = []) {
   return drafts
 }
 
+function allocationHint(candidate) {
+  if (!candidate) return null
+  const signals = candidate.signals || {}
+  return `score ${candidate.score} | open ${signals.open_assignments || 0} | overdue ${signals.overdue_tasks || 0} | due soon ${signals.due_soon || 0}`
+}
+
+function assigneeEligibilityMessage(detail, userMap) {
+  if (!detail || detail.code !== 'ASSIGNEE_NOT_ELIGIBLE') return null
+  const userId = detail.user_id != null ? String(detail.user_id) : null
+  const assigneeLabel = userId
+    ? (userMap.get(userId)?.full_name || userMap.get(userId)?.email || `User ${userId}`)
+    : 'Selected assignee'
+  const reason = detail.reason ? String(detail.reason).replaceAll('_', ' ').toLowerCase() : null
+  const message = detail.message || 'Assignee is not eligible for this assignment.'
+  return `${assigneeLabel} is not eligible.${reason ? ` Reason: ${reason}.` : ''} ${message}`.trim()
+}
+
 export default function AssignmentDetail() {
   const { id } = useParams()
   const { user, capabilities } = useAuth()
@@ -136,6 +161,9 @@ export default function AssignmentDetail() {
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [allocationCandidates, setAllocationCandidates] = useState([])
+  const [allocationLoading, setAllocationLoading] = useState(false)
+  const [assignBestLoading, setAssignBestLoading] = useState(false)
 
   const [overviewForm, setOverviewForm] = useState(null)
   const [taskDrafts, setTaskDrafts] = useState({})
@@ -159,6 +187,7 @@ export default function AssignmentDetail() {
   const [mentionedUserIds, setMentionedUserIds] = useState([])
 
   const canReassign = hasCapability(capabilities, 'reassign')
+  const canAllocate = hasCapability(capabilities, 'assignment_allocate')
   const canModifyMoney = hasCapability(capabilities, 'modify_money')
   const canCreateInvoice = hasCapability(capabilities, 'create_invoice') || canModifyMoney
   const canModifyInvoice = hasCapability(capabilities, 'modify_invoice') || canModifyMoney || canCreateInvoice
@@ -278,10 +307,39 @@ export default function AssignmentDetail() {
     return map
   }, [users])
 
+  const allocationCandidateMap = useMemo(() => {
+    const map = new Map()
+    allocationCandidates.forEach((candidate) => {
+      map.set(String(candidate.user_id), candidate)
+    })
+    return map
+  }, [allocationCandidates])
+
+  const assigneeOptions = useMemo(() => {
+    if (!canAllocate || allocationCandidates.length === 0) return users
+    const eligibleIds = new Set(
+      allocationCandidates
+        .filter((candidate) => candidate.eligible)
+        .map((candidate) => String(candidate.user_id)),
+    )
+    const selectedIds = new Set([
+      ...(overviewForm?.assignee_user_ids || []),
+      overviewForm?.assigned_to_user_id,
+    ].filter(Boolean).map(String))
+    selectedIds.forEach((id) => eligibleIds.add(id))
+    return users.filter((candidateUser) => eligibleIds.has(String(candidateUser.id)))
+  }, [allocationCandidates, canAllocate, overviewForm?.assigned_to_user_id, overviewForm?.assignee_user_ids, users])
+
   const selectedApprovalTemplate = useMemo(
     () => approvalTemplates.find((t) => t.action_type === approvalForm.action_type),
     [approvalTemplates, approvalForm.action_type],
   )
+  const approvalActionOptions = useMemo(() => {
+    const source = approvalTemplates.length > 0
+      ? approvalTemplates.map((template) => template.action_type)
+      : DEFAULT_APPROVAL_ACTIONS
+    return Array.from(new Set(source))
+  }, [approvalTemplates])
 
   const orderedTimeline = useMemo(() => {
     const items = detail?.timeline ? [...detail.timeline] : []
@@ -383,6 +441,29 @@ export default function AssignmentDetail() {
     if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null
     return candidate
   }, [assignment])
+
+  useEffect(() => {
+    if (!assignment?.id || !(canAllocate || canReassign)) {
+      setAllocationCandidates([])
+      return
+    }
+    let cancelled = false
+    async function loadAllocationCandidates() {
+      setAllocationLoading(true)
+      try {
+        const rows = await fetchAllocationCandidates(assignment.id, { include_ineligible: true })
+        if (!cancelled) setAllocationCandidates(Array.isArray(rows) ? rows : [])
+      } catch (err) {
+        if (!cancelled) setAllocationCandidates([])
+      } finally {
+        if (!cancelled) setAllocationLoading(false)
+      }
+    }
+    loadAllocationCandidates()
+    return () => {
+      cancelled = true
+    }
+  }, [assignment?.id, canAllocate, canReassign, reloadKey])
 
   useEffect(() => {
     if (!documentCategoryOptions.length) return
@@ -611,6 +692,11 @@ export default function AssignmentDetail() {
     } catch (err) {
       console.error(err)
       const detail = err?.response?.data?.detail
+      const eligibilityMessage = assigneeEligibilityMessage(detail, userMap)
+      if (eligibilityMessage) {
+        setError(eligibilityMessage)
+        return
+      }
       if (err?.response?.status === 409 && payload && confirmLeaveOverride(detail)) {
         try {
           await updateAssignment(assignment.id, { ...payload, override_on_leave: true })
@@ -624,6 +710,33 @@ export default function AssignmentDetail() {
         }
       }
       setError(toUserMessage(err, 'Failed to update assignment'))
+    }
+  }
+
+  async function handleAssignBestCandidate() {
+    if (!assignment || assignBestLoading) return
+    setError(null)
+    setNotice(null)
+    setAssignBestLoading(true)
+    try {
+      const result = await assignBestCandidate(assignment.id)
+      const candidate = result?.candidate
+      const label = candidate?.user_id
+        ? (userMap.get(String(candidate.user_id))?.full_name || userMap.get(String(candidate.user_id))?.email || candidate.name)
+        : 'candidate'
+      setNotice(`Assigned best candidate: ${label}${candidate ? ` (${allocationHint(candidate)})` : ''}.`)
+      refresh()
+    } catch (err) {
+      console.error(err)
+      const detail = err?.response?.data?.detail
+      const eligibilityMessage = assigneeEligibilityMessage(detail, userMap)
+      if (eligibilityMessage) {
+        setError(eligibilityMessage)
+      } else {
+        setError(toUserMessage(err, 'Failed to assign best candidate'))
+      }
+    } finally {
+      setAssignBestLoading(false)
     }
   }
 
@@ -1109,18 +1222,38 @@ export default function AssignmentDetail() {
                     disabled={!canReassign && assignment.assigned_to_user_id !== user?.id}
                   >
                     <option value="">Unassigned</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
+                    {assigneeOptions.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.full_name || u.email}
+                        {allocationHint(allocationCandidateMap.get(String(u.id))) ? ` [${allocationHint(allocationCandidateMap.get(String(u.id)))}]` : ''}
+                      </option>
                     ))}
                   </select>
+                  {canAllocate ? (
+                    <>
+                      <button
+                        type="button"
+                        className="ghost"
+                        onClick={handleAssignBestCandidate}
+                        disabled={assignBestLoading || allocationLoading}
+                      >
+                        {assignBestLoading ? 'Assigning best…' : 'Assign Best Candidate'}
+                      </button>
+                      <span className="muted" style={{ fontSize: 11 }}>
+                        {allocationLoading
+                          ? 'Loading eligibility and workload signals...'
+                          : `${assigneeOptions.length} selectable candidate(s).`}
+                      </span>
+                    </>
+                  ) : null}
                 </label>
               </div>
 
-              {users.length ? (
+              {assigneeOptions.length ? (
                 <div style={{ marginTop: '0.9rem' }}>
                   <div className="kicker" style={{ marginBottom: 6 }}>Additional Assignees</div>
                   <div className="grid cols-3" style={{ gap: 8 }}>
-                    {users.map((u) => {
+                    {assigneeOptions.map((u) => {
                       const isPrimary = String(u.id) === String(overviewForm.assigned_to_user_id)
                       const checked = (overviewForm.assignee_user_ids || []).includes(String(u.id))
                       return (
@@ -1134,6 +1267,11 @@ export default function AssignmentDetail() {
                           <div>
                             <div style={{ fontWeight: 600 }}>{u.full_name || u.email}</div>
                             <div className="muted" style={{ fontSize: 12 }}>{u.role}</div>
+                            {allocationHint(allocationCandidateMap.get(String(u.id))) ? (
+                              <div className="muted" style={{ fontSize: 11 }}>
+                                {allocationHint(allocationCandidateMap.get(String(u.id)))}
+                              </div>
+                            ) : null}
                             {isPrimary ? <Badge tone="info">Primary</Badge> : null}
                           </div>
                         </label>
@@ -1874,7 +2012,7 @@ export default function AssignmentDetail() {
               <label className="grid" style={{ gap: 6 }}>
                 <span className="kicker">Action</span>
                 <select value={approvalForm.action_type} onChange={(e) => setApprovalForm((prev) => ({ ...prev, action_type: e.target.value }))}>
-                  {(approvalTemplates.length > 0 ? approvalTemplates.map((t) => t.action_type) : DEFAULT_APPROVAL_ACTIONS).map((action) => (
+                  {approvalActionOptions.map((action) => (
                     <option key={action} value={action}>{titleCase(action)}</option>
                   ))}
                 </select>

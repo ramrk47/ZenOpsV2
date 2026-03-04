@@ -1,19 +1,23 @@
 import React, { useState } from 'react'
-import api, { toUserMessage } from '../api/client'
+import { useNavigate } from 'react-router-dom'
+import { toUserMessage } from '../api/client'
+import { requestAssociateAccess } from '../api/partner'
 
 /**
  * Public page (no auth required) — allows external associates to submit
  * an access request to the Zen Ops platform.
  */
 export default function PartnerRequestAccess() {
+  const navigate = useNavigate()
   const [form, setForm] = useState({
     company_name: '',
     contact_name: '',
     email: '',
     phone: '',
+    city: '',
     message: '',
+    captcha_token: '',
   })
-  const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -26,39 +30,23 @@ export default function PartnerRequestAccess() {
     setError('')
     setLoading(true)
     try {
-      await api.post('/api/partner/request-access', {
+      await requestAssociateAccess({
         company_name: form.company_name.trim(),
         contact_name: form.contact_name.trim(),
         email: form.email.trim().toLowerCase(),
         phone: form.phone.trim() || undefined,
+        city: form.city.trim() || undefined,
+        role_intent: 'EXTERNAL_ASSOCIATE',
+        requested_interface: 'associate',
         message: form.message.trim() || undefined,
+        captcha_token: form.captcha_token.trim() || undefined,
       })
-      setSubmitted(true)
+      navigate(`/partner/request-access/sent?email=${encodeURIComponent(form.email.trim().toLowerCase())}`)
     } catch (err) {
       setError(toUserMessage(err, 'Something went wrong. Please try again.'))
     } finally {
       setLoading(false)
     }
-  }
-
-  if (submitted) {
-    return (
-      <div style={pageStyle}>
-        <div style={cardStyle}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>&#10003;</div>
-            <h2 style={{ margin: '0 0 8px' }}>Request Submitted</h2>
-            <p style={{ color: '#555' }}>
-              Thank you for your interest in becoming an associate with Zen Ops. Our team will review your
-              request and get back to you shortly.
-            </p>
-            <a href="/login" style={linkStyle}>
-              Back to Login
-            </a>
-          </div>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -113,6 +101,15 @@ export default function PartnerRequestAccess() {
             placeholder="+91 9876543210"
           />
 
+          <label style={labelStyle}>City</label>
+          <input
+            name="city"
+            value={form.city}
+            onChange={handleChange}
+            style={inputStyle}
+            placeholder="Bengaluru"
+          />
+
           <label style={labelStyle}>Message</label>
           <textarea
             name="message"
@@ -120,6 +117,15 @@ export default function PartnerRequestAccess() {
             onChange={handleChange}
             style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }}
             placeholder="Tell us about your organisation and how we can collaborate..."
+          />
+
+          <label style={labelStyle}>Captcha Token (placeholder)</label>
+          <input
+            name="captcha_token"
+            value={form.captcha_token}
+            onChange={handleChange}
+            style={inputStyle}
+            placeholder="Required in production (provider wiring pending)"
           />
 
           {error && <p style={{ color: '#d32f2f', fontSize: 13, margin: '8px 0 0' }}>{error}</p>}

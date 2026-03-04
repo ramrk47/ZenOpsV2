@@ -287,6 +287,7 @@ class ServiceLineBase(ORMModel):
 
 class ServiceLineCreate(ServiceLineBase):
     policy_json: Optional[Dict[str, Any]] = None
+    allocation_policy_json: Optional[Dict[str, Any]] = None
 
 
 class ServiceLineUpdate(ORMModel):
@@ -295,11 +296,13 @@ class ServiceLineUpdate(ORMModel):
     is_active: Optional[bool] = None
     sort_order: Optional[int] = None
     policy_json: Optional[Dict[str, Any]] = None
+    allocation_policy_json: Optional[Dict[str, Any]] = None
 
 
 class ServiceLineRead(ServiceLineBase):
     id: int
     policy_json: Optional[Dict[str, Any]] = None
+    allocation_policy_json: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
 
