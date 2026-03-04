@@ -5,31 +5,22 @@ import itertools
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 import app.routers.partner_onboarding as onboarding_router
 import app.services.invites as invites_service
 from app.core.security import create_access_token
-from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 from app.models.enums import Role
 from app.models.partner_account_request import PartnerAccountRequest
 from app.models.user import User
 from app.models.user_invite import UserInvite
+from tests.postgres_utils import create_postgres_test_session
 
 
 @pytest.fixture()
 def env(monkeypatch):
-    engine = create_engine(
-        "sqlite+pysqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-    Base.metadata.create_all(bind=engine)
+    engine, TestingSessionLocal = create_postgres_test_session()
     db = TestingSessionLocal()
 
     admin = User(
@@ -83,6 +74,7 @@ def env(monkeypatch):
     finally:
         client.close()
         db.close()
+        engine.dispose()
         app.dependency_overrides.clear()
 
 

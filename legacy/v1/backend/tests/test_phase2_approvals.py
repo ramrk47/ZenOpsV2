@@ -5,12 +5,8 @@ from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.core.deps import get_current_user
-from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 from app.models.approval import Approval
@@ -26,17 +22,12 @@ from app.models.enums import (
 from app.models.invoice import InvoicePayment
 from app.models.user import User
 from app.services.assignments import generate_assignment_code
+from tests.postgres_utils import create_postgres_test_session
 
 
 @pytest.fixture()
 def test_env():
-    engine = create_engine(
-        "sqlite+pysqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-    Base.metadata.create_all(bind=engine)
+    engine, TestingSessionLocal = create_postgres_test_session()
     db = TestingSessionLocal()
 
     users = {
@@ -101,6 +92,7 @@ def test_env():
     finally:
         client.close()
         db.close()
+        engine.dispose()
         app.dependency_overrides.clear()
 
 
