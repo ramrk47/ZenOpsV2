@@ -41,6 +41,29 @@ Create records:
    - `REPOGEN_DOMAIN=repogen.<domain>`
    - `REPOGEN_PUBLIC_API_BASE_URL=https://repogen.<domain>/v1`
 
+### Fast Path (no manual file editing)
+From `legacy/v1`:
+
+```bash
+# Auto-generate .env, .env.backend, deploy/repogen.env
+# Defaults:
+#   V1_DOMAIN=zenops.notalonestudios.com
+#   REPOGEN_DOMAIN=app-zenops.notalonestudios.com
+./ops/bootstrap_pilot_env.sh --force
+
+# Optional override in one line:
+# V1_DOMAIN=zenops.notalonestudios.com \
+# REPOGEN_DOMAIN=app-zenops.notalonestudios.com \
+# REPOGEN_S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com \
+# REPOGEN_S3_BUCKET=<bucket> \
+# REPOGEN_S3_ACCESS_KEY_ID=<key> \
+# REPOGEN_S3_SECRET_ACCESS_KEY=<secret> \
+# ./ops/bootstrap_pilot_env.sh --force
+
+# Bring up stack in safe order (db -> migrate -> app -> repogen)
+./ops/up_pilot_hostinger.sh
+```
+
 ## Deploy Commands
 From `legacy/v1`:
 
