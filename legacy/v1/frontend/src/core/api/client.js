@@ -19,11 +19,16 @@ const api = axios.create({
   withCredentials: true,
 })
 
+const STEP_UP_KIND_TOKEN = 'step_up_token'
+const STEP_UP_KIND_MASTER_KEY = 'admin_master_key'
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
   if (token) config.headers.Authorization = `Bearer ${token}`
   const stepUp = sessionStorage.getItem('step_up_token')
   if (stepUp) config.headers['X-Step-Up-Token'] = stepUp
+  const adminMasterKey = sessionStorage.getItem('admin_master_key')
+  if (adminMasterKey) config.headers['X-Admin-Master-Key'] = adminMasterKey
   return config
 })
 
@@ -36,10 +41,30 @@ export function onStepUpRequired() {
   })
 }
 
-export function resolveStepUp(token) {
-  sessionStorage.setItem('step_up_token', token)
+function _resolveStepUpPayload(payload) {
+  if (typeof payload === 'string' && payload.trim()) {
+    const token = payload.trim()
+    sessionStorage.setItem('step_up_token', token)
+    return { kind: STEP_UP_KIND_TOKEN, token }
+  }
+  if (payload?.kind === STEP_UP_KIND_TOKEN && String(payload?.value || '').trim()) {
+    const token = String(payload.value).trim()
+    sessionStorage.setItem('step_up_token', token)
+    return { kind: STEP_UP_KIND_TOKEN, token }
+  }
+  if (payload?.kind === STEP_UP_KIND_MASTER_KEY && String(payload?.value || '').trim()) {
+    const key = String(payload.value).trim()
+    sessionStorage.setItem('admin_master_key', key)
+    return { kind: STEP_UP_KIND_MASTER_KEY, key }
+  }
+  return null
+}
+
+export function resolveStepUp(payload) {
+  const resolved = _resolveStepUpPayload(payload)
+  if (!resolved) return
   if (_stepUpResolver) {
-    _stepUpResolver.resolve(token)
+    _stepUpResolver.resolve(resolved)
     _stepUpResolver = null
   }
 }
@@ -69,9 +94,13 @@ api.interceptors.response.use(
 
     if (status === 403 && error?.response?.data?.detail === 'step_up_required' && !originalRequest._stepUpRetry) {
       try {
-        const token = await onStepUpRequired()
+        const credential = await onStepUpRequired()
         originalRequest._stepUpRetry = true
-        originalRequest.headers['X-Step-Up-Token'] = token
+        if (credential?.kind === STEP_UP_KIND_MASTER_KEY && credential?.key) {
+          originalRequest.headers['X-Admin-Master-Key'] = credential.key
+        } else if (credential?.kind === STEP_UP_KIND_TOKEN && credential?.token) {
+          originalRequest.headers['X-Step-Up-Token'] = credential.token
+        }
         return api(originalRequest)
       } catch {
         return Promise.reject(error)

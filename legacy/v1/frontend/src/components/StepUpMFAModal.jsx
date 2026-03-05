@@ -2,17 +2,26 @@ import React, { useState } from 'react'
 import api from '../api/client'
 
 export default function StepUpMFAModal({ onSuccess, onCancel }) {
-  const [code, setCode] = useState('')
+  const [secret, setSecret] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    const value = String(secret || '').trim()
+    if (!value) {
+      setError('Enter your authenticator code or admin master key.')
+      return
+    }
     setLoading(true)
     try {
-      const res = await api.post('/api/auth/step-up/verify', { totp_code: code })
-      onSuccess(res.data.step_up_token)
+      if (/^\d{6}$/.test(value)) {
+        const res = await api.post('/api/auth/step-up/verify', { totp_code: value })
+        onSuccess({ kind: 'step_up_token', value: res.data.step_up_token })
+      } else {
+        onSuccess({ kind: 'admin_master_key', value })
+      }
     } catch (err) {
       const detail = err?.response?.data?.detail
       setError(typeof detail === 'string' ? detail : 'Verification failed. Please try again.')
@@ -26,21 +35,22 @@ export default function StepUpMFAModal({ onSuccess, onCancel }) {
       <div className="modal-card" style={{ width: 'min(400px, 92vw)' }}>
         <h3 style={{ margin: '0 0 4px' }}>Step-Up Authentication</h3>
         <p className="muted" style={{ margin: '0 0 16px', fontSize: '0.9rem' }}>
-          This action requires re-authentication. Enter your authenticator code to continue.
+          Enter your 6-digit authenticator code, or an admin master key for user reset/create actions.
         </p>
 
         <form onSubmit={handleSubmit} className="grid">
           <input
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={6}
-            placeholder="000000"
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            style={{ textAlign: 'center', letterSpacing: '0.3em', fontSize: '1.2em', fontFamily: 'monospace' }}
+            type="password"
+            autoComplete="off"
+            placeholder="Authenticator code or admin master key"
+            value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            style={{ fontSize: '0.95em', fontFamily: 'monospace' }}
             autoFocus
           />
+          <p className="muted" style={{ margin: 0, fontSize: '0.8rem' }}>
+            Master key works only for admin account management actions.
+          </p>
 
           {error && (
             <div className="badge danger" role="alert" style={{ justifyContent: 'center' }}>
@@ -52,7 +62,7 @@ export default function StepUpMFAModal({ onSuccess, onCancel }) {
             <button type="button" className="secondary" onClick={onCancel} disabled={loading}>
               Cancel
             </button>
-            <button type="submit" disabled={loading || code.length < 6}>
+            <button type="submit" disabled={loading || !secret.trim()}>
               {loading ? 'Verifying...' : 'Verify'}
             </button>
           </div>

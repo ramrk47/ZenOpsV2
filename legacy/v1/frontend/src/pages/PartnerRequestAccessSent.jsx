@@ -46,7 +46,7 @@ export default function PartnerRequestAccessSent() {
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>&#10003;</div>
           <h2 style={{ margin: '0 0 8px' }}>Check Your Email</h2>
-          <p style={{ color: '#555', marginBottom: 8 }}>
+          <p style={{ color: 'var(--text-muted)', marginBottom: 8 }}>
             We sent a one-time verification link to <strong>{email || 'your inbox'}</strong>.
           </p>
           <p className="muted" style={{ marginBottom: 18 }}>
@@ -56,7 +56,16 @@ export default function PartnerRequestAccessSent() {
             {loading ? 'Resending...' : 'Resend verification email'}
           </button>
           {debugVerifyUrl ? (
-            <div style={{ marginTop: 12, textAlign: 'left', background: '#fff5cc', padding: 10, borderRadius: 6 }}>
+            <div
+              style={{
+                marginTop: 12,
+                textAlign: 'left',
+                background: 'rgba(255, 184, 77, 0.14)',
+                border: '1px solid rgba(255, 184, 77, 0.5)',
+                padding: 10,
+                borderRadius: 6,
+              }}
+            >
               <div style={{ fontWeight: 600, marginBottom: 6 }}>Email disabled fallback (non-production)</div>
               <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
                 Use this one-time verification link for pilot testing.
@@ -88,17 +97,19 @@ const pageStyle = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: '#f5f5f5',
+  background: 'radial-gradient(circle at 18% 0%, rgba(91, 140, 255, 0.2), transparent 42%), radial-gradient(circle at 82% 100%, rgba(109, 224, 255, 0.14), transparent 40%), var(--bg)',
   padding: 20,
+  color: 'var(--text)',
 }
 
 const cardStyle = {
-  background: '#fff',
+  background: 'color-mix(in srgb, var(--surface) 90%, #0b1224 10%)',
+  border: '1px solid var(--border)',
   borderRadius: 12,
   padding: '32px 36px',
   maxWidth: 480,
   width: '100%',
-  boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+  boxShadow: 'var(--shadow)',
 }
 
 const btnStyle = {
@@ -109,13 +120,13 @@ const btnStyle = {
   fontWeight: 600,
   border: 'none',
   borderRadius: 6,
-  background: '#1976d2',
+  background: 'linear-gradient(120deg, var(--accent), #0db6b0)',
   color: '#fff',
   cursor: 'pointer',
 }
 
 const linkStyle = {
   fontSize: 13,
-  color: '#1976d2',
+  color: 'var(--accent-2)',
   textDecoration: 'none',
 }

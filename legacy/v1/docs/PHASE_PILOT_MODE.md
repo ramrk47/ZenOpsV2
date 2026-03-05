@@ -13,6 +13,7 @@
 ## Pilot Flags
 - Backend (`.env.backend`):
   - `PILOT_MODE=1`
+  - `ADMIN_MASTER_KEY=<strong random secret>`
   - `ASSOCIATE_EMAIL_MODE=email|disabled`
 - Frontend build (`.env` used by compose build args):
   - `VITE_PILOT_MODE=1`
@@ -37,6 +38,29 @@
   - Verification emails are not queued.
   - If `ASSOCIATE_AUTO_APPROVE=1` and environment is non-production, request-access response includes one-time `debug_verify_url`.
   - UI shows a “Copy verification link” helper on request-sent screen only when backend sends that URL.
+
+## Admin Master Key (User Create/Reset)
+- `ADMIN_MASTER_KEY` enables an admin-only fallback for user-account creation and password reset actions.
+- Scope is limited to user create/reset endpoints; other step-up routes continue to require normal authenticator step-up.
+- UI step-up prompt accepts either:
+  - a 6-digit authenticator code, or
+  - the admin master key (for user create/reset flows).
+
+## Clean Pilot Reset (Data + Admin Bootstrap)
+Use this when you want a clean pilot state (remove demo assignments/data and recreate admin users only):
+
+```bash
+cd /opt/zenops/ZenOpsV2/legacy/v1
+./ops/reset_pilot_clean.sh \
+  --admin "admin1@example.com:ReplacePassword1!" \
+  --admin "admin2@example.com:ReplacePassword2!"
+```
+
+What it does:
+- Runs migrations (schema-safe).
+- Truncates all public tables except `alembic_version`.
+- Seeds baseline master data only (no dummy assignment payloads).
+- Creates the specified admin accounts with MFA disabled.
 
 ## Deploy Commands (Pilot)
 ```bash

@@ -11,7 +11,7 @@ from app.core import rbac
 from app.core.deps import get_current_user
 from app.core.security import get_password_hash
 from app.core.settings import settings
-from app.core.step_up import require_step_up
+from app.core.step_up import require_step_up, require_step_up_or_admin_master_key
 from app.db.session import get_db
 from app.models.approval import Approval
 from app.models.assignment import Assignment
@@ -206,6 +206,7 @@ def create_user(
     user_in: UserCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _step_up: dict = Depends(require_step_up_or_admin_master_key),
 ) -> UserRead:
     _require_manage_users(current_user)
     primary_role, roles = rbac.normalize_roles_input(user_in.role, user_in.roles)
@@ -348,7 +349,7 @@ def reset_password(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _step_up: dict = Depends(require_step_up),
+    _step_up: dict = Depends(require_step_up_or_admin_master_key),
 ) -> UserRead | ApprovalRead:
     user = db.get(User, user_id)
     if not user:

@@ -32,6 +32,7 @@ export function AuthProvider({ children }) {
   const clearLocalAuthState = useCallback(() => {
     localStorage.removeItem('token')
     sessionStorage.removeItem('step_up_token')
+    sessionStorage.removeItem('admin_master_key')
     setUser(null)
     setCapabilities({})
     setMfaPending(null)

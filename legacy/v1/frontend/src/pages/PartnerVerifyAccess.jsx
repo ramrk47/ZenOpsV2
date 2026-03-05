@@ -66,21 +66,23 @@ const pageStyle = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: '#f5f5f5',
+  background: 'radial-gradient(circle at 18% 0%, rgba(91, 140, 255, 0.2), transparent 42%), radial-gradient(circle at 82% 100%, rgba(109, 224, 255, 0.14), transparent 40%), var(--bg)',
   padding: 20,
+  color: 'var(--text)',
 }
 
 const cardStyle = {
-  background: '#fff',
+  background: 'color-mix(in srgb, var(--surface) 90%, #0b1224 10%)',
+  border: '1px solid var(--border)',
   borderRadius: 12,
   padding: '28px 32px',
   maxWidth: 460,
   width: '100%',
-  boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+  boxShadow: 'var(--shadow)',
 }
 
 const linkStyle = {
   fontSize: 13,
-  color: '#1976d2',
+  color: 'var(--accent-2)',
   textDecoration: 'none',
 }

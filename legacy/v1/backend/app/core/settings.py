@@ -94,6 +94,11 @@ class Settings(BaseSettings):
 
     # Auth / JWT
     jwt_secret: str = Field(default="change_me", description="JWT signing secret")
+    admin_master_key: str | None = Field(
+        default=None,
+        description="Admin-only master key for account reset/create step-up fallback",
+        validation_alias=AliasChoices("ADMIN_MASTER_KEY"),
+    )
     algorithm: str = Field(default="HS256", description="JWT signing algorithm")
     access_token_expire_minutes: int = Field(default=60, description="Access token expiry in minutes")
     login_max_attempts: int = Field(default=10, description="Login attempts allowed per window")

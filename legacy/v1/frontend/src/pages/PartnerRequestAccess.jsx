@@ -62,7 +62,7 @@ export default function PartnerRequestAccess() {
         <section style={summaryCard}>
           <div style={badgeStyle}>Associate Portal</div>
           <h1 style={{ margin: '0 0 8px', fontSize: 28, lineHeight: 1.2 }}>Request Access</h1>
-          <p style={{ margin: 0, color: '#4e5874', lineHeight: 1.5 }}>
+          <p style={{ margin: 0, color: 'var(--text-muted)', lineHeight: 1.5 }}>
             Submit your details to join ZenOps as an external associate.
             We will email a verification link before activation.
           </p>
@@ -184,14 +184,15 @@ export default function PartnerRequestAccess() {
 const pageStyle = {
   minHeight: '100vh',
   position: 'relative',
-  background: '#eef2ff',
+  background: 'radial-gradient(circle at 12% 0%, rgba(91, 140, 255, 0.22), transparent 42%), radial-gradient(circle at 88% 100%, rgba(109, 224, 255, 0.14), transparent 42%), var(--bg)',
   padding: '32px 16px',
+  color: 'var(--text)',
 }
 
 const heroStyle = {
   position: 'absolute',
   inset: 0,
-  background: 'radial-gradient(circle at 10% 0%, rgba(17,93,255,0.18), transparent 45%), radial-gradient(circle at 95% 100%, rgba(10,182,170,0.16), transparent 40%)',
+  background: 'linear-gradient(180deg, rgba(11,15,28,0.1) 0%, rgba(11,15,28,0.3) 100%)',
   pointerEvents: 'none',
 }
 
@@ -205,19 +206,19 @@ const contentWrap = {
 }
 
 const summaryCard = {
-  background: '#f9fbff',
-  border: '1px solid #dbe7ff',
+  background: 'color-mix(in srgb, var(--surface) 92%, #0b1224 8%)',
+  border: '1px solid var(--border)',
   borderRadius: 14,
   padding: 20,
-  boxShadow: '0 10px 24px rgba(9, 30, 66, 0.08)',
+  boxShadow: 'var(--shadow)',
 }
 
 const formCard = {
-  background: '#ffffff',
-  border: '1px solid #d7def0',
+  background: 'color-mix(in srgb, var(--surface-2) 90%, #0b1224 10%)',
+  border: '1px solid var(--border)',
   borderRadius: 14,
   padding: 20,
-  boxShadow: '0 10px 24px rgba(9, 30, 66, 0.08)',
+  boxShadow: 'var(--shadow)',
 }
 
 const badgeStyle = {
@@ -229,14 +230,15 @@ const badgeStyle = {
   fontWeight: 700,
   letterSpacing: '0.03em',
   textTransform: 'uppercase',
-  color: '#0f3ba8',
-  background: '#dde8ff',
+  color: 'var(--accent-2)',
+  background: 'rgba(91, 140, 255, 0.2)',
+  border: '1px solid rgba(91, 140, 255, 0.38)',
 }
 
 const bulletList = {
   margin: '14px 0 0',
   padding: '0 0 0 18px',
-  color: '#3f4a67',
+  color: 'var(--text-muted)',
   display: 'grid',
   gap: 8,
   fontSize: 14,
@@ -254,19 +256,19 @@ const fieldLabel = {
   marginBottom: 12,
   fontSize: 13,
   fontWeight: 600,
-  color: '#2f3a56',
+  color: 'var(--text)',
 }
 
 const inputStyle = {
   width: '100%',
   boxSizing: 'border-box',
-  border: '1px solid #bccae8',
+  border: '1px solid var(--border)',
   borderRadius: 8,
   padding: '10px 12px',
   fontSize: 14,
   fontFamily: 'inherit',
-  color: '#1f2c4f',
-  background: '#fbfdff',
+  color: 'var(--text)',
+  background: 'rgba(11, 17, 35, 0.55)',
 }
 
 const submitButton = {
@@ -277,13 +279,13 @@ const submitButton = {
   fontSize: 15,
   fontWeight: 700,
   color: '#fff',
-  background: 'linear-gradient(120deg, #165dff, #0db6b0)',
+  background: 'linear-gradient(120deg, var(--accent), #0db6b0)',
   cursor: 'pointer',
 }
 
 const loginLink = {
   fontSize: 13,
-  color: '#165dff',
+  color: 'var(--accent-2)',
   textDecoration: 'none',
   fontWeight: 600,
 }
