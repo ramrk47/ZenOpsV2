@@ -1,0 +1,39 @@
+# V1 pilot-only override.
+# Usage:
+#   docker compose -p zenops -f docker-compose.hostinger.yml -f docker-compose.pilot.yml up -d
+services:
+  api:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-proxy"
+      - "traefik.http.routers.zenops-api-http.rule=Host(`${ZENOPS_DOMAIN:-zenops.example.com}`) && (PathPrefix(`/api`) || Path(`/readyz`) || Path(`/healthz`) || Path(`/healthz/deps`) || Path(`/metrics`) || Path(`/docs`) || Path(`/openapi.json`) || Path(`/version`))"
+      - "traefik.http.routers.zenops-api-http.entrypoints=web"
+      - "traefik.http.routers.zenops-api-http.priority=110"
+      - "traefik.http.routers.zenops-api-http.service=zenops-api"
+      - "traefik.http.routers.zenops-api.rule=Host(`${ZENOPS_DOMAIN:-zenops.example.com}`) && (PathPrefix(`/api`) || Path(`/readyz`) || Path(`/healthz`) || Path(`/healthz/deps`) || Path(`/metrics`) || Path(`/docs`) || Path(`/openapi.json`) || Path(`/version`))"
+      - "traefik.http.routers.zenops-api.entrypoints=websecure"
+      - "traefik.http.routers.zenops-api.tls=true"
+      - "traefik.http.routers.zenops-api.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      - "traefik.http.routers.zenops-api.priority=120"
+      - "traefik.http.services.zenops-api.loadbalancer.server.port=8000"
+
+  frontend:
+    build:
+      args:
+        VITE_PILOT_MODE: ${VITE_PILOT_MODE:-1}
+        VITE_ENABLE_REPOGEN_INPUTS: ${VITE_ENABLE_REPOGEN_INPUTS:-0}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-proxy"
+      - "traefik.http.routers.zenops-web-http.rule=Host(`${ZENOPS_DOMAIN:-zenops.example.com}`)"
+      - "traefik.http.routers.zenops-web-http.entrypoints=web"
+      - "traefik.http.routers.zenops-web-http.middlewares=zenops-https-redirect"
+      - "traefik.http.routers.zenops-web-http.priority=10"
+      - "traefik.http.middlewares.zenops-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.zenops-https-redirect.redirectscheme.permanent=true"
+      - "traefik.http.routers.zenops-web.rule=Host(`${ZENOPS_DOMAIN:-zenops.example.com}`)"
+      - "traefik.http.routers.zenops-web.entrypoints=websecure"
+      - "traefik.http.routers.zenops-web.tls=true"
+      - "traefik.http.routers.zenops-web.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      - "traefik.http.routers.zenops-web.priority=20"
+      - "traefik.http.services.zenops-web.loadbalancer.server.port=80"
