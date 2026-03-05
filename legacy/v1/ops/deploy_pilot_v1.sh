@@ -17,9 +17,14 @@ fail_with_logs() {
   printf '[deploy-pilot-v1][FAIL] %s\n' "${reason}" >&2
   docker ps || true
   local traefik_container
+  local traefik_log="/tmp/deploy-pilot-v1.traefik.log"
   traefik_container="$(docker ps --format '{{.Names}} {{.Image}}' | awk 'tolower($0) ~ /traefik/ { print $1; exit }')"
   if [[ -n "${traefik_container}" ]]; then
-    docker logs --tail 80 "${traefik_container}" || true
+    docker logs --tail 200 "${traefik_container}" >"${traefik_log}" 2>&1 || true
+    cat "${traefik_log}" || true
+    if grep -q "client version 1.24 is too old" "${traefik_log}"; then
+      printf '[deploy-pilot-v1][HINT] Traefik Docker provider API mismatch detected. Use deploy/traefik image traefik:v3.6+ and recreate the Traefik stack.\n' >&2
+    fi
   else
     printf '[deploy-pilot-v1] No running Traefik container found for log dump.\n' >&2
   fi
