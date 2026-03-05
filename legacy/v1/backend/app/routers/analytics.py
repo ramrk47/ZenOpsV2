@@ -1328,15 +1328,6 @@ def forecast_v2(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ForecastV2Response:
-    if settings.pilot_mode_enabled:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "code": "FEATURE_DISABLED_IN_PILOT",
-                "feature": "analytics_forecast_v2",
-                "message": "Forecast v2 is disabled while PILOT_MODE=1.",
-            },
-        )
     _require_access(current_user)
     entity_type_upper = entity_type.upper()
     if entity_type_upper in {"BANK", "BRANCH"} and not entity_id:

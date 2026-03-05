@@ -7,7 +7,7 @@ export function isPilotMode() {
 
 export function isFeatureEnabled(feature) {
   if (feature === 'billingMonitor') return !PILOT_MODE
-  if (feature === 'analyticsForecastV2') return !PILOT_MODE
+  if (feature === 'analyticsForecastV2') return true
   if (feature === 'repogenInputs') return !PILOT_MODE && ENABLE_REPOGEN_INPUTS
   return true
 }
