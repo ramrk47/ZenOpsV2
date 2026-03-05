@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import api from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { toUserMessage } from '../api/client'
 
 /**
  * DocumentComments
@@ -23,6 +24,7 @@ export default function DocumentComments({ documentId, assignmentId, onCommentCo
   const [newComment, setNewComment] = useState('')
   const [replyTo, setReplyTo] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [actionError, setActionError] = useState('')
 
   useEffect(() => {
     if (documentId) {
@@ -34,7 +36,7 @@ export default function DocumentComments({ documentId, assignmentId, onCommentCo
     setLoading(true)
     setError(null)
     try {
-      const { data } = await api.get('/api/document-comments', {
+      const { data } = await api.get('/api/document-comments/', {
         params: {
           document_id: documentId,
           lane: activeLane,
@@ -49,7 +51,7 @@ export default function DocumentComments({ documentId, assignmentId, onCommentCo
       }
     } catch (err) {
       console.error('Failed to load comments:', err)
-      setError(err.message || 'Failed to load comments')
+      setError(toUserMessage(err, 'Failed to load comments'))
     } finally {
       setLoading(false)
     }
@@ -59,8 +61,9 @@ export default function DocumentComments({ documentId, assignmentId, onCommentCo
     if (!newComment.trim()) return
 
     setSubmitting(true)
+    setActionError('')
     try {
-      await api.post('/api/document-comments', {
+      await api.post('/api/document-comments/', {
         document_id: documentId,
         assignment_id: assignmentId,
         content: newComment.trim(),
@@ -75,13 +78,14 @@ export default function DocumentComments({ documentId, assignmentId, onCommentCo
       loadComments()
     } catch (err) {
       console.error('Failed to create comment:', err)
-      alert(err.response?.data?.detail || 'Failed to create comment')
+      setActionError(toUserMessage(err, 'Failed to create comment'))
     } finally {
       setSubmitting(false)
     }
   }
 
   async function handleResolveComment(commentId, isResolved) {
+    setActionError('')
     try {
       await api.post(`/api/document-comments/${commentId}/resolve`, {
         is_resolved: isResolved
@@ -89,19 +93,20 @@ export default function DocumentComments({ documentId, assignmentId, onCommentCo
       loadComments()
     } catch (err) {
       console.error('Failed to resolve comment:', err)
-      alert(err.response?.data?.detail || 'Failed to update comment')
+      setActionError(toUserMessage(err, 'Failed to update comment'))
     }
   }
 
   async function handleDeleteComment(commentId) {
     if (!window.confirm('Delete this comment?')) return
 
+    setActionError('')
     try {
       await api.delete(`/api/document-comments/${commentId}`)
       loadComments()
     } catch (err) {
       console.error('Failed to delete comment:', err)
-      alert(err.response?.data?.detail || 'Failed to delete comment')
+      setActionError(toUserMessage(err, 'Failed to delete comment'))
     }
   }
 
@@ -296,6 +301,11 @@ export default function DocumentComments({ documentId, assignmentId, onCommentCo
 
       {/* New Comment Form */}
       <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+        {actionError ? (
+          <div style={{ color: 'var(--warn)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+            {actionError}
+          </div>
+        ) : null}
         {replyTo && (
           <div style={{
             padding: '0.5rem',

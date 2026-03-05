@@ -1,12 +1,8 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { toUserMessage } from '../api/client'
 import { requestAssociateAccess } from '../api/partner'
 
-/**
- * Public page (no auth required) — allows external associates to submit
- * an access request to the Zen Ops platform.
- */
 export default function PartnerRequestAccess() {
   const navigate = useNavigate()
   const [form, setForm] = useState({
@@ -20,6 +16,11 @@ export default function PartnerRequestAccess() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const formReady = useMemo(() => (
+    form.company_name.trim()
+    && form.contact_name.trim()
+    && form.email.trim()
+  ), [form])
 
   function handleChange(e) {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
@@ -48,7 +49,7 @@ export default function PartnerRequestAccess() {
       }
       navigate(`/partner/request-access/sent?${params.toString()}`)
     } catch (err) {
-      setError(toUserMessage(err, 'Something went wrong. Please try again.'))
+      setError(toUserMessage(err, 'Unable to submit right now. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -56,95 +57,125 @@ export default function PartnerRequestAccess() {
 
   return (
     <div style={pageStyle}>
-      <div style={cardStyle}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <h2 style={{ margin: '0 0 4px' }}>Associate Access Request</h2>
-          <p style={{ color: '#888', margin: 0, fontSize: 14 }}>
-            Submit your details to request access to the Zen Ops associate portal.
+      <div style={heroStyle} />
+      <div style={contentWrap}>
+        <section style={summaryCard}>
+          <div style={badgeStyle}>Associate Portal</div>
+          <h1 style={{ margin: '0 0 8px', fontSize: 28, lineHeight: 1.2 }}>Request Access</h1>
+          <p style={{ margin: 0, color: '#4e5874', lineHeight: 1.5 }}>
+            Submit your details to join ZenOps as an external associate.
+            We will email a verification link before activation.
           </p>
-        </div>
+          <ul style={bulletList}>
+            <li>Self-serve onboarding with email verification</li>
+            <li>Track requests, docs, and payments from one workspace</li>
+            <li>Secure access with role-based restrictions</li>
+          </ul>
+        </section>
 
-        <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Company Name *</label>
-          <input
-            name="company_name"
-            value={form.company_name}
-            onChange={handleChange}
-            required
-            style={inputStyle}
-            placeholder="Acme Associates Ltd."
-          />
+        <section style={formCard}>
+          <form onSubmit={handleSubmit}>
+            <div style={gridTwo}>
+              <label style={fieldLabel}>
+                <span>Company Name *</span>
+                <input
+                  name="company_name"
+                  value={form.company_name}
+                  onChange={handleChange}
+                  required
+                  style={inputStyle}
+                  placeholder="Acme Associates Ltd."
+                />
+              </label>
 
-          <label style={labelStyle}>Contact Name *</label>
-          <input
-            name="contact_name"
-            value={form.contact_name}
-            onChange={handleChange}
-            required
-            style={inputStyle}
-            placeholder="John Doe"
-          />
+              <label style={fieldLabel}>
+                <span>Contact Name *</span>
+                <input
+                  name="contact_name"
+                  value={form.contact_name}
+                  onChange={handleChange}
+                  required
+                  style={inputStyle}
+                  placeholder="John Doe"
+                />
+              </label>
+            </div>
 
-          <label style={labelStyle}>Email *</label>
-          <input
-            name="email"
-            type="email"
-            value={form.email}
-            onChange={handleChange}
-            required
-            style={inputStyle}
-            placeholder="john@acme.com"
-          />
+            <div style={gridTwo}>
+              <label style={fieldLabel}>
+                <span>Email *</span>
+                <input
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  required
+                  style={inputStyle}
+                  placeholder="john@acme.com"
+                />
+              </label>
 
-          <label style={labelStyle}>Phone</label>
-          <input
-            name="phone"
-            type="tel"
-            value={form.phone}
-            onChange={handleChange}
-            style={inputStyle}
-            placeholder="+91 9876543210"
-          />
+              <label style={fieldLabel}>
+                <span>Phone</span>
+                <input
+                  name="phone"
+                  type="tel"
+                  value={form.phone}
+                  onChange={handleChange}
+                  style={inputStyle}
+                  placeholder="+91 9876543210"
+                />
+              </label>
+            </div>
 
-          <label style={labelStyle}>City</label>
-          <input
-            name="city"
-            value={form.city}
-            onChange={handleChange}
-            style={inputStyle}
-            placeholder="Bengaluru"
-          />
+            <div style={gridTwo}>
+              <label style={fieldLabel}>
+                <span>City</span>
+                <input
+                  name="city"
+                  value={form.city}
+                  onChange={handleChange}
+                  style={inputStyle}
+                  placeholder="Bengaluru"
+                />
+              </label>
 
-          <label style={labelStyle}>Message</label>
-          <textarea
-            name="message"
-            value={form.message}
-            onChange={handleChange}
-            style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }}
-            placeholder="Tell us about your organisation and how we can collaborate..."
-          />
+              <label style={fieldLabel}>
+                <span>Security Token (optional)</span>
+                <input
+                  name="captcha_token"
+                  value={form.captcha_token}
+                  onChange={handleChange}
+                  style={inputStyle}
+                  placeholder="Only if support asks for it"
+                />
+              </label>
+            </div>
 
-          <label style={labelStyle}>Captcha Token (placeholder)</label>
-          <input
-            name="captcha_token"
-            value={form.captcha_token}
-            onChange={handleChange}
-            style={inputStyle}
-            placeholder="Required in production (provider wiring pending)"
-          />
+            <label style={fieldLabel}>
+              <span>Message</span>
+              <textarea
+                name="message"
+                value={form.message}
+                onChange={handleChange}
+                style={{ ...inputStyle, minHeight: 92, resize: 'vertical' }}
+                placeholder="Tell us about your organisation and services."
+              />
+            </label>
 
-          {error && <p style={{ color: '#d32f2f', fontSize: 13, margin: '8px 0 0' }}>{error}</p>}
+            {error ? <p style={errorStyle}>{error}</p> : null}
 
-          <button type="submit" style={btnStyle} disabled={loading}>
-            {loading ? 'Submitting...' : 'Submit Request'}
-          </button>
-        </form>
+            <button type="submit" style={submitButton} disabled={loading || !formReady}>
+              {loading ? 'Submitting...' : 'Submit Request'}
+            </button>
+          </form>
 
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <a href="/login" style={linkStyle}>
-            Already have an account? Login
-          </a>
-        </div>
+          <div style={{ textAlign: 'center', marginTop: 14 }}>
+            <Link to="/login" style={loginLink}>
+              Already have an account? Sign in
+            </Link>
+          </div>
+        </section>
       </div>
     </div>
   )
@@ -152,55 +183,113 @@ export default function PartnerRequestAccess() {
 
 const pageStyle = {
   minHeight: '100vh',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: '#f5f5f5',
+  position: 'relative',
+  background: '#eef2ff',
+  padding: '32px 16px',
+}
+
+const heroStyle = {
+  position: 'absolute',
+  inset: 0,
+  background: 'radial-gradient(circle at 10% 0%, rgba(17,93,255,0.18), transparent 45%), radial-gradient(circle at 95% 100%, rgba(10,182,170,0.16), transparent 40%)',
+  pointerEvents: 'none',
+}
+
+const contentWrap = {
+  position: 'relative',
+  maxWidth: 980,
+  margin: '0 auto',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+  gap: 16,
+}
+
+const summaryCard = {
+  background: '#f9fbff',
+  border: '1px solid #dbe7ff',
+  borderRadius: 14,
   padding: 20,
+  boxShadow: '0 10px 24px rgba(9, 30, 66, 0.08)',
 }
 
-const cardStyle = {
-  background: '#fff',
-  borderRadius: 12,
-  padding: '32px 36px',
-  maxWidth: 440,
-  width: '100%',
-  boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+const formCard = {
+  background: '#ffffff',
+  border: '1px solid #d7def0',
+  borderRadius: 14,
+  padding: 20,
+  boxShadow: '0 10px 24px rgba(9, 30, 66, 0.08)',
 }
 
-const labelStyle = {
-  display: 'block',
+const badgeStyle = {
+  display: 'inline-block',
+  marginBottom: 10,
+  padding: '4px 10px',
+  borderRadius: 999,
+  fontSize: 12,
+  fontWeight: 700,
+  letterSpacing: '0.03em',
+  textTransform: 'uppercase',
+  color: '#0f3ba8',
+  background: '#dde8ff',
+}
+
+const bulletList = {
+  margin: '14px 0 0',
+  padding: '0 0 0 18px',
+  color: '#3f4a67',
+  display: 'grid',
+  gap: 8,
+  fontSize: 14,
+}
+
+const gridTwo = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gap: 12,
+}
+
+const fieldLabel = {
+  display: 'grid',
+  gap: 6,
+  marginBottom: 12,
   fontSize: 13,
   fontWeight: 600,
-  marginBottom: 4,
-  marginTop: 12,
-  color: '#333',
+  color: '#2f3a56',
 }
 
 const inputStyle = {
   width: '100%',
-  padding: '8px 12px',
-  fontSize: 14,
-  border: '1px solid #ccc',
-  borderRadius: 6,
   boxSizing: 'border-box',
+  border: '1px solid #bccae8',
+  borderRadius: 8,
+  padding: '10px 12px',
+  fontSize: 14,
+  fontFamily: 'inherit',
+  color: '#1f2c4f',
+  background: '#fbfdff',
 }
 
-const btnStyle = {
+const submitButton = {
   width: '100%',
-  padding: '10px',
-  marginTop: 20,
-  fontSize: 15,
-  fontWeight: 600,
   border: 'none',
-  borderRadius: 6,
-  background: '#1976d2',
+  borderRadius: 8,
+  padding: '11px 14px',
+  fontSize: 15,
+  fontWeight: 700,
   color: '#fff',
+  background: 'linear-gradient(120deg, #165dff, #0db6b0)',
   cursor: 'pointer',
 }
 
-const linkStyle = {
+const loginLink = {
   fontSize: 13,
-  color: '#1976d2',
+  color: '#165dff',
   textDecoration: 'none',
+  fontWeight: 600,
+}
+
+const errorStyle = {
+  margin: '4px 0 10px',
+  color: '#b42318',
+  fontSize: 13,
 }

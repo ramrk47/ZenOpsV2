@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react'
 import DocumentComments from './DocumentComments'
 import { reviewDocument } from '../api/documents'
 import api from '../api/client'
+import { toUserMessage } from '../api/client'
 
-const REVIEW_STATUSES = ['REVIEWED', 'NEEDS_CLARIFICATION', 'REJECTED', 'FINAL']
+const REVIEW_STATUSES = ['REVIEWED', 'NEEDS_CLARIFICATION', 'REJECTED', 'FINAL', 'FINAL_PENDING_APPROVAL', 'UPLOADED', 'RECEIVED']
 
 /**
  * DocumentPreviewDrawerV2
@@ -24,12 +25,18 @@ export default function DocumentPreviewDrawerV2({
   onDelete,
   currentUser,
 }) {
+  function normalizeReviewStatus(status) {
+    return REVIEW_STATUSES.includes(status) ? status : 'REVIEWED'
+  }
+
   const [imageZoom, setImageZoom] = useState(1)
   const [imageRotation, setImageRotation] = useState(0)
-  const [reviewStatus, setReviewStatus] = useState(document?.review_status || 'REVIEWED')
+  const [reviewStatus, setReviewStatus] = useState(normalizeReviewStatus(document?.review_status))
   const [reviewNote, setReviewNote] = useState('')
   const [submittingReview, setSubmittingReview] = useState(false)
   const [commentsCount, setCommentsCount] = useState(document?.comments_count || 0)
+  const [reviewError, setReviewError] = useState('')
+  const [reviewNotice, setReviewNotice] = useState('')
   
   // Blob-based preview state (with auth)
   const [blobUrl, setBlobUrl] = useState(null)
@@ -58,7 +65,8 @@ export default function DocumentPreviewDrawerV2({
   const isOfficePreviewable = isWord || isExcel
   const isPreviewable = isNativePreviewable || isOfficePreviewable
   
-  const isPartner = currentUser?.role === 'EXTERNAL_PARTNER'
+  const userRoles = Array.isArray(currentUser?.roles) ? currentUser.roles : [currentUser?.role].filter(Boolean)
+  const isPartner = userRoles.includes('EXTERNAL_PARTNER')
   const MAX_PREVIEW_SIZE = 10 * 1024 * 1024 // 10MB
   const isFileTooLarge = document?.size > MAX_PREVIEW_SIZE
 
@@ -114,10 +122,12 @@ export default function DocumentPreviewDrawerV2({
   // Reset state when document changes
   useEffect(() => {
     if (document) {
-      setReviewStatus(document.review_status || 'REVIEWED')
+      setReviewStatus(normalizeReviewStatus(document.review_status))
       setCommentsCount(document.comments_count || 0)
       setImageZoom(1)
       setImageRotation(0)
+      setReviewError('')
+      setReviewNotice('')
     }
   }, [document?.id])
 
@@ -172,12 +182,16 @@ export default function DocumentPreviewDrawerV2({
   async function handleQuickReview(status) {
     if (!assignmentId || !document?.id) return
     setSubmittingReview(true)
+    setReviewError('')
+    setReviewNotice('')
     try {
       await reviewDocument(assignmentId, document.id, status, null)
+      setReviewStatus(normalizeReviewStatus(status))
+      setReviewNotice(`Updated to ${String(status).replace(/_/g, ' ')}.`)
       if (onReviewComplete) onReviewComplete()
     } catch (err) {
       console.error('Review failed:', err)
-      alert(err.response?.data?.detail || 'Failed to update review status')
+      setReviewError(toUserMessage(err, 'Failed to update review status'))
     } finally {
       setSubmittingReview(false)
     }
@@ -186,13 +200,18 @@ export default function DocumentPreviewDrawerV2({
   async function handleSaveReview() {
     if (!assignmentId || !document?.id) return
     setSubmittingReview(true)
+    setReviewError('')
+    setReviewNotice('')
     try {
-      await reviewDocument(assignmentId, document.id, reviewStatus, reviewNote || null)
+      const normalizedStatus = normalizeReviewStatus(reviewStatus)
+      await reviewDocument(assignmentId, document.id, normalizedStatus, reviewNote || null)
+      setReviewStatus(normalizedStatus)
+      setReviewNotice('Review note saved.')
       setReviewNote('')
       if (onReviewComplete) onReviewComplete()
     } catch (err) {
       console.error('Review failed:', err)
-      alert(err.response?.data?.detail || 'Failed to save review')
+      setReviewError(toUserMessage(err, 'Failed to save review'))
     } finally {
       setSubmittingReview(false)
     }
@@ -469,6 +488,12 @@ export default function DocumentPreviewDrawerV2({
             {!isPartner && (
               <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ fontWeight: 600, marginBottom: '0.75rem' }}>Quick Review</div>
+                {reviewError ? (
+                  <div style={{ color: 'var(--warn)', marginBottom: '0.5rem', fontSize: '0.85rem' }}>{reviewError}</div>
+                ) : null}
+                {reviewNotice ? (
+                  <div style={{ color: 'var(--ok)', marginBottom: '0.5rem', fontSize: '0.85rem' }}>{reviewNotice}</div>
+                ) : null}
                 <div style={{ display: 'grid', gap: '0.5rem' }}>
                   <button
                     onClick={() => handleQuickReview('REVIEWED')}
