@@ -37,3 +37,4 @@ docker compose down
 docker compose pull
 docker compose up -d
 ```
+This stack also pins `DOCKER_API_VERSION=1.44` by default for compatibility with newer Docker engines.
