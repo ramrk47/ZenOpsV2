@@ -13,7 +13,7 @@ module.exports = defineConfig({
     ['list']
   ],
   use: {
-    baseURL: 'http://localhost',
+    baseURL: process.env.PW_BASE_URL || 'http://localhost',
     trace: 'retain-on-failure',
     video: 'retain-on-failure',
     screenshot: 'only-on-failure',

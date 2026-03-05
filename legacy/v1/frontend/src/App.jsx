@@ -1,10 +1,11 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import { Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { useAuth } from './auth/AuthContext.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import AdminLayout from './components/layout/AdminLayout.jsx'
 import EmployeeLayout from './components/layout/EmployeeLayout.jsx'
 import PartnerLayout from './components/layout/PartnerLayout.jsx'
+import MobileModeBanner from './mobile/MobileModeBanner.jsx'
 import Login from './pages/Login'
 import PartnerRequestAccess from './pages/PartnerRequestAccess'
 import PartnerRequestAccessSent from './pages/PartnerRequestAccessSent'
@@ -14,8 +15,6 @@ import Account from './pages/Account'
 import Assignments from './pages/Assignments'
 import NewAssignment from './pages/NewAssignment'
 import AssignmentDetail from './pages/AssignmentDetail'
-import MobileCockpit from './pages/mobile/MobileCockpit.jsx'
-import MobileAssignmentDetail from './pages/mobile/MobileAssignmentDetail.jsx'
 import CalendarPage from './pages/CalendarPage.jsx'
 import NotificationsPage from './pages/NotificationsPage.jsx'
 import InvoicesPage from './pages/InvoicesPage.jsx'
@@ -52,6 +51,8 @@ import PartnerHelp from './pages/partner/PartnerHelp.jsx'
 import Forbidden from './pages/Forbidden.jsx'
 import { canSeeAdmin, hasCapability, isPartner, resolveHomeRoute, userHasRole } from './utils/rbac.js'
 
+const MobileApp = React.lazy(() => import('./mobile/MobileApp.jsx'))
+
 function RequireCapability({ children, capability }) {
   const { user, capabilities, initialising } = useAuth()
   if (initialising) {
@@ -62,6 +63,16 @@ function RequireCapability({ children, capability }) {
   if (!hasCapability(capabilities, capability)) {
     return <Forbidden />
   }
+  return children
+}
+
+function RequireUserCapability({ children, capability }) {
+  const { user, capabilities, initialising } = useAuth()
+  if (initialising) {
+    return <div style={{ padding: '2rem' }}>Loading…</div>
+  }
+  if (!user) return <Navigate to="/login" replace />
+  if (!hasCapability(capabilities, capability)) return <Forbidden />
   return children
 }
 
@@ -131,6 +142,7 @@ export default function App() {
   const homeRoute = resolveHomeRoute(user, capabilities)
   return (
     <ErrorBoundary>
+    <MobileModeBanner />
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/partner/request-access" element={<PartnerRequestAccess />} />
@@ -138,22 +150,16 @@ export default function App() {
       <Route path="/partner/verify" element={<PartnerVerifyAccess />} />
       <Route path="/invite/accept" element={<InviteAccept />} />
       <Route
-        path="/m"
+        path="/m/*"
         element={(
           <RequireAuthenticated>
-            <MobileCockpit />
+            <Suspense fallback={<div style={{ padding: '2rem' }}>Loading mobile mode…</div>}>
+              <MobileApp />
+            </Suspense>
           </RequireAuthenticated>
         )}
       />
-      <Route
-        path="/m/assignments/:id"
-        element={(
-          <RequireAuthenticated>
-            <MobileAssignmentDetail />
-          </RequireAuthenticated>
-        )}
-      />
-      <Route path="/mobile" element={<Navigate to="/m" replace />} />
+      <Route path="/mobile" element={<Navigate to="/m/home" replace />} />
       <Route path="/mobile/assignments/:id" element={<MobileAssignmentRedirect />} />
 
       <Route element={(
@@ -367,6 +373,14 @@ export default function App() {
       )}
       >
         <Route path="/partner" element={<PartnerHome />} />
+        <Route
+          path="/partner/assignments/new"
+          element={(
+            <RequireUserCapability capability="create_assignment_draft">
+              <NewAssignment />
+            </RequireUserCapability>
+          )}
+        />
         <Route path="/partner/requests" element={<PartnerRequests />} />
         <Route path="/partner/requests/new" element={<PartnerRequestNew />} />
         <Route path="/partner/requests/:id" element={<PartnerRequestDetail />} />

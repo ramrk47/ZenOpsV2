@@ -132,7 +132,7 @@ export default function NewAssignment() {
   const canCreateAssignment = hasCapability(capabilities, 'create_assignment')
   const canCreateDraftAssignment = hasCapability(capabilities, 'create_assignment_draft')
   const canManageAdminPrefs = userHasRole(user, 'ADMIN') || userHasRole(user, 'OPS_MANAGER')
-  const draftMode = userHasRole(user, 'FIELD_VALUER') && canCreateDraftAssignment
+  const draftMode = canCreateDraftAssignment && !canCreateAssignment
 
   const [users, setUsers] = useState([])
   const [banks, setBanks] = useState([])

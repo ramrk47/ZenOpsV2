@@ -1,0 +1,19 @@
+services:
+  api:
+    env_file:
+      - .env.backend
+    environment:
+      PILOT_MODE: ${PILOT_MODE:-1}
+  email-worker:
+    env_file:
+      - .env.backend
+    environment:
+      PILOT_MODE: ${PILOT_MODE:-1}
+  migrate:
+    env_file:
+      - .env.backend
+    environment:
+      PILOT_MODE: ${PILOT_MODE:-1}
+  frontend:
+    environment:
+      VITE_PILOT_MODE: ${VITE_PILOT_MODE:-1}

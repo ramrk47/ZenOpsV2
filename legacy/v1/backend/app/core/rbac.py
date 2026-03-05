@@ -175,6 +175,7 @@ ROLE_CAPABILITIES: dict[Role, Dict[str, bool]] = {
         "view_payroll": False,
         "create_payroll_run": False,
         "manage_payroll": False,
+        "create_assignment_draft": True,
     },
 }
 

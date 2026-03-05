@@ -5,6 +5,7 @@
     "test": "playwright test",
     "test:smoke": "playwright test --grep @smoke",
     "test:e2e": "playwright test --grep @e2e",
+    "test:mobile": "playwright test tests/mobile-*.spec.js",
     "test:ui": "playwright test --ui",
     "report": "playwright show-report"
   },

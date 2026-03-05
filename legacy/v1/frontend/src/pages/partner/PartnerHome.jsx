@@ -10,6 +10,7 @@ import { fetchPartnerAssignments, fetchPartnerCommissions, fetchPartnerInvoices,
 import { formatDateTime, titleCase } from '../../utils/format'
 import { toUserMessage } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
+import { hasCapability } from '../../utils/rbac'
 
 function statusTone(status) {
   if (!status) return 'muted'
@@ -29,7 +30,7 @@ function notificationLink(notification) {
 }
 
 export default function PartnerHome() {
-  const { user } = useAuth()
+  const { user, capabilities } = useAuth()
   const [commissions, setCommissions] = useState([])
   const [assignments, setAssignments] = useState([])
   const [invoices, setInvoices] = useState([])
@@ -77,6 +78,7 @@ export default function PartnerHome() {
 
   const reportsReadyCount = useMemo(() => assignments.filter((a) => a.payment_status === 'VERIFIED').length, [assignments])
   const needsProfile = useMemo(() => !(user?.full_name && user?.phone), [user?.full_name, user?.phone])
+  const canCreateDraftAssignment = hasCapability(capabilities, 'create_assignment_draft')
 
   return (
     <div>
@@ -84,7 +86,10 @@ export default function PartnerHome() {
         title="Associate Console"
         subtitle="Submit new commissions, respond to requests, and track payments in one place."
         actions={(
-          <Link className="nav-link" to="/partner/requests/new">New Commission Request</Link>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {canCreateDraftAssignment ? <Link className="nav-link" to="/partner/assignments/new">Create Assignment</Link> : null}
+            <Link className="nav-link" to="/partner/requests/new">New Commission Request</Link>
+          </div>
         )}
       />
 

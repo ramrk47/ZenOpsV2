@@ -804,8 +804,9 @@ def create_draft_assignment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> AssignmentRead:
-    if not rbac.user_has_role(current_user, Role.FIELD_VALUER):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only field valuers can create draft assignments")
+    capabilities = rbac.get_capabilities_for_user(current_user)
+    if not capabilities.get("create_assignment_draft"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not permitted to create draft assignments")
     if assignment_in.fees is not None or assignment_in.is_paid:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Draft assignments cannot set financial fields")
 
