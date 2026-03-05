@@ -67,6 +67,29 @@ V1_ADMIN_PASSWORD=<admin_password> \
 ./ops/smoke_deploy_repogen.sh
 ```
 
+### Smoke Script Environment Variables
+- Required in full mode:
+  - `V1_BASE_URL`
+  - `V1_ADMIN_EMAIL`
+  - `V1_ADMIN_PASSWORD`
+  - `REPOGEN_BASE_URL`
+  - `REPOGEN_WEB_URL`
+- Optional:
+  - `REPOGEN_INTERNAL_TENANT_ID`
+  - `REPOGEN_BRIDGE_USER_ID`
+  - `REPOGEN_BRIDGE_CAPABILITIES_JSON`
+  - `REPOGEN_BRIDGE_EXCHANGE_PATH`
+- Troubleshooting mode:
+  - `SMOKE_SKIP_V1=1` skips V1 checks and validates Repogen health/auth only.
+
+### PASS Output Example
+```text
+[smoke-repogen] Checking Repogen API/Web health
+[smoke-repogen] Skipping V1 checks/auth because SMOKE_SKIP_V1=1
+[smoke-repogen] Validating Repogen protected endpoint
+[smoke-repogen] PASS: V1 + Repogen deployment smoke checks succeeded
+```
+
 ## Local Validation (single host)
 From `legacy/v1`:
 ```bash
