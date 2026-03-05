@@ -40,9 +40,48 @@ const DEFAULT_DENY_ROLES = ['FINANCE', 'HR']
 
 function toIso(value) {
   if (!value) return null
-  const date = new Date(value)
+  const date = value instanceof Date ? value : new Date(value)
   if (Number.isNaN(date.getTime())) return null
   return date.toISOString()
+}
+
+function combineDateWithTime(dateValue, timeValue, fallbackTime = new Date()) {
+  if (!dateValue) return null
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateValue).trim())
+  if (!dateMatch) return null
+
+  const [, yearRaw, monthRaw, dayRaw] = dateMatch
+  const year = Number(yearRaw)
+  const month = Number(monthRaw)
+  const day = Number(dayRaw)
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null
+
+  const merged = new Date(
+    year,
+    month - 1,
+    day,
+    fallbackTime.getHours(),
+    fallbackTime.getMinutes(),
+    fallbackTime.getSeconds(),
+    fallbackTime.getMilliseconds(),
+  )
+
+  if (timeValue) {
+    const timeMatch = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(timeValue).trim())
+    if (!timeMatch) return null
+    const [, hourRaw, minuteRaw] = timeMatch
+    merged.setHours(Number(hourRaw), Number(minuteRaw), 0, 0)
+  }
+
+  if (Number.isNaN(merged.getTime())) return null
+  if (
+    merged.getFullYear() !== year
+    || merged.getMonth() !== month - 1
+    || merged.getDate() !== day
+  ) {
+    return null
+  }
+  return merged
 }
 
 function normalizePolicy(policy) {
@@ -147,6 +186,7 @@ export default function NewAssignment() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [validationErrors, setValidationErrors] = useState([])
   const [notice, setNotice] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -171,6 +211,7 @@ export default function NewAssignment() {
     assignee_user_ids: [],
     site_visit_date: '',
     report_due_date: '',
+    report_due_time: '',
     fees: '',
     is_paid: false,
     notes: '',
@@ -205,6 +246,12 @@ export default function NewAssignment() {
     if (!detail) return false
     const range = detail.leave_start && detail.leave_end ? `${detail.leave_start} -> ${detail.leave_end}` : 'current leave'
     return window.confirm(`Assignee is on approved leave (${range}). Assign anyway?`)
+  }
+
+  function clearValidationErrors() {
+    if (validationErrors.length > 0) {
+      setValidationErrors([])
+    }
   }
 
   useEffect(() => {
@@ -387,10 +434,12 @@ export default function NewAssignment() {
   const optionalSlots = useMemo(() => templateSlots.filter((slot) => !slot.required), [templateSlots])
 
   function updateForm(key, value) {
+    clearValidationErrors()
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
   function handlePropertyTypeChange(value) {
+    clearValidationErrors()
     setForm((prev) => ({
       ...prev,
       property_type_id: value,
@@ -401,6 +450,7 @@ export default function NewAssignment() {
   function toggleAssignee(userId) {
     const id = String(userId)
     if (!eligibleAssigneeIds.has(id)) return
+    clearValidationErrors()
     setForm((prev) => {
       if (id === String(prev.assigned_to_user_id)) return prev
       const current = new Set(prev.assignee_user_ids.map(String))
@@ -417,26 +467,32 @@ export default function NewAssignment() {
   }
 
   function updateFloor(index, key, value) {
+    clearValidationErrors()
     setFloors((prev) => prev.map((row, i) => (i === index ? { ...row, [key]: value } : row)))
   }
 
   function addFloor() {
+    clearValidationErrors()
     setFloors((prev) => [...prev, { floor_name: '', area: '' }])
   }
 
   function removeFloor(index) {
+    clearValidationErrors()
     setFloors((prev) => prev.filter((_, i) => i !== index))
   }
 
   function addSurveyRow() {
+    clearValidationErrors()
     setSurveyRows((prev) => [...prev, { survey_no: '', acre: '', gunta: '', aana: '', kharab_acre: '', kharab_gunta: '', kharab_aana: '' }])
   }
 
   function updateSurveyRow(index, key, value) {
+    clearValidationErrors()
     setSurveyRows((prev) => prev.map((row, i) => (i === index ? { ...row, [key]: value } : row)))
   }
 
   function removeSurveyRow(index) {
+    clearValidationErrors()
     setSurveyRows((prev) => prev.filter((_, i) => i !== index))
   }
 
@@ -463,51 +519,125 @@ export default function NewAssignment() {
   }
 
   function updateInitialDoc(index, key, value) {
+    clearValidationErrors()
     setInitialDocs((prev) => prev.map((row, i) => (i === index ? { ...row, [key]: value } : row)))
   }
 
   function addInitialDoc() {
+    clearValidationErrors()
     setInitialDocs((prev) => [...prev, { file: null, category: '', isFinal: false }])
   }
 
   function removeInitialDoc(index) {
+    clearValidationErrors()
     setInitialDocs((prev) => prev.filter((_, i) => i !== index))
   }
 
   function updateSlotFiles(category, fileList) {
+    clearValidationErrors()
     const files = Array.from(fileList || [])
     setSlotFiles((prev) => ({ ...prev, [category]: files }))
   }
 
-  function validateForm() {
-    if (!form.case_type) return 'Case type is required.'
-    if (!form.service_line_id) return 'Service line is required.'
-    if (!form.borrower_name.trim()) return 'Borrower name is required.'
-    if (!form.uom) return 'Unit of measurement is required.'
+  function validateForm(referenceTime = new Date()) {
+    const issues = []
+    const addIssue = (message) => {
+      if (message && !issues.includes(message)) issues.push(message)
+    }
+    const isPositiveNumber = (value) => {
+      const parsed = Number(value)
+      return Number.isFinite(parsed) && parsed > 0
+    }
+    const isValidDateInput = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim())
+    const isValidTimeInput = (value) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(String(value || '').trim())
+
+    if (!form.case_type) addIssue('Case type is required.')
+    if (!form.service_line_id) addIssue('Service line is required.')
+    if (form.service_line_id && !selectedServiceLine) addIssue('Select a valid service line from master data.')
+    if (!form.borrower_name.trim()) addIssue('Borrower/customer name is required.')
+    if (!form.uom) addIssue('Unit of measurement is required.')
 
     if (selectedServiceLine?.key === 'OTHERS' && !form.service_line_other_text.trim()) {
-      return 'Please add Other service description.'
+      addIssue('Please add Other service description.')
     }
 
     if (isBankCase) {
-      if (!form.bank_id) return 'Bank is required for BANK cases.'
-      if (!form.branch_id) return 'Branch is required for BANK cases.'
-    } else if (!form.client_id && !form.valuer_client_name.trim()) {
-      return 'Client is required for non-bank cases (select one or type a name).'
+      if (!form.bank_id) addIssue('Bank is required for BANK cases.')
+      if (!form.branch_id) addIssue('Branch is required for BANK cases.')
+      if (form.branch_id && form.bank_id) {
+        const branchIsValid = filteredBranches.some((branch) => String(branch.id) === String(form.branch_id))
+        if (!branchIsValid) addIssue('Selected branch does not belong to the selected bank.')
+      }
+    } else {
+      if (!form.client_id && !form.valuer_client_name.trim()) {
+        addIssue('Client is required for non-bank cases (select one or type a name).')
+      }
+      if (form.client_id) {
+        const clientExists = clients.some((client) => String(client.id) === String(form.client_id))
+        if (!clientExists) addIssue('Selected client is no longer available in master data.')
+      }
+    }
+
+    if (form.property_subtype_id && !form.property_type_id) {
+      addIssue('Property subtype requires selecting a property type.')
     }
 
     if ((effectivePolicy?.uom_required ?? true) && !form.uom) {
-      return 'UOM is required for selected service line policy.'
+      addIssue('UOM is required for selected service line policy.')
+    }
+
+    if (showNormalLand) {
+      if (!isPositiveNumber(form.land_area)) {
+        addIssue('Land area is required and must be a positive number.')
+      }
+    }
+
+    if (showBuiltUp) {
+      if (multiFloorEnabled) {
+        const hasValidFloor = floors.some((row) => row.floor_name.trim() && isPositiveNumber(row.area))
+        if (!hasValidFloor) addIssue('At least one floor with name and positive area is required.')
+        const hasInvalidFloor = floors.some((row) => {
+          const hasPartialData = row.floor_name.trim() || String(row.area).trim()
+          if (!hasPartialData) return false
+          return !row.floor_name.trim() || !isPositiveNumber(row.area)
+        })
+        if (hasInvalidFloor) addIssue('Each floor entry must include floor name and positive area.')
+      } else if (!isPositiveNumber(form.builtup_area)) {
+        addIssue('Built-up area is required and must be a positive number.')
+      }
     }
 
     if ((effectivePolicy?.requires || []).includes('SURVEY_ROWS')) {
       const validRows = surveyRows.filter((row) => row.survey_no.trim())
       if (validRows.length === 0) {
-        return 'At least one survey row is required for this service line policy.'
+        addIssue('At least one survey row is required for this service line policy.')
       }
+      const hasInvalidSurveyNumbers = validRows.some((row) => (
+        ['acre', 'gunta', 'aana', 'kharab_acre', 'kharab_gunta', 'kharab_aana'].some((key) => {
+          const raw = row[key]
+          if (raw === '' || raw === null || raw === undefined) return false
+          const parsed = Number(raw)
+          return !Number.isFinite(parsed) || parsed < 0
+        })
+      ))
+      if (hasInvalidSurveyNumbers) addIssue('Survey row numeric values must be valid non-negative numbers.')
     }
 
-    return null
+    if (!form.site_visit_date) addIssue('Site visit date is required.')
+    if (!form.report_due_date) addIssue('Report due date is required.')
+    if (form.site_visit_date && !isValidDateInput(form.site_visit_date)) addIssue('Site visit date is invalid.')
+    if (form.report_due_date && !isValidDateInput(form.report_due_date)) addIssue('Report due date is invalid.')
+    if (form.report_due_time && !isValidTimeInput(form.report_due_time)) addIssue('Deadline time is invalid.')
+
+    const visitDateTime = combineDateWithTime(form.site_visit_date, null, referenceTime)
+    const dueDateTime = combineDateWithTime(form.report_due_date, form.report_due_time, referenceTime)
+    if (form.site_visit_date && !visitDateTime) addIssue('Site visit date is invalid.')
+    if (form.report_due_date && !dueDateTime) addIssue('Report due date/time is invalid.')
+    if (visitDateTime && dueDateTime && dueDateTime.getTime() < visitDateTime.getTime()) {
+      addIssue('Report due date/time cannot be before site visit date/time.')
+    }
+
+    return issues
   }
 
   async function uploadInitialDocuments(assignmentId) {
@@ -541,11 +671,14 @@ export default function NewAssignment() {
     setError(null)
     setNotice(null)
 
-    const validationError = validateForm()
-    if (validationError) {
-      setError(validationError)
+    const submissionTime = new Date()
+    const validationIssues = validateForm(submissionTime)
+    if (validationIssues.length > 0) {
+      setValidationErrors(validationIssues)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
+    setValidationErrors([])
 
     setSubmitting(true)
     let payload = null
@@ -589,6 +722,9 @@ export default function NewAssignment() {
           .filter((row) => row.survey_no)
         : []
 
+      const siteVisitDate = combineDateWithTime(form.site_visit_date, null, submissionTime)
+      const reportDueDate = combineDateWithTime(form.report_due_date, form.report_due_time, submissionTime)
+
       payload = {
         case_type: form.case_type,
         service_line_id: Number(form.service_line_id),
@@ -609,8 +745,8 @@ export default function NewAssignment() {
         status: form.status,
         assigned_to_user_id: form.assigned_to_user_id ? Number(form.assigned_to_user_id) : null,
         assignee_user_ids: assigneeIds.size > 0 ? Array.from(assigneeIds) : [],
-        site_visit_date: toIso(form.site_visit_date),
-        report_due_date: toIso(form.report_due_date),
+        site_visit_date: toIso(siteVisitDate),
+        report_due_date: toIso(reportDueDate),
         notes: form.notes.trim() || null,
         floors: multiFloorEnabled && showBuiltUp ? floorsPayload : [],
         land_surveys: surveyPayload,
@@ -687,6 +823,16 @@ export default function NewAssignment() {
       />
 
       {notice ? <div className="empty" style={{ marginBottom: '0.9rem' }}>{notice}</div> : null}
+      {validationErrors.length > 0 ? (
+        <div className="empty" style={{ marginBottom: '0.9rem' }}>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>Please fix these before submitting:</div>
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            {validationErrors.map((message) => (
+              <li key={message} style={{ marginBottom: 2 }}>{message}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {error ? <div className="empty" style={{ marginBottom: '0.9rem' }}>{error}</div> : null}
 
       {loading ? (
@@ -715,7 +861,7 @@ export default function NewAssignment() {
 
               <label className="grid" style={{ gap: 6 }}>
                 <span className="kicker">Service Line</span>
-                <select value={form.service_line_id} onChange={(e) => updateForm('service_line_id', e.target.value)}>
+                <select value={form.service_line_id} onChange={(e) => updateForm('service_line_id', e.target.value)} required>
                   <option value="">Select service line</option>
                   {serviceLines.map((line) => (
                     <option key={line.id} value={line.id}>{line.name}</option>
@@ -916,7 +1062,7 @@ export default function NewAssignment() {
               <div className="grid cols-3" style={{ marginTop: '0.8rem' }}>
                 <label className="grid" style={{ gap: 6 }}>
                   <span className="kicker">Bank</span>
-                  <select value={form.bank_id} onChange={(e) => updateForm('bank_id', e.target.value)}>
+                  <select value={form.bank_id} onChange={(e) => updateForm('bank_id', e.target.value)} required={isBankCase}>
                     <option value="">Select bank</option>
                     {banks.map((bank) => (
                       <option key={bank.id} value={bank.id}>{bank.name}</option>
@@ -926,7 +1072,7 @@ export default function NewAssignment() {
 
                 <label className="grid" style={{ gap: 6 }}>
                   <span className="kicker">Branch</span>
-                  <select value={form.branch_id} onChange={(e) => updateForm('branch_id', e.target.value)}>
+                  <select value={form.branch_id} onChange={(e) => updateForm('branch_id', e.target.value)} required={isBankCase}>
                     <option value="">Select branch</option>
                     {filteredBranches.map((branch) => (
                       <option key={branch.id} value={branch.id}>{branch.name}</option>
@@ -992,7 +1138,7 @@ export default function NewAssignment() {
               )}
             </div>
 
-            <div className="grid cols-3" style={{ marginTop: '0.8rem' }}>
+            <div className="grid cols-4" style={{ marginTop: '0.8rem' }}>
               {showBuiltUp ? (
                 <label className="grid" style={{ gap: 6 }}>
                   <span className="kicker">Built-up Area</span>
@@ -1024,12 +1170,33 @@ export default function NewAssignment() {
               )}
 
               <label className="grid" style={{ gap: 6 }}>
-                <span className="kicker">Site Visit</span>
-                <input type="datetime-local" value={form.site_visit_date} onChange={(e) => updateForm('site_visit_date', e.target.value)} />
+                <span className="kicker">Site Visit Date</span>
+                <input
+                  type="date"
+                  value={form.site_visit_date}
+                  onChange={(e) => updateForm('site_visit_date', e.target.value)}
+                  required
+                />
               </label>
               <label className="grid" style={{ gap: 6 }}>
-                <span className="kicker">Report Due</span>
-                <input type="datetime-local" value={form.report_due_date} onChange={(e) => updateForm('report_due_date', e.target.value)} />
+                <span className="kicker">Report Due Date</span>
+                <input
+                  type="date"
+                  value={form.report_due_date}
+                  onChange={(e) => updateForm('report_due_date', e.target.value)}
+                  required
+                />
+              </label>
+              <label className="grid" style={{ gap: 6 }}>
+                <span className="kicker">Deadline Time (Optional)</span>
+                <input
+                  type="time"
+                  value={form.report_due_time}
+                  onChange={(e) => updateForm('report_due_time', e.target.value)}
+                />
+                <span className="muted" style={{ fontSize: 12 }}>
+                  Leave blank to auto-use current time at creation.
+                </span>
               </label>
             </div>
 
