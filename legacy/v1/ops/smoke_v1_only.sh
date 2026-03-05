@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${ROOT_DIR}"
+
+if [[ -f .env ]]; then
+  # shellcheck disable=SC1091
+  source .env
+fi
+
+DOMAIN="${ZENOPS_DOMAIN:-zenops.notalonestudios.com}"
+PROJECT_NAME="${COMPOSE_PROJECT_NAME:-zenops}"
+ADMIN_EMAIL="${SMOKE_ADMIN_EMAIL:-admin@zenops.local}"
+ADMIN_PASSWORD="${SMOKE_ADMIN_PASSWORD:-password}"
+
+log() {
+  printf '[smoke-v1-only] %s\n' "$*"
+}
+
+fail() {
+  printf '[smoke-v1-only][FAIL] %s\n' "$*" >&2
+  exit 1
+}
+
+expect_code() {
+  local name="$1"
+  local url="$2"
+  local expected="$3"
+  shift 3
+  local code
+  code="$(curl -sS -o /tmp/smoke-v1-only.out -w '%{http_code}' --max-time 8 "$@" "${url}" || echo "000")"
+  if [[ "${code}" != "${expected}" ]]; then
+    cat /tmp/smoke-v1-only.out >&2 || true
+    fail "${name} expected HTTP ${expected}, got ${code}"
+  fi
+  log "PASS ${name}: HTTP ${code}"
+}
+
+expect_one_of_codes() {
+  local name="$1"
+  local url="$2"
+  local allowed="$3"
+  shift 3
+  local code
+  code="$(curl -sS -o /tmp/smoke-v1-only.out -w '%{http_code}' --max-time 8 "$@" "${url}" || echo "000")"
+  case ",${allowed}," in
+    *",${code},"*) log "PASS ${name}: HTTP ${code}" ;;
+    *)
+      cat /tmp/smoke-v1-only.out >&2 || true
+      fail "${name} expected one of [${allowed}], got ${code}"
+      ;;
+  esac
+}
+
+log "Domain=${DOMAIN} project=${PROJECT_NAME}"
+
+expect_one_of_codes "HTTP front-door" "http://${DOMAIN}/" "200,301,302,307,308" -I
+expect_one_of_codes "HTTPS front-door" "https://${DOMAIN}/" "200,301,302,307,308" -I -k
+
+expect_code "healthz via host header" "http://127.0.0.1/healthz" "200" -H "Host: ${DOMAIN}"
+expect_code "readyz via host header" "http://127.0.0.1/readyz" "200" -H "Host: ${DOMAIN}"
+expect_code "version via host header" "http://127.0.0.1/version" "200" -H "Host: ${DOMAIN}"
+
+expect_one_of_codes "auth me without token" "http://127.0.0.1/api/auth/me" "401" -H "Host: ${DOMAIN}"
+expect_one_of_codes "login endpoint reachable (wrong creds)" "http://127.0.0.1/api/auth/login" "400,401,429" \
+  -H "Host: ${DOMAIN}" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --data "username=invalid@invalid.local&password=invalid"
+
+log "Requesting admin token for analytics probe"
+login_payload="$(curl -sS --max-time 8 -H "Host: ${DOMAIN}" -H "Content-Type: application/x-www-form-urlencoded" \
+  --data "username=${ADMIN_EMAIL}&password=${ADMIN_PASSWORD}" \
+  http://127.0.0.1/api/auth/login || true)"
+token="$(printf '%s' "${login_payload}" | sed -n 's/.*"access_token"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+[[ -n "${token}" ]] || fail "Admin login failed for analytics probe (set SMOKE_ADMIN_EMAIL/SMOKE_ADMIN_PASSWORD)"
+
+expect_code "analytics API (admin token)" "http://127.0.0.1/api/analytics/source-intel" "200" \
+  -H "Host: ${DOMAIN}" \
+  -H "Authorization: Bearer ${token}"
+
+log "Checking API logs for 500s"
+api_logs="$(docker logs --tail 200 "${PROJECT_NAME}-api-1" 2>&1 || true)"
+if printf '%s\n' "${api_logs}" | grep -Eq 'status_code": 500|HTTP/1\.[01]" 500| 500 '; then
+  printf '%s\n' "${api_logs}" | tail -n 200 >&2
+  fail "Detected 500s in last 200 API log lines"
+fi
+log "PASS no 500s in last 200 API log lines"
+
+log "All V1-only pilot smoke checks passed"
