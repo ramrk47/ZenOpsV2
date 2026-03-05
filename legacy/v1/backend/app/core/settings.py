@@ -28,7 +28,12 @@ class _FallbackEnvSettingsSource(EnvSettingsSource):
         try:
             return super().decode_complex_value(field_name, field, value)
         except json.JSONDecodeError:
-            if field_name == "allow_origins":
+            if field_name in {
+                "allow_origins",
+                "allowed_upload_extensions",
+                "allowed_upload_content_types",
+                "associate_auto_approve_domains",
+            }:
                 return value
             raise
 
@@ -40,7 +45,12 @@ class _FallbackDotEnvSettingsSource(DotEnvSettingsSource):
         try:
             return super().decode_complex_value(field_name, field, value)
         except json.JSONDecodeError:
-            if field_name == "allow_origins":
+            if field_name in {
+                "allow_origins",
+                "allowed_upload_extensions",
+                "allowed_upload_content_types",
+                "associate_auto_approve_domains",
+            }:
                 return value
             raise
 

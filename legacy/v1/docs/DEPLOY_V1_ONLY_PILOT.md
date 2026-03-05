@@ -91,3 +91,17 @@ git checkout <last-known-good-commit-or-tag>
 - Verify `.env` and `.env.backend` passwords match `DATABASE_URL`.
 - Reset volumes only for fresh install:
   - `docker compose -p zenops -f docker-compose.hostinger.yml -f docker-compose.pilot.yml down -v`
+
+5. SettingsError parsing `associate_auto_approve_domains`
+- Keep this value valid when set manually:
+  - `ASSOCIATE_AUTO_APPROVE_DOMAINS=` (empty) or
+  - `ASSOCIATE_AUTO_APPROVE_DOMAINS=[]` or
+  - `ASSOCIATE_AUTO_APPROVE_DOMAINS=gmail.com,yahoo.com`
+
+6. `no such service: reverse-proxy`
+- `docker-compose.hostinger.yml` does not define a `reverse-proxy` service.
+- Start only:
+  - `api`
+  - `email-worker`
+  - `frontend`
+- Traefik runs as a separate stack under `legacy/v1/deploy/traefik`.
