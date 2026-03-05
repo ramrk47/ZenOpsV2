@@ -1,0 +1,91 @@
+services:
+  db:
+    extends:
+      file: ../legacy/v1/docker-compose.hostinger.yml
+      service: db
+    profiles: ["v1"]
+
+  uploads-perms:
+    extends:
+      file: ../legacy/v1/docker-compose.hostinger.yml
+      service: uploads-perms
+    profiles: ["v1"]
+
+  migrate:
+    extends:
+      file: ../legacy/v1/docker-compose.hostinger.yml
+      service: migrate
+    profiles: ["v1"]
+
+  api:
+    extends:
+      file: ../legacy/v1/docker-compose.hostinger.yml
+      service: api
+    profiles: ["v1"]
+
+  email-worker:
+    extends:
+      file: ../legacy/v1/docker-compose.hostinger.yml
+      service: email-worker
+    profiles: ["v1"]
+
+  frontend:
+    extends:
+      file: ../legacy/v1/docker-compose.hostinger.yml
+      service: frontend
+    profiles: ["v1"]
+
+  repogen-db:
+    extends:
+      file: ../legacy/v1/docker-compose.repogen.yml
+      service: repogen-db
+    profiles: ["repogen"]
+
+  repogen-redis:
+    extends:
+      file: ../legacy/v1/docker-compose.repogen.yml
+      service: repogen-redis
+    profiles: ["repogen"]
+
+  repogen-bootstrap:
+    extends:
+      file: ../legacy/v1/docker-compose.repogen.yml
+      service: repogen-bootstrap
+    profiles: ["repogen"]
+
+  repogen-api:
+    extends:
+      file: ../legacy/v1/docker-compose.repogen.yml
+      service: repogen-api
+    profiles: ["repogen"]
+
+  repogen-worker:
+    extends:
+      file: ../legacy/v1/docker-compose.repogen.yml
+      service: repogen-worker
+    profiles: ["repogen"]
+
+  repogen-web:
+    extends:
+      file: ../legacy/v1/docker-compose.repogen.yml
+      service: repogen-web
+    profiles: ["repogen"]
+
+volumes:
+  postgres_data:
+  uploads:
+  repogen_db_data:
+  repogen_redis_data:
+  repogen_artifacts:
+  repogen_node_modules:
+  repogen_bootstrap_state:
+
+networks:
+  internal:
+    driver: bridge
+  repogen-internal:
+    driver: bridge
+  traefik-proxy:
+    name: ${TRAEFIK_NETWORK:-traefik-proxy}
+    external: true
+
