@@ -34,7 +34,7 @@ V1_DOMAIN=zenops.notalonestudios.com ./ops/bootstrap_v1_env.sh --force
 ## Deploy V1
 
 ```bash
-./ops/up_v1_hostinger.sh
+./ops/deploy_pilot_v1.sh
 ```
 
 ## Smoke
@@ -72,5 +72,5 @@ V1_BASE_URL=http://localhost:8000 ./ops/smoke_v1_hostinger.sh
 ```bash
 docker ps --format '{{.Names}}\t{{.Ports}}' | grep -i traefik
 docker network inspect traefik-proxy >/dev/null 2>&1 && echo "traefik-proxy network exists"
+./ops/diag_traefik_v1.sh
 ```
-
