@@ -37,6 +37,15 @@ require_file() {
   [[ -f "${path}" ]] || fail_with_logs "Missing required file: ${path}"
 }
 
+require_backend_env_nonempty() {
+  local key="$1"
+  local value
+  value="$(grep -E "^${key}=" .env.backend | tail -n1 | cut -d= -f2- || true)"
+  if [[ -z "${value}" ]]; then
+    fail_with_logs "Missing required ${key} in .env.backend"
+  fi
+}
+
 http_status() {
   local url="$1"
   shift
@@ -99,6 +108,8 @@ fi
 
 require_file ".env"
 require_file ".env.backend"
+require_backend_env_nonempty "JWT_SECRET"
+require_backend_env_nonempty "DATABASE_URL"
 
 if [[ -z "${ZENOPS_DOMAIN:-}" ]]; then
   # shellcheck disable=SC1091
