@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ENV_FILE="${ROOT_DIR}/.env"
+BACKEND_ENV_FILE="${ROOT_DIR}/.env.backend"
+
+FORCE=0
+if [[ "${1:-}" == "--force" ]]; then
+  FORCE=1
+fi
+
+V1_DOMAIN="${V1_DOMAIN:-zenops.notalonestudios.com}"
+TRAEFIK_CERTRESOLVER="${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+POSTGRES_DB="${POSTGRES_DB:-zenops}"
+POSTGRES_USER="${POSTGRES_USER:-zenops}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-$(openssl rand -hex 16)}"
+JWT_SECRET="${JWT_SECRET:-$(openssl rand -hex 48)}"
+
+log() {
+  printf '[bootstrap-v1-env] %s\n' "$*"
+}
+
+fail() {
+  printf '[bootstrap-v1-env][FAIL] %s\n' "$*" >&2
+  exit 1
+}
+
+write_file() {
+  local path="$1"
+  local content="$2"
+  if [[ -f "$path" && "$FORCE" != "1" ]]; then
+    fail "Refusing to overwrite existing file: $path (rerun with --force)"
+  fi
+  printf '%s\n' "$content" >"$path"
+}
+
+command -v openssl >/dev/null 2>&1 || fail "openssl is required"
+
+write_file "$ENV_FILE" "COMPOSE_PROJECT_NAME=zenops
+ZENOPS_DOMAIN=${V1_DOMAIN}
+TRAEFIK_CERTRESOLVER=${TRAEFIK_CERTRESOLVER}
+
+POSTGRES_DB=${POSTGRES_DB}
+POSTGRES_USER=${POSTGRES_USER}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+
+VITE_API_URL=/api
+
+BACKUP_HOST_PATH=/opt/zenops/backups
+RETAIN_LOCAL_DAYS=21
+RETAIN_REMOTE_DAYS=30
+BACKUP_RETENTION_DAYS=21"
+
+write_file "$BACKEND_ENV_FILE" "ENVIRONMENT=production
+DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+JWT_SECRET=${JWT_SECRET}
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=120
+ALLOW_DESTRUCTIVE_ACTIONS=false
+
+PUBLIC_BASE_URL=https://${V1_DOMAIN}
+ALLOW_ORIGINS=https://${V1_DOMAIN}
+
+UPLOADS_DIR=/app/uploads
+MAX_UPLOAD_MB=25
+AV_SCAN_ENABLED=0
+
+ASSOCIATE_ONBOARDING_MODE=INVITE_ONLY
+ASSOCIATE_EMAIL_VERIFY_REQUIRED=1
+ASSOCIATE_VERIFY_TOKEN_TTL_MINUTES=15
+ASSOCIATE_AUTO_APPROVE_DOMAINS=[]
+ASSOCIATE_AUTO_APPROVE_MAX_PER_DAY=25
+
+DB_POOL_SIZE=5
+DB_MAX_OVERFLOW=10
+DB_POOL_TIMEOUT=30
+DB_POOL_RECYCLE=1800
+
+RATE_LIMIT_LOGIN_IP_MAX=10
+RATE_LIMIT_LOGIN_IP_WINDOW_SECONDS=60
+RATE_LIMIT_LOGIN_EMAIL_MAX=5
+RATE_LIMIT_LOGIN_EMAIL_WINDOW_SECONDS=60
+RATE_LIMIT_REQUEST_ACCESS_IP_MAX=3
+RATE_LIMIT_REQUEST_ACCESS_IP_WINDOW_SECONDS=86400
+RATE_LIMIT_REQUEST_ACCESS_EMAIL_MAX=2
+RATE_LIMIT_REQUEST_ACCESS_EMAIL_WINDOW_SECONDS=86400
+RATE_LIMIT_PASSWORD_RESET_EMAIL_MAX=3
+RATE_LIMIT_PASSWORD_RESET_EMAIL_WINDOW_SECONDS=3600"
+
+log "Generated:"
+log "  ${ENV_FILE}"
+log "  ${BACKEND_ENV_FILE}"
+log ""
+log "Next:"
+log "  ./ops/up_v1_hostinger.sh"
+log "  ./ops/smoke_v1_hostinger.sh"
+
