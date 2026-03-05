@@ -30,7 +30,7 @@ export default function PartnerRequestAccess() {
     setError('')
     setLoading(true)
     try {
-      await requestAssociateAccess({
+      const response = await requestAssociateAccess({
         company_name: form.company_name.trim(),
         contact_name: form.contact_name.trim(),
         email: form.email.trim().toLowerCase(),
@@ -41,7 +41,12 @@ export default function PartnerRequestAccess() {
         message: form.message.trim() || undefined,
         captcha_token: form.captcha_token.trim() || undefined,
       })
-      navigate(`/partner/request-access/sent?email=${encodeURIComponent(form.email.trim().toLowerCase())}`)
+      const params = new URLSearchParams()
+      params.set('email', form.email.trim().toLowerCase())
+      if (response?.debug_verify_url) {
+        params.set('debug_verify_url', response.debug_verify_url)
+      }
+      navigate(`/partner/request-access/sent?${params.toString()}`)
     } catch (err) {
       setError(toUserMessage(err, 'Something went wrong. Please try again.'))
     } finally {

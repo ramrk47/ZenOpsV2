@@ -15,6 +15,11 @@ ASSOCIATE_ONBOARDING_MODES = {
     "REQUEST_ACCESS_AUTO_APPROVE",
 }
 
+ASSOCIATE_EMAIL_MODES = {
+    "email",
+    "disabled",
+}
+
 
 class _FallbackEnvSettingsSource(EnvSettingsSource):
     """Allow ALLOW_ORIGINS to be comma-separated instead of strict JSON."""
@@ -56,6 +61,11 @@ class Settings(BaseSettings):
         default="development",
         description="Deployment environment name",
         validation_alias=AliasChoices("ENV", "ENVIRONMENT"),
+    )
+    pilot_mode: bool = Field(
+        default=False,
+        description="Enable pilot-safe feature gating for incomplete/non-critical modules.",
+        validation_alias=AliasChoices("PILOT_MODE"),
     )
     allow_destructive_actions: bool = Field(
         default=False,
@@ -217,6 +227,11 @@ class Settings(BaseSettings):
         description="Password assigned when ASSOCIATE_AUTO_APPROVE is enabled (non-production only)",
         validation_alias=AliasChoices("ASSOCIATE_AUTO_APPROVE_PASSWORD"),
     )
+    associate_email_mode: str = Field(
+        default="email",
+        description="Associate onboarding email mode: email, disabled (non-production fallback only)",
+        validation_alias=AliasChoices("ASSOCIATE_EMAIL_MODE"),
+    )
 
     smtp_host: str | None = Field(default=None, description="SMTP host")
     smtp_port: int = Field(default=587, description="SMTP port")
@@ -334,6 +349,14 @@ class Settings(BaseSettings):
             return "REQUEST_ACCESS_AUTO_APPROVE"
         return mode
 
+    @field_validator("associate_email_mode")
+    @classmethod
+    def normalize_associate_email_mode(cls, value: str) -> str:
+        mode = (value or "").strip().lower()
+        if mode not in ASSOCIATE_EMAIL_MODES:
+            return "email"
+        return mode
+
     def ensure_uploads_dir(self) -> Path:
         uploads_path = Path(self.uploads_dir).expanduser().resolve()
         uploads_path.mkdir(parents=True, exist_ok=True)
@@ -350,11 +373,22 @@ class Settings(BaseSettings):
         return self.environment.lower() in ("production", "prod")
 
     @property
+    def pilot_mode_enabled(self) -> bool:
+        return bool(self.pilot_mode)
+
+    @property
     def associate_onboarding_mode_effective(self) -> str:
         mode = self.associate_onboarding_mode
         if self.is_production and not mode:
             return "INVITE_ONLY"
         return mode or "REQUEST_ACCESS_AUTO_APPROVE"
+
+    @property
+    def associate_email_mode_effective(self) -> str:
+        mode = (self.associate_email_mode or "email").strip().lower()
+        if self.is_production and mode == "disabled":
+            return "email"
+        return mode
 
     @classmethod
     def settings_customise_sources(

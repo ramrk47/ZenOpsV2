@@ -83,6 +83,18 @@ def _current_onboarding_mode() -> str:
     return mode
 
 
+def _associate_email_mode() -> str:
+    return settings.associate_email_mode_effective
+
+
+def _associate_email_enabled() -> bool:
+    return _associate_email_mode() == "email"
+
+
+def _can_expose_debug_verify_link() -> bool:
+    return _associate_email_mode() == "disabled" and _auto_approve_non_prod_enabled()
+
+
 def _normalize_request_names(body: PartnerAccountRequestCreate) -> tuple[str, str]:
     company_name = (body.company_name or body.firm_name or "").strip()
     contact_name = (body.contact_name or body.name or "").strip()
@@ -195,6 +207,8 @@ def _can_auto_approve_request(db: Session, *, req: PartnerAccountRequest) -> boo
 
 
 def _queue_verification_email(db: Session, req: PartnerAccountRequest, *, raw_token: str) -> None:
+    if not _associate_email_enabled():
+        return
     verify_link = _associate_onboarding_url(f"/partner/verify?token={raw_token}")
     html = (
         "<p>Thanks for requesting External Associate access.</p>"
@@ -220,6 +234,8 @@ def _queue_verification_email(db: Session, req: PartnerAccountRequest, *, raw_to
 
 
 def _queue_invite_email(db: Session, *, request_id: int, invite: UserInvite, raw_token: str) -> None:
+    if not _associate_email_enabled():
+        return
     invite_link = _associate_onboarding_url(f"/invite/accept?token={raw_token}")
     html = (
         "<p>Your External Associate access request has been approved.</p>"
@@ -246,6 +262,19 @@ def _queue_invite_email(db: Session, *, request_id: int, invite: UserInvite, raw
 
 def _auto_approve_non_prod_enabled() -> bool:
     return bool(settings.associate_auto_approve) and not settings.is_production
+
+
+def _build_request_response(
+    req: PartnerAccountRequest,
+    *,
+    raw_verify_token: str | None = None,
+) -> PartnerAccountRequestRead:
+    payload = PartnerAccountRequestRead.model_validate(req)
+    if raw_verify_token and _can_expose_debug_verify_link():
+        payload = payload.model_copy(
+            update={"debug_verify_url": _associate_onboarding_url(f"/partner/verify?token={raw_verify_token}")}
+        )
+    return payload
 
 
 def _auto_approve_request(db: Session, *, req: PartnerAccountRequest) -> None:
@@ -465,7 +494,7 @@ def request_access(
 
     db.commit()
     db.refresh(req)
-    return PartnerAccountRequestRead.model_validate(req)
+    return _build_request_response(req, raw_verify_token=raw_verify_token)
 
 
 def _verify_access_token(
@@ -537,7 +566,7 @@ def _verify_access_token(
 
     db.commit()
     db.refresh(req)
-    return PartnerAccountRequestRead.model_validate(req)
+    return _build_request_response(req)
 
 
 @router.post("/api/partner/verify-access-token", response_model=PartnerAccountRequestRead)
@@ -611,7 +640,7 @@ def resend_verification_email(
 
     db.commit()
     db.refresh(req)
-    return PartnerAccountRequestRead.model_validate(req)
+    return _build_request_response(req, raw_verify_token=raw_token)
 
 
 # ── Admin endpoints ─────────────────────────────────────────────────────

@@ -51,6 +51,7 @@ import PartnerProfile from './pages/partner/PartnerProfile.jsx'
 import PartnerHelp from './pages/partner/PartnerHelp.jsx'
 import Forbidden from './pages/Forbidden.jsx'
 import { canSeeAdmin, hasCapability, isPartner, resolveHomeRoute, userHasRole } from './utils/rbac.js'
+import { isFeatureEnabled } from './config/featureFlags.js'
 
 function RequireCapability({ children, capability }) {
   const { user, capabilities, initialising } = useAuth()
@@ -112,6 +113,11 @@ function RequireAdminRole({ children }) {
   }
   if (!user) return <Navigate to="/login" replace />
   if (!userHasRole(user, 'ADMIN')) return <Forbidden />
+  return children
+}
+
+function RequireFeatureEnabled({ children, feature }) {
+  if (!isFeatureEnabled(feature)) return <Forbidden />
   return children
 }
 
@@ -306,7 +312,9 @@ export default function App() {
           path="/admin/billing-monitor"
           element={(
             <RequireAdminArea>
-              <BillingMonitor />
+              <RequireFeatureEnabled feature="billingMonitor">
+                <BillingMonitor />
+              </RequireFeatureEnabled>
             </RequireAdminArea>
           )}
         />

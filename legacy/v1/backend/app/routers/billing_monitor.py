@@ -31,6 +31,18 @@ def _require_admin(user: User) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
 
 
+def _ensure_enabled_for_environment() -> None:
+    if settings.pilot_mode_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "FEATURE_DISABLED_IN_PILOT",
+                "feature": "billing_monitor",
+                "message": "Billing monitor is disabled while PILOT_MODE=1.",
+            },
+        )
+
+
 def _to_iso(value: date | datetime | None) -> str | None:
     if value is None:
         return None
@@ -254,6 +266,7 @@ def billing_monitor_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
+    _ensure_enabled_for_environment()
     _require_admin(current_user)
     _enforce_refresh_limit(current_user, refresh)
 
@@ -292,6 +305,7 @@ def billing_monitor_account_detail(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
+    _ensure_enabled_for_environment()
     _require_admin(current_user)
     _enforce_refresh_limit(current_user, refresh)
 

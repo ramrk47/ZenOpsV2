@@ -132,6 +132,8 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
         VITE_V2_WEB_URL: ${VITE_V2_WEB_URL:-https://app-zenops.notalonestudios.com}
+        VITE_PILOT_MODE: ${VITE_PILOT_MODE:-0}
+        VITE_ENABLE_REPOGEN_INPUTS: ${VITE_ENABLE_REPOGEN_INPUTS:-0}
     restart: unless-stopped
     depends_on:
       api:

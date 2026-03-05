@@ -5,6 +5,7 @@ import BubbleStrip from '../ui/BubbleStrip'
 import { fetchNotificationUnreadCount } from '../../api/notifications'
 import { fetchApprovalsInboxCount } from '../../api/approvals'
 import { fetchAssignmentSummary } from '../../api/assignments'
+import { isFeatureEnabled } from '../../config/featureFlags'
 import {
   canManageCompanyAccounts,
   canManageMasterData,
@@ -195,7 +196,11 @@ export default function AdminSidebar() {
   const reviewLinks = [
     { to: '/admin/approvals', label: 'Requests', enabled: canApprove },
     { to: '/admin/activity', label: 'Activity', enabled: canSeeAdmin(capabilities) },
-    { to: '/admin/billing-monitor', label: 'Billing Monitor', enabled: canSeeAdmin(capabilities) },
+    {
+      to: '/admin/billing-monitor',
+      label: 'Billing Monitor',
+      enabled: canSeeAdmin(capabilities) && isFeatureEnabled('billingMonitor'),
+    },
     { to: '/admin/notification-deliveries', label: 'Email Deliveries', enabled: canSeeAdmin(capabilities) },
     { to: '/admin/attendance', label: 'Attendance', enabled: canSeeAdmin(capabilities) },
   ].filter((l) => l.enabled)

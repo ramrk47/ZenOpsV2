@@ -44,6 +44,7 @@ class PartnerAccountRequestRead(ORMModel):
     reviewed_by_user_id: Optional[int] = None
     reviewed_at: Optional[datetime] = None
     created_user_id: Optional[int] = None
+    debug_verify_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

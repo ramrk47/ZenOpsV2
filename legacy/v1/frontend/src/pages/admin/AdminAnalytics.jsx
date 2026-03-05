@@ -25,6 +25,7 @@ import {
 import { formatDate, formatDateTime, formatMoney, titleCase } from '../../utils/format'
 import { toUserMessage } from '../../api/client'
 import { loadJson, saveJson } from '../../utils/storage'
+import { isFeatureEnabled } from '../../config/featureFlags'
 
 const RANGE_PRESETS = [
   { key: 'last-30', label: 'Last 30 Days', days: 30 },
@@ -177,6 +178,7 @@ export default function AdminAnalytics() {
   const [selectedPartnerId, setSelectedPartnerId] = useState('')
   const [partnerBreakdown, setPartnerBreakdown] = useState([])
   const [partnerBreakdownError, setPartnerBreakdownError] = useState(null)
+  const forecastV2Enabled = isFeatureEnabled('analyticsForecastV2')
 
   function resolveClientId(row) {
     if (!row) return null
@@ -446,6 +448,11 @@ export default function AdminAnalytics() {
   }, [selectedEntity])
 
   useEffect(() => {
+    if (!forecastV2Enabled) {
+      setForecastV2(null)
+      setForecastV2Error(null)
+      return
+    }
     if (!selectedEntity) {
       setForecastV2(null)
       setForecastV2Error(null)
@@ -488,7 +495,7 @@ export default function AdminAnalytics() {
     return () => {
       cancelled = true
     }
-  }, [selectedEntity])
+  }, [forecastV2Enabled, selectedEntity])
 
   useEffect(() => {
     let cancelled = false
@@ -1236,26 +1243,28 @@ export default function AdminAnalytics() {
                         {visitNotice ? <div className="muted" style={{ fontSize: 12 }}>{visitNotice}</div> : null}
                       </div>
                     </div>
-                    <div className="list-item">
-                      <div className="kicker">Forecasting v2</div>
-                      {forecastV2Error ? (
-                        <div className="muted" style={{ fontSize: 12 }}>{forecastV2Error}</div>
-                      ) : forecastV2 ? (
-                        <div className="grid" style={{ gap: 6 }}>
-                          {forecastV2.confidence_note ? (
-                            <div className="muted" style={{ fontSize: 12 }}>{forecastV2.confidence_note}</div>
-                          ) : null}
-                          <div className="muted" style={{ fontSize: 12 }}>
-                            Quarterly: {forecastV2.quarterly.map((q) => `${q.period} ${q.assignments}`).join(', ') || '—'}
+                    {forecastV2Enabled ? (
+                      <div className="list-item">
+                        <div className="kicker">Forecasting v2</div>
+                        {forecastV2Error ? (
+                          <div className="muted" style={{ fontSize: 12 }}>{forecastV2Error}</div>
+                        ) : forecastV2 ? (
+                          <div className="grid" style={{ gap: 6 }}>
+                            {forecastV2.confidence_note ? (
+                              <div className="muted" style={{ fontSize: 12 }}>{forecastV2.confidence_note}</div>
+                            ) : null}
+                            <div className="muted" style={{ fontSize: 12 }}>
+                              Quarterly: {forecastV2.quarterly.map((q) => `${q.period} ${q.assignments}`).join(', ') || '—'}
+                            </div>
+                            <div className="muted" style={{ fontSize: 12 }}>
+                              Seasonality: {forecastV2.seasonality.map((s) => `${s.period} ${s.assignments}`).join(', ') || '—'}
+                            </div>
                           </div>
-                          <div className="muted" style={{ fontSize: 12 }}>
-                            Seasonality: {forecastV2.seasonality.map((s) => `${s.period} ${s.assignments}`).join(', ') || '—'}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="muted" style={{ fontSize: 12 }}>Loading forecast v2...</div>
-                      )}
-                    </div>
+                        ) : (
+                          <div className="muted" style={{ fontSize: 12 }}>Loading forecast v2...</div>
+                        )}
+                      </div>
+                    ) : null}
                     <div className="list-item">
                       <div className="kicker">Weekly Digest</div>
                       <div className="muted" style={{ fontSize: 12 }}>Weekly summary of at-risk branches.</div>

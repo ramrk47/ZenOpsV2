@@ -42,6 +42,7 @@ import { toUserMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { hasCapability } from '../utils/rbac'
 import DocumentPreviewDrawerV2 from '../components/DocumentPreviewDrawerV2'
+import { isFeatureEnabled } from '../config/featureFlags'
 
 const TAB_ITEMS = [
   { key: 'overview', label: 'Overview' },
@@ -71,7 +72,7 @@ const DEFAULT_APPROVAL_ACTIONS = [
   'EXCEPTION',
 ]
 const MENTION_TOKEN_RE = /@\[[^\]]+\]\((\d+)\)/g
-const ENABLE_REPOGEN_INPUTS = String(import.meta.env.VITE_ENABLE_REPOGEN_INPUTS || '0') === '1'
+const ENABLE_REPOGEN_INPUTS = isFeatureEnabled('repogenInputs')
 
 function renderMessageText(text, userMap) {
   if (!text) return ''
