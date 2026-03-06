@@ -6,6 +6,7 @@ cd "$ROOT_DIR"
 
 ENV_FILE="${ROOT_DIR}/.env"
 BACKEND_ENV_FILE="${ROOT_DIR}/.env.backend"
+COMPOSE_FILES=(-f docker-compose.hostinger.yml -f docker-compose.pilot.yml)
 
 log() {
   printf '[up-v1-hostinger] %s\n' "$*"
@@ -34,15 +35,15 @@ log "Ensuring external traefik network exists"
 docker network create traefik-proxy >/dev/null 2>&1 || true
 
 log "Building API + frontend images from current checkout"
-docker compose -p zenops -f docker-compose.hostinger.yml build api frontend
+docker compose -p zenops "${COMPOSE_FILES[@]}" build api frontend
 
 log "Starting DB and uploads permissions sidecar"
-docker compose -p zenops -f docker-compose.hostinger.yml up -d db uploads-perms
+docker compose -p zenops "${COMPOSE_FILES[@]}" up -d db uploads-perms
 
 log "Running migrations"
-docker compose -p zenops -f docker-compose.hostinger.yml run --rm migrate
+docker compose -p zenops "${COMPOSE_FILES[@]}" run --rm migrate
 
 log "Starting API, worker, frontend"
-docker compose -p zenops -f docker-compose.hostinger.yml up -d api email-worker frontend
+docker compose -p zenops "${COMPOSE_FILES[@]}" up -d api email-worker frontend
 
 log "V1 stack is up"
