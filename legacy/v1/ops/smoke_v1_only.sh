@@ -13,6 +13,7 @@ DOMAIN="${ZENOPS_DOMAIN:-zenops.notalonestudios.com}"
 PROJECT_NAME="${COMPOSE_PROJECT_NAME:-zenops}"
 ADMIN_EMAIL="${SMOKE_ADMIN_EMAIL:-admin@zenops.local}"
 ADMIN_PASSWORD="${SMOKE_ADMIN_PASSWORD:-password}"
+VPS_PUBLIC_IP_VALUE="${VPS_PUBLIC_IP:-}"
 
 log() {
   printf '[smoke-v1-only] %s\n' "$*"
@@ -21,6 +22,13 @@ log() {
 fail() {
   printf '[smoke-v1-only][FAIL] %s\n' "$*" >&2
   exit 1
+}
+
+resolve_args_for_port() {
+  local port="$1"
+  if [[ -n "${VPS_PUBLIC_IP_VALUE}" ]]; then
+    printf -- '--resolve %s:%s:%s' "${DOMAIN}" "${port}" "${VPS_PUBLIC_IP_VALUE}"
+  fi
 }
 
 expect_code() {
@@ -55,8 +63,20 @@ expect_one_of_codes() {
 
 log "Domain=${DOMAIN} project=${PROJECT_NAME}"
 
-expect_one_of_codes "HTTP front-door" "http://${DOMAIN}/" "200,301,302,307,308" -I
-expect_one_of_codes "HTTPS front-door" "https://${DOMAIN}/" "200,301,302,307,308" -I -k
+if [[ -z "${VPS_PUBLIC_IP_VALUE}" ]]; then
+  VPS_PUBLIC_IP_VALUE="$(curl -4 -sS --max-time 4 https://api.ipify.org || true)"
+fi
+if [[ ! "${VPS_PUBLIC_IP_VALUE}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  VPS_PUBLIC_IP_VALUE=""
+fi
+
+HTTP_RESOLVE_ARGS="$(resolve_args_for_port 80)"
+HTTPS_RESOLVE_ARGS="$(resolve_args_for_port 443)"
+
+# shellcheck disable=SC2086
+expect_one_of_codes "HTTP front-door" "http://${DOMAIN}/" "200,301,302,307,308" -I ${HTTP_RESOLVE_ARGS}
+# shellcheck disable=SC2086
+expect_one_of_codes "HTTPS front-door" "https://${DOMAIN}/" "200,301,302,307,308" -I -k ${HTTPS_RESOLVE_ARGS}
 
 expect_code "healthz via host header" "http://127.0.0.1/healthz" "200" -H "Host: ${DOMAIN}"
 expect_code "readyz via host header" "http://127.0.0.1/readyz" "200" -H "Host: ${DOMAIN}"
