@@ -9,7 +9,12 @@ import {
 } from '../../api/mobile'
 import { formatDateTime, titleCase } from '../../utils/format'
 import { isPartner } from '../../utils/rbac'
-import { readAssignmentSnapshot, writeAssignmentSnapshot } from '../../utils/mobileSnapshots'
+import {
+  buildMobileSnapshotScope,
+  purgeLegacyMobileSnapshots,
+  readAssignmentSnapshot,
+  writeAssignmentSnapshot,
+} from '../../utils/mobileSnapshots'
 
 function OfflineBanner({ usingCache, offline }) {
   if (!usingCache && !offline) return null
@@ -36,6 +41,7 @@ export default function MobileAssignmentDetail() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const partnerMode = isPartner(user)
+  const cacheScope = useMemo(() => buildMobileSnapshotScope(user), [user])
 
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -67,9 +73,9 @@ export default function MobileAssignmentDetail() {
       const data = await fetchMobileAssignmentDetail(assignmentId)
       setDetail(data)
       setUsingCache(false)
-      writeAssignmentSnapshot(assignmentId, data)
+      writeAssignmentSnapshot(cacheScope, assignmentId, data)
     } catch (err) {
-      const cached = readAssignmentSnapshot(assignmentId)
+      const cached = readAssignmentSnapshot(cacheScope, assignmentId)
       if (cached) {
         setDetail(cached)
         setUsingCache(true)
@@ -79,7 +85,11 @@ export default function MobileAssignmentDetail() {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [assignmentId])
+  }, [assignmentId, cacheScope])
+
+  useEffect(() => {
+    purgeLegacyMobileSnapshots()
+  }, [])
 
   useEffect(() => {
     if (!Number.isFinite(assignmentId)) {

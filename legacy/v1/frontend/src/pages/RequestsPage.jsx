@@ -7,7 +7,7 @@ import InfoTip from '../components/ui/InfoTip'
 import { fetchMyLeave, requestLeave } from '../api/leave'
 import { fetchMyApprovals, requestApproval, fetchApprovalTemplates } from '../api/approvals'
 import { fetchAssignments } from '../api/assignments'
-import { formatDate, formatDateTime, titleCase } from '../utils/format'
+import { formatApprovalLabel, formatDate, formatDateTime, titleCase } from '../utils/format'
 import { toUserMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { canSeeAdmin } from '../utils/rbac'
@@ -72,12 +72,6 @@ export default function RequestsPage() {
         setApprovals(approvalData)
         setAssignments(assignmentData)
         setApprovalTemplates(templates)
-        if (assignmentData[0]) {
-          setApprovalForm((prev) => {
-            if (prev.assignment_id) return prev
-            return { ...prev, assignment_id: String(assignmentData[0].id) }
-          })
-        }
         if (templates[0]) {
           setApprovalForm((prev) => {
             if (prev.action_type) return prev
@@ -177,15 +171,19 @@ export default function RequestsPage() {
         setError('Select an assignment for the approval request.')
         return
       }
+      if (!approvalForm.reason.trim()) {
+        setError('Add a reason before submitting the approval request.')
+        return
+      }
       await requestApproval({
         entity_type: 'ASSIGNMENT',
         entity_id: Number(approvalForm.assignment_id),
         action_type: approvalForm.action_type,
-        reason: approvalForm.reason.trim() || null,
+        reason: approvalForm.reason.trim(),
         assignment_id: Number(approvalForm.assignment_id),
       })
       setNotice('Approval request submitted.')
-      setApprovalForm((prev) => ({ ...prev, reason: '' }))
+      setApprovalForm((prev) => ({ ...prev, assignment_id: '', reason: '' }))
       setReloadKey((k) => k + 1)
     } catch (err) {
       console.error(err)
@@ -279,7 +277,7 @@ export default function RequestsPage() {
                       const tone = approval.status === 'APPROVED' ? 'ok' : approval.status === 'REJECTED' ? 'danger' : 'warn'
                       return (
                         <tr key={approval.id}>
-                          <td>{titleCase(approval.action_type)}</td>
+                          <td>{formatApprovalLabel(approval.approval_type, approval.action_type)}</td>
                           <td>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                               <span>{titleCase(approval.entity_type)} #{approval.entity_id}</span>

@@ -12,29 +12,70 @@ function safeParse(raw) {
   }
 }
 
-export function readSummarySnapshot() {
-  if (typeof window === 'undefined') return null
-  return safeParse(localStorage.getItem(SUMMARY_SNAPSHOT_KEY))
+function sanitizeScopePart(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, '_')
 }
 
-export function writeSummarySnapshot(summary) {
+export function buildMobileSnapshotScope(user) {
+  const idPart = sanitizeScopePart(user?.id ? `u${user.id}` : '')
+  const emailPart = sanitizeScopePart(user?.email || '')
+  const rolePart = sanitizeScopePart(
+    Array.isArray(user?.roles) && user.roles.length ? user.roles.join('-') : user?.role || '',
+  )
+  const scope = [idPart, emailPart, rolePart].filter(Boolean).join('__')
+  return scope || 'anonymous'
+}
+
+function summaryKey(scope = 'anonymous') {
+  return `${SUMMARY_SNAPSHOT_KEY}:${scope}`
+}
+
+function historyKey(scope = 'anonymous') {
+  return `${STATUS_HISTORY_KEY}:${scope}`
+}
+
+function assignmentKey(scope = 'anonymous', assignmentId) {
+  return `${ASSIGNMENT_SNAPSHOT_PREFIX}${scope}.${assignmentId}.v1`
+}
+
+export function purgeLegacyMobileSnapshots() {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem(SUMMARY_SNAPSHOT_KEY)
+  localStorage.removeItem(STATUS_HISTORY_KEY)
+  for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+    const key = localStorage.key(index)
+    if (!key) continue
+    if (/^zenops\.mobile\.assignment\.\d+\.v1$/.test(key)) {
+      localStorage.removeItem(key)
+    }
+  }
+}
+
+export function readSummarySnapshot(scope) {
+  if (typeof window === 'undefined') return null
+  return safeParse(localStorage.getItem(summaryKey(scope)))
+}
+
+export function writeSummarySnapshot(scope, summary) {
   if (typeof window === 'undefined' || !summary) return
   const snapshot = {
     ...summary,
     my_queue: Array.isArray(summary.my_queue) ? summary.my_queue.slice(0, 20) : [],
     cached_at: new Date().toISOString(),
   }
-  localStorage.setItem(SUMMARY_SNAPSHOT_KEY, JSON.stringify(snapshot))
+  localStorage.setItem(summaryKey(scope), JSON.stringify(snapshot))
 }
 
-export function readStatusHistory() {
+export function readStatusHistory(scope) {
   if (typeof window === 'undefined') return []
-  const parsed = safeParse(localStorage.getItem(STATUS_HISTORY_KEY))
+  const parsed = safeParse(localStorage.getItem(historyKey(scope)))
   if (!Array.isArray(parsed)) return []
   return parsed
 }
 
-export function appendStatusHistory(summary) {
+export function appendStatusHistory(scope, summary) {
   if (typeof window === 'undefined' || !summary) return
   const entry = {
     generated_at: summary.generated_at || new Date().toISOString(),
@@ -43,21 +84,17 @@ export function appendStatusHistory(summary) {
     overdue_assignments: Number(summary.overdue_assignments || 0),
     payments_pending: Number(summary.payments_pending || 0),
   }
-  const current = readStatusHistory()
+  const current = readStatusHistory(scope)
   const history = [entry, ...current].slice(0, MAX_STATUS_HISTORY)
-  localStorage.setItem(STATUS_HISTORY_KEY, JSON.stringify(history))
+  localStorage.setItem(historyKey(scope), JSON.stringify(history))
 }
 
-function assignmentKey(assignmentId) {
-  return `${ASSIGNMENT_SNAPSHOT_PREFIX}${assignmentId}.v1`
-}
-
-export function readAssignmentSnapshot(assignmentId) {
+export function readAssignmentSnapshot(scope, assignmentId) {
   if (typeof window === 'undefined') return null
-  return safeParse(localStorage.getItem(assignmentKey(assignmentId)))
+  return safeParse(localStorage.getItem(assignmentKey(scope, assignmentId)))
 }
 
-export function writeAssignmentSnapshot(assignmentId, detail) {
+export function writeAssignmentSnapshot(scope, assignmentId, detail) {
   if (typeof window === 'undefined' || !assignmentId || !detail) return
   const snapshot = {
     ...detail,
@@ -65,5 +102,5 @@ export function writeAssignmentSnapshot(assignmentId, detail) {
     comments: Array.isArray(detail.comments) ? detail.comments.slice(0, 20) : [],
     cached_at: new Date().toISOString(),
   }
-  localStorage.setItem(assignmentKey(assignmentId), JSON.stringify(snapshot))
+  localStorage.setItem(assignmentKey(scope, assignmentId), JSON.stringify(snapshot))
 }

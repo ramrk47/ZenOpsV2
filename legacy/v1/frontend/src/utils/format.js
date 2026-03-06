@@ -55,6 +55,22 @@ export function titleCase(value) {
     .replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+export function formatApprovalLabel(approvalType, actionType) {
+  if (approvalType) {
+    switch (approvalType) {
+      case 'DRAFT_ASSIGNMENT':
+        return 'Draft Assignment'
+      case 'FINAL_DOC_REVIEW':
+        return 'Final Review'
+      case 'PAYMENT_CONFIRMATION':
+        return 'Payment Confirmation'
+      default:
+        return titleCase(approvalType)
+    }
+  }
+  return titleCase(actionType)
+}
+
 export function dueStateTone(state) {
   switch (state) {
     case 'OVERDUE':

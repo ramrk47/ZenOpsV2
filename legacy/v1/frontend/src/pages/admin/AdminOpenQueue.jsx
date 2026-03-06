@@ -8,7 +8,7 @@ import EmptyState from '../../components/ui/EmptyState'
 import { fetchAssignments } from '../../api/assignments'
 import { fetchTaskQueue } from '../../api/tasks'
 import { fetchApprovalsInbox } from '../../api/approvals'
-import { formatDateTime, titleCase } from '../../utils/format'
+import { formatApprovalLabel, formatDateTime, titleCase } from '../../utils/format'
 import { toUserMessage } from '../../api/client'
 
 export default function AdminOpenQueue() {
@@ -141,7 +141,7 @@ export default function AdminOpenQueue() {
                 {approvals.map((approval) => (
                   <Link key={approval.id} to="/admin/approvals" className="list-item">
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                      <strong>{titleCase(approval.action_type)}</strong>
+                      <strong>{formatApprovalLabel(approval.approval_type, approval.action_type)}</strong>
                       <Badge tone="info">{titleCase(approval.status)}</Badge>
                     </div>
                     <div className="muted" style={{ marginTop: 4 }}>

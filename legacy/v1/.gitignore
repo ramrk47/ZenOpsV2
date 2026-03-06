@@ -42,9 +42,13 @@ deploy/backups/
 deploy/rclone/
 deploy/certs/
 deploy/acme/
+deploy/traefik/letsencrypt/
 
 # Local smoke DB
 backend/.smoke.db
+
+# Local scratch space
+tmp/
 
 # local python venv
 .venv/

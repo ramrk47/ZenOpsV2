@@ -46,6 +46,34 @@ require_backend_env_nonempty() {
   fi
 }
 
+normalize_backend_env_list_var() {
+  local key="$1"
+  local raw
+  local normalized
+  raw="$(grep -E "^${key}=" .env.backend | tail -n1 | cut -d= -f2- || true)"
+  normalized="$(printf '%s' "${raw}" | tr -d '[:space:]')"
+  if [[ -z "${normalized}" || "${normalized}" == '""' || "${normalized}" == "''" ]]; then
+    local tmp_file
+    tmp_file="$(mktemp)"
+    awk -v key="${key}" '
+      BEGIN { replaced=0 }
+      $0 ~ ("^" key "=") {
+        print key "=[]"
+        replaced=1
+        next
+      }
+      { print }
+      END {
+        if (!replaced) {
+          print key "=[]"
+        }
+      }
+    ' .env.backend > "${tmp_file}"
+    mv "${tmp_file}" .env.backend
+    log "Normalized ${key} to [] in .env.backend"
+  fi
+}
+
 http_status() {
   local url="$1"
   shift
@@ -108,6 +136,7 @@ fi
 
 require_file ".env"
 require_file ".env.backend"
+normalize_backend_env_list_var "ASSOCIATE_AUTO_APPROVE_DOMAINS"
 require_backend_env_nonempty "JWT_SECRET"
 require_backend_env_nonempty "DATABASE_URL"
 

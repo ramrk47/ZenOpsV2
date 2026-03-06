@@ -33,7 +33,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        navigateFallback: '/offline-mobile.html',
+        navigateFallback: '/index.html',
         navigateFallbackAllowlist: [/^\/m(\/.*)?$/, /^\/mobile(\/.*)?$/],
       },
       devOptions: {

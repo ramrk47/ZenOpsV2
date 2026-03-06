@@ -5,6 +5,8 @@ import { fetchMobileSummary } from '../../api/mobile'
 import { formatDateTime, titleCase } from '../../utils/format'
 import {
   appendStatusHistory,
+  buildMobileSnapshotScope,
+  purgeLegacyMobileSnapshots,
   readStatusHistory,
   readSummarySnapshot,
   writeSummarySnapshot,
@@ -63,9 +65,10 @@ function OfflineBanner({ usingCache, offline }) {
 export default function MobileCockpit() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
+  const cacheScope = useMemo(() => buildMobileSnapshotScope(user), [user])
 
   const [summary, setSummary] = useState(null)
-  const [statusHistory, setStatusHistory] = useState(() => readStatusHistory())
+  const [statusHistory, setStatusHistory] = useState(() => readStatusHistory(cacheScope))
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [usingCache, setUsingCache] = useState(false)
@@ -79,11 +82,11 @@ export default function MobileCockpit() {
       const data = normalizeSummary(await fetchMobileSummary())
       setSummary(data)
       setUsingCache(false)
-      writeSummarySnapshot(data)
-      appendStatusHistory(data)
-      setStatusHistory(readStatusHistory())
+      writeSummarySnapshot(cacheScope, data)
+      appendStatusHistory(cacheScope, data)
+      setStatusHistory(readStatusHistory(cacheScope))
     } catch (err) {
-      const cached = normalizeSummary(readSummarySnapshot())
+      const cached = normalizeSummary(readSummarySnapshot(cacheScope))
       if (cached) {
         setSummary(cached)
         setUsingCache(true)
@@ -93,11 +96,19 @@ export default function MobileCockpit() {
     } finally {
       if (!silent) setLoading(false)
     }
+  }, [cacheScope])
+
+  useEffect(() => {
+    purgeLegacyMobileSnapshots()
   }, [])
 
   useEffect(() => {
     loadSummary()
   }, [loadSummary])
+
+  useEffect(() => {
+    setStatusHistory(readStatusHistory(cacheScope))
+  }, [cacheScope])
 
   useEffect(() => {
     function onOnline() {

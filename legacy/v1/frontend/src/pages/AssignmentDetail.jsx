@@ -33,6 +33,7 @@ import {
   dueStateTone,
   dueStateLabel,
   formatDate,
+  formatApprovalLabel,
   formatDateTime,
   formatMoney,
   statusTone,
@@ -1992,7 +1993,7 @@ export default function AssignmentDetail() {
                       const tone = approval.status === 'APPROVED' ? 'ok' : approval.status === 'REJECTED' ? 'danger' : 'warn'
                       return (
                         <tr key={approval.id}>
-                          <td>{titleCase(approval.action_type)}</td>
+                          <td>{formatApprovalLabel(approval.approval_type, approval.action_type)}</td>
                           <td><Badge tone={tone}>{titleCase(approval.status)}</Badge></td>
                           <td>{requester?.full_name || requester?.email || approval.requester_user_id}</td>
                           <td>{approver?.full_name || approver?.email || approval.approver_user_id || 'Unassigned'}</td>

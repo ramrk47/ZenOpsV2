@@ -146,7 +146,7 @@ export default function SupportInbox() {
           <div style={{ fontWeight: 500 }}>{row.subject}</div>
           {row.assignment_ref && (
             <small style={{ color: 'var(--text-muted)' }}>
-              Assignment: <Link to={`/admin/assignments/${row.assignment_id}`}>{row.assignment_ref}</Link>
+              Assignment: <Link to={`/assignments/${row.assignment_id}`}>{row.assignment_ref}</Link>
             </small>
           )}
         </div>
@@ -176,6 +176,7 @@ export default function SupportInbox() {
       accessor: 'id',
       cell: (row) => (
         <button
+          type="button"
           onClick={() => openThread(row)}
           className="btn-secondary btn-sm"
         >
@@ -193,15 +194,24 @@ export default function SupportInbox() {
       />
 
       <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-        {['ALL', 'OPEN', 'PENDING', 'RESOLVED', 'CLOSED'].map((status) => (
-          <button
-            key={status}
-            onClick={() => setFilterStatus(status)}
-            className={filterStatus === status ? 'btn-primary' : 'btn-secondary'}
-          >
-            {status}
-          </button>
-        ))}
+        {['ALL', 'OPEN', 'PENDING', 'RESOLVED', 'CLOSED'].map((status) => {
+          const isActive = filterStatus === status
+          return (
+            <button
+              key={status}
+              type="button"
+              disabled={isActive}
+              aria-pressed={isActive}
+              onClick={() => {
+                if (isActive) return
+                setFilterStatus(status)
+              }}
+              className={isActive ? 'btn-primary' : 'btn-secondary'}
+            >
+              {status}
+            </button>
+          )
+        })}
       </div>
 
       {error && (
@@ -263,7 +273,7 @@ export default function SupportInbox() {
                 {threadDetail.assignment_ref && (
                   <div>
                     <strong>Assignment:</strong>{' '}
-                    <Link to={`/admin/assignments/${threadDetail.assignment_id}`}>
+                    <Link to={`/assignments/${threadDetail.assignment_id}`}>
                       {threadDetail.assignment_ref}
                     </Link>
                   </div>
@@ -323,7 +333,7 @@ export default function SupportInbox() {
 
               {threadDetail.status === 'CLOSED' && (
                 <div className="alert alert-muted" style={{ marginTop: '1rem' }}>
-                  This thread is closed. <button onClick={handleReopen} className="btn-link">Reopen</button>
+                  This thread is closed. <button type="button" onClick={handleReopen} className="btn-link">Reopen</button>
                 </div>
               )}
             </div>

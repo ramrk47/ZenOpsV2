@@ -36,6 +36,27 @@ function formatAge(value) {
   return `${days}d`
 }
 
+function useNarrowLayout(maxWidth = 760) {
+  const [isNarrow, setIsNarrow] = useState(() => (
+    typeof window !== 'undefined' ? window.innerWidth <= maxWidth : false
+  ))
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined
+    const media = window.matchMedia(`(max-width: ${maxWidth}px)`)
+    const handleChange = (event) => setIsNarrow(event.matches)
+    setIsNarrow(media.matches)
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', handleChange)
+      return () => media.removeEventListener('change', handleChange)
+    }
+    media.addListener(handleChange)
+    return () => media.removeListener(handleChange)
+  }, [maxWidth])
+
+  return isNarrow
+}
+
 export default function AdminApprovals() {
   const [searchParams, setSearchParams] = useSearchParams()
   const initialType = searchParams.get('approvalType')
@@ -49,6 +70,8 @@ export default function AdminApprovals() {
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTERS.includes(initialStatus) ? initialStatus : 'PENDING')
   const [selectedApproval, setSelectedApproval] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [actionBusy, setActionBusy] = useState({ id: null, kind: null })
+  const isNarrowLayout = useNarrowLayout()
 
   useEffect(() => {
     setSearchParams((prev) => {
@@ -96,6 +119,7 @@ export default function AdminApprovals() {
     () => APPROVAL_TYPES.reduce((sum, type) => sum + (countsByType[type] || 0), 0),
     [countsByType],
   )
+  const selectedBusy = selectedApproval ? actionBusy.id === selectedApproval.id : false
 
   async function handleOpen(approval) {
     try {
@@ -108,6 +132,9 @@ export default function AdminApprovals() {
   }
 
   async function handleApprove(approval) {
+    if (!approval?.id || actionBusy.id === approval.id) return
+    setError(null)
+    setActionBusy({ id: approval.id, kind: 'approve' })
     try {
       const updated = await approveApproval(approval.id, null)
       setApprovals((prev) => prev.map((row) => (row.id === updated.id ? updated : row)))
@@ -118,12 +145,17 @@ export default function AdminApprovals() {
     } catch (err) {
       console.error(err)
       setError(toUserMessage(err, 'Failed to approve request'))
+    } finally {
+      setActionBusy({ id: null, kind: null })
     }
   }
 
   async function handleReject(approval) {
+    if (!approval?.id || actionBusy.id === approval.id) return
     const reason = window.prompt('Rejection reason (required):')
     if (!reason || !reason.trim()) return
+    setError(null)
+    setActionBusy({ id: approval.id, kind: 'reject' })
     try {
       const updated = await rejectApproval(approval.id, reason.trim())
       setApprovals((prev) => prev.map((row) => (row.id === updated.id ? updated : row)))
@@ -134,6 +166,8 @@ export default function AdminApprovals() {
     } catch (err) {
       console.error(err)
       setError(toUserMessage(err, 'Failed to reject request'))
+    } finally {
+      setActionBusy({ id: null, kind: null })
     }
   }
 
@@ -160,16 +194,30 @@ export default function AdminApprovals() {
         <CardHeader
           title={APPROVAL_TYPE_LABELS[activeType]}
           subtitle={`Status filter: ${titleCase(statusFilter)}`}
-          action={<button type="button" className="secondary" onClick={() => setReloadKey((k) => k + 1)}>Refresh</button>}
+          action={(
+            <button
+              type="button"
+              className="secondary"
+              disabled={loading}
+              onClick={() => setReloadKey((k) => k + 1)}
+            >
+              {loading ? 'Refreshing…' : 'Refresh'}
+            </button>
+          )}
         />
 
         <div className="chip-row" style={{ marginBottom: '0.8rem' }}>
-          {APPROVAL_TYPES.map((type) => (
+          {APPROVAL_TYPES.map((type) => {
+            const isActive = activeType === type
+            return (
             <button
               key={type}
               type="button"
-              className={`chip ${activeType === type ? 'active' : ''}`.trim()}
+              className={`chip ${isActive ? 'active' : ''}`.trim()}
+              disabled={isActive}
+              aria-pressed={isActive}
               onClick={() => {
+                if (isActive) return
                 setActiveType(type)
                 setSelectedApproval(null)
               }}
@@ -177,29 +225,77 @@ export default function AdminApprovals() {
               {APPROVAL_TYPE_LABELS[type]}{' '}
               <Badge tone={(countsByType[type] || 0) > 0 ? 'warn' : 'ok'}>{countsByType[type] || 0}</Badge>
             </button>
-          ))}
+            )
+          })}
         </div>
 
         <div className="chip-row" style={{ marginBottom: '0.8rem' }}>
-          {STATUS_FILTERS.map((status) => (
+          {STATUS_FILTERS.map((status) => {
+            const isActive = statusFilter === status
+            return (
             <button
               key={status}
               type="button"
-              className={`chip ${statusFilter === status ? 'active' : ''}`.trim()}
+              className={`chip ${isActive ? 'active' : ''}`.trim()}
+              disabled={isActive}
+              aria-pressed={isActive}
               onClick={() => {
+                if (isActive) return
                 setStatusFilter(status)
                 setSelectedApproval(null)
               }}
             >
               {titleCase(status)}
             </button>
-          ))}
+            )
+          })}
         </div>
 
         {loading ? (
           <DataTable loading columns={6} rows={8} />
         ) : approvals.length === 0 ? (
           <EmptyState>No requests in this filter.</EmptyState>
+        ) : isNarrowLayout ? (
+          <div className="grid" style={{ gap: '0.8rem' }}>
+            {approvals.map((approval) => {
+              const tone = approval.status === 'APPROVED' ? 'ok' : approval.status === 'REJECTED' ? 'danger' : 'warn'
+              const requestedAt = approval.requested_at || approval.created_at
+              const rowBusy = actionBusy.id === approval.id
+              return (
+                <div key={approval.id} className="list-item" style={{ gap: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <strong style={{ display: 'block' }}>
+                        {approval.entity_summary || `${approval.entity_type} #${approval.entity_id}`}
+                      </strong>
+                      <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                        #{approval.id} · {APPROVAL_TYPE_LABELS[approval.approval_type] || titleCase(approval.approval_type || approval.action_type)}
+                      </div>
+                    </div>
+                    <Badge tone={tone}>{titleCase(approval.status)}</Badge>
+                  </div>
+                  <div className="grid" style={{ gap: 4 }}>
+                    <div><strong>Requested By:</strong> {approval.requested_by_name || approval.requester_user_id}</div>
+                    <div><strong>Age:</strong> {formatAge(requestedAt)}</div>
+                    <div><strong>Requested:</strong> {formatDateTime(requestedAt)}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button type="button" className="ghost" disabled={rowBusy} onClick={() => handleOpen(approval)}>Open</button>
+                    {approval.status === 'PENDING' ? (
+                      <>
+                        <button type="button" className="secondary" disabled={rowBusy} onClick={() => handleApprove(approval)}>
+                          {rowBusy && actionBusy.kind === 'approve' ? 'Approving…' : 'Approve'}
+                        </button>
+                        <button type="button" className="ghost" disabled={rowBusy} onClick={() => handleReject(approval)}>
+                          {rowBusy && actionBusy.kind === 'reject' ? 'Rejecting…' : 'Reject'}
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         ) : (
           <DataTable>
             <table>
@@ -217,6 +313,7 @@ export default function AdminApprovals() {
                 {approvals.map((approval) => {
                   const tone = approval.status === 'APPROVED' ? 'ok' : approval.status === 'REJECTED' ? 'danger' : 'warn'
                   const requestedAt = approval.requested_at || approval.created_at
+                  const rowBusy = actionBusy.id === approval.id
                   return (
                     <tr key={approval.id}>
                       <td>
@@ -231,11 +328,15 @@ export default function AdminApprovals() {
                       <td>{formatDateTime(requestedAt)}</td>
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                          <button type="button" className="ghost" onClick={() => handleOpen(approval)}>Open</button>
+                          <button type="button" className="ghost" disabled={rowBusy} onClick={() => handleOpen(approval)}>Open</button>
                           {approval.status === 'PENDING' ? (
                             <>
-                              <button type="button" className="secondary" onClick={() => handleApprove(approval)}>Approve</button>
-                              <button type="button" className="ghost" onClick={() => handleReject(approval)}>Reject</button>
+                              <button type="button" className="secondary" disabled={rowBusy} onClick={() => handleApprove(approval)}>
+                                {rowBusy && actionBusy.kind === 'approve' ? 'Approving…' : 'Approve'}
+                              </button>
+                              <button type="button" className="ghost" disabled={rowBusy} onClick={() => handleReject(approval)}>
+                                {rowBusy && actionBusy.kind === 'reject' ? 'Rejecting…' : 'Reject'}
+                              </button>
                             </>
                           ) : null}
                         </div>
@@ -271,8 +372,12 @@ export default function AdminApprovals() {
             </div>
             {selectedApproval.status === 'PENDING' ? (
               <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                <button type="button" className="secondary" onClick={() => handleApprove(selectedApproval)}>Approve</button>
-                <button type="button" className="ghost" onClick={() => handleReject(selectedApproval)}>Reject</button>
+                <button type="button" className="secondary" disabled={selectedBusy} onClick={() => handleApprove(selectedApproval)}>
+                  {selectedBusy && actionBusy.kind === 'approve' ? 'Approving…' : 'Approve'}
+                </button>
+                <button type="button" className="ghost" disabled={selectedBusy} onClick={() => handleReject(selectedApproval)}>
+                  {selectedBusy && actionBusy.kind === 'reject' ? 'Rejecting…' : 'Reject'}
+                </button>
               </div>
             ) : null}
           </div>

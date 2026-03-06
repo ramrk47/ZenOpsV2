@@ -5,7 +5,7 @@ This runbook deploys only legacy V1 (no Repogen sidecar).
 ## Scope
 - Deploy target: `legacy/v1/docker-compose.hostinger.yml`
 - Excludes: `docker-compose.repogen.yml`
-- Source branch: `codex/v1-repogen-deploy` (until a dedicated v1-only deploy branch is published)
+- Source branch: `codex/v1-pilot-deploy-v1only`
 
 ## DNS
 Create records:
@@ -21,7 +21,7 @@ dig +short zenops.notalonestudios.com
 ```bash
 cd ~
 sudo rm -rf ZenOpsV2
-git clone --branch codex/v1-repogen-deploy --single-branch https://github.com/ramrk47/ZenOpsV2.git
+git clone --branch codex/v1-pilot-deploy-v1only --single-branch https://github.com/ramrk47/ZenOpsV2.git
 cd ~/ZenOpsV2/legacy/v1
 ```
 

@@ -38,11 +38,27 @@ const PREFERRED_PAYMENT_MODE_OPTIONS = ['CASH', 'UPI', 'BANK_TRANSFER']
 const DEFAULT_ELIGIBLE_ROLES = ['ADMIN', 'OPS_MANAGER', 'ASSISTANT_VALUER', 'FIELD_VALUER', 'EMPLOYEE']
 const DEFAULT_DENY_ROLES = ['FINANCE', 'HR']
 
-function toIso(value) {
-  if (!value) return null
-  const date = new Date(value)
+function combineLocalDateAndTime(dateValue, timeValue) {
+  if (!dateValue) return null
+  const [year, month, day] = String(dateValue).split('-').map(Number)
+  if (![year, month, day].every(Number.isFinite)) return null
+  const [hours, minutes] = String(timeValue || '00:00').split(':').map(Number)
+  const date = new Date(
+    year,
+    month - 1,
+    day,
+    Number.isFinite(hours) ? hours : 0,
+    Number.isFinite(minutes) ? minutes : 0,
+    0,
+    0,
+  )
   if (Number.isNaN(date.getTime())) return null
   return date.toISOString()
+}
+
+function currentLocalTimeString() {
+  const now = new Date()
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 }
 
 function normalizePolicy(policy) {
@@ -148,6 +164,7 @@ export default function NewAssignment() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(null)
+  const [formErrors, setFormErrors] = useState([])
   const [submitting, setSubmitting] = useState(false)
 
   const [form, setForm] = useState({
@@ -480,34 +497,60 @@ export default function NewAssignment() {
   }
 
   function validateForm() {
-    if (!form.case_type) return 'Case type is required.'
-    if (!form.service_line_id) return 'Service line is required.'
-    if (!form.borrower_name.trim()) return 'Borrower name is required.'
-    if (!form.uom) return 'Unit of measurement is required.'
+    const issues = []
+
+    if (!form.case_type) issues.push('Case type is required.')
+    if (!form.service_line_id) issues.push('Service line is required.')
+    if (!form.borrower_name.trim()) issues.push('Borrower name is required.')
+    if (!form.uom) issues.push('Unit of measurement is required.')
+    if (!form.property_type_id) issues.push('Property type is required.')
+    if (!form.site_visit_date) issues.push('Site visit date is required.')
+    if (!form.report_due_date) issues.push('Report due date is required.')
 
     if (selectedServiceLine?.key === 'OTHERS' && !form.service_line_other_text.trim()) {
-      return 'Please add Other service description.'
+      issues.push('Please add Other service description.')
     }
 
     if (isBankCase) {
-      if (!form.bank_id) return 'Bank is required for BANK cases.'
-      if (!form.branch_id) return 'Branch is required for BANK cases.'
+      if (!form.bank_id) issues.push('Bank is required for BANK cases.')
+      if (!form.branch_id) issues.push('Branch is required for BANK cases.')
     } else if (!form.client_id && !form.valuer_client_name.trim()) {
-      return 'Client is required for non-bank cases (select one or type a name).'
+      issues.push('Client is required for non-bank cases. Select one or type a client name.')
     }
 
     if ((effectivePolicy?.uom_required ?? true) && !form.uom) {
-      return 'UOM is required for selected service line policy.'
+      issues.push('UOM is required for the selected service line policy.')
+    }
+
+    if ((effectivePolicy?.requires || []).includes('NORMAL_LAND')) {
+      const landArea = Number(form.land_area)
+      if (!Number.isFinite(landArea) || landArea <= 0) {
+        issues.push('Land area is required for this service line policy.')
+      }
+    }
+
+    if ((effectivePolicy?.requires || []).includes('BUILT_UP')) {
+      if (multiFloorEnabled) {
+        const validFloors = floors.filter((row) => row.floor_name.trim() && Number(row.area) > 0)
+        if (validFloors.length === 0) {
+          issues.push('At least one valid floor row is required when built-up area is tracked floor-wise.')
+        }
+      } else {
+        const builtupArea = Number(form.builtup_area)
+        if (!Number.isFinite(builtupArea) || builtupArea <= 0) {
+          issues.push('Built-up area is required for this service line policy.')
+        }
+      }
     }
 
     if ((effectivePolicy?.requires || []).includes('SURVEY_ROWS')) {
       const validRows = surveyRows.filter((row) => row.survey_no.trim())
       if (validRows.length === 0) {
-        return 'At least one survey row is required for this service line policy.'
+        issues.push('At least one survey row is required for this service line policy.')
       }
     }
 
-    return null
+    return issues
   }
 
   async function uploadInitialDocuments(assignmentId) {
@@ -540,10 +583,12 @@ export default function NewAssignment() {
     e.preventDefault()
     setError(null)
     setNotice(null)
+    setFormErrors([])
 
-    const validationError = validateForm()
-    if (validationError) {
-      setError(validationError)
+    const validationErrors = validateForm()
+    if (validationErrors.length > 0) {
+      setError('Fill the required assignment details before creating it.')
+      setFormErrors(validationErrors)
       return
     }
 
@@ -609,8 +654,8 @@ export default function NewAssignment() {
         status: form.status,
         assigned_to_user_id: form.assigned_to_user_id ? Number(form.assigned_to_user_id) : null,
         assignee_user_ids: assigneeIds.size > 0 ? Array.from(assigneeIds) : [],
-        site_visit_date: toIso(form.site_visit_date),
-        report_due_date: toIso(form.report_due_date),
+        site_visit_date: combineLocalDateAndTime(form.site_visit_date, currentLocalTimeString()),
+        report_due_date: combineLocalDateAndTime(form.report_due_date, '18:00'),
         notes: form.notes.trim() || null,
         floors: multiFloorEnabled && showBuiltUp ? floorsPayload : [],
         land_surveys: surveyPayload,
@@ -688,11 +733,21 @@ export default function NewAssignment() {
 
       {notice ? <div className="empty" style={{ marginBottom: '0.9rem' }}>{notice}</div> : null}
       {error ? <div className="empty" style={{ marginBottom: '0.9rem' }}>{error}</div> : null}
+      {formErrors.length > 0 ? (
+        <div className="empty" style={{ marginBottom: '0.9rem' }}>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>Required before create</div>
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            {formErrors.map((issue) => (
+              <li key={issue}>{issue}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="muted">Loading reference data...</div>
       ) : (
-        <form className="grid" onSubmit={handleSubmit}>
+        <form className="grid" noValidate onSubmit={handleSubmit}>
           <div className="grid cols-4">
             <Stat label="Banks" value={banks.length} help="Active bank records available for assignment." />
             <Stat label="Branches" value={branches.length} help="Branch records linked to banks." />
@@ -1024,12 +1079,18 @@ export default function NewAssignment() {
               )}
 
               <label className="grid" style={{ gap: 6 }}>
-                <span className="kicker">Site Visit</span>
-                <input type="datetime-local" value={form.site_visit_date} onChange={(e) => updateForm('site_visit_date', e.target.value)} />
+                <span className="kicker">Site Visit Date</span>
+                <input type="date" value={form.site_visit_date} onChange={(e) => updateForm('site_visit_date', e.target.value)} />
+                <span className="muted" style={{ fontSize: 12 }}>
+                  Time is captured automatically when the assignment is created.
+                </span>
               </label>
               <label className="grid" style={{ gap: 6 }}>
-                <span className="kicker">Report Due</span>
-                <input type="datetime-local" value={form.report_due_date} onChange={(e) => updateForm('report_due_date', e.target.value)} />
+                <span className="kicker">Report Due Date</span>
+                <input type="date" value={form.report_due_date} onChange={(e) => updateForm('report_due_date', e.target.value)} />
+                <span className="muted" style={{ fontSize: 12 }}>
+                  SLA due time defaults to 6:00 PM unless adjusted later in ops.
+                </span>
               </label>
             </div>
 

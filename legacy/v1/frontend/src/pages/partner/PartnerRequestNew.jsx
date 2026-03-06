@@ -50,6 +50,7 @@ export default function PartnerRequestNew() {
   const [saving, setSaving] = useState(false)
   const [notice, setNotice] = useState(null)
   const [error, setError] = useState(null)
+  const [formErrors, setFormErrors] = useState([])
 
   useEffect(() => {
     let cancelled = false
@@ -133,6 +134,32 @@ export default function PartnerRequestNew() {
     floors.reduce((sum, floor) => sum + (Number(floor.area) || 0), 0)
   ), [floors])
 
+  function validateForm({ submit } = { submit: false }) {
+    if (!submit) return []
+
+    const issues = []
+    const validFloors = floors.filter((floor) => floor.floor_name?.trim() && Number(floor.area) > 0)
+    const hasBank = Boolean(form.bank_id) || Boolean(form.bank_name?.trim())
+    const hasBranch = Boolean(form.branch_id) || Boolean(form.branch_name?.trim())
+    const hasArea = Number(form.land_area) > 0 || Number(form.builtup_area) > 0 || validFloors.length > 0
+
+    if (!form.service_line) issues.push('Service line is required before submitting.')
+    if (!hasBank) issues.push('Bank name is required before submitting.')
+    if (!hasBranch) issues.push('Branch name is required before submitting.')
+    if (!form.borrower_name?.trim()) issues.push('Borrower name is required before submitting.')
+    if (!form.phone?.trim()) issues.push('Phone number is required before submitting.')
+    if (!(form.property_type?.trim() || form.property_type_id)) {
+      issues.push('Property type is required before submitting.')
+    }
+    if (!hasArea) issues.push('Add land area, built-up area, or floor-wise area before submitting.')
+    if (!form.address?.trim()) issues.push('Property address is required before submitting.')
+    if (multiFloorEnabled && validFloors.length === 0) {
+      issues.push('Add at least one valid floor row before submitting.')
+    }
+
+    return issues
+  }
+
   function buildPayload() {
     const payload = {
       bank_id: form.bank_id ? Number(form.bank_id) : null,
@@ -175,9 +202,17 @@ export default function PartnerRequestNew() {
   }
 
   async function handleSave({ submit } = { submit: false }) {
-    setSaving(true)
     setError(null)
     setNotice(null)
+    setFormErrors([])
+    const validationErrors = validateForm({ submit })
+    if (validationErrors.length > 0) {
+      setError('Fill the required request details before submitting for approval.')
+      setFormErrors(validationErrors)
+      return
+    }
+
+    setSaving(true)
     try {
       const payload = buildPayload()
       const commission = commissionId
@@ -209,12 +244,25 @@ export default function PartnerRequestNew() {
 
       {error ? <div className="empty" style={{ marginBottom: '0.9rem' }}>{error}</div> : null}
       {notice ? <div className="empty" style={{ marginBottom: '0.9rem' }}>{notice}</div> : null}
+      {formErrors.length > 0 ? (
+        <div className="empty" style={{ marginBottom: '0.9rem' }}>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>Required before submit</div>
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            {formErrors.map((issue) => (
+              <li key={issue}>{issue}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {loadingDraft ? <div className="muted">Loading draft…</div> : null}
 
       <div className="grid" style={{ gap: '1rem' }}>
         <Card>
           <CardHeader title="Case Details" subtitle="Tell us about the borrower and property." />
-          <div className="grid cols-2">
+          <div
+            className="grid"
+            style={{ gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}
+          >
             <label className="field">
               <span className="muted" style={{ fontSize: 12 }}>Service line</span>
               <select
@@ -234,16 +282,6 @@ export default function PartnerRequestNew() {
             />
             <input
               placeholder="Branch name"
-              value={form.branch_name}
-              onChange={(e) => setForm((prev) => ({ ...prev, branch_name: e.target.value }))}
-            />
-            <input
-              placeholder="Bank name (if not in list)"
-              value={form.bank_name}
-              onChange={(e) => setForm((prev) => ({ ...prev, bank_name: e.target.value }))}
-            />
-            <input
-              placeholder="Branch name (if not in list)"
               value={form.branch_name}
               onChange={(e) => setForm((prev) => ({ ...prev, branch_name: e.target.value }))}
             />
@@ -297,7 +335,11 @@ export default function PartnerRequestNew() {
             {multiFloorEnabled ? (
               <div className="grid" style={{ gap: 12 }}>
                 {floors.map((floor, index) => (
-                  <div key={floor.id || `floor-${index}`} className="grid cols-3">
+                  <div
+                    key={floor.id || `floor-${index}`}
+                    className="grid"
+                    style={{ gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}
+                  >
                     <input
                       placeholder="Floor name"
                       value={floor.floor_name}
@@ -345,7 +387,10 @@ export default function PartnerRequestNew() {
 
         <Card>
           <CardHeader title="Dates" subtitle="Optional scheduling references." />
-          <div className="grid cols-2">
+          <div
+            className="grid"
+            style={{ gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}
+          >
             <label className="field">
               <span className="muted" style={{ fontSize: 12 }}>Site visit date</span>
               <input

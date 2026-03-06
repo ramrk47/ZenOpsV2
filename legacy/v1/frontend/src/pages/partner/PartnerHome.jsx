@@ -143,7 +143,10 @@ export default function PartnerHome() {
             </Card>
           </PageGrid>
 
-          <div className="split" style={{ gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)' }}>
+          <div
+            className="split"
+            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}
+          >
             <Card>
               <CardHeader
                 title="Latest Updates"

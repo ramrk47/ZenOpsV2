@@ -94,9 +94,9 @@ git checkout <last-known-good-commit-or-tag>
 
 5. SettingsError parsing `associate_auto_approve_domains`
 - Keep this value valid when set manually:
-  - `ASSOCIATE_AUTO_APPROVE_DOMAINS=` (empty) or
-  - `ASSOCIATE_AUTO_APPROVE_DOMAINS=[]` or
-  - `ASSOCIATE_AUTO_APPROVE_DOMAINS=gmail.com,yahoo.com`
+  - `ASSOCIATE_AUTO_APPROVE_DOMAINS=[]`
+  - `ASSOCIATE_AUTO_APPROVE_DOMAINS=["gmail.com","yahoo.com"]`
+- `deploy_pilot_v1.sh` normalizes a blank value back to `[]` before migrations, but do not rely on stale env files.
 
 6. `no such service: reverse-proxy`
 - `docker-compose.hostinger.yml` does not define a `reverse-proxy` service.
