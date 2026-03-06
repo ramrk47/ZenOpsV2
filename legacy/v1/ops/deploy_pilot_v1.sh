@@ -8,6 +8,11 @@ PROJECT_NAME="${COMPOSE_PROJECT_NAME:-zenops}"
 COMPOSE_FILES=(-f docker-compose.hostinger.yml -f docker-compose.pilot.yml)
 DOMAIN="${ZENOPS_DOMAIN:-zenops.notalonestudios.com}"
 
+container_name() {
+  local service="$1"
+  printf '%s-%s-1' "${PROJECT_NAME//_/-}" "${service}"
+}
+
 log() {
   printf '[deploy-pilot-v1] %s\n' "$*"
 }
@@ -80,6 +85,36 @@ http_status() {
   curl -sS -o /tmp/deploy-pilot-v1.out -w '%{http_code}' --max-time 8 "$@" "${url}" || echo "000"
 }
 
+wait_for_container_healthy() {
+  local service="$1"
+  local timeout="${2:-90}"
+  local name
+  local deadline
+  local status
+
+  name="$(container_name "${service}")"
+  deadline=$((SECONDS + timeout))
+
+  while (( SECONDS < deadline )); do
+    status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "${name}" 2>/dev/null || true)"
+    case "${status}" in
+      healthy)
+        log "PASS ${name} is healthy"
+        return 0
+        ;;
+      running)
+        log "PASS ${name} is running"
+        return 0
+        ;;
+    esac
+    sleep 2
+  done
+
+  docker inspect "${name}" >/tmp/deploy-pilot-v1.inspect.log 2>&1 || true
+  cat /tmp/deploy-pilot-v1.inspect.log >&2 || true
+  fail_with_logs "Timed out waiting for ${name} to become healthy"
+}
+
 check_http_header_route() {
   local code
   code="$(http_status "http://127.0.0.1/" -I -H "Host: ${DOMAIN}")"
@@ -103,7 +138,16 @@ check_health_route() {
 check_traefik_router_api() {
   local routers_file="/tmp/deploy-pilot-v1.routers.json"
   local code
-  code="$(curl -sS -o "${routers_file}" -w '%{http_code}' --max-time 5 http://127.0.0.1:8088/api/http/routers || echo "000")"
+  local attempt
+  for attempt in $(seq 1 30); do
+    code="$(curl -sS -o "${routers_file}" -w '%{http_code}' --max-time 5 http://127.0.0.1:8088/api/http/routers || echo "000")"
+    if [[ "${code}" == "200" ]] && grep -qE '^\s*\[' "${routers_file}" && grep -q "zenops-web" "${routers_file}" && grep -q "zenops-api" "${routers_file}"; then
+      log "PASS Traefik router API JSON has zenops-web + zenops-api"
+      return 0
+    fi
+    sleep 2
+  done
+
   if [[ "${code}" != "200" ]]; then
     fail_with_logs "Traefik API router endpoint failed (HTTP ${code})"
   fi
@@ -111,11 +155,8 @@ check_traefik_router_api() {
     sed -n '1,80p' "${routers_file}" || true
     fail_with_logs "Traefik API router response is not valid JSON"
   fi
-  if ! grep -q "zenops-web" "${routers_file}" || ! grep -q "zenops-api" "${routers_file}"; then
-    sed -n '1,120p' "${routers_file}" || true
-    fail_with_logs "Traefik routers missing zenops-web or zenops-api"
-  fi
-  log "PASS Traefik router API JSON has zenops-web + zenops-api"
+  sed -n '1,120p' "${routers_file}" || true
+  fail_with_logs "Traefik routers missing zenops-web or zenops-api"
 }
 
 check_resolve_probe() {
@@ -169,6 +210,9 @@ else
   log "Starting API + email-worker + frontend"
   docker compose -p "${PROJECT_NAME}" "${COMPOSE_FILES[@]}" up -d api email-worker frontend || fail_with_logs "Failed starting app services"
 fi
+
+wait_for_container_healthy "api" 120
+wait_for_container_healthy "frontend" 120
 
 log "Running Traefik route checks for ${DOMAIN}"
 check_traefik_router_api
