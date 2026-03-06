@@ -200,6 +200,9 @@ docker network create traefik-proxy >/dev/null 2>&1 || true
 log "Rendering compose config sanity"
 docker compose -p "${PROJECT_NAME}" "${COMPOSE_FILES[@]}" config >/dev/null || fail_with_logs "docker compose config failed"
 
+log "Building API + frontend images from current checkout"
+docker compose -p "${PROJECT_NAME}" "${COMPOSE_FILES[@]}" build api frontend || fail_with_logs "docker compose build failed"
+
 log "Starting DB + uploads perms"
 docker compose -p "${PROJECT_NAME}" "${COMPOSE_FILES[@]}" up -d db uploads-perms || fail_with_logs "Failed starting db/uploads-perms"
 

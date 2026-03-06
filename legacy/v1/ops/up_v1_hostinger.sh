@@ -33,6 +33,9 @@ export COMPOSE_BAKE=false
 log "Ensuring external traefik network exists"
 docker network create traefik-proxy >/dev/null 2>&1 || true
 
+log "Building API + frontend images from current checkout"
+docker compose -p zenops -f docker-compose.hostinger.yml build api frontend
+
 log "Starting DB and uploads permissions sidecar"
 docker compose -p zenops -f docker-compose.hostinger.yml up -d db uploads-perms
 

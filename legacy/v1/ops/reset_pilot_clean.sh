@@ -19,6 +19,7 @@ USAGE
 fi
 
 echo "[reset-pilot] Ensuring DB/migrations are up"
+docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" build api frontend
 docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" up -d db uploads-perms
 docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" run --rm migrate
 
