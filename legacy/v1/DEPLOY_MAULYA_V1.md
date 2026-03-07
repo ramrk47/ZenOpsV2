@@ -34,22 +34,22 @@ You need to configure DNS records for the main domain and the required subdomain
     docker --version
     docker compose version
     ```
-3.  **Cleanup Previous Installation (If applicable):**
-    If you have a previous installation (e.g., in a different folder or under the old name), stop the containers and remove the directory:
+3.  **Navigate to the repository and update:**
+    If you already have `ZenOpsV2` cloned in your home directory, navigate to it and pull the latest changes:
     ```bash
-    # Navigate to the old directory (if known)
-    cd /path/to/old/zenops
-    docker compose down
-    
-    # Remove old directory
-    cd ~
-    rm -rf /path/to/old/zenops
+    cd ~/ZenOpsV2
+    git fetch origin
+    git checkout codex/v1-pilot-deploy-v1only
+    git pull --ff-only
+    git rev-parse --short HEAD
     ```
 
-4.  **Clone the deployment repository:**
+    *If you don't have it, clone it first:*
+    `git clone --branch codex/v1-pilot-deploy-v1only --single-branch https://github.com/ramrk47/ZenOpsV2.git ~/ZenOpsV2`
+
+4.  **Navigate to the V1 directory:**
     ```bash
-    git clone --branch codex/v1-pilot-deploy-v1only --single-branch https://github.com/ramrk47/ZenOpsV2.git /opt/maulya
-    cd /opt/maulya
+    cd ~/ZenOpsV2/legacy/v1
     ```
 
 ## 3. Bootstrapping the Production Environment (`app.maulya.in`)
