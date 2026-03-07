@@ -9,13 +9,13 @@ services:
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-zenops}
-      POSTGRES_USER: ${POSTGRES_USER:-zenops}
+      POSTGRES_DB: ${POSTGRES_DB:-maulya}
+      POSTGRES_USER: ${POSTGRES_USER:-maulya}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zenops} -d ${POSTGRES_DB:-zenops}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-maulya} -d ${POSTGRES_DB:-maulya}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -125,10 +125,10 @@ services:
     environment:
       PGHOST: db
       PGPORT: "5432"
-      PGUSER: ${POSTGRES_USER:-zenops}
+      PGUSER: ${POSTGRES_USER:-maulya}
       PGPASSWORD: ${POSTGRES_PASSWORD:-change_me}
-      PGDATABASE: ${POSTGRES_DB:-zenops}
-      APP_NAME: zenops
+      PGDATABASE: ${POSTGRES_DB:-maulya}
+      APP_NAME: maulya
       BACKUP_DIR: /backups
       BACKUP_TIER_DIR: /backups/tiers
       UPLOADS_DIR: /uploads
@@ -148,7 +148,7 @@ services:
       STRUCTURED_UPLOADS_ROOT: ${STRUCTURED_UPLOADS_ROOT:-valuations}
       STRUCTURED_UPLOADS_DIR: /backups/structured_uploads
       RCLONE_CONFIG: /config/rclone/rclone.conf
-      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-zenops}:${POSTGRES_PASSWORD:-change_me}@db:5432/${POSTGRES_DB:-zenops}
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-maulya}:${POSTGRES_PASSWORD:-change_me}@db:5432/${POSTGRES_DB:-maulya}
     volumes:
       - ./deploy/backups:/backups
       - uploads:/uploads:ro
@@ -282,7 +282,7 @@ services:
     profiles: ["observability"]
     restart: unless-stopped
     environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-zenops}:${POSTGRES_PASSWORD:-change_me}@db:5432/${POSTGRES_DB:-zenops}?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-maulya}:${POSTGRES_PASSWORD:-change_me}@db:5432/${POSTGRES_DB:-maulya}?sslmode=disable"
     depends_on:
       db:
         condition: service_healthy

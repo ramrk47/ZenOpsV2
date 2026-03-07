@@ -23,9 +23,9 @@ import { loadJson, saveJson } from '../utils/storage'
 import { useAuth } from '../auth/AuthContext'
 import { canSeeAdmin } from '../utils/rbac'
 
-const FILTERS_KEY = 'zenops.assignments.filters.v2'
-const PREFS_KEY = 'zenops.assignments.prefs.v2'
-const VIEWS_KEY = 'zenops.assignments.views.v1'
+const FILTERS_KEY = 'maulya.assignments.filters.v2'
+const PREFS_KEY = 'maulya.assignments.prefs.v2'
+const VIEWS_KEY = 'maulya.assignments.views.v1'
 
 const SERVICE_LINES = ['VALUATION', 'INDUSTRIAL', 'DPR', 'CMA']
 

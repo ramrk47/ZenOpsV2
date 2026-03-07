@@ -13,7 +13,7 @@ from app.utils.support_tokens import generate_support_token, verify_support_toke
 def test_admin(db: Session):
     """Create test admin user."""
     admin = User(
-        email="admin@zenops.com",
+        email="admin@maulya.in",
         full_name="Admin User",
         hashed_password="dummy",
         role=Role.ADMIN,
@@ -29,7 +29,7 @@ def test_admin(db: Session):
 def test_ops_manager(db: Session):
     """Create test ops manager user."""
     ops = User(
-        email="ops@zenops.com",
+        email="ops@maulya.in",
         full_name="Ops Manager",
         hashed_password="dummy",
         role=Role.OPS_MANAGER,

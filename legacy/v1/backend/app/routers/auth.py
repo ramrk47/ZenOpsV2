@@ -410,7 +410,7 @@ def totp_setup(
     totp = pyotp.TOTP(secret)
     provisioning_uri = totp.provisioning_uri(
         name=current_user.email,
-        issuer_name="Zen Ops",
+        issuer_name="Maulya",
     )
 
     return TOTPSetupResponse(

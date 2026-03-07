@@ -22,5 +22,5 @@ export function buildSupportMessage({ assignmentRef, supportLink }) {
   if (assignmentRef) {
     return `Hi, I need help for Assignment ${assignmentRef}.`
   }
-  return 'Hi, I need support with Zen Ops.'
+  return 'Hi, I need support with Maulya.'
 }

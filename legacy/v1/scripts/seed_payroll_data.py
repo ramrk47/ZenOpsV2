@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Seed script to populate zen-ops database with test payroll data
+Seed script to populate maulya database with test payroll data
 Usage: python3 seed_payroll_data.py
 """
 
@@ -33,10 +33,10 @@ def seed_payroll_data():
         # 1. Create or get test users
         print("📦 Creating test users...")
         
-        admin = session.query(User).filter_by(email="admin@zenops.local").first()
+        admin = session.query(User).filter_by(email="admin@maulya.local").first()
         if not admin:
             admin = User(
-                email="admin@zenops.local",
+                email="admin@maulya.local",
                 hashed_password=hash_password("admin123"),
                 full_name="Admin User",
                 is_active=True,
@@ -44,10 +44,10 @@ def seed_payroll_data():
             admin.roles = [Role.ADMIN]
             session.add(admin)
         
-        finance = session.query(User).filter_by(email="finance@zenops.local").first()
+        finance = session.query(User).filter_by(email="finance@maulya.local").first()
         if not finance:
             finance = User(
-                email="finance@zenops.local",
+                email="finance@maulya.local",
                 hashed_password=hash_password("finance123"),
                 full_name="Finance Manager",
                 is_active=True,
@@ -56,10 +56,10 @@ def seed_payroll_data():
             session.add(finance)
         
         # Test employees
-        emp1 = session.query(User).filter_by(email="emp1@zenops.local").first()
+        emp1 = session.query(User).filter_by(email="emp1@maulya.local").first()
         if not emp1:
             emp1 = User(
-                email="emp1@zenops.local",
+                email="emp1@maulya.local",
                 hashed_password=hash_password("emp123"),
                 full_name="Raj Kumar",
                 is_active=True,
@@ -67,10 +67,10 @@ def seed_payroll_data():
             emp1.roles = [Role.EMPLOYEE]
             session.add(emp1)
         
-        emp2 = session.query(User).filter_by(email="emp2@zenops.local").first()
+        emp2 = session.query(User).filter_by(email="emp2@maulya.local").first()
         if not emp2:
             emp2 = User(
-                email="emp2@zenops.local",
+                email="emp2@maulya.local",
                 hashed_password=hash_password("emp123"),
                 full_name="Priya Singh",
                 is_active=True,
@@ -253,19 +253,19 @@ def seed_payroll_data():
         print("✨ TEST DATA SEEDING COMPLETE")
         print("=" * 60)
         print(f"""
-Admin User:     admin@zenops.local / admin123
-Finance User:   finance@zenops.local / finance123
+Admin User:     admin@maulya.local / admin123
+Finance User:   finance@maulya.local / finance123
 
 Test Employees:
-  - Raj Kumar (emp1@zenops.local) - ₹50,000/month
-  - Priya Singh (emp2@zenops.local) - ₹35,000/month
+  - Raj Kumar (emp1@maulya.local) - ₹50,000/month
+  - Priya Singh (emp2@maulya.local) - ₹35,000/month
 
 Payroll Run Created: February 2026 (DRAFT)
   - Ready to calculate payroll
   - Work sessions recorded for Feb 1-28 (excluding Sundays)
 
 Next Steps:
-  1. Login to http://localhost with finance@zenops.local
+  1. Login to http://localhost with finance@maulya.local
   2. Go to Admin > Payroll > Payroll Runs
   3. Click on Feb 2026 run
   4. Click "Calculate Payroll"

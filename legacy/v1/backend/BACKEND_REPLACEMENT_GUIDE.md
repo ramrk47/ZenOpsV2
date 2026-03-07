@@ -1,6 +1,6 @@
-# Backend Replacement Guide (Zen Ops Repo)
+# Backend Replacement Guide (Maulya Repo)
 
-This backend was fully restructured. Follow these steps to swap it into your `zen-ops` repo safely.
+This backend was fully restructured. Follow these steps to swap it into your `maulya` repo safely.
 
 ## 1. Back up your current backend
 
@@ -16,9 +16,9 @@ Copy this entire folder as the new `backend/`.
 
 Your repo should look like:
 
-- `zen-ops/backend/app/...`
-- `zen-ops/backend/alembic/...`
-- `zen-ops/backend/requirements.txt`
+- `maulya/backend/app/...`
+- `maulya/backend/alembic/...`
+- `maulya/backend/requirements.txt`
 
 ## 3. Set up Python + dependencies
 
@@ -37,8 +37,8 @@ cp .env.example .env
 
 Defaults are already aligned to your local Postgres:
 
-- DB name: `zenops`
-- URL: `postgresql+psycopg2://postgres@localhost:5432/zenops`
+- DB name: `maulya`
+- URL: `postgresql+psycopg2://postgres@localhost:5432/maulya`
 
 Set a strong `JWT_SECRET` in `.env`.
 
@@ -50,10 +50,10 @@ alembic upgrade head
 
 ### If you have old tables/types
 
-This will **wipe existing backend data** in `zenops`:
+This will **wipe existing backend data** in `maulya`:
 
 ```bash
-psql -d zenops -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+psql -d maulya -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 alembic upgrade head
 ```
 
@@ -65,7 +65,7 @@ python -m app.seed
 
 Admin login:
 
-- `admin@zenops.local`
+- `admin@maulya.local`
 - `password`
 
 ## 7. Start the API

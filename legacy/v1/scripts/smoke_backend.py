@@ -27,21 +27,21 @@ from app.models.user import User
 def seed_users():
     with SessionLocal() as db:
         admin = User(
-            email="admin@zenops.local",
+            email="admin@maulya.local",
             hashed_password=get_password_hash("password"),
             full_name="Admin User",
             role=Role.ADMIN,
             is_active=True,
         )
         finance = User(
-            email="finance@zenops.local",
+            email="finance@maulya.local",
             hashed_password=get_password_hash("password"),
             full_name="Finance User",
             role=Role.FINANCE,
             is_active=True,
         )
         assignee = User(
-            email="assistant@zenops.local",
+            email="assistant@maulya.local",
             hashed_password=get_password_hash("password"),
             full_name="Assistant",
             role=Role.ASSISTANT_VALUER,
@@ -78,14 +78,14 @@ def get_token(client: TestClient, email: str, password: str) -> str:
 def main():
     ensure_bootstrap()
 
-    admin_id = get_user_id("admin@zenops.local")
-    finance_id = get_user_id("finance@zenops.local")
-    assistant_id = get_user_id("assistant@zenops.local")
+    admin_id = get_user_id("admin@maulya.local")
+    finance_id = get_user_id("finance@maulya.local")
+    assistant_id = get_user_id("assistant@maulya.local")
 
     client = TestClient(app)
-    admin_token = get_token(client, "admin@zenops.local", "password")
-    finance_token = get_token(client, "finance@zenops.local", "password")
-    assistant_token = get_token(client, "assistant@zenops.local", "password")
+    admin_token = get_token(client, "admin@maulya.local", "password")
+    finance_token = get_token(client, "finance@maulya.local", "password")
+    assistant_token = get_token(client, "assistant@maulya.local", "password")
 
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
     finance_headers = {"Authorization": f"Bearer {finance_token}"}

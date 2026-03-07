@@ -13,7 +13,7 @@ const {
 } = require('./_harness');
 
 const BASE_URL = 'http://localhost';
-const ADMIN_EMAIL = 'admin@zenops.local';
+const ADMIN_EMAIL = 'admin@maulya.local';
 const ADMIN_PASSWORD = 'password';
 const QA_PREFIX = `QA_TEST_${nowStamp()}`;
 

@@ -5,45 +5,45 @@
 - Keep TLS and CORS aligned while domain cutover happens.
 
 ## Current Example
-- Active domain: `zenops.notalonestudios.com`
+- Active domain: `app.maulya.in`
 - VPS IP: `89.116.134.199`
 
 ## 1) Add DNS Records (New Domain)
-For new target domain `new-zenops.example.com`:
+For new target domain `new-app.maulya.in`:
 - Create `A` record:
-  - Host: `new-zenops`
+  - Host: `new-maulya`
   - Value: `89.116.134.199`
   - TTL: 300 (recommended during cutover)
 
 Validate from VPS:
 ```bash
-dig +short new-zenops.example.com
+dig +short new-app.maulya.in
 ```
 
 ## 2) Update V1 Environment
 Edit `legacy/v1/.env`:
-- `ZENOPS_DOMAIN=new-zenops.example.com`
+- `APP_DOMAIN=new-app.maulya.in`
 
 Edit `legacy/v1/.env.backend`:
-- `PUBLIC_BASE_URL=https://new-zenops.example.com`
-- `ALLOW_ORIGINS=https://new-zenops.example.com`
+- `PUBLIC_BASE_URL=https://new-app.maulya.in`
+- `ALLOW_ORIGINS=https://new-app.maulya.in`
 
 Optional temporary dual-origin window (max 7 days):
-- `ALLOW_ORIGINS=https://new-zenops.example.com,https://old-zenops.example.com`
+- `ALLOW_ORIGINS=https://new-app.maulya.in,https://old-app.maulya.in`
 
 ## 3) Redeploy
 ```bash
-cd /opt/zenops/ZenOpsV2/legacy/v1
+cd /opt/maulya/maulya-v1/legacy/v1
 ./ops/deploy_pilot_v1.sh
 ```
 
 ## 4) Validate Before Full DNS Propagation
 Use `curl --resolve` to force host -> IP mapping:
 ```bash
-curl -I --resolve new-zenops.example.com:80:89.116.134.199 http://new-zenops.example.com/
-curl -Ik --resolve new-zenops.example.com:443:89.116.134.199 https://new-zenops.example.com/
-curl -s --resolve new-zenops.example.com:80:89.116.134.199 http://new-zenops.example.com/healthz
-curl -s --resolve new-zenops.example.com:80:89.116.134.199 http://new-zenops.example.com/readyz
+curl -I --resolve new-app.maulya.in:80:89.116.134.199 http://new-app.maulya.in/
+curl -Ik --resolve new-app.maulya.in:443:89.116.134.199 https://new-app.maulya.in/
+curl -s --resolve new-app.maulya.in:80:89.116.134.199 http://new-app.maulya.in/healthz
+curl -s --resolve new-app.maulya.in:80:89.116.134.199 http://new-app.maulya.in/readyz
 ```
 
 ## 5) Keep Old Domain Live for 7 Days
@@ -67,6 +67,6 @@ If new domain fails:
 
 ## 8) Quick Checklist
 - DNS A record resolves to VPS IP.
-- `ZENOPS_DOMAIN`, `PUBLIC_BASE_URL`, and `ALLOW_ORIGINS` are aligned.
+- `APP_DOMAIN`, `PUBLIC_BASE_URL`, and `ALLOW_ORIGINS` are aligned.
 - Traefik routes visible in `http://127.0.0.1:8088/api/http/routers`.
 - Host-header checks pass on local entrypoint.

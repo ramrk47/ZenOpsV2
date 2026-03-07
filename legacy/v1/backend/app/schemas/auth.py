@@ -34,7 +34,7 @@ class BackupCodeLoginRequest(ORMModel):
 class TOTPSetupResponse(ORMModel):
     secret: str
     provisioning_uri: str
-    issuer: str = "Zen Ops"
+    issuer: str = "Maulya"
     backup_codes: Optional[List[str]] = None
 
 
@@ -66,7 +66,7 @@ class CapabilityResponse(ORMModel):
 
 
 class BridgeTokenIssueRequest(ORMModel):
-    aud: str = "zenops-v2-bridge"
+    aud: str = "maulya-v1"
     expires_in_seconds: int = Field(default=300, ge=60, le=3600)
     tenant_key: Optional[str] = None
 

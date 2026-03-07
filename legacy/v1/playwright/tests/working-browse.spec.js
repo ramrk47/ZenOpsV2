@@ -28,7 +28,7 @@ test.describe('Working Browse', () => {
     const emailInput = page.locator('input').first();
     const passwordInput = page.locator('input').nth(1);
     
-    await emailInput.fill('admin@zenops.local');
+    await emailInput.fill('admin@maulya.local');
     await passwordInput.fill('password');
     await page.screenshot({ path: 'reports/screenshots/w-02-filled.png' });
     

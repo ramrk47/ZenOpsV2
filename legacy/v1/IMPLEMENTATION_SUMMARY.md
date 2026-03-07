@@ -1,4 +1,4 @@
-# Implementation Summary - Zen Ops Fixes & Features
+# Implementation Summary - Maulya Fixes & Features
 
 ## Date: 2026-02-09
 
@@ -51,11 +51,11 @@ cd backend && pytest tests/test_mentions.py -v
 **How to Test:**
 ```bash
 # Test restore (safe)
-cd /path/to/zen-ops
-MODE=test BACKUP_FILE=./deploy/backups/zenops_db_latest.dump ./ops/restore.sh
+cd /path/to/maulya
+MODE=test BACKUP_FILE=./deploy/backups/maulya_db_latest.dump ./ops/restore.sh
 
 # Verify
-docker exec zenops-restore-test-XXX psql -U zenops -d zenops -c '\dt'
+docker exec maulya-restore-test-XXX psql -U maulya -d maulya -c '\dt'
 ```
 
 ---

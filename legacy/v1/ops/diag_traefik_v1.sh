@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_NAME="${COMPOSE_PROJECT_NAME:-zenops}"
+PROJECT_NAME="${COMPOSE_PROJECT_NAME:-maulya}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
 
@@ -69,11 +69,11 @@ http_probe "traefik_routers" "http://127.0.0.1:8088/api/http/routers"
 http_probe "traefik_dashboard" "http://127.0.0.1:8088/dashboard/"
 
 log "Entrypoint probes (verbatim)"
-curl -v --max-time 5 -H "Host: zenops.notalonestudios.com" http://127.0.0.1/ || true
-curl -vk --max-time 5 https://127.0.0.1/ -H "Host: zenops.notalonestudios.com" || true
+curl -v --max-time 5 -H "Host: app.maulya.in" http://127.0.0.1/ || true
+curl -vk --max-time 5 https://127.0.0.1/ -H "Host: app.maulya.in" || true
 
-http_probe "entry_http" "http://127.0.0.1/" -H "Host: zenops.notalonestudios.com"
-http_probe "entry_https" "https://127.0.0.1/" -k -H "Host: zenops.notalonestudios.com"
+http_probe "entry_http" "http://127.0.0.1/" -H "Host: app.maulya.in"
+http_probe "entry_https" "https://127.0.0.1/" -k -H "Host: app.maulya.in"
 
 log "Bypass Traefik: API direct checks"
 if docker ps -a --format '{{.Names}}' | grep -Fxq "${api_container}"; then

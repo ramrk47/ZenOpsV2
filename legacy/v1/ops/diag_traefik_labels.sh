@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_NAME="${COMPOSE_PROJECT_NAME:-zenops}"
+PROJECT_NAME="${COMPOSE_PROJECT_NAME:-maulya}"
 
 log() {
   printf '[diag-traefik-labels] %s\n' "$*"

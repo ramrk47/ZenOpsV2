@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { toUserMessage } from '../api/client'
 import { resendAssociateVerification } from '../api/partner'
+import DemoMarker from '../components/DemoMarker'
 
 export default function PartnerRequestAccessSent() {
   const [searchParams] = useSearchParams()
@@ -41,92 +42,41 @@ export default function PartnerRequestAccessSent() {
   }
 
   return (
-    <div style={pageStyle}>
-      <div style={cardStyle}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>&#10003;</div>
-          <h2 style={{ margin: '0 0 8px' }}>Check Your Email</h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: 8 }}>
-            We sent a one-time verification link to <strong>{email || 'your inbox'}</strong>.
-          </p>
-          <p className="muted" style={{ marginBottom: 18 }}>
-            Verify your email to activate your External Associate onboarding flow.
-          </p>
-          <button type="button" style={btnStyle} onClick={handleResend} disabled={loading}>
+    <div className="public-shell">
+      <DemoMarker variant="public" className="public-demo-banner public-demo-banner--narrow" />
+      <div className="public-card public-card--narrow public-card--center">
+        <div className="public-badge">Associate Portal</div>
+        <h1 className="public-title">Check Your Email</h1>
+        <p className="public-lead">
+          We sent a one-time verification link to <strong>{email || 'your inbox'}</strong>. Verify it to activate the associate onboarding flow.
+        </p>
+
+        <div className="public-actions" style={{ justifyContent: 'center' }}>
+          <button type="button" onClick={handleResend} disabled={loading}>
             {loading ? 'Resending...' : 'Resend verification email'}
           </button>
-          {debugVerifyUrl ? (
-            <div
-              style={{
-                marginTop: 12,
-                textAlign: 'left',
-                background: 'rgba(255, 184, 77, 0.14)',
-                border: '1px solid rgba(255, 184, 77, 0.5)',
-                padding: 10,
-                borderRadius: 6,
-              }}
-            >
-              <div style={{ fontWeight: 600, marginBottom: 6 }}>Email disabled fallback (non-production)</div>
-              <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
-                Use this one-time verification link for pilot testing.
-              </div>
-              <div style={{ wordBreak: 'break-all', fontSize: 12, marginBottom: 8 }}>
-                <a href={debugVerifyUrl}>{debugVerifyUrl}</a>
-              </div>
-              <button type="button" style={{ ...btnStyle, marginTop: 0 }} onClick={handleCopyDebugLink}>
+          <Link to="/login" className="public-link">Back to Login</Link>
+        </div>
+
+        {message ? <div className="alert alert-ok">{message}</div> : null}
+        {error ? <div className="alert alert-danger">{error}</div> : null}
+
+        {debugVerifyUrl ? (
+          <div className="public-debug-box">
+            <strong>Email disabled fallback (non-production)</strong>
+            <div className="public-footnote">
+              Use this one-time verification link for pilot or demo environments where outbound email is intentionally disabled.
+            </div>
+            <a className="public-debug-link" href={debugVerifyUrl}>{debugVerifyUrl}</a>
+            <div className="public-actions">
+              <button type="button" className="secondary" onClick={handleCopyDebugLink}>
                 Copy verification link
               </button>
-              {copyStatus ? <div style={{ marginTop: 8, fontSize: 12 }}>{copyStatus}</div> : null}
+              {copyStatus ? <span className="public-footnote">{copyStatus}</span> : null}
             </div>
-          ) : null}
-          {message ? <p style={{ color: '#17653a', marginTop: 10 }}>{message}</p> : null}
-          {error ? <p style={{ color: '#b42318', marginTop: 10 }}>{error}</p> : null}
-          <div style={{ marginTop: 16 }}>
-            <Link to="/login" style={linkStyle}>
-              Back to Login
-            </Link>
           </div>
-        </div>
+        ) : null}
       </div>
     </div>
   )
-}
-
-const pageStyle = {
-  minHeight: '100vh',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'radial-gradient(circle at 18% 0%, rgba(91, 140, 255, 0.2), transparent 42%), radial-gradient(circle at 82% 100%, rgba(109, 224, 255, 0.14), transparent 40%), var(--bg)',
-  padding: 20,
-  color: 'var(--text)',
-}
-
-const cardStyle = {
-  background: 'color-mix(in srgb, var(--surface) 90%, #0b1224 10%)',
-  border: '1px solid var(--border)',
-  borderRadius: 12,
-  padding: '32px 36px',
-  maxWidth: 480,
-  width: '100%',
-  boxShadow: 'var(--shadow)',
-}
-
-const btnStyle = {
-  width: '100%',
-  padding: '10px',
-  marginTop: 6,
-  fontSize: 15,
-  fontWeight: 600,
-  border: 'none',
-  borderRadius: 6,
-  background: 'linear-gradient(120deg, var(--accent), #0db6b0)',
-  color: '#fff',
-  cursor: 'pointer',
-}
-
-const linkStyle = {
-  fontSize: 13,
-  color: 'var(--accent-2)',
-  textDecoration: 'none',
 }

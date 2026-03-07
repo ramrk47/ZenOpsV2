@@ -35,15 +35,15 @@ log "Ensuring external traefik network exists"
 docker network create traefik-proxy >/dev/null 2>&1 || true
 
 log "Building API + frontend images from current checkout"
-docker compose -p zenops "${COMPOSE_FILES[@]}" build api frontend
+docker compose -p maulya "${COMPOSE_FILES[@]}" build api frontend
 
 log "Starting DB and uploads permissions sidecar"
-docker compose -p zenops "${COMPOSE_FILES[@]}" up -d db uploads-perms
+docker compose -p maulya "${COMPOSE_FILES[@]}" up -d db uploads-perms
 
 log "Running migrations"
-docker compose -p zenops "${COMPOSE_FILES[@]}" run --rm migrate
+docker compose -p maulya "${COMPOSE_FILES[@]}" run --rm migrate
 
 log "Starting API, worker, frontend"
-docker compose -p zenops "${COMPOSE_FILES[@]}" up -d api email-worker frontend
+docker compose -p maulya "${COMPOSE_FILES[@]}" up -d api email-worker frontend
 
 log "V1 stack is up"

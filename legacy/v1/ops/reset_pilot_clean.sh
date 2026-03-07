@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-PROJECT_NAME="${COMPOSE_PROJECT_NAME:-zenops}"
+PROJECT_NAME="${COMPOSE_PROJECT_NAME:-maulya}"
 COMPOSE_FILES=(-f docker-compose.hostinger.yml -f docker-compose.pilot.yml)
 
 if [[ $# -lt 1 ]]; then

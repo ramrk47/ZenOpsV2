@@ -1,4 +1,4 @@
-# Git Workflow (Zen Ops)
+# Git Workflow (Maulya)
 
 ## Non-Negotiables
 - Do not reinitialize git.
@@ -49,7 +49,7 @@ If any of these are tracked, remove them safely:
 
 ## Optional: Git Worktree for Parallel Work
 Use worktrees to isolate multiple AI tool changes without branch collisions.
-- `git worktree add ../zen-ops-feat-xyz feat/xyz`
-- `git worktree add ../zen-ops-fix-abc fix/abc`
+- `git worktree add ../maulya-feat-xyz feat/xyz`
+- `git worktree add ../maulya-fix-abc fix/abc`
 - `git worktree list`
-- `git worktree remove ../zen-ops-feat-xyz`
+- `git worktree remove ../maulya-feat-xyz`

@@ -4,7 +4,7 @@
 Accepted
 
 ## Context
-Zen Ops generates notifications throughout the application — approval requests, task assignments, SLA warnings, invoice reminders, partner updates, and more. Initially, notifications were in-app only (a row in the `notifications` table rendered in the UI). Users requested email delivery so they could act on time-sensitive items without being logged in.
+Maulya generates notifications throughout the application — approval requests, task assignments, SLA warnings, invoice reminders, partner updates, and more. Initially, notifications were in-app only (a row in the `notifications` table rendered in the UI). Users requested email delivery so they could act on time-sensitive items without being logged in.
 
 Key constraints:
 - Email sending is slow and unreliable (provider timeouts, rate limits, transient failures). It must not block the API request-response cycle.

@@ -11,7 +11,7 @@ import { formatDate, formatMoney, titleCase } from '../../utils/format'
 import { toUserMessage } from '../../api/client'
 import { loadJson, saveJson } from '../../utils/storage'
 
-const FILTERS_KEY = 'zenops.partner.payments.filters.v1'
+const FILTERS_KEY = 'maulya.partner.payments.filters.v1'
 
 function paymentTone(status) {
   if (status === 'PAID' || status === 'VERIFIED') return 'ok'

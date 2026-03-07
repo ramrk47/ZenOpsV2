@@ -10,7 +10,7 @@ import { formatDateTime, titleCase } from '../../utils/format'
 import { loadJson, saveJson } from '../../utils/storage'
 import { toUserMessage } from '../../api/client'
 
-const FILTERS_KEY = 'zenops.notificationDeliveries.filters.v1'
+const FILTERS_KEY = 'maulya.notificationDeliveries.filters.v1'
 
 const CHANNEL_OPTIONS = ['ALL', 'IN_APP', 'EMAIL']
 const STATUS_OPTIONS = ['ALL', 'PENDING', 'SENT', 'FAILED']

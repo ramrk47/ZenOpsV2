@@ -2,7 +2,7 @@
 
 ## Exact Commands
 
-Run from repo root: `/Users/dr.156/zen-ops`
+Run from repo root: `/Users/dr.156/maulya`
 
 ```bash
 # 1) Start core stack

@@ -18,7 +18,7 @@ test.describe('Manual Browse', () => {
     // Fill the email field (first input)
     if (inputCount >= 2) {
       await allInputs.nth(0).click();
-      await allInputs.nth(0).fill('admin@zenops.local');
+      await allInputs.nth(0).fill('admin@maulya.local');
       await page.waitForTimeout(300);
       
       await allInputs.nth(1).click(); 

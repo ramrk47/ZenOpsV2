@@ -4,8 +4,8 @@
 Define the minimal, enforceable operating rules while V1 stays the operational postpaid billing engine and V2 Studio owns credit truth.
 
 ## Ownership Boundary
-- V1 (`/Users/dr.156/zen-ops`) owns operational invoicing for early launch postpaid customers.
-- V2 (`/Users/dr.156/ZenOpsV2`) owns credit policy, credit ledger, reservations, and billing event truth.
+- V1 (`/Users/dr.156/maulya`) owns operational invoicing for early launch postpaid customers.
+- V2 (`/Users/dr.156/maulya-v1`) owns credit policy, credit ledger, reservations, and billing event truth.
 - Databases remain separate. No cross-DB SQL writes.
 
 ## Billing Modes

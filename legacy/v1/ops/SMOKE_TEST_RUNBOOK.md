@@ -1,21 +1,21 @@
-# Zen Ops Smoke Test Runbook (Hostinger)
+# Maulya Smoke Test Runbook (Hostinger)
 
 Use after each deploy.
 
 ## Prerequisites
-- `ZENOPS_DOMAIN` points to VPS IP.
+- `APP_DOMAIN` points to VPS IP.
 - Deployment completed with `./ops/deploy.sh`.
 
 ## Quick API checks
 ```bash
 # Internal API readiness (inside container)
-docker compose -f docker-compose.hostinger.yml -p zenops exec -T api curl -fsS http://127.0.0.1:8000/readyz
+docker compose -f docker-compose.hostinger.yml -p maulya exec -T api curl -fsS http://127.0.0.1:8000/readyz
 
 # Public API path routed by Traefik
-curl -fsS "https://${ZENOPS_DOMAIN}/readyz"
+curl -fsS "https://${APP_DOMAIN}/readyz"
 
 # Same-origin API route check
-curl -fsS "https://${ZENOPS_DOMAIN}/api/healthz"
+curl -fsS "https://${APP_DOMAIN}/api/healthz"
 ```
 
 ## UI smoke checklist
@@ -30,22 +30,22 @@ curl -fsS "https://${ZENOPS_DOMAIN}/api/healthz"
 ## Worker/ops checks
 ```bash
 # Service health
-docker compose -f docker-compose.hostinger.yml -p zenops ps
+docker compose -f docker-compose.hostinger.yml -p maulya ps
 
 # API logs
-docker compose -f docker-compose.hostinger.yml -p zenops logs --tail=200 api
+docker compose -f docker-compose.hostinger.yml -p maulya logs --tail=200 api
 
 # Frontend logs
-docker compose -f docker-compose.hostinger.yml -p zenops logs --tail=200 frontend
+docker compose -f docker-compose.hostinger.yml -p maulya logs --tail=200 frontend
 
 # Email worker logs
-docker compose -f docker-compose.hostinger.yml -p zenops logs --tail=200 email-worker
+docker compose -f docker-compose.hostinger.yml -p maulya logs --tail=200 email-worker
 ```
 
 ## Backup check
 ```bash
-COMPOSE_FILE=docker-compose.hostinger.yml COMPOSE_PROJECT_NAME=zenops ./ops/backup_now.sh
-ls -lah /opt/zenops/backups 2>/dev/null || ls -lah ./deploy/backups
+COMPOSE_FILE=docker-compose.hostinger.yml COMPOSE_PROJECT_NAME=maulya ./ops/backup_now.sh
+ls -lah /opt/maulya/backups 2>/dev/null || ls -lah ./deploy/backups
 ```
 
 ## Pass criteria

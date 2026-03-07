@@ -49,11 +49,11 @@ function nextStepText(commission, assignment) {
   if (commission.status === 'NEEDS_INFO') return 'Please respond to the requested documents or clarifications.'
   if (commission.status === 'REJECTED') return 'This request was closed. Contact the admin team if you need assistance.'
   if (commission.status === 'APPROVED' || commission.status === 'CONVERTED') {
-    if (!assignment) return 'Your request is approved and has been queued for internal processing.'
+    if (!assignment) return 'Your request is approved and is being prepared for delivery.'
     if (assignment.payment_status === 'REQUESTED') return 'Payment is required to unlock the final report.'
     if (assignment.payment_status === 'PROOF_SUBMITTED') return 'Payment proof submitted. Awaiting verification.'
     if (assignment.payment_status === 'VERIFIED') return 'Payment verified. Final deliverables are available.'
-    return 'Internal team is working on the report.'
+    return 'The Maulya team is working on the report.'
   }
   return 'Your request is being processed.'
 }
@@ -383,7 +383,7 @@ export default function PartnerRequestDetail() {
           </Card>
 
           <Card>
-            <CardHeader title="Requested Documents" subtitle="Respond to internal requests." />
+            <CardHeader title="Requested Documents" subtitle="Respond to document requests from the Maulya team." />
             {pendingRequests.length === 0 ? (
               <EmptyState>No outstanding document requests.</EmptyState>
             ) : (

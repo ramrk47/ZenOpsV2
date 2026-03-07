@@ -4,19 +4,19 @@
 
 Run full suite:
 ```bash
-cd /Users/sriramrk/ZenOpsV2/legacy/v1
+cd legacy/v1
 ./ops/e2e_full.sh
 ```
 
 Run a single spec:
 ```bash
-cd /Users/sriramrk/ZenOpsV2/legacy/v1/frontend
+cd legacy/v1/frontend
 npx playwright test --config=playwright.config.ts playwright/tests/associate_onboarding.spec.ts
 ```
 
 Run a single test by title:
 ```bash
-cd /Users/sriramrk/ZenOpsV2/legacy/v1/frontend
+cd legacy/v1/frontend
 npx playwright test --config=playwright.config.ts -g "associate self-serve onboarding"
 ```
 
@@ -24,13 +24,13 @@ npx playwright test --config=playwright.config.ts -g "associate self-serve onboa
 
 Open HTML report:
 ```bash
-cd /Users/sriramrk/ZenOpsV2/legacy/v1/frontend
+cd legacy/v1/frontend
 npx playwright show-report playwright/test-results/html-report
 ```
 
 Open a trace artifact:
 ```bash
-cd /Users/sriramrk/ZenOpsV2/legacy/v1/frontend
+cd legacy/v1/frontend
 npx playwright show-trace playwright/test-results/artifacts/<test-folder>/trace.zip
 ```
 

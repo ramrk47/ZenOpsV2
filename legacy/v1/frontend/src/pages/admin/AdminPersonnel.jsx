@@ -44,7 +44,7 @@ const PERSONNEL_TABS = [
   { key: 'partners', label: 'Associates' },
 ]
 
-const FILTERS_KEY = 'zenops.personnel.filters.v1'
+const FILTERS_KEY = 'maulya.personnel.filters.v1'
 
 export default function AdminPersonnel() {
   const { user: currentUser } = useAuth()
@@ -1263,7 +1263,7 @@ export default function AdminPersonnel() {
             <form className="grid" onSubmit={handleCreateUser}>
               <label className="grid" style={{ gap: 6 }}>
                 <span className="kicker">Email</span>
-                <input type="email" value={form.email} onChange={(e) => updateForm('email', e.target.value)} placeholder="name@zenops.local" />
+                <input type="email" value={form.email} onChange={(e) => updateForm('email', e.target.value)} placeholder="name@maulya.local" />
               </label>
 
               <label className="grid" style={{ gap: 6 }}>

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Disable Zen Ops Scheduled Backups
+# Disable Maulya Scheduled Backups
 # Stops backup-cron and backup-dispatcher services
 #
 set -euo pipefail

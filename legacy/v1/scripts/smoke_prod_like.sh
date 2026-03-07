@@ -14,7 +14,7 @@ SMOKE_HOST_PORT="${SMOKE_HOST_PORT:-}"
 RATE_LIMIT_PROBE_ATTEMPTS="${RATE_LIMIT_PROBE_ATTEMPTS:-6}"
 SMOKE_ALLOWED_ORIGIN="${SMOKE_ALLOWED_ORIGIN:-https://portal.example.com}"
 SMOKE_JWT_SECRET="${SMOKE_JWT_SECRET:-phase8-smoke-super-secret-1234567890}"
-SMOKE_DATABASE_URL="${SMOKE_DATABASE_URL:-postgresql+psycopg2://zenops:change%5Fme@db:5432/zenops}"
+SMOKE_DATABASE_URL="${SMOKE_DATABASE_URL:-postgresql+psycopg2://maulya:change%5Fme@db:5432/maulya}"
 SMOKE_ASSOCIATE_PASSWORD="${SMOKE_ASSOCIATE_PASSWORD:-Associate!234}"
 SMOKE_ASSOCIATE_EMAIL="${SMOKE_ASSOCIATE_EMAIL:-smoke-associate-$(date +%s)@example.com}"
 SMOKE_CONTAINER_IDS=()
@@ -92,13 +92,13 @@ if ! wait_ready 120; then
   exit 1
 fi
 
-REQUEST_CODE="$(curl -s -o /tmp/zenops_request_access.json -w '%{http_code}' \
+REQUEST_CODE="$(curl -s -o /tmp/maulya_request_access.json -w '%{http_code}' \
   -X POST "$CURL_BASE/api/partner/request-access" \
   -H 'Content-Type: application/json' \
   --data "{\"company_name\":\"Smoke Associate Co\",\"contact_name\":\"Smoke Associate\",\"email\":\"$SMOKE_ASSOCIATE_EMAIL\",\"phone\":\"9999999999\",\"city\":\"Chennai\",\"requested_interface\":\"associate\"}")"
 if [ "$REQUEST_CODE" -ne 201 ]; then
   echo "Expected request-access to return 201, got $REQUEST_CODE" >&2
-  cat /tmp/zenops_request_access.json >&2 || true
+  cat /tmp/maulya_request_access.json >&2 || true
   exit 1
 fi
 echo "  request-access status => $REQUEST_CODE"
@@ -143,24 +143,24 @@ if [ -z "$VERIFY_TOKEN" ]; then
   exit 1
 fi
 
-VERIFY_CODE="$(curl -s -o /tmp/zenops_verify_access.json -w '%{http_code}' \
+VERIFY_CODE="$(curl -s -o /tmp/maulya_verify_access.json -w '%{http_code}' \
   -X POST "$CURL_BASE/api/partner/verify-access-token" \
   -H 'Content-Type: application/json' \
   --data "{\"token\":\"$VERIFY_TOKEN\"}")"
 if [ "$VERIFY_CODE" -ne 200 ]; then
   echo "Expected verify-access-token to return 200, got $VERIFY_CODE" >&2
-  cat /tmp/zenops_verify_access.json >&2 || true
+  cat /tmp/maulya_verify_access.json >&2 || true
   exit 1
 fi
 VERIFY_STATUS="$(python3 - <<'PY'
 import json
-with open("/tmp/zenops_verify_access.json", "r", encoding="utf-8") as fp:
+with open("/tmp/maulya_verify_access.json", "r", encoding="utf-8") as fp:
     print((json.load(fp).get("status") or "").strip())
 PY
 )"
 if [ "$VERIFY_STATUS" != "APPROVED" ] && [ "$VERIFY_STATUS" != "VERIFIED_PENDING_REVIEW" ]; then
   echo "Unexpected verify status: $VERIFY_STATUS" >&2
-  cat /tmp/zenops_verify_access.json >&2 || true
+  cat /tmp/maulya_verify_access.json >&2 || true
   exit 1
 fi
 echo "  verify-access-token status => $VERIFY_CODE ($VERIFY_STATUS)"
@@ -198,10 +198,10 @@ echo "$HEADERS" | grep -qi '^permissions-policy:' || { echo "Missing Permissions
 echo "$HEADERS" | grep -qi '^content-security-policy-report-only:' || { echo "Missing CSP report-only header" >&2; exit 1; }
 
 echo "[smoke] CORS production-origin enforcement"
-CORS_CODE="$(curl -s -o /tmp/zenops_cors_probe.json -w '%{http_code}' -H 'Origin: https://evil.example.com' "$CURL_BASE/version")"
+CORS_CODE="$(curl -s -o /tmp/maulya_cors_probe.json -w '%{http_code}' -H 'Origin: https://evil.example.com' "$CURL_BASE/version")"
 if [ "$CORS_CODE" -ne 403 ]; then
   echo "Expected 403 for unknown Origin, got $CORS_CODE" >&2
-  cat /tmp/zenops_cors_probe.json >&2 || true
+  cat /tmp/maulya_cors_probe.json >&2 || true
   exit 1
 fi
 echo "  unknown-origin status => $CORS_CODE"
@@ -209,45 +209,45 @@ echo "  unknown-origin status => $CORS_CODE"
 echo "[smoke] login rate-limit probe"
 LAST_LOGIN_CODE="000"
 for _ in $(seq 1 "$RATE_LIMIT_PROBE_ATTEMPTS"); do
-  LAST_LOGIN_CODE="$(curl -s -o /tmp/zenops_login_probe.json -w '%{http_code}' -X POST "$CURL_BASE/api/auth/login" -H 'Content-Type: application/x-www-form-urlencoded' --data 'username=smoke-rate-limit@example.com&password=invalid')"
+  LAST_LOGIN_CODE="$(curl -s -o /tmp/maulya_login_probe.json -w '%{http_code}' -X POST "$CURL_BASE/api/auth/login" -H 'Content-Type: application/x-www-form-urlencoded' --data 'username=smoke-rate-limit@example.com&password=invalid')"
 done
 if [ "$LAST_LOGIN_CODE" -ne 429 ]; then
   echo "Expected login rate limit to trigger 429, got $LAST_LOGIN_CODE" >&2
-  cat /tmp/zenops_login_probe.json >&2 || true
+  cat /tmp/maulya_login_probe.json >&2 || true
   exit 1
 fi
 echo "  login rate-limit status => $LAST_LOGIN_CODE"
 
 echo "[smoke] backups endpoint admin-only guard"
-ASSOC_LOGIN_CODE="$(curl -s -o /tmp/zenops_associate_login.json -w '%{http_code}' \
+ASSOC_LOGIN_CODE="$(curl -s -o /tmp/maulya_associate_login.json -w '%{http_code}' \
   -X POST "$CURL_BASE/api/auth/login" \
   -H 'Content-Type: application/x-www-form-urlencoded' \
   --data-urlencode "username=$SMOKE_ASSOCIATE_EMAIL" \
   --data-urlencode "password=$SMOKE_ASSOCIATE_PASSWORD")"
 if [ "$ASSOC_LOGIN_CODE" -ne 200 ]; then
   echo "Expected associate login to return 200, got $ASSOC_LOGIN_CODE" >&2
-  cat /tmp/zenops_associate_login.json >&2 || true
+  cat /tmp/maulya_associate_login.json >&2 || true
   exit 1
 fi
 
 ASSOC_TOKEN="$(python3 - <<'PY'
 import json
-with open("/tmp/zenops_associate_login.json", "r", encoding="utf-8") as fp:
+with open("/tmp/maulya_associate_login.json", "r", encoding="utf-8") as fp:
     print((json.load(fp).get("access_token") or "").strip())
 PY
 )"
 if [ -z "$ASSOC_TOKEN" ]; then
   echo "Associate login did not return an access token" >&2
-  cat /tmp/zenops_associate_login.json >&2 || true
+  cat /tmp/maulya_associate_login.json >&2 || true
   exit 1
 fi
 
-BACKUPS_CODE="$(curl -s -o /tmp/zenops_backups_guard.json -w '%{http_code}' \
+BACKUPS_CODE="$(curl -s -o /tmp/maulya_backups_guard.json -w '%{http_code}' \
   -H "Authorization: Bearer $ASSOC_TOKEN" \
   "$CURL_BASE/api/backups")"
 if [ "$BACKUPS_CODE" -ne 403 ]; then
   echo "Expected /api/backups to deny non-admin with 403, got $BACKUPS_CODE" >&2
-  cat /tmp/zenops_backups_guard.json >&2 || true
+  cat /tmp/maulya_backups_guard.json >&2 || true
   exit 1
 fi
 echo "  backups non-admin guard status => $BACKUPS_CODE"

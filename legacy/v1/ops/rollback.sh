@@ -13,7 +13,7 @@ if [ ! -f "$DEFAULT_COMPOSE_FILE" ]; then
 fi
 
 COMPOSE_FILE="${COMPOSE_FILE:-$DEFAULT_COMPOSE_FILE}"
-COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-zenops}"
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-maulya}"
 STATE_FILE="${STATE_FILE:-ops/releases/previous-images.env}"
 
 log() {
@@ -67,17 +67,17 @@ log "  frontend         -> $PREVIOUS_FRONTEND_IMAGE"
 log "  email-worker     -> $PREVIOUS_EMAIL_WORKER_IMAGE"
 
 if [ "$PREVIOUS_EMAIL_WORKER_IMAGE" != "$PREVIOUS_API_IMAGE" ]; then
-  log "NOTE: compose currently shares ZENOPS_API_IMAGE for api/email-worker; email-worker will use $PREVIOUS_API_IMAGE"
+  log "NOTE: compose currently shares MAULYA_API_IMAGE for api/email-worker; email-worker will use $PREVIOUS_API_IMAGE"
 fi
 
 env \
-  ZENOPS_API_IMAGE="$PREVIOUS_API_IMAGE" \
-  ZENOPS_FRONTEND_IMAGE="$PREVIOUS_FRONTEND_IMAGE" \
+  MAULYA_API_IMAGE="$PREVIOUS_API_IMAGE" \
+  MAULYA_FRONTEND_IMAGE="$PREVIOUS_FRONTEND_IMAGE" \
   docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" pull --ignore-pull-failures api frontend || true
 
 env \
-  ZENOPS_API_IMAGE="$PREVIOUS_API_IMAGE" \
-  ZENOPS_FRONTEND_IMAGE="$PREVIOUS_FRONTEND_IMAGE" \
+  MAULYA_API_IMAGE="$PREVIOUS_API_IMAGE" \
+  MAULYA_FRONTEND_IMAGE="$PREVIOUS_FRONTEND_IMAGE" \
   docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" up -d --no-build db api frontend email-worker
 
 log "Rollback deployment applied."
@@ -86,6 +86,6 @@ log "Verify readiness: docker compose -f $COMPOSE_FILE -p $COMPOSE_PROJECT_NAME 
 echo ""
 echo "Database restore (manual, only if migration/data issue):"
 echo "  1) Pick backup file from ${BACKUP_DIR:-deploy/backups}"
-echo "  2) gunzip -c <backup.sql.gz> | docker compose -f $COMPOSE_FILE -p $COMPOSE_PROJECT_NAME exec -T db psql -U \"\${POSTGRES_USER:-zenops}\" -d \"\${POSTGRES_DB:-zenops}\""
+echo "  2) gunzip -c <backup.sql.gz> | docker compose -f $COMPOSE_FILE -p $COMPOSE_PROJECT_NAME exec -T db psql -U \"\${POSTGRES_USER:-maulya}\" -d \"\${POSTGRES_DB:-maulya}\""
 echo ""
 echo "WARNING: rollback.sh never drops/recreates volumes and never auto-restores DB."

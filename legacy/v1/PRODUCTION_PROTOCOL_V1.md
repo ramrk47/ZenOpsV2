@@ -1,4 +1,4 @@
-# Zen Ops Production Protocol v1 - Implementation Summary
+# Maulya Production Protocol v1 - Implementation Summary
 
 ## Files Created
 
@@ -41,7 +41,7 @@ The existing `docker-compose.yml` already has everything needed:
 ### 1. Deploy Application
 
 ```bash
-cd /path/to/zen-ops
+cd /path/to/maulya
 ./ops/deploy.sh
 ```
 
@@ -127,7 +127,7 @@ ls -lah ./deploy/backups | tail -10
 ### 8. Verify rclone Remote (if configured)
 
 ```bash
-docker compose --profile backup run --rm rclone lsf gdrive:ZenOpsBackups/ | tail -10
+docker compose --profile backup run --rm rclone lsf gdrive:MaulyaBackups/ | tail -10
 ```
 
 **Expected output:**
@@ -182,7 +182,7 @@ After deployment, verify:
 - ✅ ERR trap for failure detection
 - ✅ pg_dump failure will exit non-zero
 - ✅ rclone upload failure tracked
-- ✅ Timestamped filenames (`zenops_YYYYMMDD_HHMMSS`)
+- ✅ Timestamped filenames (`maulya_YYYYMMDD_HHMMSS`)
 - ✅ Retention policy enforced
 
 ---
@@ -196,7 +196,7 @@ After deployment, verify:
 - `HEALTH_URL=http://localhost/readyz` - Health check endpoint
 
 ### Backup Configuration (in .env or .env.backend)
-- `RCLONE_REMOTE=gdrive:ZenOpsBackups/production` - Remote backup destination
+- `RCLONE_REMOTE=gdrive:MaulyaBackups/production` - Remote backup destination
 - `RETAIN_LOCAL_DAYS=7` - Local retention (days)
 - `RETAIN_REMOTE_DAYS=30` - Remote retention (days)
 - `BACKUP_ENCRYPTION_KEY=<key>` - Optional encryption
@@ -239,7 +239,7 @@ docker compose up -d
 ## Directory Structure
 
 ```
-/opt/zen-ops/
+/opt/maulya/
 ├── docker-compose.yml       # ✅ No changes needed
 ├── .env                      # Main environment
 ├── .env.backend              # Backend environment
@@ -279,7 +279,7 @@ docker compose up -d
 
 1. **Initial Setup** (if not done):
    ```bash
-   cd /opt/zen-ops
+   cd /opt/maulya
    ./ops/deploy.sh
    ./ops/enable_scheduled_backups.sh
    ```
@@ -299,7 +299,7 @@ docker compose up -d
 
 4. **Add to Cron** (monthly restore drill):
    ```cron
-   0 3 1 * * cd /opt/zen-ops && ./ops/restore.sh MODE=test BACKUP_FILE=$(ls -t ./deploy/backups/*.dump | head -1) >> /var/log/restore-drill.log 2>&1
+   0 3 1 * * cd /opt/maulya && ./ops/restore.sh MODE=test BACKUP_FILE=$(ls -t ./deploy/backups/*.dump | head -1) >> /var/log/restore-drill.log 2>&1
    ```
 
 ---

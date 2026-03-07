@@ -1,6 +1,6 @@
-# Zen Ops – Production Deploy on a Single VPS
+# Maulya – Production Deploy on a Single VPS
 
-This guide deploys Zen Ops with Docker Compose on a single VPS (FastAPI + Postgres + React/Vite).
+This guide deploys Maulya with Docker Compose on a single VPS (FastAPI + Postgres + React/Vite).
 
 ## Prerequisites
 
@@ -29,8 +29,8 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plug
 ## 2) Clone the repo
 
 ```bash
-git clone <your-repo-url> zen-ops
-cd zen-ops
+git clone <your-repo-url> maulya
+cd maulya
 ```
 
 ## 3) Create env files

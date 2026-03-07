@@ -1,12 +1,14 @@
-# Deploy V1-Only Pilot (Traefik + Hostinger)
+# Deploy Maulya V1 Pilot (Traefik + Hostinger)
 
 ## Scope
-- Deploys only `legacy/v1` on `https://zenops.notalonestudios.com`.
-- Repogen/V2 are not deployed in this flow.
+- Deploys only `legacy/v1` on `https://app.maulya.in`.
+- No V2 sidecar is deployed in this flow.
 
 ## DNS
-- Required record:
-  - `A  zenops.notalonestudios.com  -> 89.116.134.199`
+- Required records:
+  - `A  app.maulya.in   -> 89.116.134.199`
+  - `A  demo.maulya.in  -> 89.116.134.199`
+  - `A  maulya.in       -> 89.116.134.199`
 
 ## Ports / Firewall
 - Open inbound TCP: `80`, `443`.
@@ -18,16 +20,16 @@
 
 Generate quickly:
 ```bash
-cd ~/ZenOpsV2/legacy/v1
-V1_DOMAIN=zenops.notalonestudios.com ./ops/bootstrap_v1_env.sh --force
+cd legacy/v1
+V1_DOMAIN=app.maulya.in ./ops/bootstrap_v1_env.sh --force
 ```
 
 ## VPS Deploy Commands (Copy/Paste)
 ```bash
 cd ~
-rm -rf ZenOpsV2
+rm -rf maulya-v1
 git clone --branch codex/v1-pilot-deploy-v1only --single-branch https://github.com/ramrk47/ZenOpsV2.git
-cd ~/ZenOpsV2/legacy/v1
+cd legacy/v1
 
 # optional: edit .env/.env.backend for production secrets
 nano .env
@@ -48,12 +50,12 @@ cd ../../
 # diagnostics + smoke
 ./ops/diag_traefik_v1.sh
 ./ops/diag_traefik_labels.sh
-SMOKE_ADMIN_EMAIL='admin@zenops.local' SMOKE_ADMIN_PASSWORD='password' ./ops/smoke_v1_only.sh
+SMOKE_ADMIN_EMAIL='admin@maulya.local' SMOKE_ADMIN_PASSWORD='password' ./ops/smoke_v1_only.sh
 ```
 
 ## Expected Outputs
 - `deploy_pilot_v1.sh`:
-  - `PASS Traefik router API JSON has zenops-web + zenops-api`
+  - `PASS Traefik router API JSON has maulya-web + maulya-api`
   - `PASS /healthz over Traefik host-header: HTTP 200`
   - `PASS /readyz over Traefik host-header: HTTP 200`
   - `PASS /version over Traefik host-header: HTTP 200`
@@ -65,7 +67,7 @@ SMOKE_ADMIN_EMAIL='admin@zenops.local' SMOKE_ADMIN_PASSWORD='password' ./ops/smo
 
 ## Rollback
 ```bash
-cd ~/ZenOpsV2/legacy/v1
+cd legacy/v1
 git fetch --all --tags
 git checkout <last-known-good-commit-or-tag>
 ./ops/deploy_pilot_v1.sh
@@ -90,7 +92,7 @@ git checkout <last-known-good-commit-or-tag>
 4. DB migrate timeout
 - Verify `.env` and `.env.backend` passwords match `DATABASE_URL`.
 - Reset volumes only for fresh install:
-  - `docker compose -p zenops -f docker-compose.hostinger.yml -f docker-compose.pilot.yml down -v`
+  - `docker compose -p maulya -f docker-compose.hostinger.yml -f docker-compose.pilot.yml down -v`
 
 5. SettingsError parsing `associate_auto_approve_domains`
 - Keep this value valid when set manually:

@@ -1,4 +1,4 @@
-# Zen Ops - Testing Checklist for Document Preview Fixes
+# Maulya - Testing Checklist for Document Preview Fixes
 
 ## Overview
 This checklist validates the 3 critical bug fixes implemented:
@@ -40,7 +40,7 @@ This checklist validates the 3 critical bug fixes implemented:
 
 **Backend Logs Check**:
 ```bash
-docker logs zen-ops-api-1 --tail 100 | grep -E "(ERROR|detached|f405)"
+docker logs maulya-api-1 --tail 100 | grep -E "(ERROR|detached|f405)"
 ```
 Should return no matches.
 
@@ -92,7 +92,7 @@ Should return no matches.
 
 **Backend Logs Check**:
 ```bash
-docker logs zen-ops-api-1 --tail 100 | grep "mentioned_user_ids"
+docker logs maulya-api-1 --tail 100 | grep "mentioned_user_ids"
 ```
 Should show resolved user IDs.
 
@@ -198,7 +198,7 @@ Should show resolved user IDs.
 
 ### Backend Unit Tests
 ```bash
-cd /Users/dr.156/zen-ops/backend
+cd /Users/dr.156/maulya/backend
 pytest tests/test_mentions.py -v
 ```
 
@@ -206,7 +206,7 @@ pytest tests/test_mentions.py -v
 
 ### Frontend Build Check
 ```bash
-cd /Users/dr.156/zen-ops/frontend
+cd /Users/dr.156/maulya/frontend
 npm run build
 ```
 
@@ -218,25 +218,25 @@ npm run build
 
 ### Check for Async Errors
 ```bash
-docker logs zen-ops-api-1 --tail 200 | grep -E "(await|async|AsyncSession)"
+docker logs maulya-api-1 --tail 200 | grep -E "(await|async|AsyncSession)"
 ```
 Should return no matches in recent requests.
 
 ### Check for Detached Instance Errors
 ```bash
-docker logs zen-ops-api-1 --tail 200 | grep -E "(detached|f405|not bound to)"
+docker logs maulya-api-1 --tail 200 | grep -E "(detached|f405|not bound to)"
 ```
 Should return no matches.
 
 ### Check Mention Processing
 ```bash
-docker logs zen-ops-api-1 --tail 200 | grep -E "(mentioned_user_ids|Mentioned users)"
+docker logs maulya-api-1 --tail 200 | grep -E "(mentioned_user_ids|Mentioned users)"
 ```
 Should show successful mention resolution.
 
 ### Check Database Transactions
 ```bash
-docker logs zen-ops-api-1 --tail 200 | grep -E "(COMMIT|ROLLBACK)"
+docker logs maulya-api-1 --tail 200 | grep -E "(COMMIT|ROLLBACK)"
 ```
 Should show successful commits, no unexpected rollbacks.
 
@@ -270,7 +270,7 @@ If critical issues are found:
 
 1. **Immediate**: Revert to previous commit
    ```bash
-   cd /Users/dr.156/zen-ops
+   cd /Users/dr.156/maulya
    git checkout ai/work~3  # Before async/await removal
    docker compose build --no-cache api frontend
    docker compose up -d --no-deps api frontend

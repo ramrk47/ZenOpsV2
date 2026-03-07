@@ -1,7 +1,7 @@
-# Zen Ops Support System Runbook
+# Maulya Support System Runbook
 
 ## Overview
-This runbook provides procedures for monitoring, troubleshooting, and maintaining the Zen Ops support system (email delivery, support threads, WhatsApp integration).
+This runbook provides procedures for monitoring, troubleshooting, and maintaining the Maulya support system (email delivery, support threads, WhatsApp integration).
 
 ## Table of Contents
 1. [Health Monitoring](#health-monitoring)
@@ -67,13 +67,13 @@ Add to your monitoring system:
 ### Container Logs
 ```bash
 # API server logs (JSON structured)
-docker logs zen-ops-api-1 --tail 100 --follow
+docker logs maulya-api-1 --tail 100 --follow
 
 # Email worker logs
-docker logs zen-ops-email-worker-1 --tail 100 --follow
+docker logs maulya-email-worker-1 --tail 100 --follow
 
-# All zen-ops containers
-docker logs --tail 100 $(docker ps -q --filter "name=zen-ops")
+# All maulya containers
+docker logs --tail 100 $(docker ps -q --filter "name=maulya")
 ```
 
 ### Log Format
@@ -94,16 +94,16 @@ All logs are JSON with these fields:
 ### Useful Log Queries
 ```bash
 # Find all errors in last hour
-docker logs zen-ops-api-1 --since 1h 2>&1 | jq 'select(.level=="ERROR")'
+docker logs maulya-api-1 --since 1h 2>&1 | jq 'select(.level=="ERROR")'
 
 # Find specific request
-docker logs zen-ops-api-1 2>&1 | jq 'select(.request_id=="abc-123")'
+docker logs maulya-api-1 2>&1 | jq 'select(.request_id=="abc-123")'
 
 # Email delivery failures
-docker logs zen-ops-email-worker-1 2>&1 | jq 'select(.message | contains("email_delivery_failed"))'
+docker logs maulya-email-worker-1 2>&1 | jq 'select(.message | contains("email_delivery_failed"))'
 
 # Client-side errors
-docker logs zen-ops-api-1 2>&1 | jq 'select(.message=="client_error")'
+docker logs maulya-api-1 2>&1 | jq 'select(.message=="client_error")'
 ```
 
 ---
@@ -114,7 +114,7 @@ docker logs zen-ops-api-1 2>&1 | jq 'select(.message=="client_error")'
 
 **1. Check email queue status**
 ```bash
-docker exec zen-ops-db-1 psql -U zenops -d zenops -c "
+docker exec maulya-db-1 psql -U maulya -d maulya -c "
     SELECT status, COUNT(*) as count, MAX(created_at) as latest
     FROM email_delivery_logs 
     GROUP BY status;
@@ -124,7 +124,7 @@ docker exec zen-ops-db-1 psql -U zenops -d zenops -c "
 **2. Check worker is running**
 ```bash
 docker ps --filter "name=email-worker"
-docker logs zen-ops-email-worker-1 --tail 50
+docker logs maulya-email-worker-1 --tail 50
 ```
 
 **3. Check for failures**
@@ -140,12 +140,12 @@ LIMIT 20;
 **4. Check Resend API key**
 ```bash
 # Verify environment variable is set
-docker exec zen-ops-api-1 env | grep EMAIL
+docker exec maulya-api-1 env | grep EMAIL
 
 # Should show:
 # EMAIL_PROVIDER=resend
 # EMAIL_API_KEY=re_***
-# EMAIL_FROM=noreply@zenops.com
+# EMAIL_FROM=noreply@maulya.in
 ```
 
 ### Problem: Queued Emails Stuck
@@ -155,13 +155,13 @@ docker exec zen-ops-api-1 env | grep EMAIL
 **Solution 1: Restart Email Worker**
 ```bash
 docker compose restart email-worker
-docker logs zen-ops-email-worker-1 --tail 50 --follow
+docker logs maulya-email-worker-1 --tail 50 --follow
 ```
 
 **Solution 2: Check for dead workers**
 ```bash
 # Worker should log heartbeat every 60s
-docker logs zen-ops-email-worker-1 --tail 100 | grep "processing\|idle"
+docker logs maulya-email-worker-1 --tail 100 | grep "processing\|idle"
 ```
 
 **Solution 3: Manually retry failed emails**
@@ -271,8 +271,8 @@ ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 
 **3. Vacuum if needed**
 ```bash
-docker exec zen-ops-db-1 psql -U zenops -d zenops -c "VACUUM ANALYZE support_threads;"
-docker exec zen-ops-db-1 psql -U zenops -d zenops -c "VACUUM ANALYZE email_delivery_logs;"
+docker exec maulya-db-1 psql -U maulya -d maulya -c "VACUUM ANALYZE support_threads;"
+docker exec maulya-db-1 psql -U maulya -d maulya -c "VACUUM ANALYZE email_delivery_logs;"
 ```
 
 ### Problem: Email Logs Growing Too Large
@@ -301,18 +301,18 @@ VACUUM ANALYZE email_delivery_logs;
 
 **1. Check API logs for client errors**
 ```bash
-docker logs zen-ops-api-1 2>&1 | jq 'select(.message=="client_error")' | jq -s '.'
+docker logs maulya-api-1 2>&1 | jq 'select(.message=="client_error")' | jq -s '.'
 ```
 
 **2. Common client errors**
 ```bash
 # Group by component
-docker logs zen-ops-api-1 2>&1 | \
+docker logs maulya-api-1 2>&1 | \
   jq -r 'select(.message=="client_error") | .component' | \
   sort | uniq -c | sort -rn
 
 # Group by route
-docker logs zen-ops-api-1 2>&1 | \
+docker logs maulya-api-1 2>&1 | \
   jq -r 'select(.message=="client_error") | .route' | \
   sort | uniq -c | sort -rn
 ```
@@ -320,7 +320,7 @@ docker logs zen-ops-api-1 2>&1 | \
 **3. Specific error details**
 ```bash
 # Show last 10 client errors with stack traces
-docker logs zen-ops-api-1 2>&1 | \
+docker logs maulya-api-1 2>&1 | \
   jq 'select(.message=="client_error") | {timestamp, route, message: .extra.message, stack: .extra.stack}' | \
   tail -10
 ```
@@ -348,7 +348,7 @@ ls -lh deploy/backups/
 **3. Verify restored data**
 ```bash
 # Connect to restore DB
-docker exec -it zen-ops-restore-db psql -U zenops -d zenops_restore
+docker exec -it maulya-restore-db psql -U maulya -d maulya_restore
 
 # Check critical tables
 SELECT COUNT(*) FROM users;
@@ -359,7 +359,7 @@ SELECT version_num FROM alembic_version;
 
 **4. Cleanup test DB**
 ```bash
-docker compose down zen-ops-restore-db
+docker compose down maulya-restore-db
 docker volume rm postgres_data_restore_<timestamp>
 ```
 
@@ -375,7 +375,7 @@ docker volume rm postgres_data_restore_<timestamp>
 1. Backup file corruption: `pg_restore --list <file>`
 2. PostgreSQL version mismatch
 3. Disk space: `df -h`
-4. Logs: `docker logs zen-ops-restore-db`
+4. Logs: `docker logs maulya-restore-db`
 
 ---
 

@@ -7,7 +7,7 @@ set -euo pipefail
 API_BASE="${API_BASE:-http://localhost}"
 FAILURES=0
 
-echo "=== Zen Ops Support System Smoke Tests ==="
+echo "=== Maulya Support System Smoke Tests ==="
 echo "API Base: ${API_BASE}"
 echo ""
 

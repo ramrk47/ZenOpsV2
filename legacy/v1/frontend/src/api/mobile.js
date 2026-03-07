@@ -29,3 +29,11 @@ export async function raiseMobileRequest(assignmentId, payload) {
   const { data } = await api.post(`/api/mobile/assignments/${assignmentId}/request`, payload)
   return data
 }
+
+export function mobileDocumentPreviewUrl(assignmentId, documentId) {
+  return `/api/mobile/assignments/${assignmentId}/documents/${documentId}/preview`
+}
+
+export function mobileDocumentDownloadUrl(assignmentId, documentId) {
+  return `/api/mobile/assignments/${assignmentId}/documents/${documentId}/download`
+}

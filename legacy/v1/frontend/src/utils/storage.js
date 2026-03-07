@@ -1,6 +1,8 @@
+import { getLocalStorageItem, setLocalStorageItem } from './appInstance'
+
 export function loadJson(key, fallback) {
   try {
-    const raw = localStorage.getItem(key)
+    const raw = getLocalStorageItem(key, [key])
     if (!raw) return fallback
     return JSON.parse(raw)
   } catch (err) {
@@ -11,7 +13,7 @@ export function loadJson(key, fallback) {
 
 export function saveJson(key, value) {
   try {
-    localStorage.setItem(key, JSON.stringify(value))
+    setLocalStorageItem(key, JSON.stringify(value))
   } catch (err) {
     console.warn('Failed to save localStorage key', key, err)
   }

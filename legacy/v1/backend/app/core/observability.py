@@ -1,5 +1,5 @@
 """
-OpenTelemetry and Prometheus instrumentation for Zen Ops API.
+OpenTelemetry and Prometheus instrumentation for Maulya API.
 
 This module sets up:
 - OpenTelemetry tracing with OTLP export
@@ -40,18 +40,18 @@ http_exceptions_total = Counter(
     ["method", "path", "exception_type"]
 )
 
-zenops_email_queue_pending = Gauge(
-    "zenops_email_queue_pending",
+maulya_email_queue_pending = Gauge(
+    "maulya_email_queue_pending",
     "Number of pending emails in queue"
 )
 
-zenops_email_queue_failed = Gauge(
-    "zenops_email_queue_failed",
+maulya_email_queue_failed = Gauge(
+    "maulya_email_queue_failed",
     "Number of failed emails in queue"
 )
 
 
-def setup_opentelemetry(app, service_name: str = "zenops-api") -> None:
+def setup_opentelemetry(app, service_name: str = "maulya-api") -> None:
     """Initialize OpenTelemetry instrumentation if enabled."""
     otel_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
     if not otel_endpoint:
@@ -173,5 +173,5 @@ async def metrics_endpoint(request: Request) -> Response:
 
 def update_email_queue_metrics(pending: int, failed: int) -> None:
     """Update email queue metrics (called from healthcheck)."""
-    zenops_email_queue_pending.set(pending)
-    zenops_email_queue_failed.set(failed)
+    maulya_email_queue_pending.set(pending)
+    maulya_email_queue_failed.set(failed)

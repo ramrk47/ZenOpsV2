@@ -10,8 +10,8 @@ if [[ -z "$V1_BASE_URL" ]]; then
     # shellcheck disable=SC1091
     source .env
   fi
-  if [[ -n "${ZENOPS_DOMAIN:-}" ]]; then
-    V1_BASE_URL="https://${ZENOPS_DOMAIN}"
+  if [[ -n "${APP_DOMAIN:-}" ]]; then
+    V1_BASE_URL="https://${APP_DOMAIN}"
   else
     V1_BASE_URL="http://localhost:8000"
   fi

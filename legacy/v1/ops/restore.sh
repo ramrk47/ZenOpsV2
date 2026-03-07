@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Zen Ops Database Restore Script
+# Maulya Database Restore Script
 # SAFE: defaults to test mode, requires explicit confirmation for disaster recovery
 #
 set -euo pipefail
@@ -13,8 +13,8 @@ cd "$REPO_ROOT"
 MODE="${MODE:-test}"  # test or disaster
 BACKUP_FILE="${BACKUP_FILE:-}"
 CONFIRM="${CONFIRM:-}"
-TEST_DB_VOLUME="zenops_restore_test_$(date +%s)"
-TEST_DB_CONTAINER="zenops-restore-test-$$"
+TEST_DB_VOLUME="maulya_restore_test_$(date +%s)"
+TEST_DB_CONTAINER="maulya-restore-test-$$"
 
 # Colors
 RED='\033[0;31m'
@@ -60,9 +60,9 @@ if [ -f ".env.backend" ]; then
   export $(grep -v '^#' .env.backend | grep -E '^(POSTGRES_USER|POSTGRES_PASSWORD|POSTGRES_DB)=' | xargs)
 fi
 
-POSTGRES_USER="${POSTGRES_USER:-zenops}"
+POSTGRES_USER="${POSTGRES_USER:-maulya}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-change_me}"
-POSTGRES_DB="${POSTGRES_DB:-zenops}"
+POSTGRES_DB="${POSTGRES_DB:-maulya}"
 
 log "Restore mode: $MODE"
 log "Backup file: $BACKUP_FILE"
@@ -169,7 +169,7 @@ case "$MODE" in
     
     # Create new volume with timestamp
     NEW_VOLUME="postgres_data_restored_$(date +%Y%m%d_%H%M%S)"
-    TEMP_CONTAINER="zenops-restore-disaster-$$"
+    TEMP_CONTAINER="maulya-restore-disaster-$$"
     
     log "Creating new database volume: $NEW_VOLUME"
     docker run -d \

@@ -23,7 +23,7 @@ For release decisions in current delivery phases, run the pinned phase suites be
 ### Phase 2 Verification
 
 ```bash
-cd /Users/sriramrk/ZenOpsV2/legacy/v1
+cd legacy/v1
 
 docker compose -f docker-compose.dev.yml run --rm backend alembic upgrade head
 docker compose -f docker-compose.dev.yml run --rm backend pytest -q \
@@ -35,7 +35,7 @@ cd frontend && npm run build
 ### Phase 4 Verification
 
 ```bash
-cd /Users/sriramrk/ZenOpsV2/legacy/v1
+cd legacy/v1
 
 docker compose -f docker-compose.dev.yml run --rm backend alembic upgrade head
 docker compose -f docker-compose.dev.yml run --rm backend pytest -q \
@@ -48,7 +48,7 @@ cd frontend && npm run build
 ### Phase 5 Verification
 
 ```bash
-cd /Users/sriramrk/ZenOpsV2/legacy/v1
+cd legacy/v1
 
 docker compose -f docker-compose.dev.yml run --rm backend alembic upgrade head
 docker compose -f docker-compose.dev.yml run --rm backend pytest -q \
@@ -62,7 +62,7 @@ cd frontend && npm run build
 ### Phase 6 Verification
 
 ```bash
-cd /Users/sriramrk/ZenOpsV2/legacy/v1
+cd legacy/v1
 
 docker compose -f docker-compose.dev.yml run --rm backend alembic upgrade head
 docker compose -f docker-compose.dev.yml run --rm backend pytest -q \

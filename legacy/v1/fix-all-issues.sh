@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
 
-echo "🔧 Fixing zen-ops issues..."
+echo "🔧 Fixing maulya issues..."
 echo ""
 
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 
 echo "1️⃣ Stopping containers..."
 docker compose down

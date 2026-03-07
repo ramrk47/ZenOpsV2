@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Comprehensive Fix Script for zen-ops
+# Comprehensive Fix Script for maulya
 # Fixes: 404 errors, CSP issues, and ensures clean container rebuild
 
 set -e
 
 echo "========================================="
-echo "zen-ops Bug Fix Script"
+echo "maulya Bug Fix Script"
 echo "========================================="
 echo ""
 

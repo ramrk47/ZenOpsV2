@@ -1,5 +1,8 @@
 import React, { useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
+import { isDemoMode } from '../config/featureFlags'
+import DemoMarker from '../components/DemoMarker'
+import Badge from '../components/ui/Badge'
 
 export default function Login() {
   const { login, mfaPending, verifyMfa, verifyMfaBackup, cancelMfa } = useAuth()
@@ -10,6 +13,13 @@ export default function Login() {
   const [useBackup, setUseBackup] = useState(false)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
+  const demoMode = isDemoMode()
+
+  function applyDemoCreds(nextEmail, nextPassword) {
+    setEmail(nextEmail)
+    setPassword(nextPassword)
+    setError(null)
+  }
 
   async function handleLogin(e) {
     e.preventDefault()
@@ -73,7 +83,7 @@ export default function Login() {
     return (
       <div className="auth-screen">
         <div className="card auth-card">
-          <div className="kicker">Zen Ops</div>
+          <div className="kicker">Maulya</div>
           <h2 className="auth-title">Use Backup Code</h2>
           <div className="muted auth-subtitle">
             Enter one of your recovery codes (e.g. ABCD-EFGH)
@@ -130,7 +140,7 @@ export default function Login() {
     return (
       <div className="auth-screen">
         <div className="card auth-card">
-          <div className="kicker">Zen Ops</div>
+          <div className="kicker">Maulya</div>
           <h2 className="auth-title">Two-Factor Authentication</h2>
           <div className="muted auth-subtitle">
             Enter the 6-digit code from your authenticator app
@@ -189,11 +199,13 @@ export default function Login() {
   return (
     <div className="auth-screen">
       <div className="card auth-card">
-        <div className="kicker">Zen Ops</div>
-        <h2 className="auth-title">Zen Ops</h2>
+        <div className="kicker">Maulya</div>
+        <div className="auth-kicker-credit">by Not Alone Studios</div>
+        <h2 className="auth-title">Maulya</h2>
         <div className="muted auth-subtitle">
           Work OS for valuation operations
         </div>
+        <DemoMarker variant="public" className="auth-demo-marker" />
 
         <form onSubmit={handleLogin} className="grid">
           <label className="grid">
@@ -234,6 +246,52 @@ export default function Login() {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
+
+        {demoMode ? (
+          <div className="demo-login-panel">
+            <div className="demo-login-panel-head">
+              <div className="metric-card-kicker">Demo Workspace</div>
+              <div className="demo-login-panel-tags">
+                <Badge tone="info">Admin</Badge>
+                <Badge tone="info">Field</Badge>
+                <Badge tone="ok">Associate</Badge>
+                <Badge tone="warn">More roles coming soon</Badge>
+              </div>
+            </div>
+            <div className="muted">
+              Public demo users are pre-seeded here. Pick a role to autofill the login form.
+            </div>
+            <div className="demo-credential-grid">
+              <button
+                type="button"
+                className="demo-credential-card"
+                onClick={() => applyDemoCreds('admin@maulya.local', 'password')}
+              >
+                <span className="demo-credential-title">Login as Admin (demo)</span>
+                <span className="demo-credential-copy">Full approvals and finance walkthrough</span>
+                <span className="table-meta">admin@maulya.local / password</span>
+              </button>
+              <button
+                type="button"
+                className="demo-credential-card"
+                onClick={() => applyDemoCreds('field@maulya.local', 'password')}
+              >
+                <span className="demo-credential-title">Login as Field User (demo)</span>
+                <span className="demo-credential-copy">Create assignments and work the delivery flow</span>
+                <span className="table-meta">field@maulya.local / password</span>
+              </button>
+              <button
+                type="button"
+                className="demo-credential-card"
+                onClick={() => applyDemoCreds('associate@maulya.local', 'password')}
+              >
+                <span className="demo-credential-title">Login as Associate (demo)</span>
+                <span className="demo-credential-copy">Explore the partner-facing workspace and uploads journey</span>
+                <span className="table-meta">associate@maulya.local / password</span>
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   )

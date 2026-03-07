@@ -493,42 +493,42 @@ def seed() -> None:
 
         admin = get_or_create_user(
             db,
-            email="admin@zenops.local",
+            email="admin@maulya.local",
             role=Role.ADMIN,
             full_name="Admin",
             password="password",
         )
         ops = get_or_create_user(
             db,
-            email="ops@zenops.local",
+            email="ops@maulya.local",
             role=Role.OPS_MANAGER,
             full_name="Ops Manager",
             password="password",
         )
         finance = get_or_create_user(
             db,
-            email="finance@zenops.local",
+            email="finance@maulya.local",
             role=Role.FINANCE,
             full_name="Finance Manager",
             password="password",
         )
         hr = get_or_create_user(
             db,
-            email="hr@zenops.local",
+            email="hr@maulya.local",
             role=Role.HR,
             full_name="HR Manager",
             password="password",
         )
         assistant = get_or_create_user(
             db,
-            email="assistant@zenops.local",
+            email="assistant@maulya.local",
             role=Role.ASSISTANT_VALUER,
             full_name="Assistant Valuer",
             password="password",
         )
         field = get_or_create_user(
             db,
-            email="field@zenops.local",
+            email="field@maulya.local",
             role=Role.FIELD_VALUER,
             full_name="Field Valuer",
             password="password",
@@ -538,7 +538,7 @@ def seed() -> None:
             display_name="E2E Associate Partner",
             legal_name="E2E Associate Partner Pvt Ltd",
             contact_name="Associate User",
-            email="associate@zenops.local",
+            email="associate@maulya.local",
             phone="9000001111",
             city="Bengaluru",
             service_lines=[ServiceLine.VALUATION.value, ServiceLine.DPR.value],
@@ -551,7 +551,7 @@ def seed() -> None:
 
         associate = get_or_create_user(
             db,
-            email="associate@zenops.local",
+            email="associate@maulya.local",
             role=Role.EXTERNAL_PARTNER,
             full_name="Associate User",
             password="password",
@@ -991,13 +991,13 @@ def seed() -> None:
 
         print("[seed_e2e] complete")
         print("[seed_e2e] users:")
-        print("  admin@zenops.local / password")
-        print("  ops@zenops.local / password")
-        print("  finance@zenops.local / password")
-        print("  hr@zenops.local / password")
-        print("  assistant@zenops.local / password")
-        print("  field@zenops.local / password")
-        print("  associate@zenops.local / password")
+        print("  admin@maulya.local / password")
+        print("  ops@maulya.local / password")
+        print("  finance@maulya.local / password")
+        print("  hr@maulya.local / password")
+        print("  assistant@maulya.local / password")
+        print("  field@maulya.local / password")
+        print("  associate@maulya.local / password")
         print(f"[seed_e2e] pending approvals: draft={draft_approval.id}, final_doc={final_doc_approval.id}, payment={payment_approval.id}")
         print(f"[seed_e2e] invoices: pending_confirmation={invoice_pending_confirmation.id}, adjusted={invoice_adjusted.id}")
 

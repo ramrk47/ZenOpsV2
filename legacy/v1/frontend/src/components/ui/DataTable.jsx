@@ -6,6 +6,7 @@ export default function DataTable({
   rows = 6,
   className = '',
   minWidth,
+  tableClassName = '',
   children,
 }) {
   if (loading) {
@@ -13,7 +14,7 @@ export default function DataTable({
     const rowList = Array.from({ length: rows }, (_, idx) => idx)
     return (
       <div className={`table-wrap ${className}`.trim()}>
-        <table className="table-skeleton" style={minWidth ? { minWidth } : undefined}>
+        <table className={`table-skeleton ${tableClassName}`.trim()} style={minWidth ? { minWidth } : undefined}>
           <thead>
             <tr>
               {cols.map((col) => (
@@ -41,7 +42,11 @@ export default function DataTable({
 
   return (
     <div className={`table-wrap ${className}`.trim()}>
-      {children}
+      {React.isValidElement(children) && children.type === 'table'
+        ? React.cloneElement(children, {
+            className: `${children.props.className || ''} ${tableClassName}`.trim(),
+          })
+        : children}
     </div>
   )
 }

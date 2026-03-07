@@ -31,6 +31,7 @@ import { formatDate, formatDateTime, formatMoney, titleCase } from '../utils/for
 import { toUserMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { hasCapability } from '../utils/rbac'
+import { getLocalStorageItem, setLocalStorageItem } from '../utils/appInstance'
 
 function truthyParam(value) {
   if (value === '') return undefined
@@ -39,9 +40,9 @@ function truthyParam(value) {
   return value
 }
 
-const FILTER_STORAGE_KEY = 'zenops:invoice-ledger-filters'
-const COLUMN_STORAGE_KEY = 'zenops:invoice-ledger-columns'
-const VIEW_STORAGE_KEY = 'zenops:invoice-ledger-views'
+const FILTER_STORAGE_KEY = 'maulya:invoice-ledger-filters'
+const COLUMN_STORAGE_KEY = 'maulya:invoice-ledger-columns'
+const VIEW_STORAGE_KEY = 'maulya:invoice-ledger-views'
 const MAX_BULK_REMINDERS = 10
 const OVERDUE_FOLLOWUP_DAYS = 7
 const DEFAULT_FILTERS = {
@@ -84,7 +85,7 @@ const COLUMN_OPTIONS = [
 
 function loadStoredFilters() {
   try {
-    const stored = localStorage.getItem(FILTER_STORAGE_KEY)
+    const stored = getLocalStorageItem(FILTER_STORAGE_KEY, [FILTER_STORAGE_KEY])
     if (!stored) return { ...DEFAULT_FILTERS }
     const parsed = JSON.parse(stored)
     return { ...DEFAULT_FILTERS, ...parsed }
@@ -95,7 +96,7 @@ function loadStoredFilters() {
 
 function loadStoredColumns() {
   try {
-    const stored = localStorage.getItem(COLUMN_STORAGE_KEY)
+    const stored = getLocalStorageItem(COLUMN_STORAGE_KEY, [COLUMN_STORAGE_KEY])
     if (!stored) return { ...DEFAULT_COLUMNS }
     const parsed = JSON.parse(stored)
     return { ...DEFAULT_COLUMNS, ...parsed }
@@ -106,7 +107,7 @@ function loadStoredColumns() {
 
 function loadStoredViews() {
   try {
-    const stored = localStorage.getItem(VIEW_STORAGE_KEY)
+    const stored = getLocalStorageItem(VIEW_STORAGE_KEY, [VIEW_STORAGE_KEY])
     if (!stored) return []
     const parsed = JSON.parse(stored)
     return Array.isArray(parsed) ? parsed : []
@@ -117,7 +118,7 @@ function loadStoredViews() {
 
 function persistColumns(nextColumns) {
   try {
-    localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(nextColumns))
+    setLocalStorageItem(COLUMN_STORAGE_KEY, JSON.stringify(nextColumns))
   } catch (err) {
     // ignore storage failures
   }
@@ -125,7 +126,7 @@ function persistColumns(nextColumns) {
 
 function persistViews(nextViews) {
   try {
-    localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify(nextViews))
+    setLocalStorageItem(VIEW_STORAGE_KEY, JSON.stringify(nextViews))
   } catch (err) {
     // ignore storage failures
   }
@@ -133,7 +134,7 @@ function persistViews(nextViews) {
 
 function persistFilters(nextFilters) {
   try {
-    localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(nextFilters))
+    setLocalStorageItem(FILTER_STORAGE_KEY, JSON.stringify(nextFilters))
   } catch (err) {
     // ignore storage failures
   }

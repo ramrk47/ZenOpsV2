@@ -15,12 +15,13 @@ import {
   getUserRoles,
   userHasRole,
 } from '../../utils/rbac'
+import { getLocalStorageItem, setLocalStorageItem } from '../../utils/appInstance'
 
 function NavGroup({ id, label, children, defaultOpen = false }) {
   const panelId = `nav-group-${id}`
   const [open, setOpen] = useState(() => {
     try {
-      const stored = localStorage.getItem(`zenops:nav:${id}`)
+      const stored = getLocalStorageItem(`maulya:nav:${id}`, [`maulya:nav:${id}`])
       return stored !== null ? stored === 'true' : defaultOpen
     } catch { return defaultOpen }
   })
@@ -28,7 +29,7 @@ function NavGroup({ id, label, children, defaultOpen = false }) {
   const toggle = useCallback(() => {
     setOpen((prev) => {
       const next = !prev
-      try { localStorage.setItem(`zenops:nav:${id}`, String(next)) } catch {}
+      try { setLocalStorageItem(`maulya:nav:${id}`, String(next)) } catch {}
       return next
     })
   }, [id])
@@ -58,7 +59,7 @@ export default function AdminSidebar() {
 
   const [compactUi, setCompactUi] = useState(() => {
     try {
-      return localStorage.getItem('zenops:compact-ui') === 'true'
+      return getLocalStorageItem('maulya:compact-ui', ['maulya:compact-ui']) === 'true'
     } catch (err) {
       return false
     }
@@ -81,7 +82,7 @@ export default function AdminSidebar() {
     const root = document.documentElement
     root.classList.toggle('compact-ui', compactUi)
     try {
-      localStorage.setItem('zenops:compact-ui', compactUi ? 'true' : 'false')
+      setLocalStorageItem('maulya:compact-ui', compactUi ? 'true' : 'false')
     } catch (err) {
       // ignore storage failures
     }
@@ -228,7 +229,10 @@ export default function AdminSidebar() {
   return (
     <>
       <div className="nav-scroll">
-        <div className="app-brand">Zen Ops</div>
+        <div className="app-brand">
+          <div className="app-brand-main">Maulya</div>
+          <div className="brand-credit">by Not Alone Studios</div>
+        </div>
 
         <div className="nav-section action-dock">
           <div className="nav-title">Action Dock</div>
@@ -274,7 +278,7 @@ export default function AdminSidebar() {
       </div>
 
       <div className="nav-footer">
-        <div style={{ fontWeight: 600 }}>{user.full_name || 'Zen Ops User'}</div>
+        <div style={{ fontWeight: 600 }}>{user.full_name || 'Maulya User'}</div>
         <div className="muted" style={{ marginTop: 2 }}>{user.email}</div>
         <div className="muted" style={{ marginTop: 2 }}>{roleLabel}</div>
         <label className="nav-toggle">

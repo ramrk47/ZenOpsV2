@@ -87,7 +87,7 @@ def main() -> None:
 
     export_dir = Path(os.environ.get("EXPORT_DIR", "./backups")).expanduser().resolve()
     export_dir.mkdir(parents=True, exist_ok=True)
-    app_name = os.environ.get("APP_NAME", "zenops")
+    app_name = os.environ.get("APP_NAME", "maulya")
     timestamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d_%H%M%S")
     output = Path(args.output).expanduser() if args.output else export_dir / f"{app_name}_uploads_structured_{timestamp}.tar.gz"
     output = output.resolve()

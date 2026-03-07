@@ -110,7 +110,7 @@ docker compose run --rm migrate
 
 Or check if applied:
 ```bash
-docker exec zen-ops-db-1 psql -U zenops -d zenops -c \
+docker exec maulya-db-1 psql -U maulya -d maulya -c \
   "SELECT version_num FROM alembic_version;"
 ```
 
@@ -137,7 +137,7 @@ docker exec zen-ops-db-1 psql -U zenops -d zenops -c \
 
 ```bash
 # 1. Check current state
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 git status
 
 # 2. Create feature branch in main repo
@@ -167,11 +167,11 @@ git merge support-system-complete
 ```bash
 # Copy all changed files from worktree to main
 rsync -av --exclude='.git' \
-  /Users/dr.156/zen-ops.worktrees/copilot-worktree-2026-02-09T15-34-04/ \
-  /Users/dr.156/zen-ops/
+  /Users/dr.156/maulya.worktrees/copilot-worktree-2026-02-09T15-34-04/ \
+  /Users/dr.156/maulya/
 
 # Commit in main repo
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 git add -A
 git commit -m "feat: Complete support system (Phases 1-6)"
 ```
@@ -196,7 +196,7 @@ git commit -m "feat: Complete support system (Phases 1-6)"
 ### 2. Deploy
 
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 
 # Rebuild containers
 docker compose build --no-cache api frontend
@@ -263,7 +263,7 @@ Manual checks:
 
 #### 5. Email Notifications
 - [ ] Create support thread
-- [ ] Check email-worker logs: `docker logs zen-ops-email-worker-1 --tail 50`
+- [ ] Check email-worker logs: `docker logs maulya-email-worker-1 --tail 50`
 - [ ] Verify email queued in `email_delivery_logs` table
 - [ ] Check email sent (or failed with retry)
 
@@ -343,7 +343,7 @@ If issues arise after deployment:
 
 ```bash
 # 1. Revert commits
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 git log --oneline --since="today" # Find commit to revert to
 git revert <bad-commit-hash>
 
@@ -415,11 +415,11 @@ docker compose run --rm migrate alembic downgrade -1
 **Troubleshooting**:
 - Read: `docs/SUPPORT_RUNBOOK.md`
 - Run: `./ops/diagnostics.sh`
-- Check logs: `docker logs zen-ops-api-1 | jq 'select(.level=="ERROR")'`
+- Check logs: `docker logs maulya-api-1 | jq 'select(.level=="ERROR")'`
 
 **Email Issues**:
 - Runbook section: "Email Delivery Issues"
-- Worker logs: `docker logs zen-ops-email-worker-1 --tail 100`
+- Worker logs: `docker logs maulya-email-worker-1 --tail 100`
 - Queue status: `curl http://localhost/healthz | jq '.email_queue_pending'`
 
 **Token Issues**:

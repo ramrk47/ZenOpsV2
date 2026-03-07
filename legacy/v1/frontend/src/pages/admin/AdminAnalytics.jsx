@@ -41,7 +41,7 @@ const VIEW_MODES = [
   { key: 'case-types', label: 'By Case Type' },
 ]
 
-const FILTERS_KEY = 'zenops.analytics.filters.v1'
+const FILTERS_KEY = 'maulya.analytics.filters.v1'
 
 function startOfDay(date) {
   const d = new Date(date)
@@ -684,16 +684,17 @@ export default function AdminAnalytics() {
       : 'Case Type Mix'
 
   return (
-    <div>
+    <div className="analytics-page">
       <PageHeader
+        eyebrow="Operations Intelligence"
         title="Analytics & Intelligence"
         subtitle="Forecast momentum, detect declines early, and trigger follow-ups."
         actions={null}
       />
 
-      {error ? <div className="empty" style={{ marginBottom: '0.9rem' }}>{error}</div> : null}
+      {error ? <div className="alert alert-danger">{error}</div> : null}
 
-      <div className="filter-shell" style={{ marginBottom: '0.9rem' }}>
+      <div className="filter-shell control-card" style={{ marginBottom: '0.9rem' }}>
         <div className="toolbar dense">
           <div className="chip-row">
             {VIEW_MODES.map((mode) => (
@@ -774,9 +775,9 @@ export default function AdminAnalytics() {
 
       {loading ? (
         <>
-          <div className="grid cols-4" style={{ marginBottom: '0.9rem' }}>
+          <div className="grid cols-4 analytics-highlight-grid" style={{ marginBottom: '0.9rem' }}>
             {Array.from({ length: 4 }).map((_, idx) => (
-              <div key={`sk-analytic-${idx}`} className="card tight">
+              <div key={`sk-analytic-${idx}`} className="card tight analytics-highlight-card">
                 <div className="skeleton-line short" style={{ marginBottom: '0.6rem' }} />
                 <div className="skeleton-line" style={{ height: 20 }} />
               </div>
@@ -784,14 +785,17 @@ export default function AdminAnalytics() {
           </div>
           <Card>
             <CardHeader title={performanceTitle} subtitle="Forecasting, decline detection, and health scoring." />
-            <DataTable loading columns={9} rows={6} />
+            <DataTable loading columns={9} rows={6} className="table-wrap--elevated table-wrap--dense" />
           </Card>
         </>
       ) : !overview ? (
-        <EmptyState>No analytics data found.</EmptyState>
+        <EmptyState
+          title="No analytics data found"
+          body="No billable activity landed in the current range. Expand the window or switch the performance lens to recover useful signal."
+        />
       ) : (
         <>
-          <div className="grid cols-4" style={{ marginBottom: '0.9rem' }}>
+          <div className="grid cols-4 analytics-highlight-grid" style={{ marginBottom: '0.9rem' }}>
             <OverviewCard label="Assignments" value={overview.assignments} help="Assignments created in the selected period." />
             <OverviewCard label="Billed" value={formatMoney(overview.billed)} help="Invoices issued in the selected period." />
             <OverviewCard label="Collected" value={formatMoney(overview.collected)} tone="ok" help="Paid invoices in the selected period." />
@@ -855,7 +859,7 @@ export default function AdminAnalytics() {
 
               {viewMode === 'banks' ? (
                 bankData?.banks?.length ? (
-                  <div className="table-wrap">
+                  <div className="table-wrap table-wrap--elevated table-wrap--dense">
                     <table>
                       <thead>
                         <tr>
@@ -960,11 +964,14 @@ export default function AdminAnalytics() {
                     </table>
                   </div>
                 ) : (
-                  <EmptyState>No bank data in this range.</EmptyState>
+                  <EmptyState
+                    title="No bank data in this range"
+                    body="This view is empty for the selected period. Try a wider range or enable direct and external client sources."
+                  />
                 )
               ) : (
                 segmentData?.rows?.length ? (
-                  <div className="table-wrap">
+                  <div className="table-wrap table-wrap--elevated table-wrap--dense">
                     <table>
                       <thead>
                         <tr>
@@ -1019,14 +1026,17 @@ export default function AdminAnalytics() {
                     </table>
                   </div>
                 ) : (
-                  <EmptyState>No analytics rows in this range.</EmptyState>
+                  <EmptyState
+                    title="No analytics rows in this range"
+                    body="There is no segment activity to compare yet. Expand the range or switch the lens back to bank performance."
+                  />
                 )
               )}
 
               {viewMode === 'banks' && includeNonBank && bankData?.non_bank_sources?.length ? (
                 <div style={{ marginTop: '1rem' }}>
                   <div className="kicker" style={{ marginBottom: 6 }}>Direct/External Sources</div>
-                  <div className="table-wrap">
+                  <div className="table-wrap table-wrap--elevated table-wrap--dense">
                     <table>
                       <thead>
                         <tr>

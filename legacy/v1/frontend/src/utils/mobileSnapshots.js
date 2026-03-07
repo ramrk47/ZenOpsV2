@@ -1,6 +1,8 @@
-const SUMMARY_SNAPSHOT_KEY = 'zenops.mobile.summary.v1'
-const STATUS_HISTORY_KEY = 'zenops.mobile.history.v1'
-const ASSIGNMENT_SNAPSHOT_PREFIX = 'zenops.mobile.assignment.'
+import { getLocalStorageItem, setLocalStorageItem } from './appInstance'
+
+const SUMMARY_SNAPSHOT_KEY = 'maulya.mobile.summary.v1'
+const STATUS_HISTORY_KEY = 'maulya.mobile.history.v1'
+const ASSIGNMENT_SNAPSHOT_PREFIX = 'maulya.mobile.assignment.'
 const MAX_STATUS_HISTORY = 20
 
 function safeParse(raw) {
@@ -47,7 +49,7 @@ export function purgeLegacyMobileSnapshots() {
   for (let index = localStorage.length - 1; index >= 0; index -= 1) {
     const key = localStorage.key(index)
     if (!key) continue
-    if (/^zenops\.mobile\.assignment\.\d+\.v1$/.test(key)) {
+    if (/^maulya\.mobile\.assignment\.\d+\.v1$/.test(key)) {
       localStorage.removeItem(key)
     }
   }
@@ -55,7 +57,8 @@ export function purgeLegacyMobileSnapshots() {
 
 export function readSummarySnapshot(scope) {
   if (typeof window === 'undefined') return null
-  return safeParse(localStorage.getItem(summaryKey(scope)))
+  const key = summaryKey(scope)
+  return safeParse(getLocalStorageItem(key, [key]))
 }
 
 export function writeSummarySnapshot(scope, summary) {
@@ -65,12 +68,13 @@ export function writeSummarySnapshot(scope, summary) {
     my_queue: Array.isArray(summary.my_queue) ? summary.my_queue.slice(0, 20) : [],
     cached_at: new Date().toISOString(),
   }
-  localStorage.setItem(summaryKey(scope), JSON.stringify(snapshot))
+  setLocalStorageItem(summaryKey(scope), JSON.stringify(snapshot))
 }
 
 export function readStatusHistory(scope) {
   if (typeof window === 'undefined') return []
-  const parsed = safeParse(localStorage.getItem(historyKey(scope)))
+  const key = historyKey(scope)
+  const parsed = safeParse(getLocalStorageItem(key, [key]))
   if (!Array.isArray(parsed)) return []
   return parsed
 }
@@ -86,12 +90,13 @@ export function appendStatusHistory(scope, summary) {
   }
   const current = readStatusHistory(scope)
   const history = [entry, ...current].slice(0, MAX_STATUS_HISTORY)
-  localStorage.setItem(historyKey(scope), JSON.stringify(history))
+  setLocalStorageItem(historyKey(scope), JSON.stringify(history))
 }
 
 export function readAssignmentSnapshot(scope, assignmentId) {
   if (typeof window === 'undefined') return null
-  return safeParse(localStorage.getItem(assignmentKey(scope, assignmentId)))
+  const key = assignmentKey(scope, assignmentId)
+  return safeParse(getLocalStorageItem(key, [key]))
 }
 
 export function writeAssignmentSnapshot(scope, assignmentId, detail) {
@@ -102,5 +107,5 @@ export function writeAssignmentSnapshot(scope, assignmentId, detail) {
     comments: Array.isArray(detail.comments) ? detail.comments.slice(0, 20) : [],
     cached_at: new Date().toISOString(),
   }
-  localStorage.setItem(assignmentKey(scope, assignmentId), JSON.stringify(snapshot))
+  setLocalStorageItem(assignmentKey(scope, assignmentId), JSON.stringify(snapshot))
 }

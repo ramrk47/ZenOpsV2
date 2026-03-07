@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 
 const BASE_URL = 'http://127.0.0.1';
-const ADMIN_EMAIL = 'admin@zenops.local';
+const ADMIN_EMAIL = 'admin@maulya.local';
 const ADMIN_PASSWORD = 'password';
 
 test.describe('UI Explorer - Full App Walkthrough @explorer', () => {

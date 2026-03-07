@@ -4,7 +4,7 @@
 Accepted
 
 ## Context
-Invoices are a core financial artifact in Zen Ops — they track what the valuation firm bills its clients for each assignment. Several problems existed in the original invoice implementation:
+Invoices are a core financial artifact in Maulya — they track what the valuation firm bills its clients for each assignment. Several problems existed in the original invoice implementation:
 
 - **No structured numbering**: Invoices had user-entered or auto-incremented numbers with no financial-year awareness, making accounting reconciliation difficult.
 - **Client-computed totals**: The frontend calculated subtotals, tax, and amounts due from line items. This caused drift when items were added/removed without refreshing, and produced `0.00` totals when items weren't properly attached before computation.

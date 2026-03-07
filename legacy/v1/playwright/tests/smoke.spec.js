@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 
 const BASE_URL = process.env.E2E_BASE_URL || 'http://127.0.0.1';
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || 'admin@zenops.local';
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || 'admin@maulya.local';
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || 'password';
 let accessToken = '';
 

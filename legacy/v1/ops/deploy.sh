@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Zen Ops Hostinger deployment workflow
+# Maulya Hostinger deployment workflow
 # preflight -> backup -> migrate -> up -> readiness -> smoke
 #
 set -euo pipefail
@@ -15,7 +15,7 @@ if [ ! -f "$DEFAULT_COMPOSE_FILE" ]; then
 fi
 
 COMPOSE_FILE="${COMPOSE_FILE:-$DEFAULT_COMPOSE_FILE}"
-COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-zenops}"
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-maulya}"
 ENV_FILE="${ENV_FILE:-.env}"
 ENV_BACKEND_FILE="${ENV_BACKEND_FILE:-.env.backend}"
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-180}"
@@ -274,14 +274,14 @@ run_smoke_checks
 
 echo ""
 echo "========================================"
-echo "Zen Ops deploy completed"
+echo "Maulya deploy completed"
 echo "========================================"
-if [ -n "${ZENOPS_DOMAIN:-}" ]; then
-  echo "Web URL:   https://${ZENOPS_DOMAIN}"
-  echo "API URL:   https://${ZENOPS_DOMAIN}/api"
-  echo "Ready URL: https://${ZENOPS_DOMAIN}/readyz"
+if [ -n "${APP_DOMAIN:-}" ]; then
+  echo "Web URL:   https://${APP_DOMAIN}"
+  echo "API URL:   https://${APP_DOMAIN}/api"
+  echo "Ready URL: https://${APP_DOMAIN}/readyz"
 else
-  echo "Set ZENOPS_DOMAIN to print public HTTPS URLs"
+  echo "Set APP_DOMAIN to print public HTTPS URLs"
 fi
 echo ""
 echo "Rollback helper: ./ops/rollback.sh"

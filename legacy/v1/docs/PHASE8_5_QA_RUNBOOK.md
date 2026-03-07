@@ -1,4 +1,4 @@
-# Phase 8.5 QA Runbook (ZenOps V1)
+# Phase 8.5 QA Runbook (Maulya V1)
 
 ## Scope
 - Runs full Playwright harness for `legacy/v1` only.
@@ -12,7 +12,7 @@
 
 ## One-command full run
 ```bash
-cd /Users/sriramrk/ZenOpsV2/legacy/v1
+cd legacy/v1
 ./ops/e2e_full.sh
 ```
 
@@ -25,7 +25,7 @@ The script performs:
 
 ## Direct suite commands
 ```bash
-cd /Users/sriramrk/ZenOpsV2/legacy/v1/frontend
+cd legacy/v1/frontend
 npm run e2e:full
 npm run e2e:crawler
 npm run e2e:approve

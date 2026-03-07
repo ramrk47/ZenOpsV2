@@ -5,6 +5,13 @@ export async function requestAssociateAccess(payload) {
   return data
 }
 
+export async function resolveAssociateAccessHandoff(token) {
+  const { data } = await api.get('/api/partner/request-access/handoff/resolve', {
+    params: { token },
+  })
+  return data
+}
+
 export async function verifyAssociateAccessToken(token) {
   const { data } = await api.post('/api/partner/verify-access-token', { token })
   return data

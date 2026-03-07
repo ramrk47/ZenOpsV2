@@ -1,5 +1,5 @@
 {
-  "name": "zenops-playwright",
+  "name": "maulya-playwright",
   "version": "1.0.0",
   "scripts": {
     "test": "playwright test",

@@ -9,13 +9,13 @@ services:
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-zenops}
-      POSTGRES_USER: ${POSTGRES_USER:-zenops}
+      POSTGRES_DB: ${POSTGRES_DB:-maulya}
+      POSTGRES_USER: ${POSTGRES_USER:-maulya}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zenops} -d ${POSTGRES_DB:-zenops}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-maulya} -d ${POSTGRES_DB:-maulya}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -35,13 +35,13 @@ services:
     logging: *default-logging
 
   migrate:
-    image: ${ZENOPS_API_IMAGE:-zenops-api:latest}
+    image: ${MAULYA_API_IMAGE:-maulya-api:latest}
     build:
       context: ./backend
     command: ["alembic", "upgrade", "head"]
     restart: "no"
     env_file:
-      - .env.backend
+      - ${BACKEND_ENV_FILE:-.env.backend}
     environment:
       DB_WAIT_TIMEOUT: "90"
       DB_WAIT_INTERVAL: "2"
@@ -54,12 +54,12 @@ services:
     logging: *default-logging
 
   api:
-    image: ${ZENOPS_API_IMAGE:-zenops-api:latest}
+    image: ${MAULYA_API_IMAGE:-maulya-api:latest}
     build:
       context: ./backend
     restart: unless-stopped
     env_file:
-      - .env.backend
+      - ${BACKEND_ENV_FILE:-.env.backend}
     environment:
       DB_WAIT_TIMEOUT: "90"
       DB_WAIT_INTERVAL: "2"
@@ -90,22 +90,22 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik-proxy"
-      - "traefik.http.routers.zenops-api.rule=Host(`${ZENOPS_DOMAIN:-zenops.example.com}`) && (PathPrefix(`/api`) || Path(`/readyz`) || Path(`/healthz`) || Path(`/healthz/deps`) || Path(`/metrics`) || Path(`/docs`) || Path(`/openapi.json`))"
-      - "traefik.http.routers.zenops-api.entrypoints=websecure"
-      - "traefik.http.routers.zenops-api.tls=true"
-      - "traefik.http.routers.zenops-api.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
-      - "traefik.http.routers.zenops-api.priority=100"
-      - "traefik.http.services.zenops-api.loadbalancer.server.port=8000"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-api.rule=Host(`${APP_DOMAIN:-app.maulya.in}`) && (PathPrefix(`/api`) || Path(`/readyz`) || Path(`/healthz`) || Path(`/healthz/deps`) || Path(`/metrics`) || Path(`/docs`) || Path(`/openapi.json`) || Path(`/version`))"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-api.entrypoints=websecure"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-api.tls=true"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-api.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-api.priority=100"
+      - "traefik.http.services.${TRAEFIK_ROUTER_PREFIX:-maulya}-api.loadbalancer.server.port=8000"
     logging: *default-logging
 
   email-worker:
-    image: ${ZENOPS_API_IMAGE:-zenops-api:latest}
+    image: ${MAULYA_API_IMAGE:-maulya-api:latest}
     build:
       context: ./backend
     restart: unless-stopped
     command: ["python", "-m", "app.scripts.notification_worker", "--interval", "30"]
     env_file:
-      - .env.backend
+      - ${BACKEND_ENV_FILE:-.env.backend}
     depends_on:
       db:
         condition: service_healthy
@@ -126,14 +126,16 @@ services:
     logging: *default-logging
 
   frontend:
-    image: ${ZENOPS_FRONTEND_IMAGE:-zenops-frontend:latest}
+    image: ${MAULYA_FRONTEND_IMAGE:-maulya-frontend:latest}
     build:
       context: ./frontend
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
-        VITE_V2_WEB_URL: ${VITE_V2_WEB_URL:-https://app-zenops.notalonestudios.com}
+        VITE_V2_WEB_URL: ${VITE_V2_WEB_URL:-https://app.maulya.in}
         VITE_PILOT_MODE: ${VITE_PILOT_MODE:-0}
-        VITE_ENABLE_REPOGEN_INPUTS: ${VITE_ENABLE_REPOGEN_INPUTS:-0}
+        VITE_ENABLE_STRUCTURED_INPUTS: ${VITE_ENABLE_STRUCTURED_INPUTS:-0}
+        VITE_DEMO_MODE: ${VITE_DEMO_MODE:-0}
+        VITE_APP_INSTANCE: ${VITE_APP_INSTANCE:-pilot}
     restart: unless-stopped
     depends_on:
       api:
@@ -152,16 +154,16 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik-proxy"
-      - "traefik.http.routers.zenops-web.rule=Host(`${ZENOPS_DOMAIN:-zenops.example.com}`)"
-      - "traefik.http.routers.zenops-web.entrypoints=websecure"
-      - "traefik.http.routers.zenops-web.tls=true"
-      - "traefik.http.routers.zenops-web.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
-      - "traefik.http.routers.zenops-web.priority=10"
-      - "traefik.http.services.zenops-web.loadbalancer.server.port=80"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-web.rule=Host(`${APP_DOMAIN:-app.maulya.in}`)"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-web.entrypoints=websecure"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-web.tls=true"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-web.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-web.priority=10"
+      - "traefik.http.services.${TRAEFIK_ROUTER_PREFIX:-maulya}-web.loadbalancer.server.port=80"
     logging: *default-logging
 
   backup:
-    image: ${ZENOPS_BACKUP_IMAGE:-zenops-backup:latest}
+    image: ${MAULYA_BACKUP_IMAGE:-maulya-backup:latest}
     build:
       context: .
       dockerfile: deploy/backup/Dockerfile
@@ -173,10 +175,10 @@ services:
     environment:
       PGHOST: db
       PGPORT: "5432"
-      PGUSER: ${POSTGRES_USER:-zenops}
+      PGUSER: ${POSTGRES_USER:-maulya}
       PGPASSWORD: ${POSTGRES_PASSWORD:-change_me}
-      PGDATABASE: ${POSTGRES_DB:-zenops}
-      APP_NAME: ${BACKUP_APP_NAME:-zenops}
+      PGDATABASE: ${POSTGRES_DB:-maulya}
+      APP_NAME: ${BACKUP_APP_NAME:-maulya}
       BACKUP_DIR: /backups
       BACKUP_TIER_DIR: /backups/tiers
       UPLOADS_DIR: /uploads
@@ -196,11 +198,11 @@ services:
       STRUCTURED_UPLOADS_ROOT: ${STRUCTURED_UPLOADS_ROOT:-valuations}
       STRUCTURED_UPLOADS_DIR: /backups/structured_uploads
       RCLONE_CONFIG: /config/rclone/rclone.conf
-      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-zenops}:${POSTGRES_PASSWORD:-change_me}@db:5432/${POSTGRES_DB:-zenops}
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-maulya}:${POSTGRES_PASSWORD:-change_me}@db:5432/${POSTGRES_DB:-maulya}
     volumes:
       - ${BACKUP_HOST_PATH:-./deploy/backups}:/backups
       - uploads:/uploads:ro
-      - ${RCLONE_SECRETS_DIR:-/opt/zenops/secrets}:/config/rclone:ro
+      - ${RCLONE_SECRETS_DIR:-/opt/maulya/secrets}:/config/rclone:ro
     networks:
       - internal
     logging: *default-logging
@@ -210,7 +212,7 @@ services:
     profiles: ["backup"]
     entrypoint: ["rclone"]
     volumes:
-      - ${RCLONE_SECRETS_DIR:-/opt/zenops/secrets}:/config/rclone:ro
+      - ${RCLONE_SECRETS_DIR:-/opt/maulya/secrets}:/config/rclone:ro
       - ${BACKUP_HOST_PATH:-./deploy/backups}:/data
     networks:
       - internal

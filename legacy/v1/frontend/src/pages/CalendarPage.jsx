@@ -15,7 +15,7 @@ import { canSeeAdmin } from '../utils/rbac'
 import { loadJson, saveJson } from '../utils/storage'
 
 const EVENT_TYPES = ['SITE_VISIT', 'REPORT_DUE', 'DOC_PICKUP', 'INTERNAL_MEETING', 'TASK_DUE', 'PAYMENT_FOLLOWUP', 'LEAVE']
-const FILTERS_KEY = 'zenops.calendar.filters.v1'
+const FILTERS_KEY = 'maulya.calendar.filters.v1'
 
 const EVENT_META = {
   SITE_VISIT: { icon: '🚗', tone: 'warn', label: 'Site Visit' },

@@ -87,7 +87,7 @@ All monitoring and observability features for the support system have been imple
 **File:** `ops/diagnostics.sh` (executable)
 
 **Collects:**
-1. Container status (all zen-ops containers)
+1. Container status (all maulya containers)
 2. Container logs (last 500 lines each)
 3. Health endpoint responses (/healthz, /readyz, /version)
 4. Database connection test
@@ -130,7 +130,7 @@ All monitoring and observability features for the support system have been imple
 ## Architecture
 
 ### Structured Logging (Already in Place)
-Zen Ops already had excellent structured logging:
+Maulya already had excellent structured logging:
 - JSON format with request_id correlation
 - User ID tracking from JWT tokens
 - Path, method, status code, latency
@@ -198,7 +198,7 @@ curl -X POST http://localhost/api/client-logs \
   }'
 
 # Then check logs:
-docker logs zen-ops-api-1 --tail 20 | jq 'select(.message=="client_error")'
+docker logs maulya-api-1 --tail 20 | jq 'select(.message=="client_error")'
 ```
 
 ### 3. Test Frontend ErrorBoundary
@@ -210,12 +210,12 @@ throw new Error("Test error boundary")
 
 Then check:
 ```bash
-docker logs zen-ops-api-1 --tail 50 | grep client_error
+docker logs maulya-api-1 --tail 50 | grep client_error
 ```
 
 ### 4. Run Diagnostics
 ```bash
-cd /path/to/zen-ops
+cd /path/to/maulya
 ./ops/diagnostics.sh
 
 # Review output:
@@ -287,13 +287,13 @@ Files: +648 lines in 6 files
 ### Check Logs
 ```bash
 # API errors
-docker logs zen-ops-api-1 | jq 'select(.level=="ERROR")'
+docker logs maulya-api-1 | jq 'select(.level=="ERROR")'
 
 # Client errors
-docker logs zen-ops-api-1 | jq 'select(.message=="client_error")'
+docker logs maulya-api-1 | jq 'select(.message=="client_error")'
 
 # Email worker
-docker logs zen-ops-email-worker-1 --tail 100
+docker logs maulya-email-worker-1 --tail 100
 ```
 
 ### Health Status

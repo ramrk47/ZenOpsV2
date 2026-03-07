@@ -1,34 +1,37 @@
 # Deploy V1 Only (Post-9.5 Stable)
 
-This runbook deploys only legacy V1 (no Repogen sidecar).
+This runbook deploys only legacy V1 (standalone V1 only).
 
 ## Scope
 - Deploy target: `legacy/v1/docker-compose.hostinger.yml`
-- Excludes: `docker-compose.repogen.yml`
+- Excludes: `secondary sidecar overlays`
 - Source branch: `codex/v1-pilot-deploy-v1only`
 
 ## DNS
 Create records:
-- `zenops.notalonestudios.com` -> VPS public IP
+- `maulya.in` -> VPS public IP
+- `app.maulya.in` -> VPS public IP
+- `demo.maulya.in` -> VPS public IP
 
 Verify:
 ```bash
-dig +short zenops.notalonestudios.com
+dig +short app.maulya.in
+dig +short demo.maulya.in
 ```
 
 ## Fresh install on VPS
 
 ```bash
 cd ~
-sudo rm -rf ZenOpsV2
+sudo rm -rf maulya-v1
 git clone --branch codex/v1-pilot-deploy-v1only --single-branch https://github.com/ramrk47/ZenOpsV2.git
-cd ~/ZenOpsV2/legacy/v1
+cd legacy/v1
 ```
 
 ## Generate server envs
 
 ```bash
-V1_DOMAIN=zenops.notalonestudios.com ./ops/bootstrap_v1_env.sh --force
+V1_DOMAIN=app.maulya.in ./ops/bootstrap_v1_env.sh --force
 ```
 
 ## Deploy V1
@@ -55,7 +58,7 @@ V1_BASE_URL=http://localhost:8000 ./ops/smoke_v1_hostinger.sh
 - Cause: mismatched DB credentials between `.env` and `.env.backend`, or stale volume with old password.
 - Fix:
 ```bash
-docker compose -p zenops -f docker-compose.hostinger.yml down -v --remove-orphans
+docker compose -p maulya -f docker-compose.hostinger.yml down -v --remove-orphans
 ./ops/up_v1_hostinger.sh
 ```
 

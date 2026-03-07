@@ -1,11 +1,11 @@
 # Phase 8 Deploy Runbook (Hostinger VPS)
 
-This runbook is the production-safe sequence for ZenOps V1 on a single VPS.
+This runbook is the production-safe sequence for Maulya V1 on a single VPS.
 
 ## 1) Initial Deploy
 
 ```bash
-cd /opt/zenops/legacy/v1
+cd /opt/maulya/legacy/v1
 cp .env.example .env
 cp .env.backend.example .env.backend
 cp .env.frontend.example .env.frontend
@@ -21,13 +21,13 @@ COMPOSE_FILE=docker-compose.hostinger.yml ./ops/deploy.sh
 ## 2) Update Deploy (minimal downtime)
 
 ```bash
-cd /opt/zenops/legacy/v1
+cd /opt/maulya/legacy/v1
 git fetch --all
 git pull --ff-only
 
 # optional: pull image tags into env before deploy
-# export ZENOPS_API_IMAGE=ghcr.io/<org>/zenops-api:<tag>
-# export ZENOPS_FRONTEND_IMAGE=ghcr.io/<org>/zenops-frontend:<tag>
+# export MAULYA_API_IMAGE=ghcr.io/<org>/maulya-api:<tag>
+# export MAULYA_FRONTEND_IMAGE=ghcr.io/<org>/maulya-frontend:<tag>
 
 COMPOSE_FILE=docker-compose.hostinger.yml ./ops/deploy.sh
 ```
@@ -37,7 +37,7 @@ Deploy flow is: preflight -> backup (prod) -> migrate -> start services -> readi
 ## 3) Rollback
 
 ```bash
-cd /opt/zenops/legacy/v1
+cd /opt/maulya/legacy/v1
 COMPOSE_FILE=docker-compose.hostinger.yml ./ops/rollback.sh
 ```
 
@@ -48,19 +48,19 @@ Notes:
 ## 4) Restore Drill (weekly during pilot)
 
 ```bash
-cd /opt/zenops/legacy/v1
+cd /opt/maulya/legacy/v1
 COMPOSE_FILE=docker-compose.hostinger.yml ./ops/restore_drill.sh
 ```
 
 Safety:
-- Drill restore targets an isolated DB (for example `zenops_restore_test`).
+- Drill restore targets an isolated DB (for example `maulya_restore_test`).
 - Live DB is protected; touching live DB requires explicit `I_UNDERSTAND=1`.
 
 ## 5) Manual Restore (disaster path)
 
 ```bash
-cd /opt/zenops/legacy/v1
-MODE=disaster CONFIRM=YES BACKUP_FILE=/opt/zenops/backups/<file>.dump ./ops/restore.sh
+cd /opt/maulya/legacy/v1
+MODE=disaster CONFIRM=YES BACKUP_FILE=/opt/maulya/backups/<file>.dump ./ops/restore.sh
 ```
 
 Always run `./ops/restore_drill.sh` before any real restore event.

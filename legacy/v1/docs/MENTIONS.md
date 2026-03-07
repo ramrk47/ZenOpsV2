@@ -1,6 +1,6 @@
 # @Mentions in Document Comments
 
-This document describes the @mention functionality in Zen Ops document comments.
+This document describes the @mention functionality in Maulya document comments.
 
 ## Overview
 
@@ -14,7 +14,7 @@ Users can mention other users in document comments using the `@` syntax. Mention
 ```
 - Most reliable method
 - Case-insensitive
-- Example: `@john.smith@zenops.com please review this`
+- Example: `@john.smith@maulya.in please review this`
 
 ### Name Mention
 ```

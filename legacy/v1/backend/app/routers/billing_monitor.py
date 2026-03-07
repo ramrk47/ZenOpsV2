@@ -276,7 +276,7 @@ def billing_monitor_summary(
 
     return {
         "v1_meta": {
-            "app": "zenops-v1",
+            "app": "maulya-v1",
             "version": settings.project_version,
             "environment": settings.environment,
             "default_billing_mode": settings.default_billing_mode.upper(),

@@ -26,7 +26,7 @@ export default function PartnerHelp() {
         <Card>
           <CardHeader title="Contact" subtitle="Reach the admin team" />
           <div className="muted">
-            For urgent changes, contact your Zen Ops admin or operations manager.
+            For urgent changes, contact your Maulya admin or operations manager.
           </div>
         </Card>
       </div>

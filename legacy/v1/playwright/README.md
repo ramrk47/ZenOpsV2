@@ -1,11 +1,11 @@
-# ZenOps Playwright Test Suite
+# Maulya Playwright Test Suite
 
-Automated E2E and smoke tests for ZenOps.
+Automated E2E and smoke tests for Maulya.
 
 ## Prerequisites
 
 - Node.js 18+
-- Docker (running ZenOps stack)
+- Docker (running Maulya stack)
 
 ## Setup
 
@@ -76,7 +76,7 @@ Test artifacts are saved to:
 ## Test Credentials
 
 Tests use seeded admin account:
-- Email: `admin@zenops.local`
+- Email: `admin@maulya.local`
 - Password: `password`
 
 ## CI/CD

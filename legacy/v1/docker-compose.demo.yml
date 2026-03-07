@@ -1,0 +1,110 @@
+services:
+  db:
+    volumes:
+      - demo_postgres_data:/var/lib/postgresql/data
+
+  uploads-perms:
+    volumes:
+      - demo_uploads:/uploads
+
+  migrate:
+    env_file:
+      - .env.demo.backend
+    environment:
+      PILOT_MODE: ${PILOT_MODE:-1}
+      DEMO_MODE: ${DEMO_MODE:-1}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+
+  api:
+    env_file:
+      - .env.demo.backend
+    environment:
+      PILOT_MODE: ${PILOT_MODE:-1}
+      DEMO_MODE: ${DEMO_MODE:-1}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    volumes:
+      - demo_uploads:/app/uploads
+      - ${BACKUP_HOST_PATH:-/opt/maulya/demo-backups}:/backups
+    labels:
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api-http.rule=Host(`${APP_DOMAIN:-demo.maulya.in}`) && (PathPrefix(`/api`) || Path(`/readyz`) || Path(`/healthz`) || Path(`/healthz/deps`) || Path(`/metrics`) || Path(`/docs`) || Path(`/openapi.json`) || Path(`/version`))"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api-http.entrypoints=web"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api-http.priority=110"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api-http.service=${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api.rule=Host(`${APP_DOMAIN:-demo.maulya.in}`) && (PathPrefix(`/api`) || Path(`/readyz`) || Path(`/healthz`) || Path(`/healthz/deps`) || Path(`/metrics`) || Path(`/docs`) || Path(`/openapi.json`) || Path(`/version`))"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api.entrypoints=websecure"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api.tls=true"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api.priority=120"
+      - "traefik.http.services.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api.loadbalancer.server.port=8000"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api.middlewares=${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api-ratelimit,${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api-inflight"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api-http.middlewares=${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api-ratelimit,${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api-inflight"
+      - "traefik.http.middlewares.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api-ratelimit.ratelimit.average=${TRAEFIK_API_RATE_AVERAGE:-25}"
+      - "traefik.http.middlewares.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api-ratelimit.ratelimit.burst=${TRAEFIK_API_RATE_BURST:-50}"
+      - "traefik.http.middlewares.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-api-inflight.inflightreq.amount=${TRAEFIK_API_INFLIGHT:-20}"
+
+  email-worker:
+    env_file:
+      - .env.demo.backend
+    environment:
+      PILOT_MODE: ${PILOT_MODE:-1}
+      DEMO_MODE: ${DEMO_MODE:-1}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    volumes:
+      - demo_uploads:/app/uploads
+
+  frontend:
+    build:
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_V2_WEB_URL: ${VITE_V2_WEB_URL:-https://app.maulya.in}
+        VITE_PILOT_MODE: ${VITE_PILOT_MODE:-1}
+        VITE_ENABLE_STRUCTURED_INPUTS: ${VITE_ENABLE_STRUCTURED_INPUTS:-0}
+        VITE_DEMO_MODE: ${VITE_DEMO_MODE:-1}
+        VITE_APP_INSTANCE: ${VITE_APP_INSTANCE:-demo}
+    environment:
+      VITE_PILOT_MODE: ${VITE_PILOT_MODE:-1}
+      VITE_DEMO_MODE: ${VITE_DEMO_MODE:-1}
+      VITE_APP_INSTANCE: ${VITE_APP_INSTANCE:-demo}
+    labels:
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-web-http.rule=Host(`${APP_DOMAIN:-demo.maulya.in}`)"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-web-http.entrypoints=web"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-web-http.middlewares=${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-https-redirect"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-web-http.priority=10"
+      - "traefik.http.middlewares.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-https-redirect.redirectscheme.permanent=true"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-web.rule=Host(`${APP_DOMAIN:-demo.maulya.in}`)"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-web.entrypoints=websecure"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-web.tls=true"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-web.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-web.priority=20"
+      - "traefik.http.services.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-web.loadbalancer.server.port=80"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-web.middlewares=${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-web-ratelimit"
+      - "traefik.http.middlewares.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-web-ratelimit.ratelimit.average=${TRAEFIK_WEB_RATE_AVERAGE:-60}"
+      - "traefik.http.middlewares.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-web-ratelimit.ratelimit.burst=${TRAEFIK_WEB_RATE_BURST:-120}"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-legacy-http.rule=Host(`${LEGACY_APP_DOMAIN:-demo.zenops.notalonestudios.com}`)"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-legacy-http.entrypoints=web"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-legacy-http.middlewares=${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-legacy-redirect"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-legacy-http.priority=30"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-legacy.rule=Host(`${LEGACY_APP_DOMAIN:-demo.zenops.notalonestudios.com}`)"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-legacy.entrypoints=websecure"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-legacy.tls=true"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-legacy.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-legacy.middlewares=${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-legacy-redirect"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-legacy.priority=40"
+      - "traefik.http.middlewares.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-legacy-redirect.redirectregex.regex=^https?://demo\\.zenops\\.notalonestudios\\.com(.*)$$"
+      - "traefik.http.middlewares.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-legacy-redirect.redirectregex.replacement=https://demo.maulya.in$$1"
+      - "traefik.http.middlewares.${TRAEFIK_ROUTER_PREFIX:-maulya-demo}-legacy-redirect.redirectregex.permanent=true"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    volumes:
+      - demo_redis_data:/data
+    networks:
+      - internal
+
+volumes:
+  demo_postgres_data:
+  demo_uploads:
+  demo_redis_data:

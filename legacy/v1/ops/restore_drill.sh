@@ -17,8 +17,8 @@ if [ ! -f "$DEFAULT_COMPOSE_FILE" ]; then
 fi
 
 COMPOSE_FILE="${COMPOSE_FILE:-$DEFAULT_COMPOSE_FILE}"
-COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-zenops}"
-RESTORE_DB_NAME="${RESTORE_DB_NAME:-zenops_restore_test}"
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-maulya}"
+RESTORE_DB_NAME="${RESTORE_DB_NAME:-maulya_restore_test}"
 BACKUP_HOST_PATH="${BACKUP_HOST_PATH:-./deploy/backups}"
 BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-21}"
 I_UNDERSTAND="${I_UNDERSTAND:-0}"
@@ -84,9 +84,9 @@ load_env_file ".env"
 load_env_file ".env.backend"
 set +a
 
-POSTGRES_USER="${POSTGRES_USER:-zenops}"
+POSTGRES_USER="${POSTGRES_USER:-maulya}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-change_me}"
-POSTGRES_DB="${POSTGRES_DB:-zenops}"
+POSTGRES_DB="${POSTGRES_DB:-maulya}"
 
 if [ "$RESTORE_DB_NAME" = "$POSTGRES_DB" ] && [ "$I_UNDERSTAND" != "1" ]; then
   error "RESTORE_DB_NAME matches live DB ($POSTGRES_DB). Refusing without I_UNDERSTAND=1."
@@ -124,11 +124,11 @@ fi
 RESTORE_DATABASE_URL="postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${RESTORE_DB_NAME}"
 
 log "Step 3/4: Running integrity checks (alembic current + key table counts)..."
-if ! compose run --rm -e DATABASE_URL="$RESTORE_DATABASE_URL" migrate alembic current >/tmp/zenops_restore_drill_alembic.txt 2>&1; then
-  cat /tmp/zenops_restore_drill_alembic.txt
+if ! compose run --rm -e DATABASE_URL="$RESTORE_DATABASE_URL" migrate alembic current >/tmp/maulya_restore_drill_alembic.txt 2>&1; then
+  cat /tmp/maulya_restore_drill_alembic.txt
   error "alembic current failed against restored database"
 fi
-ALEMBIC_RESULT="$(tail -n 1 /tmp/zenops_restore_drill_alembic.txt || true)"
+ALEMBIC_RESULT="$(tail -n 1 /tmp/maulya_restore_drill_alembic.txt || true)"
 log "Alembic current: ${ALEMBIC_RESULT:-unknown}"
 
 users_count="$(compose exec -T db sh -lc "PGPASSWORD=\"\$POSTGRES_PASSWORD\" psql -t -A -U \"\$POSTGRES_USER\" -d \"$RESTORE_DB_NAME\" -c 'SELECT count(*) FROM users;'")"

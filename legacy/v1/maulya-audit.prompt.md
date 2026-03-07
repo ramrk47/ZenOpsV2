@@ -1,4 +1,4 @@
-You are my background code auditor. I want a deep audit of the entire Zen Ops repo, but you must NOT open or read any .env* files or output secrets.
+You are my background code auditor. I want a deep audit of the entire Maulya repo, but you must NOT open or read any .env* files or output secrets.
 
 Goal: Find bugs, inconsistencies, edge cases, security issues, missing routes, broken imports, wrong role names, mismatched frontend-backend contracts, and deployment footguns. Produce a prioritized report + a concrete fix plan.
 

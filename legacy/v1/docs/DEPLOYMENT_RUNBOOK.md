@@ -1,4 +1,4 @@
-# Zen Ops Deployment Runbook
+# Maulya Deployment Runbook
 
 **Production Protocol v1**  
 Safe, repeatable deployments with zero-footgun guarantees.
@@ -32,8 +32,8 @@ sudo usermod -aG docker $USER
 # Log out and back in for group changes
 
 # 2. Clone repository
-git clone <repo-url> /opt/zen-ops
-cd /opt/zen-ops
+git clone <repo-url> /opt/maulya
+cd /opt/maulya
 
 # 3. Create environment files
 cp .env.example .env
@@ -60,21 +60,21 @@ mkdir -p deploy/backups deploy/rclone
 ### Quick Deploy (Clean Repo)
 
 ```bash
-cd /opt/zen-ops
+cd /opt/maulya
 ./ops/deploy.sh
 ```
 
 ### Deploy with Git Pull
 
 ```bash
-cd /opt/zen-ops
+cd /opt/maulya
 PULL=1 ./ops/deploy.sh
 ```
 
 ### Deploy with Uncommitted Changes
 
 ```bash
-cd /opt/zen-ops
+cd /opt/maulya
 CONFIRM=YES ./ops/deploy.sh
 ```
 
@@ -163,14 +163,14 @@ docker compose --profile backup run --rm rclone config
 docker compose --profile backup run --rm rclone lsd gdrive:
 
 # Create backup directory
-docker compose --profile backup run --rm rclone mkdir gdrive:ZenOpsBackups
+docker compose --profile backup run --rm rclone mkdir gdrive:MaulyaBackups
 ```
 
 ### Update .env
 
 ```bash
 # Add to .env or .env.backend
-RCLONE_REMOTE=gdrive:ZenOpsBackups/production
+RCLONE_REMOTE=gdrive:MaulyaBackups/production
 ```
 
 ### Test Upload
@@ -178,10 +178,10 @@ RCLONE_REMOTE=gdrive:ZenOpsBackups/production
 ```bash
 echo "test" > /tmp/test.txt
 docker compose --profile backup run --rm rclone \
-  copy /tmp/test.txt gdrive:ZenOpsBackups/test/
+  copy /tmp/test.txt gdrive:MaulyaBackups/test/
 
 docker compose --profile backup run --rm rclone \
-  lsf gdrive:ZenOpsBackups/test/
+  lsf gdrive:MaulyaBackups/test/
 ```
 
 ### Encrypted Backups (Optional)
@@ -193,7 +193,7 @@ docker compose --profile backup run --rm rclone config
 # n) New remote
 # name> gdrive-crypt
 # Storage> crypt
-# remote> gdrive:ZenOpsBackups/encrypted
+# remote> gdrive:MaulyaBackups/encrypted
 # filename_encryption> standard
 # directory_name_encryption> true
 # password> <strong password>
@@ -254,7 +254,7 @@ docker volume rm <test-volume-name>
 ls -lah ./deploy/backups/*.dump | tail -10
 
 # Step 2: Run restore (creates NEW volume, does not touch production)
-./ops/restore.sh MODE=disaster BACKUP_FILE="./deploy/backups/zenops_YYYYMMDD_HHMMSS.dump" CONFIRM=YES
+./ops/restore.sh MODE=disaster BACKUP_FILE="./deploy/backups/maulya_YYYYMMDD_HHMMSS.dump" CONFIRM=YES
 
 # Step 3: Follow manual instructions printed by script
 # The script will NOT automatically swap volumes
@@ -274,7 +274,7 @@ The `restore.sh MODE=disaster` script stops services and creates a new volume bu
        name: postgres_data_restored_20260208_140000  # Use actual name
    ```
 3. Restart DB: `docker compose up -d db`
-4. Verify: `docker compose exec db psql -U zenops -c '\dt'`
+4. Verify: `docker compose exec db psql -U maulya -c '\dt'`
 5. Start all: `docker compose up -d`
 
 ---
@@ -389,7 +389,7 @@ docker compose logs api
 docker compose --profile backup logs backup
 
 # Test DB connection
-docker compose exec db pg_isready -U zenops
+docker compose exec db pg_isready -U maulya
 
 # Verify backup directory writable
 ls -la ./deploy/backups
@@ -412,12 +412,12 @@ docker compose up -d frontend
 
 ```bash
 # Verify backup file integrity
-file ./deploy/backups/zenops_*.dump
+file ./deploy/backups/maulya_*.dump
 
 # Should show: "PostgreSQL custom database dump"
 
 # Check file size (should be > 1MB for real data)
-ls -lh ./deploy/backups/zenops_*.dump
+ls -lh ./deploy/backups/maulya_*.dump
 ```
 
 ---
@@ -480,7 +480,7 @@ BACKUP_FILE=<path>  # Path to .dump file
 ## Appendix: Directory Structure
 
 ```
-/opt/zen-ops/
+/opt/maulya/
 ├── docker-compose.yml          # Main compose file
 ├── .env                         # Main environment vars
 ├── .env.backend                 # Backend environment vars

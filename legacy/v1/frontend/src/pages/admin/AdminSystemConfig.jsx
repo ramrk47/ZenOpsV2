@@ -130,7 +130,7 @@ export default function AdminSystemConfig() {
               type="email"
               value={opsEmail}
               onChange={(e) => setOpsEmail(e.target.value)}
-              placeholder="support@zenops.com"
+              placeholder="support@maulya.in"
             />
           </div>
 
@@ -138,7 +138,7 @@ export default function AdminSystemConfig() {
             <label htmlFor="supportPortalBaseUrl">
               Support Portal Base URL
               <small className="form-hint">
-                Base URL for support portal links in emails (e.g., https://zenops.com)
+                Base URL for support portal links in emails (e.g., https://maulya.in)
               </small>
             </label>
             <input
@@ -146,7 +146,7 @@ export default function AdminSystemConfig() {
               type="url"
               value={supportPortalBaseUrl}
               onChange={(e) => setSupportPortalBaseUrl(e.target.value)}
-              placeholder="https://zenops.com"
+              placeholder="https://maulya.in"
             />
           </div>
 

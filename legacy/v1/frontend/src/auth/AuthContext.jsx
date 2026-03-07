@@ -2,8 +2,15 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { useNavigate } from 'react-router-dom'
 import api, { resolveStepUp, rejectStepUp, toUserMessage } from '../api/client'
 import { resolveHomeRoute } from '../utils/rbac'
+import { resolveMobileTarget } from '../mobile/routing'
 import IdleWarningModal from '../components/IdleWarningModal'
 import StepUpMFAModal from '../components/StepUpMFAModal'
+import {
+  getLocalStorageItem,
+  removeLocalStorageItem,
+  removeSessionStorageItem,
+  setLocalStorageItem,
+} from '../utils/appInstance'
 
 const AuthContext = createContext()
 
@@ -29,10 +36,17 @@ export function AuthProvider({ children }) {
   const logoutInProgressRef = useRef(false)
   const authEpochRef = useRef(0)
 
+  const resolveDestination = useCallback((nextUser, nextCapabilities) => {
+    const next = resolveHomeRoute(nextUser, nextCapabilities)
+    if (typeof window === 'undefined' || !window.matchMedia) return next
+    if (!window.matchMedia('(max-width: 767px)').matches) return next
+    return resolveMobileTarget(next) || '/m/home'
+  }, [])
+
   const clearLocalAuthState = useCallback(() => {
-    localStorage.removeItem('token')
-    sessionStorage.removeItem('step_up_token')
-    sessionStorage.removeItem('admin_master_key')
+    removeLocalStorageItem('token', ['token'])
+    removeSessionStorageItem('step_up_token', ['step_up_token'])
+    removeSessionStorageItem('admin_master_key', ['admin_master_key'])
     setUser(null)
     setCapabilities({})
     setMfaPending(null)
@@ -76,7 +90,7 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
+    const token = getLocalStorageItem('token', ['token'])
     const shouldAttempt = Boolean(token) || useCookieAuth
     if (shouldAttempt) refreshAuth({ allowAnonymous: !token })
     else setInitialising(false)
@@ -100,11 +114,11 @@ export function AuthProvider({ children }) {
       // No MFA — complete login
       logoutInProgressRef.current = false
       authEpochRef.current += 1
-      if (!useCookieAuth) localStorage.setItem('token', res.data.access_token)
+      if (!useCookieAuth) setLocalStorageItem('token', res.data.access_token)
       if (res.data.user) setUser(res.data.user)
       if (res.data.capabilities) setCapabilities(res.data.capabilities)
       refreshAuth({ allowAnonymous: false })
-      const next = resolveHomeRoute(res.data.user, res.data.capabilities)
+      const next = resolveDestination(res.data.user, res.data.capabilities)
       navigate(next)
       return { mfaRequired: false }
     } catch (err) {
@@ -122,12 +136,12 @@ export function AuthProvider({ children }) {
 
       logoutInProgressRef.current = false
       authEpochRef.current += 1
-      if (!useCookieAuth) localStorage.setItem('token', res.data.access_token)
+      if (!useCookieAuth) setLocalStorageItem('token', res.data.access_token)
       if (res.data.user) setUser(res.data.user)
       if (res.data.capabilities) setCapabilities(res.data.capabilities)
       setMfaPending(null)
       refreshAuth({ allowAnonymous: false })
-      const next = resolveHomeRoute(res.data.user, res.data.capabilities)
+      const next = resolveDestination(res.data.user, res.data.capabilities)
       navigate(next)
     } catch (err) {
       throw new Error(toUserMessage(err, 'Invalid TOTP code'))
@@ -144,12 +158,12 @@ export function AuthProvider({ children }) {
 
       logoutInProgressRef.current = false
       authEpochRef.current += 1
-      if (!useCookieAuth) localStorage.setItem('token', res.data.access_token)
+      if (!useCookieAuth) setLocalStorageItem('token', res.data.access_token)
       if (res.data.user) setUser(res.data.user)
       if (res.data.capabilities) setCapabilities(res.data.capabilities)
       setMfaPending(null)
       refreshAuth({ allowAnonymous: false })
-      const next = resolveHomeRoute(res.data.user, res.data.capabilities)
+      const next = resolveDestination(res.data.user, res.data.capabilities)
       navigate(next)
     } catch (err) {
       throw new Error(toUserMessage(err, 'Invalid backup code'))
@@ -162,7 +176,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     if (logoutInProgressRef.current) return
-    const token = localStorage.getItem('token')
+    const token = getLocalStorageItem('token', ['token'])
     const logoutUrl = `${api.defaults.baseURL || ''}/api/auth/logout`
     logoutInProgressRef.current = true
     authEpochRef.current += 1
@@ -217,7 +231,7 @@ export function AuthProvider({ children }) {
       try {
         const res = await api.post('/api/auth/heartbeat')
         if (res.data?.access_token && !useCookieAuth) {
-          localStorage.setItem('token', res.data.access_token)
+          setLocalStorageItem('token', res.data.access_token)
         }
       } catch (err) {
         // 401 will be caught by the interceptor above → auto-logout
@@ -266,10 +280,10 @@ export function AuthProvider({ children }) {
     lastActivityRef.current = Date.now()
     // Fire an immediate heartbeat to refresh the token
     try {
-      const res = await api.post('/api/auth/heartbeat')
-      if (res.data?.access_token && !useCookieAuth) {
-        localStorage.setItem('token', res.data.access_token)
-      }
+        const res = await api.post('/api/auth/heartbeat')
+        if (res.data?.access_token && !useCookieAuth) {
+          setLocalStorageItem('token', res.data.access_token)
+        }
     } catch { /* interceptor handles 401 */ }
   }, [useCookieAuth])
 

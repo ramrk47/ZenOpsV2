@@ -1,5 +1,5 @@
--- Seed test data for Zen Ops
--- Run with: cat scripts/seed_test_data.sql | docker exec -i zen-ops-db-1 psql -U zenops -d zenops
+-- Seed test data for Maulya
+-- Run with: cat scripts/seed_test_data.sql | docker exec -i maulya-db-1 psql -U maulya -d maulya
 
 BEGIN;
 

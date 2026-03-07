@@ -1,6 +1,6 @@
 # Database Restore Runbook
 
-This runbook covers database restore procedures for Zen Ops.
+This runbook covers database restore procedures for Maulya.
 
 ## Quick Reference
 
@@ -30,13 +30,13 @@ Location: `./deploy/backups/` (local) or remote (via rclone if configured)
 **Steps**:
 
 ```bash
-cd /path/to/zen-ops
+cd /path/to/maulya
 
 # Find latest backup
 ls -lh ./deploy/backups/*.dump
 
 # Run test restore
-MODE=test BACKUP_FILE=./deploy/backups/zenops_db_2026-02-09_14-30-00.dump ./ops/restore.sh
+MODE=test BACKUP_FILE=./deploy/backups/maulya_db_2026-02-09_14-30-00.dump ./ops/restore.sh
 ```
 
 **What it does**:
@@ -49,8 +49,8 @@ MODE=test BACKUP_FILE=./deploy/backups/zenops_db_2026-02-09_14-30-00.dump ./ops/
 **Cleanup**:
 ```bash
 # After inspection, cleanup test environment
-docker rm -f zenops-restore-test-<pid>
-docker volume rm zenops_restore_test_<timestamp>
+docker rm -f maulya-restore-test-<pid>
+docker volume rm maulya_restore_test_<timestamp>
 ```
 
 ## Disaster Recovery
@@ -65,12 +65,12 @@ docker volume rm zenops_restore_test_<timestamp>
 ### Procedure
 
 ```bash
-cd /path/to/zen-ops
+cd /path/to/maulya
 
 # 1. Set confirmation
 export CONFIRM=YES
 export MODE=disaster
-export BACKUP_FILE=./deploy/backups/zenops_db_2026-02-09_14-30-00.dump
+export BACKUP_FILE=./deploy/backups/maulya_db_2026-02-09_14-30-00.dump
 
 # 2. Run disaster restore
 ./ops/restore.sh
@@ -104,7 +104,7 @@ volumes:
 docker compose up -d db
 
 # 4. Verify database
-docker compose exec db psql -U zenops -d zenops -c '\dt'
+docker compose exec db psql -U maulya -d maulya -c '\dt'
 
 # 5. Start all services
 docker compose up -d
@@ -138,7 +138,7 @@ After restore:
    ls -lth ./deploy/backups/*.dump | head -5
    
    # Choose latest
-   BACKUP_FILE=./deploy/backups/zenops_db_2026-02-09_14-30-00.dump
+   BACKUP_FILE=./deploy/backups/maulya_db_2026-02-09_14-30-00.dump
    ```
 
 2. **Run Test Restore**:
@@ -149,7 +149,7 @@ After restore:
 3. **Verify Schema**:
    ```bash
    # Connect to test DB
-   docker exec -it zenops-restore-test-<pid> psql -U zenops -d zenops
+   docker exec -it maulya-restore-test-<pid> psql -U maulya -d maulya
    
    # Check key tables
    \dt
@@ -188,8 +188,8 @@ After restore:
 
 6. **Cleanup**:
    ```bash
-   docker rm -f zenops-restore-test-<pid>
-   docker volume rm zenops_restore_test_<timestamp>
+   docker rm -f maulya-restore-test-<pid>
+   docker volume rm maulya_restore_test_<timestamp>
    ```
 
 ### Drill Checklist Template
@@ -229,8 +229,8 @@ After restore:
 **Solution**:
 ```bash
 # Drop and recreate database (test mode only)
-docker exec zenops-restore-test-<pid> psql -U zenops -c "DROP DATABASE IF EXISTS zenops;"
-docker exec zenops-restore-test-<pid> psql -U zenops -c "CREATE DATABASE zenops;"
+docker exec maulya-restore-test-<pid> psql -U maulya -c "DROP DATABASE IF EXISTS maulya;"
+docker exec maulya-restore-test-<pid> psql -U maulya -c "CREATE DATABASE maulya;"
 ```
 
 ### Restore Fails: "permission denied"
@@ -269,7 +269,7 @@ export BACKUP_ENCRYPTION_KEY=<correct-key>
 docker volume ls | grep restore
 
 # Remove old test volumes
-docker volume rm zenops_restore_test_<old-timestamp>
+docker volume rm maulya_restore_test_<old-timestamp>
 ```
 
 ## Best Practices

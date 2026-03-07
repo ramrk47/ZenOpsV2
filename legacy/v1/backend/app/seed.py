@@ -55,7 +55,7 @@ from app.services.leave import approve_leave
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Seed the Zen Ops database with demo data")
+    parser = argparse.ArgumentParser(description="Seed the Maulya database with demo data")
     parser.add_argument("--reset", action="store_true", help="Drop and recreate all tables before seeding")
     return parser.parse_args()
 
@@ -180,9 +180,9 @@ def seed_master_data(db: Session) -> dict[str, list]:
             country="India",
             gstin="29DERPK2070C1ZF",
             pan="DERPK2070C",
-            contact_email="admin@zenops.local",
+            contact_email="admin@maulya.local",
             contact_phone="+91-90000-00000",
-            website="zenops.local",
+            website="maulya.local",
             default_gst_rate=Decimal("18.00"),
         )
         db.add(profile)
@@ -708,7 +708,7 @@ def main() -> None:
         reset_db()
 
     with SessionLocal() as db:
-        admin_exists = db.query(User).filter(User.email == "admin@zenops.local").first()
+        admin_exists = db.query(User).filter(User.email == "admin@maulya.local").first()
         if admin_exists and not args.reset:
             print("Seed appears to have already run. Use --reset to reseed.")
             return
@@ -716,20 +716,20 @@ def main() -> None:
         master = seed_master_data(db)
 
         users = {
-            "admin": get_or_create_user(db, email="admin@zenops.local", password="password", role=Role.ADMIN, full_name="Admin"),
-            "ops": get_or_create_user(db, email="ops@zenops.local", password="password", role=Role.OPS_MANAGER, full_name="Ops Manager"),
-            "hr": get_or_create_user(db, email="hr@zenops.local", password="password", role=Role.HR, full_name="HR Manager"),
-            "finance": get_or_create_user(db, email="finance@zenops.local", password="password", role=Role.FINANCE, full_name="Finance"),
+            "admin": get_or_create_user(db, email="admin@maulya.local", password="password", role=Role.ADMIN, full_name="Admin"),
+            "ops": get_or_create_user(db, email="ops@maulya.local", password="password", role=Role.OPS_MANAGER, full_name="Ops Manager"),
+            "hr": get_or_create_user(db, email="hr@maulya.local", password="password", role=Role.HR, full_name="HR Manager"),
+            "finance": get_or_create_user(db, email="finance@maulya.local", password="password", role=Role.FINANCE, full_name="Finance"),
             "assistant": get_or_create_user(
                 db,
-                email="assistant@zenops.local",
+                email="assistant@maulya.local",
                 password="password",
                 role=Role.ASSISTANT_VALUER,
                 full_name="Assistant Valuer",
             ),
             "field": get_or_create_user(
                 db,
-                email="field@zenops.local",
+                email="field@maulya.local",
                 password="password",
                 role=Role.FIELD_VALUER,
                 full_name="Field Valuer",
@@ -742,7 +742,7 @@ def main() -> None:
 
         db.commit()
         print("Seed complete.")
-        print("Admin login: admin@zenops.local / password")
+        print("Admin login: admin@maulya.local / password")
 
 
 if __name__ == "__main__":

@@ -228,7 +228,7 @@ def healthcheck(db: Session = Depends(get_db)) -> dict[str, str | int]:
 @app.get("/v1/meta", tags=["health"])
 def v1_meta() -> dict[str, str]:
     return {
-        "app": "zenops-v1",
+        "app": "maulya-v1",
         "repo_root": str(v1_repo_root),
         "git_sha": _resolve_v1_git_sha(),
         "build_time": v1_build_time,
@@ -372,7 +372,7 @@ def version() -> dict[str, str | None]:
 def startup_event():
     """Application startup event."""
     # Initialize OpenTelemetry tracing
-    setup_opentelemetry(app, service_name="zenops-api")
+    setup_opentelemetry(app, service_name="maulya-api")
     setup_sqlalchemy_instrumentation(engine)
     # Warm in-memory seed caches for checklist and upload slot rules.
     refresh_seed_cache()

@@ -1,19 +1,19 @@
 # V1 Billing & Invoicing: Top-to-Bottom Technical Report
 
 ## 1) Scope and Objective
-This report explains exactly how billing and invoicing work in V1 (`/Users/dr.156/zen-ops`), from UI actions to API/service logic, DB writes, approvals, notifications, partner-side payment proof, and document release gating.
+This report explains exactly how billing and invoicing work in V1 (`/Users/dr.156/maulya`), from UI actions to API/service logic, DB writes, approvals, notifications, partner-side payment proof, and document release gating.
 
 It is grounded in current code, primarily:
-- `/Users/dr.156/zen-ops/backend/app/routers/invoices.py`
-- `/Users/dr.156/zen-ops/backend/app/services/invoices.py`
-- `/Users/dr.156/zen-ops/backend/app/models/invoice.py`
-- `/Users/dr.156/zen-ops/backend/app/routers/approvals.py`
-- `/Users/dr.156/zen-ops/backend/app/services/approvals.py`
-- `/Users/dr.156/zen-ops/backend/app/routers/partner.py`
-- `/Users/dr.156/zen-ops/backend/app/routers/partner_admin.py`
-- `/Users/dr.156/zen-ops/frontend/src/pages/InvoicesPage.jsx`
-- `/Users/dr.156/zen-ops/frontend/src/pages/AssignmentDetail.jsx`
-- `/Users/dr.156/zen-ops/frontend/src/pages/partner/PartnerPayments.jsx`
+- `/Users/dr.156/maulya-v1/legacy/v1/backend/app/routers/invoices.py`
+- `/Users/dr.156/maulya-v1/legacy/v1/backend/app/services/invoices.py`
+- `/Users/dr.156/maulya-v1/legacy/v1/backend/app/models/invoice.py`
+- `/Users/dr.156/maulya-v1/legacy/v1/backend/app/routers/approvals.py`
+- `/Users/dr.156/maulya-v1/legacy/v1/backend/app/services/approvals.py`
+- `/Users/dr.156/maulya-v1/legacy/v1/backend/app/routers/partner.py`
+- `/Users/dr.156/maulya-v1/legacy/v1/backend/app/routers/partner_admin.py`
+- `/Users/dr.156/maulya-v1/legacy/v1/frontend/src/pages/InvoicesPage.jsx`
+- `/Users/dr.156/maulya-v1/legacy/v1/frontend/src/pages/AssignmentDetail.jsx`
+- `/Users/dr.156/maulya-v1/legacy/v1/frontend/src/pages/partner/PartnerPayments.jsx`
 
 ## 2) High-Level Architecture (Billing Path)
 

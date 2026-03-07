@@ -1,11 +1,11 @@
-# Zen Ops Production Protocol - Quick Start
+# Maulya Production Protocol - Quick Start
 
 ## 🚀 One-Time VPS Setup
 
 ```bash
 # Clone repo
-git clone <repo-url> /opt/zen-ops
-cd /opt/zen-ops
+git clone <repo-url> /opt/maulya
+cd /opt/maulya
 
 # Configure environment
 cp .env.example .env
@@ -24,7 +24,7 @@ nano .env.backend  # Set passwords, email config
 ## 📦 Standard Deployment
 
 ```bash
-cd /opt/zen-ops
+cd /opt/maulya
 ./ops/deploy.sh
 ```
 
@@ -55,7 +55,7 @@ ls -lah ./deploy/backups | tail -10
 ./ops/migrate.sh
 
 # Test restore (safe)
-./ops/restore.sh MODE=test BACKUP_FILE="./deploy/backups/zenops_*.dump"
+./ops/restore.sh MODE=test BACKUP_FILE="./deploy/backups/maulya_*.dump"
 
 # Disaster recovery (requires CONFIRM=YES)
 ./ops/restore.sh MODE=disaster BACKUP_FILE="<file>" CONFIRM=YES
@@ -104,7 +104,7 @@ docker compose --profile backup run --rm rclone config
 docker compose --profile backup run --rm rclone lsd gdrive:
 
 # Set in .env
-RCLONE_REMOTE=gdrive:ZenOpsBackups/production
+RCLONE_REMOTE=gdrive:MaulyaBackups/production
 ```
 
 ---

@@ -7,7 +7,7 @@ test.describe('Full App Exploration', () => {
     
     // Login
     await page.goto(`${BASE}/login`);
-    await page.locator('input').first().fill('admin@zenops.local');
+    await page.locator('input').first().fill('admin@maulya.local');
     await page.locator('input').nth(1).fill('password');
     await page.locator('button:has-text("Sign In")').click();
     await page.waitForTimeout(3000);

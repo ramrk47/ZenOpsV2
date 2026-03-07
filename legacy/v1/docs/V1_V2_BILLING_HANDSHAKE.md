@@ -3,12 +3,12 @@
 ## Purpose
 V1 remains the operational billing engine for early postpaid customers, while V2 Studio is the billing control-plane source of truth.
 
-This document defines the current integration contract from V1 (`/Users/dr.156/zen-ops`) to V2 (`/Users/dr.156/ZenOpsV2`).
+This document defines the current integration contract from V1 (`/Users/dr.156/maulya`) to V2 (`/Users/dr.156/maulya-v1`).
 
 ## V1 Configuration
 Set these backend environment variables:
 
-- `STUDIO_BASE_URL` (example `https://api-zenops.notalonestudios.com`)
+- `STUDIO_BASE_URL` (example `https://api.maulya.in`)
 - `STUDIO_SERVICE_TOKEN`
 - `DEFAULT_BILLING_MODE=POSTPAID` (fallback when Studio is unreachable)
 - `STUDIO_HTTP_TIMEOUT_SECONDS=5`
@@ -17,7 +17,7 @@ Set these backend environment variables:
 ## Adapter
 V1 implements `StudioBillingAdapter` at:
 
-- `/Users/dr.156/zen-ops/backend/app/services/studio_billing.py`
+- `/Users/dr.156/maulya-v1/legacy/v1/backend/app/services/studio_billing.py`
 
 Supported methods:
 

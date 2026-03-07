@@ -1,4 +1,4 @@
-# Copilot Instructions for Zen Ops Backend
+# Copilot Instructions for Maulya Backend
 
 ## Architecture Overview
 - **FastAPI-based backend**: Main entry is [`app/main.py`](../app/main.py). All API routes are registered here.

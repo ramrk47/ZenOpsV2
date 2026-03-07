@@ -6,10 +6,12 @@ import { Card, CardHeader } from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
 import InfoTip from '../../components/ui/InfoTip'
 import PageGrid from '../../components/ui/PageGrid'
+import AssociateDemoPromo from '../../components/AssociateDemoPromo'
 import { fetchPartnerAssignments, fetchPartnerCommissions, fetchPartnerInvoices, fetchPartnerNotifications } from '../../api/partner'
 import { formatDateTime, titleCase } from '../../utils/format'
 import { toUserMessage } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
+import { hasCapability } from '../../utils/rbac'
 
 function statusTone(status) {
   if (!status) return 'muted'
@@ -29,7 +31,7 @@ function notificationLink(notification) {
 }
 
 export default function PartnerHome() {
-  const { user } = useAuth()
+  const { user, capabilities } = useAuth()
   const [commissions, setCommissions] = useState([])
   const [assignments, setAssignments] = useState([])
   const [invoices, setInvoices] = useState([])
@@ -77,22 +79,27 @@ export default function PartnerHome() {
 
   const reportsReadyCount = useMemo(() => assignments.filter((a) => a.payment_status === 'VERIFIED').length, [assignments])
   const needsProfile = useMemo(() => !(user?.full_name && user?.phone), [user?.full_name, user?.phone])
+  const canCreateDraftAssignment = hasCapability(capabilities, 'create_assignment_draft')
 
   return (
-    <div>
+    <div className="partner-console-page">
       <PageHeader
-        title="Associate Console"
-        subtitle="Submit new commissions, respond to requests, and track payments in one place."
+        eyebrow="Associate Workspace"
+        title="Associate Dashboard"
+        subtitle="Submit valuation requests, respond to clarifications, and track payment and delivery updates."
         actions={(
-          <Link className="nav-link" to="/partner/requests/new">New Commission Request</Link>
+          <div className="public-actions">
+            {canCreateDraftAssignment ? <Link className="nav-link" to="/partner/assignments/new">Create Valuation Case</Link> : null}
+            <Link className="nav-link" to="/partner/requests/new">New Request</Link>
+          </div>
         )}
       />
 
-      {error ? <div className="empty" style={{ marginBottom: '0.9rem' }}>{error}</div> : null}
+      {error ? <div className="alert alert-danger">{error}</div> : null}
       {needsProfile ? (
-        <Card style={{ marginBottom: '0.9rem' }}>
+        <Card className="partner-profile-card">
           <CardHeader title="Complete Profile" subtitle="Finish first-run setup for External Associate access." />
-          <div className="list-item">
+          <div className="surface-note">
             Add your name and phone in profile settings. Optional KYC documents can be uploaded in requests.
             <div style={{ marginTop: 8 }}>
               <Link className="nav-link" to="/partner/profile">Complete Profile</Link>
@@ -101,71 +108,75 @@ export default function PartnerHome() {
         </Card>
       ) : null}
 
+      <AssociateDemoPromo />
+
       {loading ? (
         <div className="muted">Loading associate dashboard…</div>
       ) : (
         <>
-          <PageGrid cols={{ base: 1, md: 2, lg: 3 }} style={{ marginBottom: '1rem' }}>
-            <Card>
+          <PageGrid cols={{ base: 1, md: 2, lg: 3 }} className="partner-hero-grid">
+            <Card className="metric-card">
               <CardHeader
                 title="Requests In Progress"
-                subtitle="Submitted and awaiting action"
+                subtitle="Sent by you and waiting for review"
                 action={<Badge tone={inProgressCount > 0 ? 'info' : 'ok'}>{inProgressCount}</Badge>}
               />
-              <div className="muted">Track submitted commissions and document requests.</div>
+              <div className="metric-card-copy">Track requests that are still under review or waiting for more information.</div>
               <div style={{ marginTop: 12 }}>
                 <Link className="nav-link" to="/partner/requests">View Requests</Link>
               </div>
             </Card>
 
-            <Card>
+            <Card className="metric-card">
               <CardHeader
                 title="Payments Pending"
-                subtitle="Invoices awaiting verification"
+                subtitle="Invoices that still need your action"
                 action={<Badge tone={paymentPendingCount > 0 ? 'warn' : 'ok'}>{paymentPendingCount}</Badge>}
               />
-              <div className="muted">Upload payment proof to unlock deliverables.</div>
+              <div className="metric-card-copy">Submit proof of payment so reports and final files can be released.</div>
               <div style={{ marginTop: 12 }}>
                 <Link className="nav-link" to="/partner/payments">Open Payments</Link>
               </div>
             </Card>
 
-            <Card>
+            <Card className="metric-card">
               <CardHeader
                 title="Reports Ready"
-                subtitle="Verified payments with deliverables"
+                subtitle="Files unlocked after payment verification"
                 action={<Badge tone={reportsReadyCount > 0 ? 'ok' : 'muted'}>{reportsReadyCount}</Badge>}
               />
-              <div className="muted">Final reports unlock after payment verification.</div>
+              <div className="metric-card-copy">Download-ready deliverables appear here after finance verification is complete.</div>
               <div style={{ marginTop: 12 }}>
                 <Link className="nav-link" to="/partner/requests">Go to Requests</Link>
               </div>
             </Card>
           </PageGrid>
 
-          <div
-            className="split"
-            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}
-          >
+          <div className="partner-stream-grid">
             <Card>
               <CardHeader
                 title="Latest Updates"
-                subtitle="Recent status changes and requests from the team."
+                subtitle="Recent status changes, document asks, and payment prompts."
                 action={<Link className="nav-link" to="/partner/notifications">All Notifications</Link>}
               />
 
               {notifications.length === 0 ? (
-                <EmptyState>No updates yet.</EmptyState>
+                <EmptyState
+                  title="No updates yet"
+                  body="Status changes, payment prompts, and request follow-ups will appear here as soon as the workspace starts moving."
+                />
               ) : (
                 <div className="list">
                   {notifications.map((note) => (
-                    <Link key={note.id} to={notificationLink(note)} className="list-item">
+                    <Link key={note.id} to={notificationLink(note)} className="partner-list-link">
+                      <div className="list-item">
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                         <div>
                           <div style={{ fontWeight: 600 }}>{titleCase(note.type || 'Update')}</div>
                           <div className="muted" style={{ marginTop: 4 }}>{note.message}</div>
                         </div>
                         <div className="muted" style={{ fontSize: 12 }}>{formatDateTime(note.created_at)}</div>
+                      </div>
                       </div>
                     </Link>
                   ))}
@@ -180,17 +191,23 @@ export default function PartnerHome() {
                 action={<InfoTip text="Use My Requests to track all commissions." />}
               />
               {commissions.length === 0 ? (
-                <EmptyState>No commission requests yet.</EmptyState>
+                <EmptyState
+                  title="No commission requests yet"
+                  body="Start with your first request to unlock payment tracking, document prompts, and delivery milestones."
+                  action={<Link className="nav-link" to="/partner/requests/new">Create Request</Link>}
+                />
               ) : (
                 <div className="list">
                   {commissions.slice(0, 5).map((commission) => (
-                    <Link key={commission.id} to={`/partner/requests/${commission.id}`} className="list-item">
+                    <Link key={commission.id} to={`/partner/requests/${commission.id}`} className="partner-list-link">
+                      <div className="list-item">
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                         <div>
                           <div style={{ fontWeight: 600 }}>{commission.request_code}</div>
                           <div className="muted" style={{ fontSize: 12 }}>{commission.borrower_name || commission.bank_name || 'Commission request'}</div>
                         </div>
                         <Badge tone={statusTone(commission.status)}>{titleCase(commission.status)}</Badge>
+                      </div>
                       </div>
                     </Link>
                   ))}

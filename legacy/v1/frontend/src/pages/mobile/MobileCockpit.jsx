@@ -133,8 +133,8 @@ export default function MobileCockpit() {
     <div className="mobile-shell">
       <header className="mobile-header">
         <div>
-          <p className="mobile-kicker">Zen Ops Mobile Cockpit</p>
-          <h1>Zen Ops</h1>
+          <p className="mobile-kicker">Maulya Mobile Cockpit</p>
+          <h1>Maulya</h1>
         </div>
         <div className="mobile-header-actions">
           <button

@@ -11,7 +11,7 @@ Phase 7 introduces policy-driven assignment allocation for V1 (`legacy/v1`) with
 ## Scope Boundaries
 - Role enums remain unchanged (`FINANCE`, `HR`, `OPS_MANAGER`, etc.)
 - No external allocation service dependencies
-- V2/Repogen code is not part of this runbook
+- V2 sidecar code is not part of this runbook
 
 ## Operator Checklist
 1. Confirm migration is applied:
@@ -100,7 +100,7 @@ score =
 
 ## Verification Commands
 ```bash
-cd /Users/sriramrk/ZenOpsV2/legacy/v1
+cd legacy/v1
 docker compose -f docker-compose.dev.yml run --rm backend alembic upgrade head
 docker compose -f docker-compose.dev.yml run --rm backend pytest -q \
   tests/test_phase2_approvals.py \

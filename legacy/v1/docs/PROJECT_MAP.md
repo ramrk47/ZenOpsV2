@@ -1,7 +1,7 @@
 # Project Map
 
 ## 1) Product Mental Model
-Zen Ops centers on **Assignments**. Everything else attaches to an assignment (tasks, messages, documents, approvals, invoices, calendar events, notifications). The product has three UI surfaces:
+Maulya centers on **Assignments**. Everything else attaches to an assignment (tasks, messages, documents, approvals, invoices, calendar events, notifications). The product has three UI surfaces:
 - Admin UI for oversight, analytics, approvals, master data, and workforce management.
 - Employee UI for day-to-day work execution.
 - Partner UI for external partner requests, payments, and deliverables.

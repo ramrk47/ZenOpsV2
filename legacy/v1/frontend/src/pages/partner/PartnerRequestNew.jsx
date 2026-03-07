@@ -239,7 +239,7 @@ export default function PartnerRequestNew() {
     <div>
       <PageHeader
         title={commissionId ? 'Edit Commission Request' : 'New Commission Request'}
-        subtitle="Share only associate-required details. Internal workflow stays private."
+        subtitle="Share only associate-required details. Internal processing stays private."
       />
 
       {error ? <div className="empty" style={{ marginBottom: '0.9rem' }}>{error}</div> : null}
@@ -412,9 +412,9 @@ export default function PartnerRequestNew() {
 
         <Card>
           <CardHeader
-            title="Notes to Zen Ops"
+            title="Notes to Maulya"
             subtitle="Add any context or constraints."
-            action={<InfoTip text="Internal teams will review these notes with your submission." />}
+            action={<InfoTip text="The Maulya team will review these notes with your submission." />}
           />
           <textarea
             rows={4}

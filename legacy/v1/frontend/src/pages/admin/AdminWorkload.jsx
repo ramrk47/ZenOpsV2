@@ -30,8 +30,8 @@ const QUEUE_FILTERS = [
   { key: 'UNASSIGNED', label: 'Unassigned' },
 ]
 
-const VIEW_STORAGE_KEY = 'zenops.workload.views.v1'
-const FILTERS_KEY = 'zenops.workload.filters.v1'
+const VIEW_STORAGE_KEY = 'maulya.workload.views.v1'
+const FILTERS_KEY = 'maulya.workload.filters.v1'
 
 function capacityScore(row) {
   if (!row) return 0

@@ -1,4 +1,10 @@
 import axios from 'axios'
+import {
+  getLocalStorageItem,
+  getSessionStorageItem,
+  removeSessionStorageItem,
+  setSessionStorageItem,
+} from '../../utils/appInstance'
 
 const inferBaseUrl = () => {
   if (typeof window === 'undefined') return ''
@@ -23,11 +29,11 @@ const STEP_UP_KIND_TOKEN = 'step_up_token'
 const STEP_UP_KIND_MASTER_KEY = 'admin_master_key'
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+  const token = getLocalStorageItem('token', ['token'])
   if (token) config.headers.Authorization = `Bearer ${token}`
-  const stepUp = sessionStorage.getItem('step_up_token')
+  const stepUp = getSessionStorageItem('step_up_token', ['step_up_token'])
   if (stepUp) config.headers['X-Step-Up-Token'] = stepUp
-  const adminMasterKey = sessionStorage.getItem('admin_master_key')
+  const adminMasterKey = getSessionStorageItem('admin_master_key', ['admin_master_key'])
   if (adminMasterKey) config.headers['X-Admin-Master-Key'] = adminMasterKey
   return config
 })
@@ -44,17 +50,17 @@ export function onStepUpRequired() {
 function _resolveStepUpPayload(payload) {
   if (typeof payload === 'string' && payload.trim()) {
     const token = payload.trim()
-    sessionStorage.setItem('step_up_token', token)
+    setSessionStorageItem('step_up_token', token)
     return { kind: STEP_UP_KIND_TOKEN, token }
   }
   if (payload?.kind === STEP_UP_KIND_TOKEN && String(payload?.value || '').trim()) {
     const token = String(payload.value).trim()
-    sessionStorage.setItem('step_up_token', token)
+    setSessionStorageItem('step_up_token', token)
     return { kind: STEP_UP_KIND_TOKEN, token }
   }
   if (payload?.kind === STEP_UP_KIND_MASTER_KEY && String(payload?.value || '').trim()) {
     const key = String(payload.value).trim()
-    sessionStorage.setItem('admin_master_key', key)
+    setSessionStorageItem('admin_master_key', key)
     return { kind: STEP_UP_KIND_MASTER_KEY, key }
   }
   return null
@@ -70,7 +76,7 @@ export function resolveStepUp(payload) {
 }
 
 export function rejectStepUp() {
-  sessionStorage.removeItem('step_up_token')
+  removeSessionStorageItem('step_up_token', ['step_up_token'])
   if (_stepUpResolver) {
     _stepUpResolver.reject(new Error('Step-up authentication cancelled'))
     _stepUpResolver = null

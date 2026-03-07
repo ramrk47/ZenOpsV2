@@ -7,7 +7,7 @@ import { buildWhatsAppLink } from '../utils/whatsapp'
  * Shows a green WhatsApp icon in bottom-right corner
  * Opens WhatsApp click-to-chat with prefilled message
  */
-export default function WhatsAppBubble({ message = 'Hi, I need support with Zen Ops.' }) {
+export default function WhatsAppBubble({ message = 'Hi, I need support with Maulya.' }) {
   const [config, setConfig] = useState(null)
   const [visible, setVisible] = useState(false)
 

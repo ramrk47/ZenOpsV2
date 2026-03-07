@@ -90,7 +90,7 @@ def main() -> None:
     export_dir = Path(os.environ.get("EXPORT_DIR", "./backups")).expanduser().resolve()
     export_dir.mkdir(parents=True, exist_ok=True)
 
-    app_name = os.environ.get("APP_NAME", "zenops")
+    app_name = os.environ.get("APP_NAME", "maulya")
     timestamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d_%H%M%S")
     export_path = Path(os.environ.get("MANIFEST_PATH", "")).expanduser()
     if not export_path.as_posix().strip():

@@ -1,4 +1,4 @@
-# Zen Ops Architecture Map
+# Maulya Architecture Map
 
 ## System Diagram
 

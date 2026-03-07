@@ -1,4 +1,4 @@
-# ZenOps QA Audit Report — Truth Scan
+# Maulya QA Audit Report — Truth Scan
 
 Date: 2026-02-10
 

@@ -49,7 +49,7 @@ def send_support_thread_created_email(
         </p>
         
         <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-          This is an automated notification from Zen Ops Support System.
+          This is an automated notification from Maulya Support System.
         </p>
       </body>
     </html>
@@ -70,7 +70,7 @@ def send_support_thread_created_email(
     View thread: {thread_url}
     
     ---
-    This is an automated notification from Zen Ops Support System.
+    This is an automated notification from Maulya Support System.
     """
     
     create_email_delivery(
@@ -129,7 +129,7 @@ def send_support_message_email(
         </p>
         
         <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-          This is an automated notification from Zen Ops Support System.
+          This is an automated notification from Maulya Support System.
         </p>
       </body>
     </html>
@@ -150,7 +150,7 @@ def send_support_message_email(
     View full thread: {thread_url}
     
     ---
-    This is an automated notification from Zen Ops Support System.
+    This is an automated notification from Maulya Support System.
     """
     
     create_email_delivery(
@@ -212,7 +212,7 @@ def send_support_thread_resolved_email(
         </p>
         
         <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-          This is an automated notification from Zen Ops Support System.
+          This is an automated notification from Maulya Support System.
         </p>
       </body>
     </html>
@@ -234,7 +234,7 @@ def send_support_thread_resolved_email(
     View thread: {thread_url}
     
     ---
-    This is an automated notification from Zen Ops Support System.
+    This is an automated notification from Maulya Support System.
     """
     
     create_email_delivery(

@@ -24,7 +24,7 @@ def _safe_url() -> str:
 def _dump_postgres(backup_dir: Path, timestamp: str) -> Path:
     url = make_url(_safe_url())
     backup_dir.mkdir(parents=True, exist_ok=True)
-    dump_path = backup_dir / f"zenops-db-{timestamp}.dump"
+    dump_path = backup_dir / f"maulya-db-{timestamp}.dump"
 
     env = os.environ.copy()
     if url.password:
@@ -53,7 +53,7 @@ def _archive_uploads(backup_dir: Path, timestamp: str) -> Path | None:
     if not uploads_path.exists():
         return None
     backup_dir.mkdir(parents=True, exist_ok=True)
-    archive_path = backup_dir / f"zenops-uploads-{timestamp}.tar.gz"
+    archive_path = backup_dir / f"maulya-uploads-{timestamp}.tar.gz"
     with tarfile.open(archive_path, "w:gz") as tar:
         tar.add(uploads_path, arcname="uploads")
     return archive_path

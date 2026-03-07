@@ -19,7 +19,7 @@ from app.models import Base
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Restore Zen Ops database from Excel snapshot")
+    parser = argparse.ArgumentParser(description="Restore Maulya database from Excel snapshot")
     parser.add_argument("--path", required=True, help="Path to .xlsx snapshot")
     parser.add_argument("--truncate", action="store_true", help="Truncate tables before restore")
     parser.add_argument("--disable-constraints", action="store_true", help="Disable FK checks during restore (Postgres only)")

@@ -182,7 +182,7 @@ export default function BillingMonitor() {
       <div className="grid cols-4" style={{ marginBottom: 12 }}>
         <div className="card tight">
           <div className="kicker">V1 Identity</div>
-          <div style={{ fontWeight: 700, marginTop: 4 }}>{summary.v1_meta?.app || 'zenops-v1'}</div>
+          <div style={{ fontWeight: 700, marginTop: 4 }}>{summary.v1_meta?.app || 'maulya-v1'}</div>
           <div className="muted" style={{ fontSize: 12 }}>
             Version: {summary.v1_meta?.version || '—'}
           </div>

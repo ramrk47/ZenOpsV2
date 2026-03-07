@@ -8,7 +8,7 @@ import { fetchBanks, fetchCompanyAccounts, createCompanyAccount, updateCompanyAc
 import { toUserMessage } from '../../api/client'
 import { loadJson, saveJson } from '../../utils/storage'
 
-const FILTERS_KEY = 'zenops.companyAccounts.filters.v1'
+const FILTERS_KEY = 'maulya.companyAccounts.filters.v1'
 
 function accountToForm(account) {
   if (!account) {

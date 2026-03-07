@@ -86,7 +86,7 @@ External portal users access support threads via secure tokens (no JWT auth requ
 - **WhatsApp Bubble:** Public (fetches config without auth)
 
 ### Styling Approach
-- Uses existing Zen Ops design tokens
+- Uses existing Maulya design tokens
 - Dark theme (`--bg`, `--surface`, `--accent`)
 - Consistent with current UI patterns
 - Responsive (flex layouts)

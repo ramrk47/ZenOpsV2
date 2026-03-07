@@ -3,13 +3,14 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
 import BubbleStrip from '../ui/BubbleStrip'
 import { fetchPartnerAssignments, fetchPartnerRequests, fetchPartnerProfile, fetchPartnerNotificationUnreadCount } from '../../api/partner'
+import { getLocalStorageItem, setLocalStorageItem } from '../../utils/appInstance'
 
 export default function PartnerSidebar() {
   const { user, logout } = useAuth()
   const [partnerName, setPartnerName] = useState('')
   const [compactUi, setCompactUi] = useState(() => {
     try {
-      return localStorage.getItem('zenops:compact-ui') === 'true'
+      return getLocalStorageItem('maulya:compact-ui', ['maulya:compact-ui']) === 'true'
     } catch (err) {
       return false
     }
@@ -25,7 +26,7 @@ export default function PartnerSidebar() {
     const root = document.documentElement
     root.classList.toggle('compact-ui', compactUi)
     try {
-      localStorage.setItem('zenops:compact-ui', compactUi ? 'true' : 'false')
+      setLocalStorageItem('maulya:compact-ui', compactUi ? 'true' : 'false')
     } catch (err) {
       // ignore storage failures
     }
@@ -131,7 +132,10 @@ export default function PartnerSidebar() {
   return (
     <>
       <div className="nav-scroll">
-        <div className="app-brand">Zen Ops</div>
+        <div className="app-brand">
+          <div className="app-brand-main">Maulya</div>
+          <div className="brand-credit">by Not Alone Studios</div>
+        </div>
 
         <div className="nav-title">Action Dock</div>
         <BubbleStrip items={bubbleItems} />

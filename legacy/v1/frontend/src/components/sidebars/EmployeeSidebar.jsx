@@ -6,6 +6,7 @@ import { fetchAssignments } from '../../api/assignments'
 import { fetchNotificationUnreadCount } from '../../api/notifications'
 import { fetchMyTasks } from '../../api/tasks'
 import { getUserRoles, hasCapability } from '../../utils/rbac'
+import { getLocalStorageItem, setLocalStorageItem } from '../../utils/appInstance'
 
 export default function EmployeeSidebar() {
   const { user, capabilities, logout } = useAuth()
@@ -13,7 +14,7 @@ export default function EmployeeSidebar() {
 
   const [compactUi, setCompactUi] = useState(() => {
     try {
-      return localStorage.getItem('zenops:compact-ui') === 'true'
+      return getLocalStorageItem('maulya:compact-ui', ['maulya:compact-ui']) === 'true'
     } catch (err) {
       return false
     }
@@ -30,7 +31,7 @@ export default function EmployeeSidebar() {
     const root = document.documentElement
     root.classList.toggle('compact-ui', compactUi)
     try {
-      localStorage.setItem('zenops:compact-ui', compactUi ? 'true' : 'false')
+      setLocalStorageItem('maulya:compact-ui', compactUi ? 'true' : 'false')
     } catch (err) {
       // ignore storage failures
     }
@@ -140,7 +141,10 @@ export default function EmployeeSidebar() {
   return (
     <>
       <div className="nav-scroll">
-        <div className="app-brand">Zen Ops</div>
+        <div className="app-brand">
+          <div className="app-brand-main">Maulya</div>
+          <div className="brand-credit">by Not Alone Studios</div>
+        </div>
 
         <div className="nav-title">Action Dock</div>
         <BubbleStrip items={bubbleItems} />
@@ -161,7 +165,7 @@ export default function EmployeeSidebar() {
       </div>
 
       <div className="nav-footer">
-        <div style={{ fontWeight: 600 }}>{user.full_name || 'Zen Ops User'}</div>
+        <div style={{ fontWeight: 600 }}>{user.full_name || 'Maulya User'}</div>
         <div className="muted" style={{ marginTop: 2 }}>{user.email}</div>
         <div className="muted" style={{ marginTop: 2 }}>{roleLabel}</div>
         <label className="nav-toggle">

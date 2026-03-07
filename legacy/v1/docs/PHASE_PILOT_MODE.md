@@ -7,7 +7,7 @@
 
 ## Non-Negotiables
 - `legacy/v1` remains the only deployed app surface.
-- No V2/Repogen dependency required in pilot mode.
+- No V2 sidecar dependency required in pilot mode.
 - Critical routes remain available: `/healthz`, `/readyz`, `/version`, login, assignments, requests, invoices.
 
 ## Pilot Flags
@@ -17,7 +17,7 @@
   - `ASSOCIATE_EMAIL_MODE=email|disabled`
 - Frontend build (`.env` used by compose build args):
   - `VITE_PILOT_MODE=1`
-  - `VITE_ENABLE_REPOGEN_INPUTS=0`
+  - `VITE_ENABLE_STRUCTURED_INPUTS=0`
 
 ## Feature Gating Behavior
 - When `PILOT_MODE=1`:
@@ -27,7 +27,7 @@
     - `code: FEATURE_DISABLED_IN_PILOT`
     - `feature: billing_monitor`
   - Forecast v2 experimental API is blocked in backend with the same code pattern.
-  - Repogen placeholder input panel in Assignment Detail is hidden even if assignment JSON has repogen blobs.
+  - Unsupported sidecar-only inputs are hidden in Assignment Detail during pilot mode.
 
 ## Associate Email Delivery Modes
 - `ASSOCIATE_EMAIL_MODE=email`:
@@ -50,7 +50,7 @@
 Use this when you want a clean pilot state (remove demo assignments/data and recreate admin users only):
 
 ```bash
-cd /opt/zenops/ZenOpsV2/legacy/v1
+cd /opt/maulya/maulya-v1/legacy/v1
 ./ops/reset_pilot_clean.sh \
   --admin "admin1@example.com:ReplacePassword1!" \
   --admin "admin2@example.com:ReplacePassword2!"
@@ -64,7 +64,7 @@ What it does:
 
 ## Deploy Commands (Pilot)
 ```bash
-cd /opt/zenops/ZenOpsV2/legacy/v1
+cd /opt/maulya/maulya-v1/legacy/v1
 
 # 1) Diagnose Traefik + routing quickly
 ./ops/diag_traefik_v1.sh
@@ -75,13 +75,13 @@ cd /opt/zenops/ZenOpsV2/legacy/v1
 
 ## Direct Compose Equivalent
 ```bash
-docker compose -p zenops -f docker-compose.hostinger.yml -f docker-compose.pilot.yml up -d db uploads-perms
-docker compose -p zenops -f docker-compose.hostinger.yml -f docker-compose.pilot.yml run --rm migrate
-docker compose -p zenops -f docker-compose.hostinger.yml -f docker-compose.pilot.yml up -d api email-worker frontend
+docker compose -p maulya -f docker-compose.hostinger.yml -f docker-compose.pilot.yml up -d db uploads-perms
+docker compose -p maulya -f docker-compose.hostinger.yml -f docker-compose.pilot.yml run --rm migrate
+docker compose -p maulya -f docker-compose.hostinger.yml -f docker-compose.pilot.yml up -d api email-worker frontend
 ```
 
 ## Expected Route Checks
-- `curl -I -H "Host: zenops.notalonestudios.com" http://127.0.0.1/`
-- `curl -s -H "Host: zenops.notalonestudios.com" http://127.0.0.1/healthz`
-- `curl -s -H "Host: zenops.notalonestudios.com" http://127.0.0.1/readyz`
-- `curl -s -H "Host: zenops.notalonestudios.com" http://127.0.0.1/version`
+- `curl -I -H "Host: app.maulya.in" http://127.0.0.1/`
+- `curl -s -H "Host: app.maulya.in" http://127.0.0.1/healthz`
+- `curl -s -H "Host: app.maulya.in" http://127.0.0.1/readyz`
+- `curl -s -H "Host: app.maulya.in" http://127.0.0.1/version`

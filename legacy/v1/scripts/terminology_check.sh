@@ -21,7 +21,7 @@ fi
 
 # Allow technical identifiers, routes, and API paths while flagging UI copy.
 filtered_matches="$(printf '%s\n' "$raw_matches" | rg -v \
-  "/api/partner|/partner|EXTERNAL_PARTNER|partner_id|zenops\\.partner\\.|key: 'partners'|activeTab === 'partners'|activeTab !== 'partners'|storedFilters\\.activeTab === 'partners'|import .*Partner|PartnerLayout|PartnerSidebar|PartnerRequestAccess|AdminPartnerDetail|AdminPartnerRequests|fetchExternalPartners|fetchPartner|updatePartner|createPartner|setPartner|partner\\.|\\(partner|partner\\)|toUserMessage\\(.*associate|label: 'Associates'|title=\\\"Associate|subtitle=\\\".*associate|help=\\\".*associate|placeholder=\\\".*associate" \
+  "/api/partner|/partner|EXTERNAL_PARTNER|partner_id|maulya\\.partner\\.|key: 'partners'|activeTab === 'partners'|activeTab !== 'partners'|storedFilters\\.activeTab === 'partners'|import .*Partner|PartnerLayout|PartnerSidebar|PartnerRequestAccess|AdminPartnerDetail|AdminPartnerRequests|fetchExternalPartners|fetchPartner|updatePartner|createPartner|setPartner|partner\\.|\\(partner|partner\\)|toUserMessage\\(.*associate|label: 'Associates'|title=\\\"Associate|subtitle=\\\".*associate|help=\\\".*associate|placeholder=\\\".*associate" \
   || true)"
 
 if [[ -n "${filtered_matches}" ]]; then

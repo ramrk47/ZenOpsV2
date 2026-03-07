@@ -1,39 +1,53 @@
 # V1 pilot-only override.
 # Usage:
-#   docker compose -p zenops -f docker-compose.hostinger.yml -f docker-compose.pilot.yml up -d
+#   docker compose -p maulya -f docker-compose.hostinger.yml -f docker-compose.pilot.yml up -d
 services:
   api:
+    environment:
+      PILOT_MODE: ${PILOT_MODE:-1}
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik-proxy"
-      - "traefik.http.routers.zenops-api-http.rule=Host(`${ZENOPS_DOMAIN:-zenops.example.com}`) && (PathPrefix(`/api`) || Path(`/readyz`) || Path(`/healthz`) || Path(`/healthz/deps`) || Path(`/metrics`) || Path(`/docs`) || Path(`/openapi.json`) || Path(`/version`))"
-      - "traefik.http.routers.zenops-api-http.entrypoints=web"
-      - "traefik.http.routers.zenops-api-http.priority=110"
-      - "traefik.http.routers.zenops-api-http.service=zenops-api"
-      - "traefik.http.routers.zenops-api.rule=Host(`${ZENOPS_DOMAIN:-zenops.example.com}`) && (PathPrefix(`/api`) || Path(`/readyz`) || Path(`/healthz`) || Path(`/healthz/deps`) || Path(`/metrics`) || Path(`/docs`) || Path(`/openapi.json`) || Path(`/version`))"
-      - "traefik.http.routers.zenops-api.entrypoints=websecure"
-      - "traefik.http.routers.zenops-api.tls=true"
-      - "traefik.http.routers.zenops-api.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
-      - "traefik.http.routers.zenops-api.priority=120"
-      - "traefik.http.services.zenops-api.loadbalancer.server.port=8000"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-api-http.rule=Host(`${APP_DOMAIN:-app.maulya.in}`) && (PathPrefix(`/api`) || Path(`/readyz`) || Path(`/healthz`) || Path(`/healthz/deps`) || Path(`/metrics`) || Path(`/docs`) || Path(`/openapi.json`) || Path(`/version`))"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-api-http.entrypoints=web"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-api-http.priority=110"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-api-http.service=${TRAEFIK_ROUTER_PREFIX:-maulya}-api"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-api.rule=Host(`${APP_DOMAIN:-app.maulya.in}`) && (PathPrefix(`/api`) || Path(`/readyz`) || Path(`/healthz`) || Path(`/healthz/deps`) || Path(`/metrics`) || Path(`/docs`) || Path(`/openapi.json`) || Path(`/version`))"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-api.entrypoints=websecure"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-api.tls=true"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-api.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-api.priority=120"
+      - "traefik.http.services.${TRAEFIK_ROUTER_PREFIX:-maulya}-api.loadbalancer.server.port=8000"
+
+  email-worker:
+    environment:
+      PILOT_MODE: ${PILOT_MODE:-1}
+
+  migrate:
+    environment:
+      PILOT_MODE: ${PILOT_MODE:-1}
 
   frontend:
     build:
       args:
         VITE_PILOT_MODE: ${VITE_PILOT_MODE:-1}
-        VITE_ENABLE_REPOGEN_INPUTS: ${VITE_ENABLE_REPOGEN_INPUTS:-0}
+        VITE_ENABLE_STRUCTURED_INPUTS: ${VITE_ENABLE_STRUCTURED_INPUTS:-0}
+        VITE_APP_INSTANCE: ${VITE_APP_INSTANCE:-pilot}
+    environment:
+      VITE_PILOT_MODE: ${VITE_PILOT_MODE:-1}
+      VITE_APP_INSTANCE: ${VITE_APP_INSTANCE:-pilot}
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik-proxy"
-      - "traefik.http.routers.zenops-web-http.rule=Host(`${ZENOPS_DOMAIN:-zenops.example.com}`)"
-      - "traefik.http.routers.zenops-web-http.entrypoints=web"
-      - "traefik.http.routers.zenops-web-http.middlewares=zenops-https-redirect"
-      - "traefik.http.routers.zenops-web-http.priority=10"
-      - "traefik.http.middlewares.zenops-https-redirect.redirectscheme.scheme=https"
-      - "traefik.http.middlewares.zenops-https-redirect.redirectscheme.permanent=true"
-      - "traefik.http.routers.zenops-web.rule=Host(`${ZENOPS_DOMAIN:-zenops.example.com}`)"
-      - "traefik.http.routers.zenops-web.entrypoints=websecure"
-      - "traefik.http.routers.zenops-web.tls=true"
-      - "traefik.http.routers.zenops-web.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
-      - "traefik.http.routers.zenops-web.priority=20"
-      - "traefik.http.services.zenops-web.loadbalancer.server.port=80"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-web-http.rule=Host(`${APP_DOMAIN:-app.maulya.in}`)"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-web-http.entrypoints=web"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-web-http.middlewares=${TRAEFIK_ROUTER_PREFIX:-maulya}-https-redirect"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-web-http.priority=10"
+      - "traefik.http.middlewares.${TRAEFIK_ROUTER_PREFIX:-maulya}-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.${TRAEFIK_ROUTER_PREFIX:-maulya}-https-redirect.redirectscheme.permanent=true"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-web.rule=Host(`${APP_DOMAIN:-app.maulya.in}`)"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-web.entrypoints=websecure"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-web.tls=true"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-web.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-maulya}-web.priority=20"
+      - "traefik.http.services.${TRAEFIK_ROUTER_PREFIX:-maulya}-web.loadbalancer.server.port=80"

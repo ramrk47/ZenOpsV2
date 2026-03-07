@@ -112,10 +112,10 @@ CREATE INDEX idx_system_config_public ON system_config(is_public) WHERE is_publi
 -- Initial data
 INSERT INTO system_config (key, value, is_encrypted, is_public, description) VALUES
 ('EMAIL_API_KEY', NULL, TRUE, FALSE, 'Resend API key (server-side only)'),
-('EMAIL_FROM', 'noreply@zenops.com', FALSE, FALSE, 'Email sender address'),
+('EMAIL_FROM', 'noreply@maulya.in', FALSE, FALSE, 'Email sender address'),
 ('EMAIL_PROVIDER', 'resend', FALSE, FALSE, 'Email provider (resend/postmark/smtp)'),
 ('WHATSAPP_NUMBER', '917975357599', FALSE, TRUE, 'WhatsApp contact number (digits only)'),
-('OPS_SUPPORT_EMAIL', 'ops@zenops.com', FALSE, FALSE, 'Ops team email for support notifications');
+('OPS_SUPPORT_EMAIL', 'ops@maulya.in', FALSE, FALSE, 'Ops team email for support notifications');
 ```
 
 **Key Features**:
@@ -1019,7 +1019,7 @@ class Settings(BaseSettings):
     
     # Support system
     ops_support_email: str = Field(
-        default="ops@zenops.com",
+        default="ops@maulya.in",
         description="Ops team email for support notifications"
     )
 ```
@@ -1211,10 +1211,10 @@ CONFIG_ENCRYPTION_KEY=<fernet-key-base64>
 # Initial email config (will be moved to DB after first admin login)
 EMAIL_PROVIDER=resend
 EMAIL_API_KEY=<resend-key>
-EMAIL_FROM=noreply@zenops.com
+EMAIL_FROM=noreply@maulya.in
 
 # Support system
-OPS_SUPPORT_EMAIL=ops@zenops.com
+OPS_SUPPORT_EMAIL=ops@maulya.in
 ```
 
 **Generate Encryption Key**:

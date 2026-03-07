@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Enable Zen Ops Scheduled Backups
+# Enable Maulya Scheduled Backups
 # Starts backup-cron and backup-dispatcher services
 #
 set -euo pipefail

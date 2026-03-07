@@ -10,7 +10,7 @@ import { formatDateTime, titleCase } from '../utils/format'
 import { toUserMessage } from '../api/client'
 import { loadJson, saveJson } from '../utils/storage'
 
-const FILTERS_KEY = 'zenops.notifications.filters.v1'
+const FILTERS_KEY = 'maulya.notifications.filters.v1'
 
 function groupKey(notification) {
   const payload = notification.payload_json || {}

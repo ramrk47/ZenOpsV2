@@ -4,9 +4,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
 
-PROJECT_NAME="${COMPOSE_PROJECT_NAME:-zenops}"
+PROJECT_NAME="${COMPOSE_PROJECT_NAME:-maulya}"
 COMPOSE_FILES=(-f docker-compose.hostinger.yml -f docker-compose.pilot.yml)
-DOMAIN="${ZENOPS_DOMAIN:-zenops.notalonestudios.com}"
+DOMAIN="${APP_DOMAIN:-app.maulya.in}"
+ROUTER_PREFIX="${TRAEFIK_ROUTER_PREFIX:-maulya}"
 
 container_name() {
   local service="$1"
@@ -141,8 +142,8 @@ check_traefik_router_api() {
   local attempt
   for attempt in $(seq 1 30); do
     code="$(curl -sS -o "${routers_file}" -w '%{http_code}' --max-time 5 http://127.0.0.1:8088/api/http/routers || echo "000")"
-    if [[ "${code}" == "200" ]] && grep -qE '^\s*\[' "${routers_file}" && grep -q "zenops-web" "${routers_file}" && grep -q "zenops-api" "${routers_file}"; then
-      log "PASS Traefik router API JSON has zenops-web + zenops-api"
+    if [[ "${code}" == "200" ]] && grep -qE '^\s*\[' "${routers_file}" && grep -q "${ROUTER_PREFIX}-web" "${routers_file}" && grep -q "${ROUTER_PREFIX}-api" "${routers_file}"; then
+      log "PASS Traefik router API JSON has ${ROUTER_PREFIX}-web + ${ROUTER_PREFIX}-api"
       return 0
     fi
     sleep 2
@@ -158,7 +159,7 @@ check_traefik_router_api() {
     return 0
   fi
   sed -n '1,120p' "${routers_file}" || true
-  printf '[deploy-pilot-v1][WARN] Traefik API did not list zenops-web/zenops-api. Continuing with front-door checks because this VPS still serves docker routers via the data plane.\n' >&2
+  printf '[deploy-pilot-v1][WARN] Traefik API did not list %s-web/%s-api. Continuing with front-door checks because this VPS still serves docker routers via the data plane.\n' "${ROUTER_PREFIX}" "${ROUTER_PREFIX}" >&2
   return 0
 }
 
@@ -184,10 +185,11 @@ normalize_backend_env_list_var "ASSOCIATE_AUTO_APPROVE_DOMAINS"
 require_backend_env_nonempty "JWT_SECRET"
 require_backend_env_nonempty "DATABASE_URL"
 
-if [[ -z "${ZENOPS_DOMAIN:-}" ]]; then
+if [[ -z "${APP_DOMAIN:-}" ]]; then
   # shellcheck disable=SC1091
   source .env
-  DOMAIN="${ZENOPS_DOMAIN:-${DOMAIN}}"
+  DOMAIN="${APP_DOMAIN:-${DOMAIN}}"
+  ROUTER_PREFIX="${TRAEFIK_ROUTER_PREFIX:-${ROUTER_PREFIX}}"
 fi
 
 ASSOCIATE_EMAIL_MODE_VALUE="$(grep -E '^ASSOCIATE_EMAIL_MODE=' .env.backend | tail -n1 | cut -d= -f2- || true)"

@@ -12,7 +12,7 @@ import { toUserMessage } from '../../api/client'
 import { loadJson, saveJson } from '../../utils/storage'
 
 const STATUS_OPTIONS = ['ALL', 'DRAFT', 'SUBMITTED', 'NEEDS_INFO', 'APPROVED', 'CONVERTED', 'REJECTED']
-const FILTERS_KEY = 'zenops.partner.requests.filters.v1'
+const FILTERS_KEY = 'maulya.partner.requests.filters.v1'
 
 function statusTone(status) {
   if (status === 'NEEDS_INFO') return 'warn'
@@ -138,25 +138,26 @@ export default function PartnerRequests() {
   }, [commissions, filters, commissionDetails, assignmentMap])
 
   return (
-    <div>
+    <div className="partner-requests-page">
       <PageHeader
+        eyebrow="Associate Workspace"
         title="My Requests"
-        subtitle="Track commission submissions, document requests, and payment unlocks."
+        subtitle="Track submitted requests, requested clarifications, and payment release status."
         actions={(
           <Link className="nav-link" to="/partner/requests/new">New Request</Link>
         )}
       />
 
-      {error ? <div className="empty" style={{ marginBottom: '0.9rem' }}>{error}</div> : null}
+      {error ? <div className="alert alert-danger">{error}</div> : null}
 
       <Card>
         <CardHeader
           title="Requests"
-          subtitle="Associate-facing status and next actions only."
+          subtitle="Only the updates and next steps that matter to the associate are shown here."
           action={<InfoTip text="Payment status updates after invoice requests and proof verification." />}
         />
 
-        <div className="filter-shell" style={{ marginBottom: '0.8rem' }}>
+        <div className="filter-shell control-card" style={{ marginBottom: '0.8rem' }}>
           <div className="toolbar dense">
             <input
               className="grow"
@@ -191,12 +192,16 @@ export default function PartnerRequests() {
         </div>
 
         {loading ? (
-          <DataTable loading columns={8} rows={6} />
+          <DataTable loading columns={8} rows={6} className="table-wrap--elevated table-wrap--dense" />
         ) : rows.length === 0 ? (
-          <EmptyState>No matching requests.</EmptyState>
+          <EmptyState
+            title="No matching requests"
+            body="Adjust the status or payment filters, or start a fresh request to populate this workspace."
+            action={<Link className="nav-link" to="/partner/requests/new">Create Request</Link>}
+          />
         ) : (
-          <DataTable>
-            <table>
+          <DataTable className="table-wrap--elevated table-wrap--dense">
+            <table className="partner-request-table">
               <thead>
                 <tr>
                   <th>Request</th>
@@ -217,21 +222,21 @@ export default function PartnerRequests() {
                   return (
                     <tr key={commission.id}>
                       <td>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div className="cell-stack">
                           <strong>{commission.request_code}</strong>
-                          <span className="muted" style={{ fontSize: 12 }}>{titleCase(commission.status)}</span>
+                          <span className="table-meta">{titleCase(commission.status)}</span>
                         </div>
                       </td>
                       <td>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div className="cell-stack">
                           <span>{commission.borrower_name || '—'}</span>
-                          <span className="muted" style={{ fontSize: 12 }}>{commission.branch_name || commission.bank_name || '—'}</span>
+                          <span className="table-meta">{commission.branch_name || commission.bank_name || '—'}</span>
                         </div>
                       </td>
                       <td>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div className="cell-stack">
                           <span>{commission.bank_name || '—'}</span>
-                          <span className="muted" style={{ fontSize: 12 }}>{commission.branch_name || '—'}</span>
+                          <span className="table-meta">{commission.branch_name || '—'}</span>
                         </div>
                       </td>
                       <td><Badge tone={statusTone(commission.status)}>{titleCase(commission.status)}</Badge></td>

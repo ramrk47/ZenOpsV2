@@ -1,4 +1,4 @@
-"""Initial Zen Ops schema
+"""Initial Maulya schema
 
 Revision ID: 0001_initial
 Revises:

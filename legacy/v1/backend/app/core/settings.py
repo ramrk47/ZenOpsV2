@@ -65,7 +65,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    project_name: str = "Zen Ops API"
+    project_name: str = "Maulya API"
     project_version: str = "1.0.0"
     environment: str = Field(
         default="development",
@@ -82,13 +82,23 @@ class Settings(BaseSettings):
         description="Allow destructive actions (deletes, resets) in production.",
         validation_alias=AliasChoices("ALLOW_DESTRUCTIVE_ACTIONS", "DESTRUCTIVE_ACTIONS_ALLOWED"),
     )
+    app_instance: str = Field(
+        default="pilot",
+        description="Deployment instance identifier for pilot/demo separation",
+        validation_alias=AliasChoices("APP_INSTANCE"),
+    )
+    cookie_prefix: str = Field(
+        default="maulya_pilot",
+        description="Cookie/storage namespace prefix for this deployment instance",
+        validation_alias=AliasChoices("COOKIE_PREFIX"),
+    )
     git_sha: str | None = Field(default=None, description="Git SHA for /version")
     build_version: str | None = Field(default=None, description="Build identifier")
     log_level: str = Field(default="INFO", description="Logging level")
 
     # Database
     database_url: str = Field(
-        default="postgresql+psycopg2://postgres@localhost:5432/zenops",
+        default="postgresql+psycopg2://postgres@localhost:5432/maulya",
         description="SQLAlchemy database URL",
     )
 
@@ -294,7 +304,7 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("V1_BRIDGE_JWT_SECRET"),
     )
     v1_bridge_issuer: str = Field(
-        default="zenops-v1",
+        default="maulya-v1",
         description="Issuer value used in V1 bridge tokens",
         validation_alias=AliasChoices("V1_BRIDGE_ISSUER"),
     )

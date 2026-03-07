@@ -11,7 +11,7 @@ from app.models.user import User
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Ensure a deterministic E2E login user exists.")
-    parser.add_argument("--email", default="admin@zenops.local")
+    parser.add_argument("--email", default="admin@maulya.local")
     parser.add_argument("--password", default="password")
     parser.add_argument("--full-name", default="E2E Admin")
     parser.add_argument(

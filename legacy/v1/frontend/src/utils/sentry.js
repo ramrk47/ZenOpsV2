@@ -1,5 +1,5 @@
 /**
- * Sentry integration for Zen Ops frontend.
+ * Sentry integration for Maulya frontend.
  * 
  * This module initializes Sentry for error tracking and performance monitoring.
  * It only activates if VITE_SENTRY_DSN environment variable is set.
@@ -25,7 +25,7 @@ export function initSentry() {
     Sentry.init({
       dsn: SENTRY_DSN,
       environment: ENVIRONMENT,
-      release: `zenops-frontend@${RELEASE}`,
+      release: `maulya-frontend@${RELEASE}`,
       
       // Performance monitoring
       tracesSampleRate: ENVIRONMENT === 'production' ? 0.1 : 1.0,

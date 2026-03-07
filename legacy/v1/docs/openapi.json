@@ -3658,7 +3658,7 @@
       "BridgeTokenIssueRequest": {
         "properties": {
           "aud": {
-            "default": "zenops-v2-bridge",
+            "default": "maulya-v1",
             "title": "Aud",
             "type": "string"
           },
@@ -15478,7 +15478,7 @@
             "title": "Backup Codes"
           },
           "issuer": {
-            "default": "Zen Ops",
+            "default": "Maulya",
             "title": "Issuer",
             "type": "string"
           },
@@ -17482,7 +17482,7 @@
     }
   },
   "info": {
-    "title": "Zen Ops API",
+    "title": "Maulya API",
     "version": "1.0.0"
   },
   "openapi": "3.1.0",

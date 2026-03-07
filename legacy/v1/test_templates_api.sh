@@ -7,7 +7,7 @@ echo "=================================="
 echo "1. Logging in as admin..."
 TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=admin@zenops.local&password=admin" | jq -r '.access_token')
+  -d "username=admin@maulya.local&password=admin" | jq -r '.access_token')
 
 if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
   echo "❌ Login failed"

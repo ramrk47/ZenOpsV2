@@ -1,6 +1,6 @@
-# Zen Ops – Internal Work OS
+# Maulya – Internal Work OS
 
-Zen Ops is a private operating system for valuation firms. It organises work around **assignments** and provides a single workspace for everything that happens in the business: chat, tasks, documents, approvals, invoices, leave management, scheduling and more.
+Maulya is a private operating system for valuation firms. It organises work around **assignments** and provides a single workspace for everything that happens in the business: chat, tasks, documents, approvals, invoices, leave management, scheduling and more.
 
 This repository contains a FastAPI backend and a React frontend. The backend implements a role‑based access control (RBAC) system, JWT authentication, a PostgreSQL data store and a comprehensive API. The frontend uses Vite and React Router to deliver a responsive single–page application.
 
@@ -32,7 +32,7 @@ This repository contains a FastAPI backend and a React frontend. The backend imp
 1. **Create and activate a Python virtual environment** (recommended):
 
    ```bash
-   cd zen-ops/backend
+   cd legacy/v1/backend
    python -m venv venv
    source venv/bin/activate
    ```
@@ -52,12 +52,12 @@ This repository contains a FastAPI backend and a React frontend. The backend imp
    # edit .env with your DB credentials and secret key
    ```
 
-   Ensure that `DATABASE_URL` points to a PostgreSQL database. For local development you can create a database named `zenops_db` and a user `zenops_user` with a password, e.g.:
+   Ensure that `DATABASE_URL` points to a PostgreSQL database. For local development you can create a database named `maulya_db` and a user `maulya_user` with a password, e.g.:
 
    ```bash
-   createdb zenops_db
-   createuser zenops_user --pwprompt
-   psql -c "GRANT ALL PRIVILEGES ON DATABASE zenops_db TO zenops_user;"
+   createdb maulya_db
+   createuser maulya_user --pwprompt
+   psql -c "GRANT ALL PRIVILEGES ON DATABASE maulya_db TO maulya_user;"
    ```
 
 4. **Run database migrations**:
@@ -65,7 +65,7 @@ This repository contains a FastAPI backend and a React frontend. The backend imp
    Alembic is configured to read the `DATABASE_URL` from your environment. To create all tables run:
 
    ```bash
-   cd zen-ops/backend
+   cd legacy/v1/backend
    alembic upgrade head
    ```
 
@@ -77,7 +77,7 @@ This repository contains a FastAPI backend and a React frontend. The backend imp
    python -m app.seed
    ```
 
-   This command creates an admin user (`admin@zenops.local`/`password`) and several other roles, along with ten sample assignments, tasks and messages.
+   This command creates an admin user (`admin@maulya.local`/`password`) and several other roles, along with ten sample assignments, tasks and messages.
 
 6. **Start the backend server**:
 
@@ -92,7 +92,7 @@ This repository contains a FastAPI backend and a React frontend. The backend imp
 1. **Install dependencies**:
 
    ```bash
-   cd zen-ops/frontend
+   cd legacy/v1/frontend
    npm install
    ```
 
@@ -115,7 +115,7 @@ This repository contains a FastAPI backend and a React frontend. The backend imp
 
 ## Email Notifications (Optional)
 
-Zen Ops can deliver notification emails via a background worker. Configure the email provider in `.env.backend` and start the worker process.
+Maulya can deliver notification emails via a background worker. Configure the email provider in `.env.backend` and start the worker process.
 
 Required env variables:
 - `EMAIL_PROVIDER` (resend | postmark | smtp | disabled)
@@ -140,12 +140,12 @@ After running the seed script the following users are available (all passwords a
 
 | Email                | Role              |
 |----------------------|-------------------|
-| admin@zenops.local   | ADMIN             |
-| ops@zenops.local     | OPS_MANAGER       |
-| hr@zenops.local      | HR                |
-| finance@zenops.local | FINANCE           |
-| assistant@zenops.local | ASSISTANT_VALUER |
-| field@zenops.local   | FIELD_VALUER      |
+| admin@maulya.local   | ADMIN             |
+| ops@maulya.local     | OPS_MANAGER       |
+| hr@maulya.local      | HR                |
+| finance@maulya.local | FINANCE           |
+| assistant@maulya.local | ASSISTANT_VALUER |
+| field@maulya.local   | FIELD_VALUER      |
 
 Log in as the admin to create additional users, manage assignments and approve requests.
 
@@ -171,7 +171,7 @@ Known unrelated failures are tracked in `docs/TEST_KNOWN_FAILURES.md`. Do not bl
 Phase 6 official verification:
 
 ```bash
-cd /Users/sriramrk/ZenOpsV2/legacy/v1
+cd legacy/v1
 docker compose -f docker-compose.dev.yml run --rm backend alembic upgrade head
 docker compose -f docker-compose.dev.yml run --rm backend pytest -q \
   tests/test_phase2_approvals.py \
@@ -201,10 +201,10 @@ In Hostinger Docker Manager, deploy the Traefik template first. It should create
 ### Step 1: DNS
 
 Create an A record:
-- `${ZENOPS_DOMAIN}` -> your VPS public IP
+- `${APP_DOMAIN}` -> your VPS public IP
 
 Example:
-- `zenops.example.com` -> `203.0.113.10`
+- `app.maulya.in` -> `203.0.113.10`
 
 ### Step 2: External Network (`traefik-proxy`)
 
@@ -219,24 +219,24 @@ docker network inspect traefik-proxy >/dev/null 2>&1 || docker network create tr
 
 Put server env files on the VPS (do not commit secrets):
 - `.env.backend`
-- optional shell env exports for compose variables (`ZENOPS_DOMAIN`, image tags, backup paths, etc.)
+- optional shell env exports for compose variables (`APP_DOMAIN`, image tags, backup paths, etc.)
 
 Recommended runtime variables:
-- `ZENOPS_DOMAIN=zenops.example.com`
+- `APP_DOMAIN=app.maulya.in`
 - `TRAEFIK_CERTRESOLVER=letsencrypt`
-- `COMPOSE_PROJECT_NAME=zenops`
-- `BACKUP_HOST_PATH=/opt/zenops/backups`
-- `RCLONE_SECRETS_DIR=/opt/zenops/secrets`
+- `COMPOSE_PROJECT_NAME=maulya`
+- `BACKUP_HOST_PATH=/opt/maulya/backups`
+- `RCLONE_SECRETS_DIR=/opt/maulya/secrets`
 
 If using rclone sync, put config here (not in git):
-- `/opt/zenops/secrets/rclone.conf`
+- `/opt/maulya/secrets/rclone.conf`
 
 ### Step 4: Deploy Commands
 
-Project isolation uses Compose project name `zenops`:
+Project isolation uses Compose project name `maulya`:
 ```bash
-docker compose -f docker-compose.hostinger.yml -p zenops pull
-COMPOSE_FILE=docker-compose.hostinger.yml COMPOSE_PROJECT_NAME=zenops ./ops/deploy.sh
+docker compose -f docker-compose.hostinger.yml -p maulya pull
+COMPOSE_FILE=docker-compose.hostinger.yml COMPOSE_PROJECT_NAME=maulya ./ops/deploy.sh
 ```
 
 Deploy workflow is:
@@ -248,7 +248,7 @@ Deploy workflow is:
 
 ### Step 5: Smoke Checklist
 
-1. Open `https://${ZENOPS_DOMAIN}` and login.
+1. Open `https://${APP_DOMAIN}` and login.
 2. Open Assignments list (must load without API errors).
 3. Open an Assignment detail page.
 4. In Documents flow, verify upload and preview drawer.
@@ -261,35 +261,35 @@ Deploy workflow is:
 
 One-off backup:
 ```bash
-COMPOSE_FILE=docker-compose.hostinger.yml COMPOSE_PROJECT_NAME=zenops ./ops/backup_now.sh
+COMPOSE_FILE=docker-compose.hostinger.yml COMPOSE_PROJECT_NAME=maulya ./ops/backup_now.sh
 ```
 
 One-off migration:
 ```bash
-COMPOSE_FILE=docker-compose.hostinger.yml COMPOSE_PROJECT_NAME=zenops ./ops/migrate.sh
+COMPOSE_FILE=docker-compose.hostinger.yml COMPOSE_PROJECT_NAME=maulya ./ops/migrate.sh
 ```
 
 Image rollback:
 ```bash
-COMPOSE_FILE=docker-compose.hostinger.yml COMPOSE_PROJECT_NAME=zenops ./ops/rollback.sh
+COMPOSE_FILE=docker-compose.hostinger.yml COMPOSE_PROJECT_NAME=maulya ./ops/rollback.sh
 ```
 `rollback.sh` uses image references captured by the last successful `./ops/deploy.sh` run in `ops/releases/previous-images.env`.
 
 Manual DB restore (explicit action only):
 ```bash
-gunzip -c /opt/zenops/backups/<backup-file>.sql.gz \
-  | docker compose -f docker-compose.hostinger.yml -p zenops exec -T db \
-      psql -U "${POSTGRES_USER:-zenops}" -d "${POSTGRES_DB:-zenops}"
+gunzip -c /opt/maulya/backups/<backup-file>.sql.gz \
+  | docker compose -f docker-compose.hostinger.yml -p maulya exec -T db \
+      psql -U "${POSTGRES_USER:-maulya}" -d "${POSTGRES_DB:-maulya}"
 ```
 
 For scheduled backups, run a host cron entry that triggers:
 ```bash
-docker compose -f /opt/zenops/docker-compose.hostinger.yml -p zenops --profile backup run --rm backup
+docker compose -f /opt/maulya/docker-compose.hostinger.yml -p maulya --profile backup run --rm backup
 ```
 
 ## Mobile Cockpit /m + PWA Install
 
-Zen Ops includes a mobile-first cockpit at `/m` (also `/mobile` redirect) on the same origin as the main app, so API calls stay same-origin via `/api/...`.
+Maulya includes a mobile-first cockpit at `/m` (also `/mobile` redirect) on the same origin as the main app, so API calls stay same-origin via `/api/...`.
 
 What it includes:
 - Status cards: unread notifications, approvals pending, overdue assignments, payments pending

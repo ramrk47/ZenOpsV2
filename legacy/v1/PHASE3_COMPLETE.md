@@ -2,7 +2,7 @@
 
 ## Status: ✅ COMPLETE
 
-Phase 3 backend was already implemented in the main zen-ops repository. Files were successfully copied to the worktree and integrated.
+Phase 3 backend was already implemented in the main maulya repository. Files were successfully copied to the worktree and integrated.
 
 ## Files Added (from main repo)
 
@@ -122,9 +122,9 @@ System config stored in `system_config` table:
 
 ### 1. Start/Restart API Container
 ```bash
-cd /path/to/zen-ops
+cd /path/to/maulya
 docker compose up -d --build api
-docker logs zen-ops-api-1 --tail 50 --follow
+docker logs maulya-api-1 --tail 50 --follow
 ```
 
 ### 2. Check OpenAPI Docs
@@ -150,7 +150,7 @@ Expected:
 # Login first
 TOKEN=$(curl -X POST http://localhost/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@zenops.com","password":"yourpass"}' | jq -r .access_token)
+  -d '{"email":"admin@maulya.in","password":"yourpass"}' | jq -r .access_token)
 
 # List threads
 curl -H "Authorization: Bearer $TOKEN" \

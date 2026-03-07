@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import api, { toUserMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { setLocalStorageItem } from '../utils/appInstance'
 
 export default function InviteAccept() {
   const [searchParams] = useSearchParams()
@@ -68,7 +69,7 @@ export default function InviteAccept() {
         password: form.password,
       })
       if (res.data?.access_token) {
-        localStorage.setItem('token', res.data.access_token)
+        setLocalStorageItem('token', res.data.access_token)
       }
       await refreshAuth({ allowAnonymous: false })
       navigate('/partner', { replace: true })

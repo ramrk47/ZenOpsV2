@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-const ADMIN_EMAIL = 'admin@zenops.local';
+const ADMIN_EMAIL = 'admin@maulya.local';
 const ADMIN_PASSWORD = 'password';
 
 async function loginViaAPI(request) {
