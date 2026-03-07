@@ -4,13 +4,26 @@ This document outlines the steps to deploy the Maulya V1 standalone instance on 
 
 ## 1. Domain & DNS Requirements
 
-You need to configure DNS records for the main domain and the required subdomains. Point the following A records to your server's public IP address:
+You need to configure DNS records for the main domain and the required subdomains. Point the following A records to your server's public IP address (replace `YOUR_SERVER_IP` with your actual Hostinger VPS IP).
 
-*   **`maulya.in`**: Main domain (optional, if hosting a landing page here).
-*   **`app.maulya.in`**: The primary Maulya V1 production application.
-*   **`demo.maulya.in`**: The Maulya V1 demo/training environment.
+### Required DNS Records
 
-*Note: Ensure these DNS records have propagated before attempting to bring up the environment, as Traefik will attempt to provision Let's Encrypt certificates immediately.*
+| Type | Host / Name | Value / IP Address | Purpose |
+| :--- | :--- | :--- | :--- |
+| **A** | `@` (or `maulya.in`) | `YOUR_SERVER_IP` | Main Landing Page (Optional) |
+| **A** | `app` | `YOUR_SERVER_IP` | Production Application (`app.maulya.in`) |
+| **A** | `demo` | `YOUR_SERVER_IP` | Demo/Training Environment (`demo.maulya.in`) |
+| **CNAME** | `www` | `maulya.in` | Optional WWW redirect |
+
+### Hostinger DNS Setup Steps:
+1. Log in to your **Hostinger hPanel**.
+2. Go to **Domains** and select `maulya.in`.
+3. Select **DNS / Nameservers** on the sidebar.
+4. Add the **A Records** as shown in the table above.
+5. Set the **TTL** to the default (e.g., 14400) or lower (300) if you want faster propagation.
+
+> [!IMPORTANT]
+> **Cloudflare Proxy (CDN)**: If you are using Cloudflare, ensure that the "Proxy" status is set to **DNS Only** (Grey Cloud) during the first deployment. This allows Traefik to successfully complete the Let's Encrypt "HTTP-01" challenge to provision SSL certificates. You can turn the proxy back on after the certificates are issued.
 
 ## 2. Server Preparation
 
