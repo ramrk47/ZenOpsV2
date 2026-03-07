@@ -1,6 +1,6 @@
 # Maulya V1 - Standalone Deployment Guide
 
-This document outlines the steps to deploy the Maulya V1 standalone instance on a Linux host (e.g., Hostinger VPS) using Docker Compose and Traefik for reverse proxy and SSL.
+This document outlines the steps to deploy the Maulya V1 standalone instance on a Linux host (e.g., Hostinger VPS) using Docker Compose and Traefik for reverse proxy and SSL. All data and uploaded documents are stored locally on the server filesystem.
 
 ## 1. Domain & DNS Requirements
 
@@ -22,8 +22,6 @@ You need to configure DNS records for the main domain and the required subdomain
 4. Add the **A Records** as shown in the table above.
 5. Set the **TTL** to the default (e.g., 14400) or lower (300) if you want faster propagation.
 
-> [!IMPORTANT]
-> **Cloudflare Proxy (CDN)**: If you are using Cloudflare, ensure that the "Proxy" status is set to **DNS Only** (Grey Cloud) during the first deployment. This allows Traefik to successfully complete the Let's Encrypt "HTTP-01" challenge to provision SSL certificates. You can turn the proxy back on after the certificates are issued.
 
 ## 2. Server Preparation
 
