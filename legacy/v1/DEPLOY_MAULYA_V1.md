@@ -85,6 +85,14 @@ We provide bootstrap scripts to securely generate passwords and secrets for your
     ```
     Access the app in your browser at `https://app.maulya.in`.
 
+5.  **Seeding Production Data & Admins:**
+    To seed the production database with your specific admin users, run:
+    ```bash
+    ./ops/reset_pilot_clean.sh \
+      --admin 'shrinivaskagadal7@gmail.com:Itismedaz@7' \
+      --admin 'sriramkagadal4444@gmail.com:Secure@1972'
+    ```
+
 ## 4. Bootstrapping the Demo Environment (`demo.maulya.in`)
 
 The Demo environment runs completely isolated from production, with its own database and Redis instance, but on the same host.
