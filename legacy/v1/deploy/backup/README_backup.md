@@ -50,7 +50,7 @@ If you prefer a service account (no browser auth), ask and we will wire it in.
 Test:
 ```bash
 docker compose --profile backup run --rm rclone ls gdrive:
-docker compose --profile backup run --rm rclone mkdir gdrive:zenops-backups
+docker compose --profile backup run --rm rclone mkdir gdrive:maulya-backups
 ```
 
 ## 3) Run a manual backup
@@ -83,20 +83,20 @@ Optional: set timezone for cron in `docker-compose.yml` with `TZ=Asia/Kolkata` (
 
 Download one encrypted dump from Drive:
 ```bash
-docker compose --profile backup run --rm rclone copy gdrive:zenops-backups /data --include "zenops_db_*.sql.gz.enc"
+docker compose --profile backup run --rm rclone copy gdrive:maulya-backups /data --include "maulya_db_*.sql.gz.enc"
 ```
 
 Restore (decrypts automatically):
 ```bash
 export BACKUP_ENCRYPTION_KEY=your_key_here
-./deploy/backup/restore.sh deploy/backups/zenops_db_<DATE>.sql.gz.enc deploy/backups/zenops_uploads_<DATE>.tar.gz.enc
+./deploy/backup/restore.sh deploy/backups/maulya_db_<DATE>.sql.gz.enc deploy/backups/maulya_uploads_<DATE>.tar.gz.enc
 ```
 
 ### Excel-only restore (best-effort)
 
 ```bash
 docker compose run --rm -v ./deploy/backups:/backups api \
-  python /app/scripts/restore_from_excel.py --path /backups/zenops_snapshot_<DATE>.xlsx --truncate --disable-constraints
+  python /app/scripts/restore_from_excel.py --path /backups/maulya_snapshot_<DATE>.xlsx --truncate --disable-constraints
 ```
 
 Notes:
@@ -107,13 +107,13 @@ Notes:
 
 Environment variables for the `backup` service:
 
-- `APP_NAME` (default `zenops`)
+- `APP_NAME` (default `maulya`)
 - `BACKUP_DIR` (default `/backups`)
 - `BACKUP_TIER_DIR` (default `/backups/tiers`)
 - `UPLOADS_DIR` (default `/uploads`)
 - `RETAIN_LOCAL_DAYS` (default `7`)
 - `RETAIN_REMOTE_DAYS` (default `30`)
-- `RCLONE_REMOTE` (default `gdrive:zenops-backups`)
+- `RCLONE_REMOTE` (default `gdrive:maulya-backups`)
 - `RCLONE_UPLOAD_MODE` (default `tiers`, use `all` to upload every timestamped file)
 - `BACKUP_ENCRYPTION_KEY` (required when `RCLONE_REMOTE` is set)
 - `BACKUP_ENCRYPTION_ITER` (default `200000`, PBKDF2 iterations)
@@ -145,10 +145,10 @@ You can still use an encrypted rclone remote (optional, extra defense-in-depth):
 docker compose run --rm rclone config
 ```
 
-Create a `crypt` remote that points to `gdrive:zenops-backups`. Then set:
+Create a `crypt` remote that points to `gdrive:maulya-backups`. Then set:
 
 ```
-RCLONE_REMOTE=crypt:zenops-backups
+RCLONE_REMOTE=crypt:maulya-backups
 ```
 
 ## 8) Make targets
@@ -156,7 +156,7 @@ RCLONE_REMOTE=crypt:zenops-backups
 - `make backup-run`
 - `make backup-test`
 - `make backup-restore DB_DUMP=... UPLOADS_ARCHIVE=...`
-- `make backup-excel-restore EXCEL_PATH=/backups/zenops_snapshot_<DATE>.xlsx`
+- `make backup-excel-restore EXCEL_PATH=/backups/maulya_snapshot_<DATE>.xlsx`
 
 ## 9) Monthly restore-test checklist
 

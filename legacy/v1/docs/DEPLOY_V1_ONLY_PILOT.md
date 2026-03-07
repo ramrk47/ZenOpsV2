@@ -28,7 +28,7 @@ V1_DOMAIN=app.maulya.in ./ops/bootstrap_v1_env.sh --force
 ```bash
 cd ~
 rm -rf maulya-v1
-git clone --branch codex/v1-pilot-deploy-v1only --single-branch https://github.com/ramrk47/ZenOpsV2.git
+git clone --branch codex/v1-pilot-deploy-v1only --single-branch https://github.com/ramrk47/MaulyaV2.git
 cd legacy/v1
 
 # optional: edit .env/.env.backend for production secrets

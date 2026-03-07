@@ -89,7 +89,7 @@ form button:not(:first-of-type) {
 
 ### Prerequisites
 ```bash
-cd /path/to/zen-ops
+cd /path/to/maulya
 ./rebuild-containers.sh
 ```
 

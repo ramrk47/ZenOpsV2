@@ -16,14 +16,14 @@ Branch: codex/deploy-ready-20260205_1530
 - AI continuity docs: log, project map, git workflow, ADRs, changelog.
 
 ## Current Source of Truth (read these first)
-- `/Users/dr.156/zen-ops/docs/PROJECT_MAP.md`
-- `/Users/dr.156/zen-ops/docs/AI_ENGINEERING_LOG.md`
-- `/Users/dr.156/zen-ops/docs/GIT_WORKFLOW.md`
-- `/Users/dr.156/zen-ops/docs/ADR/`
-- `/Users/dr.156/zen-ops/README_DEPLOY.md`
+- `/Users/dr.156/maulya/docs/PROJECT_MAP.md`
+- `/Users/dr.156/maulya/docs/AI_ENGINEERING_LOG.md`
+- `/Users/dr.156/maulya/docs/GIT_WORKFLOW.md`
+- `/Users/dr.156/maulya/docs/ADR/`
+- `/Users/dr.156/maulya/README_DEPLOY.md`
 
 ## Required Practices
-- Append to `/Users/dr.156/zen-ops/docs/AI_ENGINEERING_LOG.md` for any meaningful change.
+- Append to `/Users/dr.156/maulya/docs/AI_ENGINEERING_LOG.md` for any meaningful change.
 - Follow Conventional Commits for commit messages.
 - No force-push, no history rewrite, preserve branches/tags.
 
@@ -49,7 +49,7 @@ Branch: codex/deploy-ready-20260205_1530
 ## Deployment Notes
 - Docker Compose uses Caddy reverse proxy and optional backup profile.
 - Backups: encrypted offsite; `BACKUP_ENCRYPTION_KEY` is required.
-- Restore checklist: `/Users/dr.156/zen-ops/deploy/backup/RESTORE_TEST_CHECKLIST.md`.
+- Restore checklist: `/Users/dr.156/maulya/deploy/backup/RESTORE_TEST_CHECKLIST.md`.
 
 ## Known Constraints / Risks
 - DB migrations 0011–0017 are now in repo and must be applied in order.

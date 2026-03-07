@@ -307,7 +307,7 @@ Tests/Validation run (exact commands + result):
 - `docker compose build backend backup frontend` (PASS).
 - `docker compose up -d backend frontend backup-dispatcher backup-cron` (PASS).
 - `docker compose run --rm backup` (PASS locally; Drive upload requires valid rclone token).
-- `docker compose run --rm rclone ls gdrive:zenops-backups` (PASS when token valid; observed token expiry during later run).
+- `docker compose run --rm rclone ls gdrive:maulya-backups` (PASS when token valid; observed token expiry during later run).
 Risks/Notes (edge cases, breaking risks):
 - Google Drive OAuth tokens can expire; Drive uploads will fail until `rclone config reconnect gdrive:` is completed (consider service-account auth for deployments).
 - Backup dispatcher uses Docker socket; keep `/api/backups/*` restricted (admin-only + PIN) and do not expose Docker API/network beyond required scope.
@@ -893,7 +893,7 @@ Tests/Validation run (exact commands + result):
 - Unable to run live test (Docker not available in environment); changes follow established CSS patterns
 Risks/Notes (edge cases, breaking risks):
 - Login.jsx changes are visual only; form logic unchanged, MFA flow preserved
-- AdminSidebar localStorage keys for nav state remain compatible (workspace group uses 'zenops:nav:workspace')
+- AdminSidebar localStorage keys for nav state remain compatible (workspace group uses 'maulya:nav:workspace')
 - Button width styling moved from inline to CSS rule `form button { width: 100%; }` which applies globally within forms
 - auth-code-input class uses var(--font-display) for monospace-like appearance while staying in design system
 - .badge class now has `justify-content: center` globally; may affect other badge usages (review needed)
@@ -914,7 +914,7 @@ Rollback notes (how to revert; commit hashes if applicable):
 ## Session: 2026-02-09 (Copilot CLI - Comprehensive Audit & Fixes)
 
 ### Overview
-Full repository audit following zenops-audit.prompt.md guidelines, security hardening, E2E testing, and document preview fixes.
+Full repository audit following maulya-audit.prompt.md guidelines, security hardening, E2E testing, and document preview fixes.
 
 ### Work Completed
 
@@ -986,9 +986,9 @@ frontend/src/pages/AdminDashboard.jsx
 - Currently: `EMAIL_PROVIDER=disabled`
 
 ### Containers Rebuilt
-- zen-ops-api-1 (healthy)
-- zen-ops-frontend-1 (healthy)
-- zen-ops-reverse-proxy-1 (running)
+- maulya-api-1 (healthy)
+- maulya-frontend-1 (healthy)
+- maulya-reverse-proxy-1 (running)
 
 ---
 

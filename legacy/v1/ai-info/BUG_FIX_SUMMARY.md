@@ -1,4 +1,4 @@
-# Bug Fix Summary - zen-ops
+# Bug Fix Summary - maulya
 
 ## Issues Identified & Fixed
 
@@ -140,13 +140,13 @@ However, this issue may resolve itself after the container rebuild since it coul
 
 ### Quick Deploy (Recommended):
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 ./fix-bugs.sh
 ```
 
 ### Manual Deploy:
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 
 # Stop containers
 docker compose down

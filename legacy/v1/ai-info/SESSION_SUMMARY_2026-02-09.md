@@ -77,7 +77,7 @@ cd backend
 pytest tests/test_mentions.py -v
 
 # Test restore
-cd /path/to/zen-ops
+cd /path/to/maulya
 MODE=test BACKUP_FILE=./deploy/backups/latest.dump ./ops/restore.sh
 ```
 

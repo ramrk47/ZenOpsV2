@@ -11,8 +11,8 @@
 - `A demo.maulya.in -> <VPS_IP>`
 
 ## Legacy Redirects
-- `https://zenops.notalonestudios.com/*` -> `301 https://app.maulya.in/*`
-- `https://demo.zenops.notalonestudios.com/*` -> `301 https://demo.maulya.in/*`
+- `https://maulya.notalonestudios.com/*` -> `301 https://app.maulya.in/*`
+- `https://demo.maulya.notalonestudios.com/*` -> `301 https://demo.maulya.in/*`
 
 ## Deploy Order
 1. Create DNS records for `maulya.in`, `app.maulya.in`, and `demo.maulya.in`.
@@ -23,8 +23,8 @@
 
 ## Verification
 ```bash
-curl -I https://zenops.notalonestudios.com/
-curl -I https://demo.zenops.notalonestudios.com/
+curl -I https://maulya.notalonestudios.com/
+curl -I https://demo.maulya.notalonestudios.com/
 curl -I https://app.maulya.in/
 curl -I https://demo.maulya.in/
 ```

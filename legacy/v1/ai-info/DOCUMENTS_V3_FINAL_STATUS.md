@@ -193,7 +193,7 @@
 ## 🚧 Known Issues
 
 1. **Migration Dependency Failure:**
-   - Problem: `zen-ops-migrate-1` fails to start
+   - Problem: `maulya-migrate-1` fails to start
    - Root cause: Migration 0027 references missing `payroll_policies` table
    - Impact: API won't start (depends on migrate completion)
    - Solutions:

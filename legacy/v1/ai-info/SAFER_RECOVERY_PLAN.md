@@ -11,16 +11,16 @@ Main is 82 commits behind. We'd lose:
 
 ### Option A: Just Reset Database (RECOMMENDED)
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 
 # 1. Check current migration
-docker exec zen-ops-db-1 psql -U zenops -d zenops -c "SELECT * FROM alembic_version;"
+docker exec maulya-db-1 psql -U maulya -d maulya -c "SELECT * FROM alembic_version;"
 
 # 2. Stop containers
 docker compose down
 
 # 3. Remove ONLY database volume (keeps code)
-docker volume rm zen-ops_postgres_data
+docker volume rm maulya_postgres_data
 
 # 4. Start fresh
 docker compose up -d
@@ -29,7 +29,7 @@ docker compose up -d
 sleep 20
 
 # 6. Seed will run automatically OR manually:
-docker exec -w /app zen-ops-api-1 python -m app.seed --reset
+docker exec -w /app maulya-api-1 python -m app.seed --reset
 ```
 
 **Result**: Database gets fresh seed data, all code stays intact!
@@ -39,17 +39,17 @@ The seed script exits early because admin exists. Fix it:
 
 ```bash
 # Delete ONLY the admin check users, keep everything
-docker exec zen-ops-db-1 psql -U zenops -d zenops << 'SQL'
+docker exec maulya-db-1 psql -U maulya -d maulya << 'SQL'
 -- Delete users that block seed
 DELETE FROM activity_logs WHERE actor_user_id IN (SELECT id FROM users);
 DELETE FROM users;
 SQL
 
 # Run seed
-docker exec -w /app zen-ops-api-1 python -m app.seed
+docker exec -w /app maulya-api-1 python -m app.seed
 
 # Check results
-docker exec zen-ops-db-1 psql -U zenops -d zenops -c "SELECT COUNT(*) FROM assignments;"
+docker exec maulya-db-1 psql -U maulya -d maulya -c "SELECT COUNT(*) FROM assignments;"
 ```
 
 ### Option C: Manual Seed via API
@@ -58,7 +58,7 @@ Use the working APIs to create data:
 ```bash
 TOKEN=$(curl -s -X POST http://localhost/api/auth/login \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=admin@zenops.local&password=admin" | jq -r .access_token)
+  -d "username=admin@maulya.local&password=admin" | jq -r .access_token)
 
 # Check what master endpoints exist
 curl -s -H "Authorization: Bearer $TOKEN" http://localhost/api/docs | \
@@ -98,13 +98,13 @@ git reset --hard ai/work-SAFE-BACKUP-20260208-HHMM
 ## Execute Option A Now?
 
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 docker compose down
 docker volume ls | grep postgres
-docker volume rm zen-ops_postgres_data  # Adjust name if different
+docker volume rm maulya_postgres_data  # Adjust name if different
 docker compose up -d
 sleep 30
-docker exec -w /app zen-ops-api-1 python -m app.seed --reset
+docker exec -w /app maulya-api-1 python -m app.seed --reset
 ```
 
 ---

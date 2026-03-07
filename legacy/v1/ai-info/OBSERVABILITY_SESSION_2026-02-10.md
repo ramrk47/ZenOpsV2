@@ -2,7 +2,7 @@
 
 ## Session Summary
 
-Implemented a complete production-grade observability stack for ZenOps and fixed critical API bugs discovered through the monitoring system.
+Implemented a complete production-grade observability stack for Maulya and fixed critical API bugs discovered through the monitoring system.
 
 ---
 
@@ -24,7 +24,7 @@ All services run with: `docker compose --profile observability up -d`
 | cadvisor | gcr.io/cadvisor/cadvisor:v0.49.1 | Container metrics |
 | postgres-exporter | prometheuscommunity/postgres-exporter:v0.15.0 | DB metrics |
 | blackbox-exporter | prom/blackbox-exporter:v0.24.0 | HTTP probes |
-| watchdog | zen-ops-watchdog | API contract monitoring |
+| watchdog | maulya-watchdog | API contract monitoring |
 
 ### B) Files Created
 
@@ -33,7 +33,7 @@ observability/
 ├── prometheus/
 │   ├── prometheus.yml          # Scrape configuration
 │   └── alerts/
-│       └── zenops.yml          # Alert rules (API down, 5xx, latency, disk, etc.)
+│       └── maulya.yml          # Alert rules (API down, 5xx, latency, disk, etc.)
 ├── alertmanager/
 │   └── alertmanager.yml        # Alert routing config
 ├── loki/

@@ -13,7 +13,7 @@
 ## Run This To Fix Everything
 
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 ./fix-bugs.sh
 ```
 

@@ -299,7 +299,7 @@ PayrollLineItem requires:
 
 ### Manual Testing
 1. **Login:** http://localhost/login
-   - Email: `finance@zenops.local` or `admin@zenops.local`
+   - Email: `finance@maulya.local` or `admin@maulya.local`
    - Password: `Qwerty@123`
 
 2. **Navigate:** Click Finance → Payroll Runs in sidebar

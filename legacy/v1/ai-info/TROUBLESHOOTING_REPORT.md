@@ -1,4 +1,4 @@
-# 🔧 zen-ops Troubleshooting Report
+# 🔧 maulya Troubleshooting Report
 **Date:** 2026-02-08  
 **Status:** Issues identified and fixes ready
 
@@ -95,12 +95,12 @@ tbody tr {
 
 I've created a comprehensive fix script at:
 ```
-/Users/dr.156/zen-ops/fix-all-issues.sh
+/Users/dr.156/maulya/fix-all-issues.sh
 ```
 
 **To run it:**
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 ./fix-all-issues.sh
 ```
 
@@ -163,7 +163,7 @@ docker compose exec reverse-proxy cat /etc/caddy/Caddyfile | grep CSP
 
 **Quick CSS Fix:**
 
-Edit: `/Users/dr.156/zen-ops/frontend/src/styles.css`
+Edit: `/Users/dr.156/maulya/frontend/src/styles.css`
 
 Add after line 179:
 ```css
@@ -233,11 +233,11 @@ api:
 
 ```
 NAME                      STATUS
-zen-ops-api-1            Up 45 minutes (healthy) ⚠️  OLD CODE
-zen-ops-frontend-1       Up 45 minutes (healthy) ⚠️  OLD CODE
-zen-ops-db-1             Up 45 minutes (healthy) ✅
-zen-ops-email-worker-1   Up 45 minutes (healthy) ✅
-zen-ops-reverse-proxy-1  Up 45 minutes           ✅
+maulya-api-1            Up 45 minutes (healthy) ⚠️  OLD CODE
+maulya-frontend-1       Up 45 minutes (healthy) ⚠️  OLD CODE
+maulya-db-1             Up 45 minutes (healthy) ✅
+maulya-email-worker-1   Up 45 minutes (healthy) ✅
+maulya-reverse-proxy-1  Up 45 minutes           ✅
 ```
 
 ---
@@ -308,7 +308,7 @@ docker compose ps
 
 1. **Run the fix script:**
    ```bash
-   cd /Users/dr.156/zen-ops
+   cd /Users/dr.156/maulya
    ./fix-all-issues.sh
    ```
 
@@ -329,5 +329,5 @@ docker compose ps
 ---
 
 **Created:** 2026-02-08  
-**Fix Script:** `/Users/dr.156/zen-ops/fix-all-issues.sh`  
+**Fix Script:** `/Users/dr.156/maulya/fix-all-issues.sh`  
 **Estimated Fix Time:** 3-5 minutes

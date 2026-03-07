@@ -185,7 +185,7 @@ Before deploying to production, update `.env.backend`:
 
 ```bash
 ENVIRONMENT=production
-DATABASE_URL=postgresql+psycopg2://zenops:<PROD_PASSWORD>@db:5432/zenops
+DATABASE_URL=postgresql+psycopg2://maulya:<PROD_PASSWORD>@db:5432/maulya
 JWT_SECRET=<GENERATE_STRONG_SECRET>
 ALLOW_DESTRUCTIVE_ACTIONS=false
 ALLOW_ORIGINS=https://your-production-domain.com

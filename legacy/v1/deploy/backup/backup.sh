@@ -2,7 +2,7 @@
 set -euo pipefail
 
 DATE="$(date +'%Y-%m-%d_%H-%M-%S')"
-APP_NAME="${APP_NAME:-zenops}"
+APP_NAME="${APP_NAME:-maulya}"
 BACKUP_DIR="${BACKUP_DIR:-/backups}"
 UPLOADS_DIR="${UPLOADS_DIR:-/uploads}"
 RETAIN_LOCAL_DAYS="${RETAIN_LOCAL_DAYS:-7}"

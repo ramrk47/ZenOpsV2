@@ -15,7 +15,7 @@
 **Priority:** HIGH - Blocks all remaining work
 
 ### 2. Resolve Git Directory Confusion
-**Problem:** Multiple zen-ops directories causing confusion  
+**Problem:** Multiple maulya directories causing confusion  
 **Impact:** Changes made in wrong directory, unclear which is "source of truth"  
 **Priority:** MEDIUM - Affects workflow efficiency
 
@@ -30,7 +30,7 @@
 
 ### Main Directory (Source of Truth):
 ```
-/Users/dr.156/zen-ops/
+/Users/dr.156/maulya/
 ├── backend/
 │   ├── app/
 │   │   ├── models/document_template.py (✅ NEW)
@@ -53,13 +53,13 @@ Git: ✅ On branch ai/work with all commits
 
 ### Worktree Directory (DO NOT USE):
 ```
-/Users/dr.156/.claude-worktrees/zen-ops/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09/
+/Users/dr.156/.claude-worktrees/maulya/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09/
 
 Status: ⚠️ ABANDONED - Migration issues, no working containers
 Action: Can be deleted after confirming main dir has all changes
 ```
 
-**IMPORTANT:** All work should happen in `/Users/dr.156/zen-ops/`
+**IMPORTANT:** All work should happen in `/Users/dr.156/maulya/`
 
 ---
 
@@ -67,7 +67,7 @@ Action: Can be deleted after confirming main dir has all changes
 
 ### Problem Description
 ```
-Container: zen-ops-migrate-1
+Container: maulya-migrate-1
 Status: Exits with code 255
 Error: "Can't locate revision identified by '0028_add_document_review_fields'"
 Impact: API service depends on migrate completion, so API won't start
@@ -83,16 +83,16 @@ Impact: API service depends on migrate completion, so API won't start
 ### Database Current State
 ```sql
 -- Check current state:
-docker compose exec -T db psql -U zenops -d zenops -c "\d payroll_policies"
+docker compose exec -T db psql -U maulya -d maulya -c "\d payroll_policies"
 -- Result: relation "payroll_policies" does not exist
 
-docker compose exec -T db psql -U zenops -d zenops -c "SELECT * FROM alembic_version;"
+docker compose exec -T db psql -U maulya -d maulya -c "SELECT * FROM alembic_version;"
 -- Result: version_num = '0029_add_document_templates'
 
-docker compose exec -T db psql -U zenops -d zenops -c "\d document_templates"
+docker compose exec -T db psql -U maulya -d maulya -c "\d document_templates"
 -- Result: Table exists with all columns
 
-docker compose exec -T db psql -U zenops -d zenops -c "\d assignment_documents" | grep review
+docker compose exec -T db psql -U maulya -d maulya -c "\d assignment_documents" | grep review
 -- Result: review_status, visibility, reviewed_by_user_id, reviewed_at columns exist
 ```
 
@@ -131,7 +131,7 @@ api:
 
 Then:
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 docker compose up -d api
 # API should start now
 ```
@@ -143,7 +143,7 @@ docker compose up -d api
 
 1. **Create missing payroll_policies table:**
 ```sql
-docker compose exec -T db psql -U zenops -d zenops << 'SQL'
+docker compose exec -T db psql -U maulya -d maulya << 'SQL'
 CREATE TABLE IF NOT EXISTS payroll_policies (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255),
@@ -154,7 +154,7 @@ SQL
 
 2. **Reset alembic to 0026 and replay:**
 ```bash
-docker compose exec -T db psql -U zenops -d zenops << 'SQL'
+docker compose exec -T db psql -U maulya -d maulya << 'SQL'
 UPDATE alembic_version SET version_num = '0026_create_document_comments';
 SQL
 
@@ -176,7 +176,7 @@ down_revision = '0026_create_document_comments'  # Skip 0027/0028
 
 2. **Rebuild API image:**
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 docker compose build api
 docker compose up -d
 ```
@@ -188,21 +188,21 @@ docker compose up -d
 ### Current Problem
 Multiple Docker images exist, wasting storage:
 ```bash
-docker images | grep zen-ops
-# Shows: zen-ops-api, copilot-worktree-2026-02-08t02-39-09-api, etc.
+docker images | grep maulya
+# Shows: maulya-api, copilot-worktree-2026-02-08t02-39-09-api, etc.
 ```
 
 ### Cleanup Steps
 
-**1. List all zen-ops related images:**
+**1. List all maulya related images:**
 ```bash
-docker images | grep -E "zen-ops|copilot-worktree"
+docker images | grep -E "maulya|copilot-worktree"
 ```
 
 **2. Stop all containers:**
 ```bash
-docker compose -f /Users/dr.156/zen-ops/docker-compose.yml down
-docker compose -f /Users/dr.156/.claude-worktrees/zen-ops/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09/docker-compose.yml down 2>/dev/null
+docker compose -f /Users/dr.156/maulya/docker-compose.yml down
+docker compose -f /Users/dr.156/.claude-worktrees/maulya/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09/docker-compose.yml down 2>/dev/null
 ```
 
 **3. Remove worktree containers and images:**
@@ -226,31 +226,31 @@ docker builder prune -f
 docker system prune -a --volumes
 ```
 
-**5. Keep only main zen-ops images:**
+**5. Keep only main maulya images:**
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 docker compose build
 docker compose up -d
 ```
 
 ### Prevent Future Image Proliferation
 
-**Rule:** Only build/run from `/Users/dr.156/zen-ops/`
+**Rule:** Only build/run from `/Users/dr.156/maulya/`
 
 **Before any docker command:**
 ```bash
 # Always check you're in the right directory:
 pwd
-# Should show: /Users/dr.156/zen-ops
+# Should show: /Users/dr.156/maulya
 
 # If not:
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 ```
 
 **Add alias to .zshrc or .bashrc:**
 ```bash
-alias zenops='cd /Users/dr.156/zen-ops'
-alias zdc='cd /Users/dr.156/zen-ops && docker compose'
+alias maulya='cd /Users/dr.156/maulya'
+alias zdc='cd /Users/dr.156/maulya && docker compose'
 ```
 
 ---
@@ -261,7 +261,7 @@ alias zdc='cd /Users/dr.156/zen-ops && docker compose'
 
 **Main Repository:**
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 git status
 # Branch: ai/work
 # Commits ahead: 5
@@ -270,7 +270,7 @@ git status
 
 **Worktree (SHOULD DELETE):**
 ```bash
-cd /Users/dr.156/.claude-worktrees/zen-ops/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09
+cd /Users/dr.156/.claude-worktrees/maulya/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09
 # This is a git worktree - can be deleted once verified unnecessary
 ```
 
@@ -278,7 +278,7 @@ cd /Users/dr.156/.claude-worktrees/zen-ops/naughty-chatterjee.worktrees/copilot-
 
 **1. Verify all changes are in main directory:**
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 git log --oneline -10
 # Should show:
 # 480fe02 - docs: Documents V3 final status
@@ -290,39 +290,39 @@ git log --oneline -10
 
 **2. Check for uncommitted changes in worktree:**
 ```bash
-cd /Users/dr.156/.claude-worktrees/zen-ops/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09
+cd /Users/dr.156/.claude-worktrees/maulya/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09
 git status
 # If shows uncommitted changes, copy them to main dir first
 ```
 
 **3. Remove worktree (after verification):**
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 git worktree list
 # Shows list of worktrees
 
 # Remove the worktree
-git worktree remove /Users/dr.156/.claude-worktrees/zen-ops/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09
+git worktree remove /Users/dr.156/.claude-worktrees/maulya/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09
 
 # Or delete manually:
-rm -rf /Users/dr.156/.claude-worktrees/zen-ops/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09
+rm -rf /Users/dr.156/.claude-worktrees/maulya/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09
 ```
 
 **4. Push changes to remote:**
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 git push origin ai/work
 ```
 
 ### Going Forward: Single Directory Rule
 
-**✅ ALWAYS USE:** `/Users/dr.156/zen-ops/`
+**✅ ALWAYS USE:** `/Users/dr.156/maulya/`
 
 **Add to shell profile:**
 ```bash
 # Add to ~/.zshrc or ~/.bashrc
-export ZENOPS_HOME="/Users/dr.156/zen-ops"
-alias zenops='cd $ZENOPS_HOME'
+export MAULYA_HOME="/Users/dr.156/maulya"
+alias maulya='cd $MAULYA_HOME'
 ```
 
 ---
@@ -390,7 +390,7 @@ Add:
 
 ### Step 1: Fix Migration Issue (Choose one option above)
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 
 # Quick option:
 # Edit docker-compose.yml, remove migrate dependency
@@ -402,26 +402,26 @@ curl http://localhost:8000/readyz
 
 ### Step 2: Test Backend API
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 ./test_templates_api.sh
 # Should complete all 12 tests successfully
 ```
 
 ### Step 3: Clean Up Docker
 ```bash
-cd /Users/dr.156/zen-ops
-docker images | grep -E "zen-ops|copilot" | wc -l
+cd /Users/dr.156/maulya
+docker images | grep -E "maulya|copilot" | wc -l
 # Note the count
 
 # Run cleanup (see Docker section above)
 
-docker images | grep -E "zen-ops|copilot" | wc -l
+docker images | grep -E "maulya|copilot" | wc -l
 # Should be much lower
 ```
 
 ### Step 4: Clean Up Git
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 git worktree list
 # Remove any worktrees if present
 
@@ -442,9 +442,9 @@ Once API is working, implement:
 
 Before starting work, verify:
 
-- [ ] You're in `/Users/dr.156/zen-ops/` (not worktree)
+- [ ] You're in `/Users/dr.156/maulya/` (not worktree)
 - [ ] `git status` shows branch `ai/work` with 5 commits ahead
-- [ ] `docker compose ps` shows only zen-ops containers
+- [ ] `docker compose ps` shows only maulya containers
 - [ ] Migration issue is your first priority
 - [ ] You understand the three solution options (A, B, or C)
 - [ ] You'll clean up Docker images after fixing migration
@@ -456,7 +456,7 @@ Before starting work, verify:
 
 ```bash
 # Navigate to correct directory
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 
 # Check git status
 git status
@@ -469,15 +469,15 @@ docker compose up -d api
 docker compose restart api
 
 # Database operations
-docker compose exec -T db psql -U zenops -d zenops -c "SELECT * FROM alembic_version;"
-docker compose exec -T db psql -U zenops -d zenops -c "\d document_templates"
+docker compose exec -T db psql -U maulya -d maulya -c "SELECT * FROM alembic_version;"
+docker compose exec -T db psql -U maulya -d maulya -c "\d document_templates"
 
 # API testing
 curl http://localhost:8000/readyz
 ./test_templates_api.sh
 
 # Docker cleanup
-docker images | grep -E "zen-ops|copilot"
+docker images | grep -E "maulya|copilot"
 docker image prune -f
 docker builder prune -f
 ```

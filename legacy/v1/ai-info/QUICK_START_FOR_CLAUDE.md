@@ -4,11 +4,11 @@
 
 ```bash
 # 1. Navigate to correct directory
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 
 # 2. Verify you're in the right place
 pwd
-# Should show: /Users/dr.156/zen-ops
+# Should show: /Users/dr.156/maulya
 
 # 3. Check git status
 git status
@@ -49,11 +49,11 @@ curl http://localhost:8000/readyz
 
 ```bash
 # 1. See current mess
-docker images | grep -E "zen-ops|copilot"
+docker images | grep -E "maulya|copilot"
 
 # 2. Stop everything
 docker compose down
-cd /Users/dr.156/.claude-worktrees/zen-ops/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09
+cd /Users/dr.156/.claude-worktrees/maulya/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09
 docker compose down 2>/dev/null
 
 # 3. Remove worktree images
@@ -65,13 +65,13 @@ docker image prune -f
 docker builder prune -f
 
 # 5. Rebuild from scratch in main directory only
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 docker compose build
 docker compose up -d
 
 # 6. Verify cleanup
-docker images | grep -E "zen-ops|copilot"
-# Should only show zen-ops images
+docker images | grep -E "maulya|copilot"
+# Should only show maulya images
 ```
 
 ---
@@ -80,20 +80,20 @@ docker images | grep -E "zen-ops|copilot"
 
 ```bash
 # 1. Check for worktrees
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 git worktree list
 
 # 2. Check if worktree has uncommitted changes
-cd /Users/dr.156/.claude-worktrees/zen-ops/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09
+cd /Users/dr.156/.claude-worktrees/maulya/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09
 git status
 # If clean, safe to delete
 
 # 3. Remove worktree
-cd /Users/dr.156/zen-ops
-git worktree remove /Users/dr.156/.claude-worktrees/zen-ops/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09
+cd /Users/dr.156/maulya
+git worktree remove /Users/dr.156/.claude-worktrees/maulya/naughty-chatterjee.worktrees/copilot-worktree-2026-02-08T02-39-09
 
 # Or just delete the directory
-rm -rf /Users/dr.156/.claude-worktrees/zen-ops/
+rm -rf /Users/dr.156/.claude-worktrees/maulya/
 ```
 
 ---
@@ -101,13 +101,13 @@ rm -rf /Users/dr.156/.claude-worktrees/zen-ops/
 ## ✅ Verify Everything Works
 
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 
 # 1. API is running
 curl http://localhost:8000/readyz
 
 # 2. Database is accessible
-docker compose exec -T db psql -U zenops -d zenops -c "\d document_templates"
+docker compose exec -T db psql -U maulya -d maulya -c "\d document_templates"
 
 # 3. Test templates API
 ./test_templates_api.sh
@@ -119,7 +119,7 @@ curl -s http://localhost/ | grep -o "index-[a-f0-9]*.js"
 # 5. Login works
 curl -s -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=admin@zenops.local&password=admin" | jq -r '.access_token' | head -c 20
+  -d "username=admin@maulya.local&password=admin" | jq -r '.access_token' | head -c 20
 ```
 
 ---
@@ -163,18 +163,18 @@ docker compose logs db --tail 30
 
 **Frontend shows old code:**
 ```bash
-cd /Users/dr.156/zen-ops/frontend
+cd /Users/dr.156/maulya/frontend
 npm run build
-docker cp dist/index.html zen-ops-frontend-1:/usr/share/nginx/html/
-docker cp dist/assets/. zen-ops-frontend-1:/usr/share/nginx/html/assets/
+docker cp dist/index.html maulya-frontend-1:/usr/share/nginx/html/
+docker cp dist/assets/. maulya-frontend-1:/usr/share/nginx/html/assets/
 docker compose restart reverse-proxy
 ```
 
 **Wrong directory:**
 ```bash
 pwd
-# If not /Users/dr.156/zen-ops, run:
-cd /Users/dr.156/zen-ops
+# If not /Users/dr.156/maulya, run:
+cd /Users/dr.156/maulya
 ```
 
 ---

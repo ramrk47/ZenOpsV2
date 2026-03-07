@@ -5,7 +5,7 @@ The frontend container was serving an **old build** from 06:22 that doesn't incl
 
 ## Solution
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 
 # Rebuild frontend with new code
 docker compose build frontend
@@ -21,7 +21,7 @@ docker compose up -d frontend
 ## What to Test After Rebuild
 
 1. **Hard refresh** your browser (Ctrl+Shift+R)
-2. Login: admin@zenops.local / password
+2. Login: admin@maulya.local / password
 3. Go to any Assignment
 4. Click **Documents** tab
 5. You should now see:
@@ -62,7 +62,7 @@ Check network tab:
 ```bash
 TOKEN=$(curl -s -X POST http://localhost/api/auth/login \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=admin@zenops.local&password=password" | jq -r .access_token)
+  -d "username=admin@maulya.local&password=password" | jq -r .access_token)
 
 # List documents with comment counts
 curl -H "Authorization: Bearer $TOKEN" \

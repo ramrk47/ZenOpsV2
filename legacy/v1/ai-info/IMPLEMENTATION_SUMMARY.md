@@ -243,7 +243,7 @@ Start with PayrollRunDetail page first (highest priority).
 
 **Solution:**
 ```bash
-cd /path/to/zen-ops
+cd /path/to/maulya
 rm -f .git/index.lock  # Safe to remove if no git commands running
 git status             # Verify clean state
 git add .              # Stage your files

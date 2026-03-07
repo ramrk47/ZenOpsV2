@@ -31,8 +31,8 @@
 - ✅ Schema verified: review_status, visibility, reviewed_by_user_id, reviewed_at columns present
 
 ### Deployment
-- ✅ API rebuilt and deployed to zen-ops-api-1
-- ✅ Frontend rebuilt and deployed to zen-ops-frontend-1
+- ✅ API rebuilt and deployed to maulya-api-1
+- ✅ Frontend rebuilt and deployed to maulya-frontend-1
 - ✅ Health check: `{"status":"ok","alembic_revision":"0028_add_document_review_fields"}`
 
 ## 🧪 Testing Required

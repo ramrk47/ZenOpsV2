@@ -16,7 +16,7 @@ git push origin ai/work:ai/work-backup-20260208
 
 # 2. Removed all containers and volumes
 docker compose down -v
-docker volume rm zen-ops_postgres_data
+docker volume rm maulya_postgres_data
 
 # 3. Started fresh
 docker compose up -d
@@ -24,7 +24,7 @@ docker compose up -d
 # 4. Fixed migration 0028 (Documents V2 review fields)
 # Migration 0027 (payroll_policies) broke the chain
 # Manually added Documents V2 columns:
-docker exec zen-ops-db-1 psql -U zenops -d zenops -c "
+docker exec maulya-db-1 psql -U maulya -d maulya -c "
   ALTER TABLE assignment_documents ADD COLUMN review_status VARCHAR(50) DEFAULT 'RECEIVED';
   ALTER TABLE assignment_documents ADD COLUMN visibility VARCHAR(50) DEFAULT 'INTERNAL_ONLY';
   ALTER TABLE assignment_documents ADD COLUMN reviewed_by_user_id UUID;
@@ -32,12 +32,12 @@ docker exec zen-ops-db-1 psql -U zenops -d zenops -c "
 "
 
 # 5. Ran seed script successfully
-docker exec -w /app zen-ops-api-1 python -m app.seed
+docker exec -w /app maulya-api-1 python -m app.seed
 ```
 
 ## Result
 
-✅ Seed complete. Admin login: admin@zenops.local / password
+✅ Seed complete. Admin login: admin@maulya.local / password
 ✅ Database populated with:
    - Assignments
    - Clients  
@@ -57,7 +57,7 @@ docker exec -w /app zen-ops-api-1 python -m app.seed
 
 1. **Test the application:**
    - Login: http://localhost/login
-   - Credentials: admin@zenops.local / password
+   - Credentials: admin@maulya.local / password
    - Navigate: Assignments, Clients, Documents, Payroll
 
 2. **Test Documents V2 feature:**
@@ -71,7 +71,7 @@ docker exec -w /app zen-ops-api-1 python -m app.seed
 3. **If all works:**
    ```bash
    # Commit the recovery
-   cd /Users/dr.156/zen-ops
+   cd /Users/dr.156/maulya
    git add -A
    git commit -m "chore: database recovery - seed data loaded successfully"
    git push origin ai/work

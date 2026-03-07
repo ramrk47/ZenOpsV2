@@ -9,7 +9,7 @@
 
 ### Option 1: Create New Branch from Main (Recommended)
 ```bash
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 
 # 1. Create new branch from stable main
 git checkout -b ai/work-clean origin/main
@@ -25,10 +25,10 @@ docker compose down
 docker compose up -d
 
 # 5. Run seed script (will work on clean main schema)
-docker exec -w /app zen-ops-api-1 python -m app.seed --reset
+docker exec -w /app maulya-api-1 python -m app.seed --reset
 
 # 6. Test
-# Login: admin@zenops.local / password
+# Login: admin@maulya.local / password
 # Check assignments, clients, master data all present
 ```
 
@@ -53,7 +53,7 @@ git cherry-pick ac6b919
 docker compose down -v  # Remove volumes (WARNING: deletes DB)
 docker compose up -d
 sleep 20
-docker exec -w /app zen-ops-api-1 python -m app.seed --reset
+docker exec -w /app maulya-api-1 python -m app.seed --reset
 ```
 
 ## What Gets Preserved
@@ -77,7 +77,7 @@ After recovery:
 - ✅ Working database with seed data (assignments, clients, users, master data)
 - ✅ Documents V2 feature integrated
 - ✅ Clean git history
-- ✅ Login works: admin@zenops.local / password
+- ✅ Login works: admin@maulya.local / password
 
 ## Migration Conflict Resolution
 

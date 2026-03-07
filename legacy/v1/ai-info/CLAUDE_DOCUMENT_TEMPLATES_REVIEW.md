@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-08  
 **Reviewer:** GitHub Copilot CLI  
-**Location:** Main zen-ops repository (`/Users/dr.156/zen-ops`)  
+**Location:** Main maulya repository (`/Users/dr.156/maulya`)  
 **Status:** ✅ **VERIFIED & DOCUMENTED**
 
 ---
@@ -219,7 +219,7 @@ docker builder prune -f
 # Result: ~890MB freed
 ```
 
-**Current state:** Only `zen-ops-*` images remain (api, frontend, email-worker).
+**Current state:** Only `maulya-*` images remain (api, frontend, email-worker).
 
 ---
 
@@ -242,11 +242,11 @@ docker builder prune -f
 
 ### Docker Containers
 ```
-zen-ops-api-1             ✅ Up 39 minutes (healthy)
-zen-ops-db-1              ✅ Up 2 hours (healthy)
-zen-ops-email-worker-1    ✅ Up 2 hours (healthy)
-zen-ops-frontend-1        ✅ Up 1 hour (healthy)
-zen-ops-reverse-proxy-1   ✅ Up 34 minutes (healthy)
+maulya-api-1             ✅ Up 39 minutes (healthy)
+maulya-db-1              ✅ Up 2 hours (healthy)
+maulya-email-worker-1    ✅ Up 2 hours (healthy)
+maulya-frontend-1        ✅ Up 1 hour (healthy)
+maulya-reverse-proxy-1   ✅ Up 34 minutes (healthy)
 ```
 
 ### API Health
@@ -389,7 +389,7 @@ rm frontend/src/components/FileTemplatesTab.jsx
 
 # Rebuild
 cd frontend && npm run build
-docker cp frontend/dist/. zen-ops-frontend-1:/usr/share/nginx/html/
+docker cp frontend/dist/. maulya-frontend-1:/usr/share/nginx/html/
 ```
 
 ### Database

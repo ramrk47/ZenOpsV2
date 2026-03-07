@@ -24,7 +24,7 @@ dig +short demo.maulya.in
 ```bash
 cd ~
 sudo rm -rf maulya-v1
-git clone --branch codex/v1-pilot-deploy-v1only --single-branch https://github.com/ramrk47/ZenOpsV2.git
+git clone --branch codex/v1-pilot-deploy-v1only --single-branch https://github.com/ramrk47/MaulyaV2.git
 cd legacy/v1
 ```
 

@@ -18,7 +18,7 @@ Try manual build inside running container OR check docker-compose.yml for volume
 
 ```bash
 # Check for volume mounts
-cd /Users/dr.156/zen-ops
+cd /Users/dr.156/maulya
 grep -A5 "frontend:" docker-compose.yml | grep volumes
 
 # If there's a volume mount to frontend/dist, that's the issue!
@@ -27,7 +27,7 @@ grep -A5 "frontend:" docker-compose.yml | grep volumes
 ## Alternative: Use worktree version
 The Documents V2 code is working in the copilot-worktree. We could:
 1. Copy just the built frontend assets from worktree
-2. Mount them into the zen-ops frontend container  
+2. Mount them into the maulya frontend container  
 3. Test there first
 
 ## Status

@@ -1,7 +1,7 @@
 {
   "config": {
-    "configFile": "/Users/dr.156/zen-ops/playwright/playwright.config.js",
-    "rootDir": "/Users/dr.156/zen-ops/playwright/tests",
+    "configFile": "/Users/dr.156/maulya/playwright/playwright.config.js",
+    "rootDir": "/Users/dr.156/maulya/playwright/tests",
     "forbidOnly": false,
     "fullyParallel": false,
     "globalSetup": null,
@@ -16,7 +16,7 @@
     "preserveOutput": "always",
     "projects": [
       {
-        "outputDir": "/Users/dr.156/zen-ops/playwright/reports/test-results",
+        "outputDir": "/Users/dr.156/maulya/playwright/reports/test-results",
         "repeatEach": 1,
         "retries": 1,
         "metadata": {
@@ -24,7 +24,7 @@
         },
         "id": "chromium",
         "name": "chromium",
-        "testDir": "/Users/dr.156/zen-ops/playwright/tests",
+        "testDir": "/Users/dr.156/maulya/playwright/tests",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"

@@ -8,8 +8,8 @@
 ### 1. ✅ **Authentication Issue** - FIXED
 - **Problem**: Login was failing, returning null token
 - **Cause**: Admin password was set during initial setup but not matching expected "admin"
-- **Fix**: Updated admin@zenops.local password to "admin"
-- **Test**: `curl -X POST http://localhost/api/auth/login -H "Content-Type: application/x-www-form-urlencoded" -d "username=admin@zenops.local&password=admin"`
+- **Fix**: Updated admin@maulya.local password to "admin"
+- **Test**: `curl -X POST http://localhost/api/auth/login -H "Content-Type: application/x-www-form-urlencoded" -d "username=admin@maulya.local&password=admin"`
 - **Status**: ✅ Login now works, token generated successfully
 
 ### 2. ⚠️ **Empty Database** - PARTIALLY FIXED
@@ -65,7 +65,7 @@ The project has `/app/app/seed.py` which knows the correct schema. Run it proper
 
 ```bash
 # 1. Enable destructive actions temporarily
-docker exec zen-ops-api-1 bash -c 'export DESTRUCTIVE_ACTIONS_ENABLED=true && python -m app.seed --reset'
+docker exec maulya-api-1 bash -c 'export DESTRUCTIVE_ACTIONS_ENABLED=true && python -m app.seed --reset'
 
 # OR manually set in .env:
 # Add: DESTRUCTIVE_ACTIONS_ENABLED=true to backend/.env
@@ -74,7 +74,7 @@ docker exec zen-ops-api-1 bash -c 'export DESTRUCTIVE_ACTIONS_ENABLED=true && py
 docker compose restart api
 
 # 3. Run seed
-docker exec -w /app zen-ops-api-1 python -m app.seed --reset
+docker exec -w /app maulya-api-1 python -m app.seed --reset
 ```
 
 The seed script will create:
@@ -90,7 +90,7 @@ Since clients work, continue manually inserting via API:
 ```bash
 TOKEN=$(curl -s -X POST http://localhost/api/auth/login \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=admin@zenops.local&password=admin" | jq -r .access_token)
+  -d "username=admin@maulya.local&password=admin" | jq -r .access_token)
 
 # Create clients via API
 curl -X POST http://localhost/api/master/clients \
@@ -110,11 +110,11 @@ curl -X POST http://localhost/api/master/clients \
 ### Option C: Schema Investigation (If seed still fails)
 ```bash
 # Check actual table schemas
-docker exec zen-ops-db-1 psql -U zenops -d zenops -c "\d property_types"
-docker exec zen-ops-db-1 psql -U zenops -d zenops -c "\d assignments"
+docker exec maulya-db-1 psql -U maulya -d maulya -c "\d property_types"
+docker exec maulya-db-1 psql -U maulya -d maulya -c "\d assignments"
 
 # Check enum types
-docker exec zen-ops-db-1 psql -U zenops -d zenops -c "\dT+"
+docker exec maulya-db-1 psql -U maulya -d maulya -c "\dT+"
 ```
 
 ## Immediate Testing
@@ -123,7 +123,7 @@ docker exec zen-ops-db-1 psql -U zenops -d zenops -c "\dT+"
 ```bash
 curl -X POST http://localhost/api/auth/login \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=admin@zenops.local&password=admin"
+  -d "username=admin@maulya.local&password=admin"
 # Should return: {"access_token": "eyJ...", "user": {...}}
 ```
 
@@ -140,7 +140,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost/api/assignments | jq len
 
 ### 3. Frontend Check
 - Open http://localhost in browser
-- Login: admin@zenops.local / admin
+- Login: admin@maulya.local / admin
 - Navigate to Assignments page
 - Should see empty state with "No assignments" message (not loading spinner forever)
 
@@ -153,11 +153,11 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost/api/assignments | jq len
 ## Login Credentials
 
 After running seed script, use:
-- **Admin**: admin@zenops.local / password
-- **Ops Manager**: ops@zenops.local / password
-- **HR**: hr@zenops.local / password
-- **Finance**: finance@zenops.local / password
-- **Field Valuer**: field@zenops.local / password
+- **Admin**: admin@maulya.local / password
+- **Ops Manager**: ops@maulya.local / password
+- **HR**: hr@maulya.local / password
+- **Finance**: finance@maulya.local / password
+- **Field Valuer**: field@maulya.local / password
 
 ## Files Changed
 

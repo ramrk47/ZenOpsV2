@@ -45,10 +45,10 @@ fi
 
 if [[ "$resolved_db_dump" == *.gz ]]; then
   echo "Restoring database from gzipped dump..."
-  gunzip -c "$resolved_db_dump" | docker compose -f "$ROOT/docker-compose.yml" exec -T db psql -U "${POSTGRES_USER:-zenops}" "${POSTGRES_DB:-zenops}"
+  gunzip -c "$resolved_db_dump" | docker compose -f "$ROOT/docker-compose.yml" exec -T db psql -U "${POSTGRES_USER:-maulya}" "${POSTGRES_DB:-maulya}"
 else
   echo "Restoring database from plain SQL dump..."
-  cat "$resolved_db_dump" | docker compose -f "$ROOT/docker-compose.yml" exec -T db psql -U "${POSTGRES_USER:-zenops}" "${POSTGRES_DB:-zenops}"
+  cat "$resolved_db_dump" | docker compose -f "$ROOT/docker-compose.yml" exec -T db psql -U "${POSTGRES_USER:-maulya}" "${POSTGRES_DB:-maulya}"
 fi
 
 if [ -n "$UPLOADS_ARCHIVE" ]; then
