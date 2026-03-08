@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toUserMessage } from '../api/client'
 import { requestAssociateAccess, resolveAssociateAccessHandoff } from '../api/partner'
+import BrandLogo from '../components/BrandLogo'
 import DemoMarker from '../components/DemoMarker'
 
 export default function PartnerRequestAccess() {
@@ -107,6 +108,7 @@ export default function PartnerRequestAccess() {
       <DemoMarker variant="public" className="public-demo-banner" />
       <div className="public-grid">
         <section className="public-card public-card--hero">
+          <BrandLogo variant="public" showCredit className="public-brand-lockup" />
           <div className="public-badge">Associate Portal</div>
           <h1 className="public-title">Request Access</h1>
           <p className="public-lead">

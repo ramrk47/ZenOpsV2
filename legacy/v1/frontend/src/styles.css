@@ -528,6 +528,102 @@ tbody tr[role='button'] {
   margin-bottom: 1.25rem;
 }
 
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.brand-lockup__mark,
+.brand-lockup__wordmark {
+  display: block;
+  height: auto;
+  max-width: 100%;
+}
+
+.brand-lockup__mark {
+  flex: 0 0 auto;
+  filter: drop-shadow(0 10px 20px rgba(3, 8, 20, 0.2));
+}
+
+.brand-lockup__meta {
+  display: grid;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.brand-lockup__wordmark {
+  filter: drop-shadow(0 10px 18px rgba(3, 8, 20, 0.14));
+}
+
+.brand-lockup--sidebar {
+  align-items: center;
+  gap: 0.78rem;
+}
+
+.brand-lockup--sidebar .brand-lockup__mark {
+  width: 52px;
+}
+
+.brand-lockup--sidebar .brand-lockup__wordmark {
+  width: 156px;
+}
+
+.brand-lockup--auth,
+.brand-lockup--auth-compact {
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.brand-lockup--auth .brand-lockup__meta,
+.brand-lockup--auth-compact .brand-lockup__meta {
+  justify-items: center;
+}
+
+.brand-lockup--auth .brand-lockup__mark {
+  width: 96px;
+}
+
+.brand-lockup--auth .brand-lockup__wordmark {
+  width: 308px;
+}
+
+.brand-lockup--auth-compact .brand-lockup__mark {
+  width: 74px;
+}
+
+.brand-lockup--auth-compact .brand-lockup__wordmark {
+  width: 230px;
+}
+
+.brand-lockup--public {
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.brand-lockup--public .brand-lockup__mark {
+  width: 72px;
+}
+
+.brand-lockup--public .brand-lockup__wordmark {
+  width: 230px;
+}
+
+.brand-lockup--mobile {
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.brand-lockup--mobile .brand-lockup__mark {
+  width: 34px;
+}
+
+.brand-lockup--mobile .brand-lockup__wordmark {
+  width: 124px;
+}
+
 .nav-demo-marker {
   margin-bottom: 1rem;
 }
@@ -609,10 +705,16 @@ tbody tr[role='button'] {
 .brand-credit {
   font-size: 0.64rem;
   font-weight: 600;
-  letter-spacing: 0.42px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--studio-gold);
   opacity: 0.95;
   line-height: 1.1;
+}
+
+.auth-brand {
+  justify-self: center;
+  margin-bottom: 0.15rem;
 }
 
 .auth-kicker-credit {
@@ -3017,6 +3119,14 @@ tbody tr[role='button'] {
   align-content: start;
 }
 
+.public-brand-lockup {
+  margin-bottom: 0.15rem;
+}
+
+.public-brand-lockup .brand-credit {
+  font-size: 0.6rem;
+}
+
 .public-card--form {
   display: grid;
   gap: 1rem;
@@ -3541,6 +3651,22 @@ form button:not(:first-of-type) {
   .app-brand {
     margin-bottom: 0.9rem;
     padding: 0.62rem 0.62rem 0.58rem;
+  }
+
+  .brand-lockup--sidebar .brand-lockup__mark {
+    width: 46px;
+  }
+
+  .brand-lockup--sidebar .brand-lockup__wordmark {
+    width: 138px;
+  }
+
+  .brand-lockup--public .brand-lockup__mark {
+    width: 64px;
+  }
+
+  .brand-lockup--public .brand-lockup__wordmark {
+    width: 202px;
   }
 
   .app-brand-main {

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { toUserMessage } from '../api/client'
 import { resendAssociateVerification } from '../api/partner'
+import BrandLogo from '../components/BrandLogo'
 import DemoMarker from '../components/DemoMarker'
 
 export default function PartnerRequestAccessSent() {
@@ -45,6 +46,7 @@ export default function PartnerRequestAccessSent() {
     <div className="public-shell">
       <DemoMarker variant="public" className="public-demo-banner public-demo-banner--narrow" />
       <div className="public-card public-card--narrow public-card--center">
+        <BrandLogo variant="public" showCredit className="public-brand-lockup" />
         <div className="public-badge">Associate Portal</div>
         <h1 className="public-title">Check Your Email</h1>
         <p className="public-lead">

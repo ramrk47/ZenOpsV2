@@ -1,5 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import BrandLogo from '../components/BrandLogo'
 
 function ActionButton({ action, variant }) {
   if (!action) return null
@@ -18,9 +19,9 @@ export default function MobileHeader({ title, subtitle, primaryAction, secondary
   return (
     <header className="m-header">
       <div className="m-header-main">
+        <BrandLogo variant="mobile" showCredit className="m-brand-logo" />
         {subtitle ? <p className="m-header-kicker">{subtitle}</p> : null}
         <h1>{title}</h1>
-        <div className="m-header-credit">by Not Alone Studios</div>
       </div>
       <div className="m-header-actions">
         <ActionButton action={secondaryAction} variant="secondary" />

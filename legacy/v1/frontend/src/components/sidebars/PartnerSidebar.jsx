@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
+import BrandLogo from '../BrandLogo'
 import BubbleStrip from '../ui/BubbleStrip'
 import { fetchPartnerAssignments, fetchPartnerRequests, fetchPartnerProfile, fetchPartnerNotificationUnreadCount } from '../../api/partner'
 import { getLocalStorageItem, setLocalStorageItem } from '../../utils/appInstance'
@@ -133,8 +134,7 @@ export default function PartnerSidebar() {
     <>
       <div className="nav-scroll">
         <div className="app-brand">
-          <div className="app-brand-main">Maulya</div>
-          <div className="brand-credit">by Not Alone Studios</div>
+          <BrandLogo variant="sidebar" showCredit />
         </div>
 
         <div className="nav-title">Action Dock</div>

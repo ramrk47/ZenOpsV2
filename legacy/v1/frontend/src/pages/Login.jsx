@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { isDemoMode } from '../config/featureFlags'
+import BrandLogo from '../components/BrandLogo'
 import DemoMarker from '../components/DemoMarker'
 import Badge from '../components/ui/Badge'
 
@@ -83,7 +84,7 @@ export default function Login() {
     return (
       <div className="auth-screen">
         <div className="card auth-card">
-          <div className="kicker">Maulya</div>
+          <BrandLogo variant="auth-compact" className="auth-brand" />
           <h2 className="auth-title">Use Backup Code</h2>
           <div className="muted auth-subtitle">
             Enter one of your recovery codes (e.g. ABCD-EFGH)
@@ -140,7 +141,7 @@ export default function Login() {
     return (
       <div className="auth-screen">
         <div className="card auth-card">
-          <div className="kicker">Maulya</div>
+          <BrandLogo variant="auth-compact" className="auth-brand" />
           <h2 className="auth-title">Two-Factor Authentication</h2>
           <div className="muted auth-subtitle">
             Enter the 6-digit code from your authenticator app
@@ -199,9 +200,8 @@ export default function Login() {
   return (
     <div className="auth-screen">
       <div className="card auth-card">
-        <div className="kicker">Maulya</div>
-        <div className="auth-kicker-credit">by Not Alone Studios</div>
-        <h2 className="auth-title">Maulya</h2>
+        <BrandLogo variant="auth" showCredit className="auth-brand" />
+        <h2 className="auth-title">Sign In</h2>
         <div className="muted auth-subtitle">
           Work OS for valuation operations
         </div>

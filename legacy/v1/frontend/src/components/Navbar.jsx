@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import DemoMarker from './DemoMarker'
+import BrandLogo from './BrandLogo'
 import { fetchAssignments, fetchAssignmentSummary } from '../api/assignments'
 import { fetchNotificationUnreadCount } from '../api/notifications'
 import { fetchApprovalsInboxCount } from '../api/approvals'
@@ -238,8 +239,7 @@ export default function Navbar() {
     <>
       <div className="nav-scroll">
         <div className="app-brand">
-          <div className="app-brand-main">Maulya</div>
-          <div className="brand-credit">by Not Alone Studios</div>
+          <BrandLogo variant="sidebar" showCredit />
         </div>
         <DemoMarker variant="compact" className="nav-demo-marker" />
 

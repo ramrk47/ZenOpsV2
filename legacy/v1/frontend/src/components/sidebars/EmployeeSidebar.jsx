@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
+import BrandLogo from '../BrandLogo'
 import BubbleStrip from '../ui/BubbleStrip'
 import { fetchAssignments } from '../../api/assignments'
 import { fetchNotificationUnreadCount } from '../../api/notifications'
@@ -142,8 +143,7 @@ export default function EmployeeSidebar() {
     <>
       <div className="nav-scroll">
         <div className="app-brand">
-          <div className="app-brand-main">Maulya</div>
-          <div className="brand-credit">by Not Alone Studios</div>
+          <BrandLogo variant="sidebar" showCredit />
         </div>
 
         <div className="nav-title">Action Dock</div>

@@ -117,6 +117,15 @@
   min-width: 0;
 }
 
+.m-brand-logo {
+  margin-bottom: 0.55rem;
+}
+
+.m-brand-logo .brand-credit {
+  font-size: 0.5rem;
+  letter-spacing: 0.11em;
+}
+
 .m-header-main h1 {
   margin: 0;
   font-size: 1.42rem;
