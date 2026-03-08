@@ -9,9 +9,20 @@ export default function BrandLogo({
 }) {
   return (
     <div className={`brand-lockup brand-lockup--${variant} ${className}`.trim()}>
-      <img className="brand-lockup__mark" src={markSrc} alt="" aria-hidden="true" />
+      <img
+        className="brand-lockup__mark"
+        src={markSrc}
+        alt=""
+        aria-hidden="true"
+        decoding="async"
+      />
       <div className="brand-lockup__meta">
-        <img className="brand-lockup__wordmark" src={wordmarkSrc} alt="Maulya" />
+        <img
+          className="brand-lockup__wordmark"
+          src={wordmarkSrc}
+          alt="Maulya"
+          decoding="async"
+        />
         {showCredit ? <div className="brand-credit">by Not Alone Studios</div> : null}
       </div>
     </div>

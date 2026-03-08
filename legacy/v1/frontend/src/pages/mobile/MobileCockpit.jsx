@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext.jsx'
 import { fetchMobileSummary } from '../../api/mobile'
+import BrandLogo from '../../components/BrandLogo'
 import { formatDateTime, titleCase } from '../../utils/format'
 import {
   appendStatusHistory,
@@ -133,8 +134,9 @@ export default function MobileCockpit() {
     <div className="mobile-shell">
       <header className="mobile-header">
         <div>
-          <p className="mobile-kicker">Maulya Mobile Cockpit</p>
-          <h1>Maulya</h1>
+          <BrandLogo variant="mobile" className="m-brand-logo" />
+          <p className="mobile-kicker">Mobile Cockpit</p>
+          <h1>Workspace</h1>
         </div>
         <div className="mobile-header-actions">
           <button

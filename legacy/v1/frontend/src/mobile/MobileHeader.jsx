@@ -19,7 +19,7 @@ export default function MobileHeader({ title, subtitle, primaryAction, secondary
   return (
     <header className="m-header">
       <div className="m-header-main">
-        <BrandLogo variant="mobile" showCredit className="m-brand-logo" />
+        <BrandLogo variant="mobile" className="m-brand-logo" />
         {subtitle ? <p className="m-header-kicker">{subtitle}</p> : null}
         <h1>{title}</h1>
       </div>
