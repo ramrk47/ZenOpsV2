@@ -4,6 +4,9 @@ import MobileTabs from './MobileTabs'
 import useMobileTabs from './useMobileTabs'
 import { useAuth } from '../auth/AuthContext'
 import DemoMarker from '../components/DemoMarker'
+import DemoOnboardingModal from '../demo/tutorial/DemoOnboardingModal.jsx'
+import DemoCoachmarkLayer from '../demo/tutorial/DemoCoachmarkLayer.jsx'
+import DemoTutorialLauncher from '../demo/tutorial/DemoTutorialLauncher.jsx'
 
 export default function MobileLayout({
   title,
@@ -24,6 +27,9 @@ export default function MobileLayout({
         secondaryAction={secondaryAction}
       />
       <DemoMarker variant="mobile" className="m-demo-banner" />
+      <DemoTutorialLauncher mobile />
+      <DemoOnboardingModal />
+      <DemoCoachmarkLayer />
       <main className="m-content">{children}</main>
       <MobileTabs tabs={tabs} />
     </div>

@@ -6,6 +6,7 @@ import { createDraftAssignment, fetchAssignment, updateAssignment } from '../../
 import { requestApproval } from '../../api/approvals'
 import { fetchBanks, fetchBranches, fetchClients, fetchServiceLines } from '../../api/master'
 import { toUserMessage } from '../../api/client'
+import DemoInlineHelp from '../../demo/tutorial/DemoInlineHelp.jsx'
 
 const CASE_TYPES = ['BANK', 'EXTERNAL_VALUER', 'DIRECT_CLIENT']
 const UOM_OPTIONS = [
@@ -295,8 +296,13 @@ export default function CreateAssignmentScreen() {
           so nothing operational is committed prematurely.
         </p>
       </Card>
+      <DemoInlineHelp
+        title="Drafts are safe, not final"
+        body="The mobile wizard is designed to capture enough context to start the job while keeping the case under approval discipline."
+        whyItMatters="This protects operations from incomplete field intake and keeps permanent records cleaner."
+      />
 
-      <div className="m-stepper">
+      <div className="m-stepper" data-tour-id="mobile-create-stepper">
         {[1, 2, 3].map((value) => (
           <StepButton key={value} value={value} active={step === value} onClick={setStep} />
         ))}
@@ -315,7 +321,7 @@ export default function CreateAssignmentScreen() {
 
               <label>
                 <span>Service Line</span>
-                <select value={form.service_line_id} onChange={(e) => setField('service_line_id', e.target.value)}>
+                <select data-tour-id="mobile-create-service-line" value={form.service_line_id} onChange={(e) => setField('service_line_id', e.target.value)}>
                   <option value="">Select</option>
                   {serviceLines.map((line) => <option key={line.id} value={line.id}>{line.name}</option>)}
                 </select>
@@ -497,7 +503,7 @@ export default function CreateAssignmentScreen() {
           >
             Next
           </button>
-          <button type="button" className="m-primary-btn" onClick={handleSave} disabled={saving}>
+          <button type="button" className="m-primary-btn" data-tour-id="mobile-create-save" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving…' : assignmentId ? 'Save Draft' : 'Create Draft'}
           </button>
         </div>

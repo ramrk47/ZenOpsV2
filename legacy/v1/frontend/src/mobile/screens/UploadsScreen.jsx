@@ -9,6 +9,7 @@ import { formatDateTime, titleCase } from '../../utils/format'
 import { toUserMessage } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { isPartner } from '../../utils/rbac'
+import DemoInlineHelp from '../../demo/tutorial/DemoInlineHelp.jsx'
 
 function slotState(category, checklist, documents) {
   const required = (checklist?.required_categories || []).includes(category)
@@ -204,6 +205,7 @@ export default function UploadsScreen() {
               key={row.id}
               className="m-list-card"
               type="button"
+              data-tour-route={`/m/assignments/${row.id}/uploads`}
               onClick={() => navigate(`/m/assignments/${row.id}/uploads`)}
             >
               <div className="m-list-top">
@@ -264,8 +266,13 @@ export default function UploadsScreen() {
           ) : (
             <>
               <Section title="Checklist Progress" subtitle={`${completionPct}% complete`}>
+                <DemoInlineHelp
+                  title="Checklist progress drives readiness"
+                  body="This section shows whether the request is still missing evidence or ready to move further in review."
+                  whyItMatters="Uploads should be completed before downstream teams waste time chasing missing files."
+                />
                 <div className="m-stat-grid">
-                  <Card className="m-stat-card">
+                  <Card className="m-stat-card" data-tour-id="mobile-uploads-progress">
                     <p>Completion</p>
                     <strong>{completionPct}%</strong>
                     <small>Required slot completion ratio.</small>
@@ -325,7 +332,7 @@ export default function UploadsScreen() {
           )}
 
           <Section title="Upload Document" subtitle={partnerMode ? 'Share evidence or supporting files from the field.' : 'Capture from camera or choose file'}>
-            <form className="m-form-grid" onSubmit={handleUpload}>
+            <form className="m-form-grid" data-tour-id="mobile-uploads-form" onSubmit={handleUpload}>
               {partnerMode ? (
                 <label>
                   <span>Category</span>
@@ -357,7 +364,7 @@ export default function UploadsScreen() {
                   onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
                 />
               </label>
-              <button type="submit" className="m-primary-btn" disabled={!selectedFile || uploading}>
+              <button type="submit" className="m-primary-btn" data-tour-id="mobile-uploads-submit" disabled={!selectedFile || uploading}>
                 {uploading ? 'Uploading…' : 'Upload'}
               </button>
             </form>

@@ -11,6 +11,7 @@ import {
   uploadPartnerCommissionDocument,
 } from '../../api/partner'
 import { toUserMessage } from '../../api/client'
+import DemoInlineHelp from '../../demo/tutorial/DemoInlineHelp.jsx'
 
 const SERVICE_LINES = ['VALUATION', 'INDUSTRIAL', 'DPR', 'CMA']
 
@@ -201,8 +202,14 @@ export default function AssociateRequestComposerScreen() {
         </Card>
       ) : null}
 
+      <DemoInlineHelp
+        title="Structured associate intake"
+        body="This composer captures the minimum details ops needs to start work without relying on chat or scattered notes."
+        whyItMatters="A clean request reduces clarification churn later in approvals, evidence review, and payment follow-up."
+      />
+
       <Section title="Request Essentials" subtitle="Core details that operations needs to start the case.">
-        <Card className="m-sheet-card">
+        <Card className="m-sheet-card" data-tour-id="mobile-associate-request-form">
           <div className="m-form-grid">
             <label>
               <span>Service Line</span>
@@ -301,7 +308,7 @@ export default function AssociateRequestComposerScreen() {
           <button type="button" className="m-secondary-btn" onClick={() => handleSave({ submit: false })} disabled={saving}>
             {saving ? 'Saving…' : 'Save Draft'}
           </button>
-          <button type="button" className="m-primary-btn" onClick={() => handleSave({ submit: true })} disabled={saving}>
+          <button type="button" className="m-primary-btn" data-tour-id="mobile-associate-request-submit" onClick={() => handleSave({ submit: true })} disabled={saving}>
             {saving ? 'Submitting…' : 'Submit Request'}
           </button>
         </div>

@@ -15,10 +15,19 @@ import { dueStateLabel, dueStateTone, formatDate, formatDateTime } from '../util
 import api, { toUserMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { canSeeAdmin } from '../utils/rbac'
+import DemoMissionPanel from '../demo/tutorial/DemoMissionPanel.jsx'
+import { useDemoTutorial } from '../demo/tutorial/useDemoTutorial'
 
 export default function Account() {
   const [searchParams] = useSearchParams()
   const { user, capabilities, refreshAuth } = useAuth()
+  const {
+    isEnabled: tutorialEnabled,
+    policy: tutorialPolicy,
+    helpPath: tutorialHelpPath,
+    openTutorialModal,
+    resetTutorial,
+  } = useDemoTutorial()
   const [assignments, setAssignments] = useState([])
   const [summary, setSummary] = useState(null)
   const [notifications, setNotifications] = useState([])
@@ -228,6 +237,7 @@ export default function Account() {
 
       {!isSettingsView ? (
         <>
+          <DemoMissionPanel />
           <div className="grid cols-4" style={{ marginBottom: '1rem' }}>
             <ActionCard
               title="Assignments Due Today"
@@ -536,6 +546,17 @@ export default function Account() {
           </form>
         </div>
       </Card>
+      ) : null}
+
+      {isSettingsView && tutorialEnabled ? (
+        <Card id="tutorial-settings" style={{ marginTop: '1.2rem' }}>
+          <CardHeader title={tutorialPolicy.academyLabel} subtitle="Replay the guided onboarding or reopen the help center." />
+          <div className="tutorial-settings-actions">
+            <button type="button" className="nav-link" onClick={() => openTutorialModal()}>Start Guided Tour</button>
+            <Link to={tutorialHelpPath} className="nav-link ghost-link">{tutorialPolicy.helpLabel}</Link>
+            <button type="button" className="nav-link ghost-link" onClick={resetTutorial}>{tutorialPolicy.resetLabel}</button>
+          </div>
+        </Card>
       ) : null}
 
       {isSettingsView ? <MfaSettingsCard /> : null}

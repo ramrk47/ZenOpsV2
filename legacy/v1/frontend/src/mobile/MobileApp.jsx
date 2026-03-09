@@ -11,6 +11,7 @@ import InvoicesScreen from './screens/InvoicesScreen'
 import NotificationsScreen from './screens/NotificationsScreen'
 import ProfileScreen from './screens/ProfileScreen'
 import SearchScreen from './screens/SearchScreen'
+import DemoHelpScreen from './screens/DemoHelpScreen.jsx'
 import './mobile.css'
 
 export default function MobileApp() {
@@ -29,6 +30,8 @@ export default function MobileApp() {
       <Route path="profile" element={<ProfileScreen />} />
       <Route path="search" element={<SearchScreen />} />
       <Route path="uploads" element={<UploadsScreen />} />
+      <Route path="help/demo" element={<DemoHelpScreen />} />
+      <Route path="help/tutorial" element={<DemoHelpScreen />} />
       <Route path="*" element={<Navigate to="home" replace />} />
     </Routes>
   )

@@ -12,6 +12,7 @@ import { formatDateTime, titleCase } from '../../utils/format'
 import { useAuth } from '../../auth/AuthContext'
 import { hasCapability } from '../../utils/rbac'
 import { toUserMessage } from '../../api/client'
+import DemoInlineHelp from '../../demo/tutorial/DemoInlineHelp.jsx'
 
 const STATUS_FILTERS = ['PENDING', 'APPROVED', 'REJECTED']
 
@@ -153,6 +154,11 @@ export default function ApprovalsScreen() {
       </div>
 
       <Section title="Approval Queue" subtitle={`${filtered.length} items in ${titleCase(statusFilter)}`}>
+        <DemoInlineHelp
+          title="Approvals are explicit control points"
+          body="Drafts, final reviews, and payment confirmations stay here until somebody makes a visible decision."
+          whyItMatters="This keeps governance inside the product instead of hiding decisions in chat or memory."
+        />
         {loading ? <MobileListSkeleton rows={6} /> : null}
         {!loading && filtered.length === 0 ? (
           <MobileEmptyState
@@ -162,7 +168,7 @@ export default function ApprovalsScreen() {
           />
         ) : null}
 
-        <div className="m-list">
+        <div className="m-list" data-tour-id="mobile-approvals-list">
           {filtered.map((row) => (
             <button key={row.id} type="button" className="m-list-card" onClick={() => openDetail(row)}>
               <div className="m-list-top">

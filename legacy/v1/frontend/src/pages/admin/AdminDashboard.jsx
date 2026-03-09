@@ -8,6 +8,7 @@ import { fetchDashboardActivitySummary, fetchDashboardOverview } from '../../api
 import { toUserMessage } from '../../api/client'
 import InfoTip from '../../components/ui/InfoTip'
 import { formatDateTime } from '../../utils/format'
+import DemoMissionPanel from '../../demo/tutorial/DemoMissionPanel.jsx'
 
 export default function AdminDashboard() {
   const [overview, setOverview] = useState(null)
@@ -69,6 +70,7 @@ export default function AdminDashboard() {
       />
 
       {error ? <div className="empty" style={{ marginBottom: '0.9rem' }}>{error}</div> : null}
+      <DemoMissionPanel />
 
       {loading ? (
         <div className="muted">Loading dashboard…</div>

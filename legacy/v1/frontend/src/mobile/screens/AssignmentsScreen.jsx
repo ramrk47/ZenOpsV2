@@ -8,6 +8,7 @@ import { formatDateTime, titleCase } from '../../utils/format'
 import { toUserMessage } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { isPartner } from '../../utils/rbac'
+import DemoInlineHelp from '../../demo/tutorial/DemoInlineHelp.jsx'
 
 const FILTERS = [
   { key: 'all', label: 'All' },
@@ -152,6 +153,11 @@ export default function AssignmentsScreen() {
       </div>
 
       <Section title={partnerMode ? 'Requests' : 'Queue'} subtitle={`${filtered.length} results · filter: ${activeFilterLabel}`}>
+        <DemoInlineHelp
+          title="Move from queue to context"
+          body="This list is the fastest way to open a live request or assignment and inspect its current status."
+          whyItMatters="The tutorial uses the queue to move from intake into request detail without losing the operational thread."
+        />
         {loading ? <MobileListSkeleton rows={6} /> : null}
         {!loading && filtered.length === 0 ? (
           <MobileEmptyState
@@ -161,12 +167,13 @@ export default function AssignmentsScreen() {
           />
         ) : null}
 
-        <div className="m-list">
+        <div className="m-list" data-tour-id="mobile-assignments-list">
           {filtered.map((item) => (
             <button
               key={item.id}
               type="button"
               className="m-list-card"
+              data-tour-route={`/m/assignments/${item.id}`}
               onClick={() => navigate(`/m/assignments/${item.id}`)}
             >
               <div className="m-list-top">

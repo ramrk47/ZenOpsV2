@@ -4170,3 +4170,466 @@ form button:not(:first-of-type) {
     padding: 1.2rem;
   }
 }
+
+.demo-mission-panel,
+.demo-inline-help,
+.demo-help-card,
+.demo-modal,
+.demo-coachmark-card {
+  border: 1px solid rgba(122, 162, 255, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(109, 224, 255, 0.12), transparent 42%),
+    linear-gradient(180deg, rgba(18, 26, 47, 0.96), rgba(11, 15, 28, 0.98));
+  box-shadow: 0 20px 40px rgba(3, 8, 20, 0.32);
+}
+
+.demo-mission-kicker {
+  margin-bottom: 0.45rem;
+  color: var(--accent-2);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.demo-mission-panel {
+  display: grid;
+  gap: 1rem;
+  margin: 0 0 1rem;
+  padding: 1rem 1.05rem;
+  border-radius: 24px;
+}
+
+.demo-mission-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.demo-mission-panel-head h3,
+.demo-modal h2,
+.demo-help-card h2 {
+  margin: 0;
+  color: #ffffff;
+}
+
+.demo-mission-panel-head p,
+.demo-mission-next-card p,
+.demo-modal-copy,
+.demo-help-card > p {
+  margin: 0.35rem 0 0;
+  color: var(--text-muted);
+}
+
+.demo-mission-progress-block {
+  min-width: 92px;
+  padding: 0.8rem 0.9rem;
+  border-radius: 18px;
+  background: rgba(8, 14, 30, 0.72);
+  text-align: right;
+}
+
+.demo-mission-progress-block strong {
+  display: block;
+  color: #ffffff;
+  font-size: 1.1rem;
+}
+
+.demo-mission-progress-block small {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.demo-mission-progress {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.demo-mission-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+
+.demo-mission-next-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.95rem 1rem;
+  border-radius: 20px;
+  background: rgba(7, 14, 28, 0.62);
+  border: 1px solid rgba(122, 162, 255, 0.14);
+}
+
+.demo-mission-next-card strong,
+.demo-mission-step strong,
+.demo-help-flow-head strong,
+.demo-help-glossary-item strong,
+.demo-inline-help strong {
+  color: #ffffff;
+}
+
+.demo-mission-next-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+}
+
+.demo-mission-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.demo-mission-flow-pills,
+.demo-mission-step-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.demo-flow-pill,
+.demo-mission-step,
+.demo-modal-flow,
+.demo-help-flow-card {
+  display: grid;
+  gap: 0.3rem;
+  text-align: left;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(122, 162, 255, 0.14);
+  background: rgba(8, 14, 30, 0.58);
+}
+
+.demo-flow-pill small,
+.demo-mission-step small,
+.demo-modal-flow small,
+.demo-help-flow-card small,
+.demo-help-glossary-item p,
+.demo-inline-help small {
+  color: var(--text-muted);
+}
+
+.demo-flow-pill strong,
+.demo-help-flow-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.demo-mission-step {
+  grid-template-columns: auto 1fr;
+  align-items: flex-start;
+}
+
+.demo-mission-step span {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(91, 140, 255, 0.16);
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.demo-mission-step.active {
+  border-color: rgba(109, 224, 255, 0.28);
+  background: rgba(21, 36, 67, 0.82);
+}
+
+.demo-mission-step.done span {
+  background: rgba(61, 220, 151, 0.18);
+}
+
+.demo-inline-help {
+  display: grid;
+  gap: 0.42rem;
+  margin: 0 0 0.9rem;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+}
+
+.demo-inline-help p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.demo-inline-help-kicker {
+  color: var(--studio-gold);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tutorial-launcher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(122, 162, 255, 0.16);
+  background:
+    radial-gradient(circle at top right, rgba(109, 224, 255, 0.1), transparent 40%),
+    linear-gradient(180deg, rgba(16, 24, 43, 0.94), rgba(9, 15, 28, 0.98));
+  box-shadow: 0 18px 32px rgba(3, 8, 20, 0.22);
+}
+
+.tutorial-launcher-copy {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.tutorial-launcher-copy strong {
+  color: #ffffff;
+}
+
+.tutorial-launcher-copy p {
+  margin: 0;
+  color: var(--text-muted);
+  max-width: 54ch;
+}
+
+.tutorial-launcher-kicker {
+  color: var(--studio-gold);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tutorial-launcher-actions,
+.tutorial-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.demo-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.2rem;
+  background: rgba(3, 8, 20, 0.72);
+}
+
+.demo-modal {
+  width: min(860px, 100%);
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-radius: 28px;
+}
+
+.demo-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.demo-modal-flow.active {
+  border-color: rgba(109, 224, 255, 0.34);
+  transform: translateY(-1px);
+}
+
+.demo-modal-flow-head,
+.demo-help-flow-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.demo-modal-flow p,
+.demo-help-flow-card p,
+.demo-modal-note p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.demo-modal-note {
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  background: rgba(7, 14, 28, 0.62);
+}
+
+.demo-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.demo-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.demo-coachmark-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 115;
+  pointer-events: none;
+}
+
+.demo-coachmark-highlight {
+  position: fixed;
+  border-radius: 20px;
+  border: 2px solid rgba(109, 224, 255, 0.92);
+  box-shadow: 0 0 0 9999px rgba(3, 8, 20, 0.62);
+}
+
+.demo-coachmark-card {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  width: min(430px, calc(100vw - 2rem));
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.05rem;
+  border-radius: 24px;
+  pointer-events: auto;
+}
+
+.demo-coachmark-card--mobile {
+  right: 0.75rem;
+  left: 0.75rem;
+  bottom: calc(6.2rem + env(safe-area-inset-bottom));
+  width: auto;
+  max-height: calc(100vh - 8.5rem - env(safe-area-inset-bottom));
+  overflow: auto;
+}
+
+.demo-coachmark-progress,
+.demo-coachmark-status {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.demo-coachmark-card h3 {
+  margin: 0;
+  color: #ffffff;
+}
+
+.demo-coachmark-copy {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.demo-coachmark-copy p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.demo-coachmark-copy strong {
+  color: #ffffff;
+}
+
+.demo-coachmark-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.demo-help-page {
+  display: grid;
+  gap: 1rem;
+}
+
+.demo-help-center {
+  display: grid;
+  gap: 1rem;
+}
+
+.demo-help-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1.15rem 1.2rem;
+  border-radius: 24px;
+}
+
+.demo-help-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.demo-help-flow-card {
+  gap: 0.75rem;
+}
+
+.demo-help-flow-card .nav-link {
+  justify-self: flex-start;
+}
+
+.demo-help-workflow {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.demo-workflow-step {
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  background: rgba(7, 14, 28, 0.58);
+  border: 1px solid rgba(122, 162, 255, 0.12);
+}
+
+.demo-workflow-step p,
+.demo-help-glossary-item p {
+  margin: 0.4rem 0 0;
+}
+
+.demo-workflow-arrow {
+  text-align: center;
+  color: var(--accent-2);
+  font-weight: 800;
+}
+
+.demo-help-glossary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.demo-help-glossary-item {
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  background: rgba(7, 14, 28, 0.58);
+  border: 1px solid rgba(122, 162, 255, 0.12);
+}
+
+@media (max-width: 980px) {
+  .tutorial-launcher {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .demo-modal-grid,
+  .demo-help-flow-grid,
+  .demo-help-glossary {
+    grid-template-columns: 1fr;
+  }
+
+  .demo-help-workflow {
+    grid-template-columns: 1fr;
+  }
+
+  .demo-workflow-arrow {
+    display: none;
+  }
+}

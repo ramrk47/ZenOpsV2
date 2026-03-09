@@ -6,6 +6,7 @@ import { formatDate, formatMoney, titleCase } from '../../utils/format'
 import { useAuth } from '../../auth/AuthContext'
 import { hasCapability } from '../../utils/rbac'
 import { toUserMessage } from '../../api/client'
+import DemoInlineHelp from '../../demo/tutorial/DemoInlineHelp.jsx'
 
 const STATUS_FILTERS = ['ALL', 'ISSUED', 'SENT', 'PARTIALLY_PAID', 'PAID', 'VOID']
 
@@ -143,6 +144,11 @@ export default function InvoicesScreen() {
       </div>
 
       <Section title="Invoice List" subtitle={`${rows.length} items · ${titleCase(statusFilter === 'ALL' ? 'all statuses' : statusFilter)}`}>
+        <DemoInlineHelp
+          title="Payments do not become trusted automatically"
+          body="This list surfaces invoice balance pressure and the payment confirmation workflow used to keep finance signals reliable."
+          whyItMatters="Recorded payments should only count after confirmation, otherwise the demo teaches the wrong operating model."
+        />
         {loading ? <MobileListSkeleton rows={6} /> : null}
         {!loading && rows.length === 0 ? (
           <MobileEmptyState
@@ -152,7 +158,7 @@ export default function InvoicesScreen() {
           />
         ) : null}
 
-        <div className="m-list">
+        <div className="m-list" data-tour-id="mobile-invoices-list">
           {rows.map((row) => (
             <button key={row.id} type="button" className="m-list-card" onClick={() => openInvoice(row)}>
               <div className="m-list-top">

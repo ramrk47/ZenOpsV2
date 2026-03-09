@@ -11,10 +11,11 @@ import { useAuth } from '../../auth/AuthContext'
 import { hasCapability, isPartner } from '../../utils/rbac'
 import { toUserMessage } from '../../api/client'
 import AssociateDemoPromo from '../../components/AssociateDemoPromo'
+import DemoMissionPanel from '../../demo/tutorial/DemoMissionPanel.jsx'
 
-function QuickCard({ title, value, hint, to }) {
+function QuickCard({ title, value, hint, to, tourId = '' }) {
   return (
-    <Card className="m-quick-card">
+    <Card className="m-quick-card" data-tour-id={tourId || undefined}>
       <p>{title}</p>
       <strong>{value}</strong>
       <small>{hint}</small>
@@ -100,6 +101,7 @@ export default function HomeScreen() {
       {error ? <div className="m-alert m-alert-error">{error}</div> : null}
 
       {partnerMode ? <AssociateDemoPromo mobile /> : null}
+      <DemoMissionPanel mobile />
 
       <Section title={partnerMode ? 'Today' : 'Priority Queue'} subtitle={partnerMode ? 'Your request and delivery snapshot for today.' : 'Role-aware snapshot for today'}>
         {loading ? <MobileListSkeleton rows={3} /> : null}
@@ -110,6 +112,7 @@ export default function HomeScreen() {
               value={drafts.length}
               hint={partnerMode ? 'Requests you started but have not submitted yet' : 'Continue or submit pending draft work'}
               to="/m/assignments?filter=draft"
+              tourId="mobile-home-quick-drafts"
             />
             {partnerMode ? (
               <QuickCard
@@ -124,6 +127,7 @@ export default function HomeScreen() {
                 value={pendingApprovals}
                 hint="Approvals that need action now"
                 to="/m/approvals"
+                tourId="mobile-home-quick-approvals"
               />
             )}
             <QuickCard
@@ -137,6 +141,7 @@ export default function HomeScreen() {
               value={uploadsMissing}
               hint={partnerMode ? 'Requests waiting for site photos or supporting files' : 'Assignments missing checklist evidence'}
               to="/m/uploads"
+              tourId="mobile-home-quick-uploads"
             />
             {canViewInvoices && !partnerMode ? (
               <QuickCard

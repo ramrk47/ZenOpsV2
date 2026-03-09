@@ -6,6 +6,18 @@ The format is based on Keep a Changelog, and this project adheres to Conventiona
 
 ## [Unreleased]
 
+### Added
+- Shared tutorial engine files under `frontend/src/demo/tutorial/` for guided onboarding, mission panels, coachmarks, launchers, and help center routes.
+- Tutorial docs:
+  - `docs/DEMO_TUTORIAL_SPEC.md`
+  - `docs/TUTORIALS.md`
+
+### Changed
+- Tutorial behavior is now policy-driven across demo and main app:
+  - demo auto-opens guided onboarding and keeps the mission panel visible
+  - main app shows a one-time optional prompt, keeps the mission panel hidden by default, and exposes manual launch/reset controls
+- Added stable `data-tour-id` and `data-tour-route` anchors to mobile surfaces so coachmarks and automation can navigate reliably through request, assignment, upload, approval, and invoice views.
+
 ## [v1-pilot-rc1-2026-03-04]
 
 ### Added

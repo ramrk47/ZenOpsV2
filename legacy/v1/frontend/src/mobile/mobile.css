@@ -58,6 +58,26 @@
   margin: 0 1rem 0.9rem;
 }
 
+.tutorial-launcher--mobile {
+  margin: 0 1rem 0.95rem;
+  padding: 0.9rem 0.95rem;
+  border-radius: 18px;
+}
+
+.tutorial-launcher--mobile .tutorial-launcher-copy p {
+  max-width: none;
+  font-size: 0.84rem;
+}
+
+.tutorial-launcher--mobile .tutorial-launcher-actions {
+  width: 100%;
+}
+
+.tutorial-launcher--mobile .nav-link {
+  width: 100%;
+  justify-content: center;
+}
+
 .associate-demo-promo--mobile {
   margin: 0 0 0.95rem;
   padding: 0.95rem;
@@ -890,6 +910,48 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;
+}
+
+.demo-mission-panel--mobile {
+  margin: 0 0 0.95rem;
+  padding: 0.95rem;
+  border-radius: 20px;
+}
+
+.demo-mission-panel--mobile .demo-mission-panel-head,
+.demo-mission-panel--mobile .demo-mission-next-card {
+  display: grid;
+}
+
+.demo-mission-panel--mobile .demo-mission-progress-block {
+  min-width: 0;
+  text-align: left;
+}
+
+.demo-mission-panel--mobile .demo-mission-next-card .nav-link {
+  width: 100%;
+  justify-content: center;
+}
+
+.demo-inline-help {
+  border-radius: 16px;
+}
+
+.demo-modal-backdrop {
+  align-items: flex-end;
+  padding: 0.75rem;
+}
+
+.demo-modal {
+  max-height: min(88vh, 820px);
+  overflow: auto;
+  border-radius: 24px;
+}
+
+.demo-modal-actions .nav-link,
+.demo-modal-actions .ghost-link {
+  width: 100%;
+  justify-content: center;
 }
 
 .m-progress {

@@ -97,7 +97,7 @@ export default function SearchScreen() {
     <MobileLayout title="Search" subtitle="Find requests, alerts, and invoices quickly" secondaryAction={{ label: 'Back', to: '/m/home' }}>
       {error ? <div className="m-alert m-alert-error">{error}</div> : null}
 
-      <Section title="Search Scope" subtitle={partnerMode ? 'Requests, alerts, and invoices in one mobile pass.' : 'Assignments, approvals, and invoices in one mobile pass.'}>
+      <Section title="Search Scope" subtitle={partnerMode ? 'Requests, alerts, and invoices in one mobile pass.' : 'Assignments, approvals, and invoices in one mobile pass.'} className="m-search-scope" >
         <div className="m-stat-grid">
           <Card className="m-stat-card">
             <p>{partnerMode ? 'Requests' : 'Assignments'}</p>
@@ -122,7 +122,9 @@ export default function SearchScreen() {
         </div>
       </Section>
 
-      <SearchBar value={query} onChange={handleSearch} placeholder={partnerMode ? 'Search request code / customer / invoice' : 'Search assignment code / customer / invoice'} />
+      <div data-tour-id="mobile-search-screen">
+        <SearchBar value={query} onChange={handleSearch} placeholder={partnerMode ? 'Search request code / customer / invoice' : 'Search assignment code / customer / invoice'} />
+      </div>
 
       {!canSearch ? <p className="m-muted-note">Type at least 2 characters.</p> : null}
       {loading ? <p className="m-muted-note">Searching…</p> : null}

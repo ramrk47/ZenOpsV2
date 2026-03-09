@@ -49,9 +49,11 @@ import PartnerPayments from './pages/partner/PartnerPayments.jsx'
 import PartnerNotifications from './pages/partner/PartnerNotifications.jsx'
 import PartnerProfile from './pages/partner/PartnerProfile.jsx'
 import PartnerHelp from './pages/partner/PartnerHelp.jsx'
+import DemoHelpPage from './pages/DemoHelpPage.jsx'
 import Forbidden from './pages/Forbidden.jsx'
 import { canSeeAdmin, hasCapability, isPartner, resolveHomeRoute, userHasRole } from './utils/rbac.js'
 import { isFeatureEnabled } from './config/featureFlags.js'
+import { DemoTutorialProvider } from './demo/tutorial/DemoTutorialContext.jsx'
 
 const MobileApp = React.lazy(() => import('./mobile/MobileApp.jsx'))
 
@@ -149,57 +151,60 @@ export default function App() {
   const homeRoute = resolveHomeRoute(user, capabilities)
   return (
     <ErrorBoundary>
-    <MobileAutoRedirect />
-    <MobileModeBanner />
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/partner/request-access" element={<PartnerRequestAccess />} />
-      <Route path="/partner/request-access/sent" element={<PartnerRequestAccessSent />} />
-      <Route path="/partner/verify" element={<PartnerVerifyAccess />} />
-      <Route path="/invite/accept" element={<InviteAccept />} />
-      <Route
-        path="/m/*"
-        element={(
-          <RequireAuthenticated>
-            <Suspense fallback={<div style={{ padding: '2rem' }}>Loading mobile mode…</div>}>
-              <MobileApp />
-            </Suspense>
-          </RequireAuthenticated>
-        )}
-      />
-      <Route path="/mobile" element={<Navigate to="/m/home" replace />} />
-      <Route path="/mobile/assignments/:id" element={<MobileAssignmentRedirect />} />
+      <MobileAutoRedirect />
+      <MobileModeBanner />
+      <DemoTutorialProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/partner/request-access" element={<PartnerRequestAccess />} />
+          <Route path="/partner/request-access/sent" element={<PartnerRequestAccessSent />} />
+          <Route path="/partner/verify" element={<PartnerVerifyAccess />} />
+          <Route path="/invite/accept" element={<InviteAccept />} />
+          <Route
+            path="/m/*"
+            element={(
+              <RequireAuthenticated>
+                <Suspense fallback={<div style={{ padding: '2rem' }}>Loading mobile mode…</div>}>
+                  <MobileApp />
+                </Suspense>
+              </RequireAuthenticated>
+            )}
+          />
+          <Route path="/mobile" element={<Navigate to="/m/home" replace />} />
+          <Route path="/mobile/assignments/:id" element={<MobileAssignmentRedirect />} />
 
-      <Route element={(
-        <RequireEmployeeArea>
-          <InternalLayoutSwitch />
-        </RequireEmployeeArea>
-      )}
-      >
-        <Route path="/account" element={<Account />} />
-
-        <Route path="/assignments" element={<Assignments />} />
-
-        <Route path="/assignments/new" element={<NewAssignment />} />
-
-        <Route path="/assignments/:id" element={<AssignmentDetail />} />
-
-        <Route path="/calendar" element={<CalendarPage />} />
-
-        <Route path="/notifications" element={<NotificationsPage />} />
-
-        <Route path="/invoices" element={<InvoicesPage />} />
-
-        <Route path="/requests" element={<RequestsPage />} />
-
-        <Route
-          path="/admin/dashboard"
-          element={(
-            <RequireAdminArea>
-              <AdminDashboard />
-            </RequireAdminArea>
+          <Route element={(
+            <RequireEmployeeArea>
+              <InternalLayoutSwitch />
+            </RequireEmployeeArea>
           )}
-        />
+          >
+            <Route path="/account" element={<Account />} />
+
+            <Route path="/assignments" element={<Assignments />} />
+
+            <Route path="/assignments/new" element={<NewAssignment />} />
+
+            <Route path="/assignments/:id" element={<AssignmentDetail />} />
+
+            <Route path="/calendar" element={<CalendarPage />} />
+
+            <Route path="/notifications" element={<NotificationsPage />} />
+
+            <Route path="/invoices" element={<InvoicesPage />} />
+
+            <Route path="/requests" element={<RequestsPage />} />
+            <Route path="/help/demo" element={<DemoHelpPage />} />
+            <Route path="/help/tutorial" element={<DemoHelpPage />} />
+
+            <Route
+              path="/admin/dashboard"
+              element={(
+                <RequireAdminArea>
+                  <AdminDashboard />
+                </RequireAdminArea>
+              )}
+            />
         <Route
           path="/admin/workload"
           element={(
@@ -366,43 +371,46 @@ export default function App() {
             </RequireAdminArea>
           )}
         />
-        <Route
-          path="/admin/system-config"
-          element={(
-            <RequireAdminArea>
-              <AdminSystemConfig />
-            </RequireAdminArea>
-          )}
-        />
-      </Route>
+            <Route
+              path="/admin/system-config"
+              element={(
+                <RequireAdminArea>
+                  <AdminSystemConfig />
+                </RequireAdminArea>
+              )}
+            />
+          </Route>
 
-      <Route element={(
-        <RequirePartnerArea>
-          <PartnerLayout />
-        </RequirePartnerArea>
-      )}
-      >
-        <Route path="/partner" element={<PartnerHome />} />
-        <Route
-          path="/partner/assignments/new"
-          element={(
-            <RequireUserCapability capability="create_assignment_draft">
-              <NewAssignment />
-            </RequireUserCapability>
+          <Route element={(
+            <RequirePartnerArea>
+              <PartnerLayout />
+            </RequirePartnerArea>
           )}
-        />
-        <Route path="/partner/requests" element={<PartnerRequests />} />
-        <Route path="/partner/requests/new" element={<PartnerRequestNew />} />
-        <Route path="/partner/requests/:id" element={<PartnerRequestDetail />} />
-        <Route path="/partner/payments" element={<PartnerPayments />} />
-        <Route path="/partner/notifications" element={<PartnerNotifications />} />
-        <Route path="/partner/profile" element={<PartnerProfile />} />
-        <Route path="/partner/help" element={<PartnerHelp />} />
-      </Route>
+          >
+            <Route path="/partner" element={<PartnerHome />} />
+            <Route
+              path="/partner/assignments/new"
+              element={(
+                <RequireUserCapability capability="create_assignment_draft">
+                  <NewAssignment />
+                </RequireUserCapability>
+              )}
+            />
+            <Route path="/partner/requests" element={<PartnerRequests />} />
+            <Route path="/partner/requests/new" element={<PartnerRequestNew />} />
+            <Route path="/partner/requests/:id" element={<PartnerRequestDetail />} />
+            <Route path="/partner/payments" element={<PartnerPayments />} />
+            <Route path="/partner/notifications" element={<PartnerNotifications />} />
+            <Route path="/partner/profile" element={<PartnerProfile />} />
+            <Route path="/partner/help" element={<PartnerHelp />} />
+            <Route path="/help/demo" element={<DemoHelpPage />} />
+            <Route path="/help/tutorial" element={<DemoHelpPage />} />
+          </Route>
 
-      <Route path="/" element={<Navigate to={user ? homeRoute : '/login'} replace />} />
-      <Route path="*" element={<Navigate to={user ? homeRoute : '/login'} replace />} />
-    </Routes>
+          <Route path="/" element={<Navigate to={user ? homeRoute : '/login'} replace />} />
+          <Route path="*" element={<Navigate to={user ? homeRoute : '/login'} replace />} />
+        </Routes>
+      </DemoTutorialProvider>
     </ErrorBoundary>
   )
 }

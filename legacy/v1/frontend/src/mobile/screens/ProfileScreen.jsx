@@ -3,9 +3,17 @@ import { Link } from 'react-router-dom'
 import MobileLayout from '../MobileLayout'
 import { Card, KVRow, Section } from '../components/Primitives'
 import { useAuth } from '../../auth/AuthContext'
+import { useDemoTutorial } from '../../demo/tutorial/useDemoTutorial'
 
 export default function ProfileScreen() {
   const { user, capabilities, logout } = useAuth()
+  const {
+    isEnabled: tutorialEnabled,
+    policy: tutorialPolicy,
+    helpPath: tutorialHelpPath,
+    openTutorialModal,
+    resetTutorial,
+  } = useDemoTutorial()
 
   const enabledCaps = useMemo(
     () => Object.entries(capabilities || {}).filter(([, value]) => Boolean(value)).map(([key]) => key),
@@ -47,6 +55,16 @@ export default function ProfileScreen() {
           <button type="button" className="m-secondary-btn" onClick={logout}>Logout</button>
         </div>
       </Section>
+
+      {tutorialEnabled ? (
+        <Section title={tutorialPolicy.academyLabel} subtitle="Replay guided onboarding or reopen tutorial help from mobile.">
+          <div className="m-inline-actions">
+            <button type="button" className="m-link-btn" onClick={() => openTutorialModal()}>Start Guided Tour</button>
+            <Link className="m-link-btn" to={tutorialHelpPath}>{tutorialPolicy.helpLabel}</Link>
+            <button type="button" className="m-secondary-btn" onClick={resetTutorial}>{tutorialPolicy.resetLabel}</button>
+          </div>
+        </Section>
+      ) : null}
     </MobileLayout>
   )
 }

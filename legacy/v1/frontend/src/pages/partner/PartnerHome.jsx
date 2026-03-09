@@ -12,6 +12,7 @@ import { formatDateTime, titleCase } from '../../utils/format'
 import { toUserMessage } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { hasCapability } from '../../utils/rbac'
+import DemoMissionPanel from '../../demo/tutorial/DemoMissionPanel.jsx'
 
 function statusTone(status) {
   if (!status) return 'muted'
@@ -109,6 +110,7 @@ export default function PartnerHome() {
       ) : null}
 
       <AssociateDemoPromo />
+      <DemoMissionPanel />
 
       {loading ? (
         <div className="muted">Loading associate dashboard…</div>

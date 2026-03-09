@@ -25,6 +25,7 @@ import { formatDateTime, titleCase } from '../../utils/format'
 import { useAuth } from '../../auth/AuthContext'
 import { hasCapability, isPartner } from '../../utils/rbac'
 import { toUserMessage } from '../../api/client'
+import DemoInlineHelp from '../../demo/tutorial/DemoInlineHelp.jsx'
 
 function StatusChip({ status }) {
   return <span className={`m-status ${String(status || '').toLowerCase()}`}>{titleCase(status)}</span>
@@ -307,13 +308,15 @@ export default function AssignmentDetailScreen() {
       {assignment ? (
         <>
           <Section title="Summary" subtitle={partnerMode ? 'Request status, due date, and next step.' : 'Current operational state and routing context.'}>
-            <Card className="m-detail-hero">
+            <Card className="m-detail-hero" data-tour-id="mobile-assignment-summary">
               <div className="m-detail-hero-head">
                 <div className="m-detail-hero-copy">
                   <p>{partnerMode ? (assignment.bank_or_client || assignment.borrower_name || 'Assignment') : (assignment.service_line_name || titleCase(assignment.service_line))}</p>
                   <h3>{assignment.assignment_code || `Assignment #${assignment.id}`}</h3>
                 </div>
-                <StatusChip status={assignment.status} />
+                <div data-tour-id="mobile-assignment-status">
+                  <StatusChip status={assignment.status} />
+                </div>
               </div>
               <div className="m-detail-hero-meta">
                 <span>{partnerMode ? (partnerNextAction || 'Continue request') : (assignment.bank_name || assignment.valuer_client_name || assignment.borrower_name || 'Unknown customer')}</span>
@@ -326,12 +329,17 @@ export default function AssignmentDetailScreen() {
           </Section>
 
           <Section title="Documents" subtitle={`${documents.length} files ready for mobile inspection.`}>
+            <DemoInlineHelp
+              title="Status only matters when the evidence is visible"
+              body="Use the request detail to inspect the current state, the uploaded files, and the communication history in one place."
+              whyItMatters="This is where users stop guessing and start understanding what is actually blocking or moving the case."
+            />
             {!documents.length ? (
               <Card className="m-note-card">
                 <p>No documents uploaded yet.</p>
               </Card>
             ) : (
-              <div className="m-list">
+              <div className="m-list" data-tour-id="mobile-assignment-documents">
                 {documents.map((document) => (
                   <PreviewableDocCard key={document.id} document={document} onPreview={setPreviewDocument} />
                 ))}
@@ -472,7 +480,7 @@ export default function AssignmentDetailScreen() {
                   </div>
                 )}
 
-                <Card className="m-sheet-card">
+                <Card className="m-sheet-card" data-tour-id="mobile-assignment-messages">
                   <form className="m-form-grid" onSubmit={handleSendMessage}>
                     <label>
                       <span>Message</span>
