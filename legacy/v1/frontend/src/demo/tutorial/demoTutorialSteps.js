@@ -1,9 +1,26 @@
-export const DEMO_TUTORIAL_FLOWS = {
+const FLOW_META = {
   associate: {
     id: 'associate',
     label: 'Associate Tour',
     shortLabel: 'Associate',
     audience: 'External Associate',
+  },
+  admin: {
+    id: 'admin',
+    label: 'Admin / Ops Tour',
+    shortLabel: 'Admin',
+    audience: 'Admin and Ops',
+  },
+  field: {
+    id: 'field',
+    label: 'Field / Employee Tour',
+    shortLabel: 'Field',
+    audience: 'Field and employee users',
+  },
+}
+
+const MOBILE_FLOW_VARIANTS = {
+  associate: {
     duration: '5 minutes',
     summary: 'Learn the structured associate loop: intake, evidence, and status tracking.',
     steps: [
@@ -92,10 +109,6 @@ export const DEMO_TUTORIAL_FLOWS = {
     ],
   },
   admin: {
-    id: 'admin',
-    label: 'Admin / Ops Tour',
-    shortLabel: 'Admin',
-    audience: 'Admin and Ops',
     duration: '6 minutes',
     summary: 'Follow approvals, evidence review, and payment control from the mobile workspace.',
     steps: [
@@ -137,10 +150,6 @@ export const DEMO_TUTORIAL_FLOWS = {
     ],
   },
   field: {
-    id: 'field',
-    label: 'Field / Employee Tour',
-    shortLabel: 'Field',
-    audience: 'Field and employee users',
     duration: '5 minutes',
     summary: 'Learn how to move from queue to evidence to controlled draft creation on mobile.',
     steps: [
@@ -183,15 +192,146 @@ export const DEMO_TUTORIAL_FLOWS = {
   },
 }
 
-export const DEMO_TUTORIAL_FLOW_ORDER = ['associate', 'admin', 'field']
-
-export function getDemoTutorialFlow(flowId) {
-  return DEMO_TUTORIAL_FLOWS[flowId] || null
+const DESKTOP_FLOW_VARIANTS = {
+  associate: {
+    duration: '4 minutes',
+    summary: 'Learn the structured associate request loop from the desktop workspace.',
+    steps: [
+      {
+        id: 'associate-desktop-home',
+        route: '/partner',
+        routePattern: '^/partner$',
+        target: '[data-tour-id="demo-mission-panel"]',
+        title: 'Start From The Associate Dashboard',
+        explanation: 'The associate dashboard shows live requests, payment prompts, and the next follow-up at a glance.',
+        whyItMatters: 'Associates need one place to monitor intake status without calling operations for routine updates.',
+        actionText: 'Review the mission panel, then move into the request workspace.',
+        expectedResult: 'You understand where to restart the walkthrough and how the associate dashboard summarizes active work.',
+      },
+      {
+        id: 'associate-desktop-request-form',
+        route: '/partner/requests/new',
+        routePattern: '^/partner/requests/new(?:\\?.*)?$',
+        target: '[data-tour-id="partner-request-form"]',
+        title: 'Open The Associate Request Form',
+        explanation: 'This desktop form captures a structured request with the minimum customer and property context operations needs.',
+        whyItMatters: 'Structured intake reduces ambiguity and keeps review, payment, and delivery steps traceable.',
+        actionText: 'Review the request form sections and note how they focus only on associate-supplied data.',
+        expectedResult: 'You know where to create a new request without entering internal-only operations data.',
+      },
+      {
+        id: 'associate-desktop-requests-list',
+        route: '/partner/requests',
+        routePattern: '^/partner/requests(?:\\?.*)?$',
+        target: '[data-tour-id="partner-requests-table"]',
+        title: 'Track Submitted Requests',
+        explanation: 'The request list shows what has been submitted, what needs clarification, and what is ready to move forward.',
+        whyItMatters: 'The product value is not just intake. It is ongoing status visibility with less back-and-forth.',
+        actionText: 'Open the requests list and confirm where status, payment, and edit actions appear.',
+        expectedResult: 'You can track request progress and know where to respond if more information is needed.',
+      },
+    ],
+  },
+  admin: {
+    duration: '4 minutes',
+    summary: 'Review the control loop from the desktop cockpit: dashboard, approvals, and invoice discipline.',
+    steps: [
+      {
+        id: 'admin-desktop-home',
+        route: '/admin/dashboard',
+        routePattern: '^/admin/dashboard$',
+        target: '[data-tour-id="demo-mission-panel"]',
+        title: 'Start From Control Tower',
+        explanation: 'The desktop dashboard summarizes operational pressure: workload, approvals, overdue cases, and payment exposure.',
+        whyItMatters: 'Admin work should begin from exceptions and queue pressure, not manual follow-up or chat.',
+        actionText: 'Review the mission panel, then move into the approvals inbox.',
+        expectedResult: 'You understand where the demo control loop begins on desktop.',
+      },
+      {
+        id: 'admin-desktop-approvals',
+        route: '/admin/approvals',
+        routePattern: '^/admin/approvals(?:\\?.*)?$',
+        target: '[data-tour-id="admin-approvals-list"]',
+        title: 'Review Governed Decisions',
+        explanation: 'The approvals inbox keeps draft, final-document, and payment decisions explicit and auditable.',
+        whyItMatters: 'Requests should not be approved in side channels. Centralized decisions protect auditability and release discipline.',
+        actionText: 'Open the approvals inbox and inspect how status, type, and decision actions are organized.',
+        expectedResult: 'You can identify where approval work lives and how the app keeps those decisions visible.',
+      },
+      {
+        id: 'admin-desktop-invoices',
+        route: '/invoices',
+        routePattern: '^/invoices(?:\\?.*)?$',
+        target: '[data-tour-id="desktop-invoices-list"]',
+        title: 'Inspect Invoice And Payment Pressure',
+        explanation: 'The invoice ledger shows unpaid exposure, aging, and the payment actions that affect reported cashflow.',
+        whyItMatters: 'Revenue visibility is only trustworthy when invoice updates and payment confirmations stay governed.',
+        actionText: 'Open the ledger and note where filters, aging buckets, and payment controls are surfaced.',
+        expectedResult: 'You know where to review invoice status and why payment confirmation is a controlled workflow.',
+      },
+    ],
+  },
+  field: {
+    duration: '4 minutes',
+    summary: 'Learn the desktop staff path from My Day to assignments and governed requests.',
+    steps: [
+      {
+        id: 'field-desktop-home',
+        route: '/account',
+        routePattern: '^/account(?:\\?.*)?$',
+        target: '[data-tour-id="demo-mission-panel"]',
+        title: 'Start From My Day',
+        explanation: 'My Day prioritizes overdue work, due-soon assignments, and operational signals for the logged-in staff user.',
+        whyItMatters: 'Staff should start from the most urgent queue items instead of browsing every assignment manually.',
+        actionText: 'Review the mission panel, then move into the assignments queue.',
+        expectedResult: 'You know where to begin the day and where to return if priorities change.',
+      },
+      {
+        id: 'field-desktop-assignments',
+        route: '/assignments',
+        routePattern: '^/assignments(?:\\?.*)?$',
+        target: '[data-tour-id="desktop-assignments-table"]',
+        title: 'Work The Assignment Queue',
+        explanation: 'The assignment queue centralizes filters, saved views, and due-state triage for operational work.',
+        whyItMatters: 'Queue discipline is what keeps field and staff work moving without missed deadlines.',
+        actionText: 'Open the assignments queue and inspect the worklist, filters, and status columns.',
+        expectedResult: 'You understand where to triage work and how to narrow the queue quickly.',
+      },
+      {
+        id: 'field-desktop-requests',
+        route: '/requests',
+        routePattern: '^/requests(?:\\?.*)?$',
+        target: '[data-tour-id="desktop-requests-form"]',
+        title: 'Use Governed Request Paths',
+        explanation: 'Sensitive leave or approval requests should be raised inside the product, not by informal messages.',
+        whyItMatters: 'Governed requests protect auditability and reduce confusion about who approved what.',
+        actionText: 'Open the request page and review where approval requests are submitted and tracked.',
+        expectedResult: 'You know where to request sensitive actions without leaving the workspace.',
+      },
+    ],
+  },
 }
 
-export function getDemoTutorialFlowSummaries() {
+export const DEMO_TUTORIAL_FLOW_ORDER = ['associate', 'admin', 'field']
+
+export function isDemoTutorialFlowId(flowId) {
+  return Boolean(FLOW_META[flowId])
+}
+
+export function getDemoTutorialFlow(flowId, { surface = 'mobile' } = {}) {
+  const meta = FLOW_META[flowId]
+  const variants = surface === 'desktop' ? DESKTOP_FLOW_VARIANTS : MOBILE_FLOW_VARIANTS
+  const variant = variants[flowId]
+  if (!meta || !variant) return null
+  return {
+    ...meta,
+    ...variant,
+  }
+}
+
+export function getDemoTutorialFlowSummaries({ surface = 'mobile' } = {}) {
   return DEMO_TUTORIAL_FLOW_ORDER
-    .map((flowId) => DEMO_TUTORIAL_FLOWS[flowId])
+    .map((flowId) => getDemoTutorialFlow(flowId, { surface }))
     .filter(Boolean)
     .map((flow) => ({
       id: flow.id,

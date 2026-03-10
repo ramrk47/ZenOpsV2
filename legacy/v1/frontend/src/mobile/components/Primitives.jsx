@@ -42,9 +42,9 @@ export function KVRow({ label, value }) {
   )
 }
 
-export function StickyFooter({ children }) {
+export function StickyFooter({ children, className = '' }) {
   return (
-    <footer className="m-sticky-footer">
+    <footer className={`m-sticky-footer ${className}`.trim()}>
       <div className="m-sticky-footer-inner">{children}</div>
       <div className="m-sticky-footer-spacer" aria-hidden="true" />
     </footer>

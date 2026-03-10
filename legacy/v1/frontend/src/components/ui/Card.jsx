@@ -1,8 +1,8 @@
 import React from 'react'
 
-export function Card({ children, className = '', style, id }) {
+export function Card({ children, className = '', style, id, ...props }) {
   return (
-    <section id={id} className={`card ${className}`.trim()} style={style}>
+    <section id={id} className={`card ${className}`.trim()} style={style} {...props}>
       {children}
     </section>
   )

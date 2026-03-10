@@ -211,7 +211,7 @@ export default function RequestsPage() {
 
       <div className="split">
         <div className="grid">
-          <Card>
+          <Card data-tour-id="desktop-requests-form">
             <CardHeader title="My Leave" subtitle="All leave requests and their decisions." action={<button type="button" className="secondary" onClick={() => setReloadKey((k) => k + 1)}>Refresh</button>} />
             {loading ? (
               <div className="muted">Loading leave…</div>

@@ -190,7 +190,7 @@ export default function AdminApprovals() {
         </div>
       </Card>
 
-      <Card>
+      <Card data-tour-id="admin-approvals-list">
         <CardHeader
           title={APPROVAL_TYPE_LABELS[activeType]}
           subtitle={`Status filter: ${titleCase(statusFilter)}`}

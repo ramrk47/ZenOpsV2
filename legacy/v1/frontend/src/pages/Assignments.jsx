@@ -512,7 +512,7 @@ export default function Assignments() {
       </div>
 
       <div className="split">
-        <Card>
+        <Card data-tour-id="desktop-assignments-table">
           <CardHeader
             title="Work Queue"
             subtitle={`${filteredAssignments.length} assignments`}

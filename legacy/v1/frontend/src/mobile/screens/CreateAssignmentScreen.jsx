@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import MobileLayout from '../MobileLayout'
 import { Card, Chip, MobileListSkeleton, Section, StickyFooter } from '../components/Primitives'
 import { createDraftAssignment, fetchAssignment, updateAssignment } from '../../api/assignments'
@@ -7,6 +7,8 @@ import { requestApproval } from '../../api/approvals'
 import { fetchBanks, fetchBranches, fetchClients, fetchServiceLines } from '../../api/master'
 import { toUserMessage } from '../../api/client'
 import DemoInlineHelp from '../../demo/tutorial/DemoInlineHelp.jsx'
+import { useAuth } from '../../auth/AuthContext'
+import { hasCapability, isPartner } from '../../utils/rbac'
 
 const CASE_TYPES = ['BANK', 'EXTERNAL_VALUER', 'DIRECT_CLIENT']
 const UOM_OPTIONS = [
@@ -74,6 +76,10 @@ export default function CreateAssignmentScreen() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const assignmentId = searchParams.get('assignmentId')
+  const { user, capabilities, initialising } = useAuth()
+
+  const partnerMode = isPartner(user)
+  const canCreate = hasCapability(capabilities, 'create_assignment') || hasCapability(capabilities, 'create_assignment_draft')
 
   const [step, setStep] = useState(1)
   const [banks, setBanks] = useState([])
@@ -106,6 +112,26 @@ export default function CreateAssignmentScreen() {
     notes: '',
     submit_after_save: true,
   })
+
+  if (initialising) {
+    return (
+      <MobileLayout
+        title="Create Assignment"
+        subtitle="Loading workspace access…"
+        secondaryAction={{ label: 'Assignments', to: '/m/assignments' }}
+      >
+        <MobileListSkeleton rows={6} />
+      </MobileLayout>
+    )
+  }
+
+  if (partnerMode) {
+    return <Navigate to="/m/request/new" replace />
+  }
+
+  if (!canCreate) {
+    return <Navigate to="/m/home" replace />
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -289,7 +315,7 @@ export default function CreateAssignmentScreen() {
       {error ? <div className="m-alert m-alert-error">{error}</div> : null}
       {notice ? <div className="m-alert m-alert-ok">{notice}</div> : null}
 
-      <Card className="m-note-card" style={{ marginBottom: '0.9rem' }}>
+      <Card className="m-note-card m-note-card--compact" style={{ marginBottom: '0.75rem' }}>
         <strong>{assignmentId ? 'Continuing a saved draft' : 'Create fast, refine later'}</strong>
         <p>
           This workflow is optimized for phone use. The draft is created first, then routed through approval
@@ -297,12 +323,13 @@ export default function CreateAssignmentScreen() {
         </p>
       </Card>
       <DemoInlineHelp
+        className="demo-inline-help--compact"
         title="Drafts are safe, not final"
         body="The mobile wizard is designed to capture enough context to start the job while keeping the case under approval discipline."
         whyItMatters="This protects operations from incomplete field intake and keeps permanent records cleaner."
       />
 
-      <div className="m-stepper" data-tour-id="mobile-create-stepper">
+      <div className="m-stepper m-stepper--compact" data-tour-id="mobile-create-stepper">
         {[1, 2, 3].map((value) => (
           <StepButton key={value} value={value} active={step === value} onClick={setStep} />
         ))}
@@ -485,7 +512,7 @@ export default function CreateAssignmentScreen() {
         </Section>
       ) : null}
 
-      <StickyFooter>
+      <StickyFooter className="m-sticky-footer--wizard">
         <div className="m-footer-actions">
           <button
             type="button"

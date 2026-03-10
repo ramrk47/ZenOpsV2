@@ -3,8 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../../auth/AuthContext'
 import { canSeeAdmin, hasCapability, isPartner } from '../../utils/rbac'
-import { DEMO_TUTORIAL_FLOWS, getDemoTutorialFlow, getDemoTutorialFlowSummaries } from './demoTutorialSteps'
+import { getDemoTutorialFlow, getDemoTutorialFlowSummaries, isDemoTutorialFlowId } from './demoTutorialSteps'
 import {
+  clearLegacyTutorialStorage,
   clearPreferredTutorialFlow,
   clearTutorialDismissed,
   clearTutorialState,
@@ -24,6 +25,29 @@ function isPublicRoute(pathname) {
     || pathname.startsWith('/partner/request-access')
     || pathname.startsWith('/partner/verify')
     || pathname.startsWith('/invite/accept')
+}
+
+function getTutorialSurface(pathname) {
+  return pathname.startsWith('/m/') ? 'mobile' : 'desktop'
+}
+
+function getTutorialHomeRoute(user, capabilities, surface) {
+  if (surface === 'mobile') return '/m/home'
+  if (!user) return '/login'
+  if (isPartner(user)) return '/partner'
+  if (canSeeAdmin(capabilities) || hasCapability(capabilities, 'approve_actions') || hasCapability(capabilities, 'view_invoices')) {
+    return '/admin/dashboard'
+  }
+  return '/account'
+}
+
+function buildTutorialScope(user, surface) {
+  const identity = user?.id
+    ? `user-${user.id}`
+    : user?.email
+      ? `email-${String(user.email).trim().toLowerCase()}`
+      : 'anonymous'
+  return `${surface}:${identity}`
 }
 
 function matchesStep(pathname, step) {
@@ -91,9 +115,18 @@ export function DemoTutorialProvider({ children }) {
   const { user, capabilities } = useAuth()
   const policy = useMemo(() => getTutorialPolicy(), [])
   const publicRoute = isPublicRoute(location.pathname)
-  const isEnabled = Boolean(policy) && Boolean(user) && !publicRoute
+  const surface = useMemo(() => getTutorialSurface(location.pathname), [location.pathname])
+  const storageScope = useMemo(() => buildTutorialScope(user, surface), [surface, user])
+  const defaultFlowId = useMemo(() => defaultFlowIdForUser(user, capabilities), [capabilities, user])
+  const tutorialHomeRoute = useMemo(
+    () => getTutorialHomeRoute(user, capabilities, surface),
+    [capabilities, surface, user],
+  )
 
-  const bootstrappedRef = useRef(false)
+  const isEnabled = Boolean(policy) && Boolean(user) && !publicRoute
+  const routeIsTutorialHome = location.pathname === tutorialHomeRoute
+
+  const hydratedScopeRef = useRef(null)
   const [hydrated, setHydrated] = useState(false)
   const [state, setState] = useState(DEFAULT_STATE)
   const [dismissed, setDismissed] = useState(false)
@@ -101,68 +134,86 @@ export function DemoTutorialProvider({ children }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedFlowId, setSelectedFlowId] = useState(null)
 
-  const preferredFlowId = useMemo(() => {
-    const saved = loadPreferredTutorialFlow()
-    if (saved && DEMO_TUTORIAL_FLOWS[saved]) return saved
-    return defaultFlowIdForUser(user, capabilities)
-  }, [user, capabilities])
-
-  const flowSummaries = useMemo(() => getDemoTutorialFlowSummaries(), [])
-  const activeFlow = useMemo(() => getDemoTutorialFlow(state.activeFlowId), [state.activeFlowId])
+  const flowSummaries = useMemo(() => getDemoTutorialFlowSummaries({ surface }), [surface])
+  const activeFlow = useMemo(
+    () => getDemoTutorialFlow(state.activeFlowId, { surface }),
+    [state.activeFlowId, surface],
+  )
   const steps = activeFlow?.steps || []
   const currentStep = steps[state.currentStepIndex] || null
   const routeReady = matchesStep(location.pathname, currentStep)
   const activeFlowCompleted = Boolean(activeFlow && state.completedFlowIds.includes(activeFlow.id))
   const hasTutorialState = Boolean(dismissed || state.startedAt || state.completedFlowIds.length)
-  const shouldShowMissionPanel = isEnabled && (
+  const shouldShowMissionPanel = isEnabled && !modalOpen && (
     policy.shouldShowMissionPanelByDefault
     || (!dismissed && Boolean(state.startedAt || (activeFlow && !activeFlowCompleted)))
   )
-  const shouldShowLauncher = isEnabled && !shouldShowMissionPanel
+  const shouldShowLauncher = isEnabled && !modalOpen && !shouldShowMissionPanel && !policy.shouldAutoStart
 
   useEffect(() => {
-    if (bootstrappedRef.current) return
-    bootstrappedRef.current = true
-    const storedState = loadTutorialState()
-    const storedDismissed = loadTutorialDismissed()
-    if (storedState && typeof storedState === 'object') {
-      setState((prev) => ({ ...prev, ...storedState }))
+    if (!user) {
+      hydratedScopeRef.current = null
+      setHydrated(false)
+      setState(DEFAULT_STATE)
+      setDismissed(false)
+      setCoachmarkOpen(false)
+      setModalOpen(false)
+      setSelectedFlowId(null)
+      return
     }
+
+    if (hydratedScopeRef.current === storageScope) return
+
+    clearLegacyTutorialStorage()
+    hydratedScopeRef.current = storageScope
+
+    const storedState = loadTutorialState(storageScope)
+    const storedDismissed = loadTutorialDismissed(storageScope)
+    const storedFlowId = loadPreferredTutorialFlow(storageScope)
+
+    setState({
+      ...DEFAULT_STATE,
+      ...(storedState && typeof storedState === 'object' ? storedState : {}),
+    })
     setDismissed(storedDismissed)
-    setSelectedFlowId(loadPreferredTutorialFlow() || null)
+    setCoachmarkOpen(false)
+    setModalOpen(false)
+    setSelectedFlowId(isDemoTutorialFlowId(storedFlowId) ? storedFlowId : defaultFlowId)
     setHydrated(true)
-  }, [])
+  }, [defaultFlowId, storageScope, user])
 
   useEffect(() => {
-    if (!hydrated) return
-    saveTutorialState(state)
-  }, [hydrated, state])
+    if (!hydrated || !user) return
+    saveTutorialState(storageScope, state)
+  }, [hydrated, state, storageScope, user])
 
   useEffect(() => {
-    if (!hydrated) return
-    saveTutorialDismissed(dismissed)
-  }, [dismissed, hydrated])
+    if (!hydrated || !user) return
+    saveTutorialDismissed(storageScope, dismissed)
+  }, [dismissed, hydrated, storageScope, user])
 
   useEffect(() => {
-    if (!hydrated || !selectedFlowId) return
-    savePreferredTutorialFlow(selectedFlowId)
-  }, [hydrated, selectedFlowId])
+    if (!hydrated || !user || !selectedFlowId) return
+    savePreferredTutorialFlow(storageScope, selectedFlowId)
+  }, [hydrated, selectedFlowId, storageScope, user])
 
   useEffect(() => {
     if (!user) return
-    setSelectedFlowId((current) => current || preferredFlowId)
-  }, [preferredFlowId, user])
+    setSelectedFlowId((current) => (isDemoTutorialFlowId(current) ? current : defaultFlowId))
+  }, [defaultFlowId, user])
 
   useEffect(() => {
+    if (!hydrated) return
     if (!isEnabled) {
       setModalOpen(false)
       setCoachmarkOpen(false)
       return
     }
 
-    const preferredCompleted = state.completedFlowIds.includes(preferredFlowId)
+    const preferredCompleted = state.completedFlowIds.includes(defaultFlowId)
     const hasActiveFlow = Boolean(state.activeFlowId)
-    const shouldOpenPrompt = !dismissed
+    const shouldOpenPrompt = routeIsTutorialHome
+      && !dismissed
       && !preferredCompleted
       && !hasActiveFlow
       && (policy.shouldAutoStart || policy.shouldShowFirstLoginPrompt)
@@ -170,7 +221,17 @@ export function DemoTutorialProvider({ children }) {
     if (shouldOpenPrompt) {
       setModalOpen(true)
     }
-  }, [dismissed, isEnabled, policy.shouldAutoStart, policy.shouldShowFirstLoginPrompt, preferredFlowId, state.activeFlowId, state.completedFlowIds])
+  }, [
+    defaultFlowId,
+    dismissed,
+    hydrated,
+    isEnabled,
+    policy.shouldAutoStart,
+    policy.shouldShowFirstLoginPrompt,
+    routeIsTutorialHome,
+    state.activeFlowId,
+    state.completedFlowIds,
+  ])
 
   useEffect(() => {
     if (!isEnabled || !activeFlow) return
@@ -215,9 +276,10 @@ export function DemoTutorialProvider({ children }) {
   }, [activeFlow, activeFlowCompleted, currentStep, state.completedStepIds])
 
   function persistFlowSelection(flowId) {
-    if (!flowId || !DEMO_TUTORIAL_FLOWS[flowId]) return preferredFlowId
-    setSelectedFlowId(flowId)
-    return flowId
+    const nextFlowId = isDemoTutorialFlowId(flowId) ? flowId : defaultFlowId
+    setSelectedFlowId(nextFlowId)
+    savePreferredTutorialFlow(storageScope, nextFlowId)
+    return nextFlowId
   }
 
   function navigateToStep(step) {
@@ -234,11 +296,12 @@ export function DemoTutorialProvider({ children }) {
     setModalOpen(true)
   }
 
-  function startFlow(flowId = selectedFlowId || preferredFlowId) {
+  function startFlow(flowId = selectedFlowId || defaultFlowId) {
     const nextFlowId = persistFlowSelection(flowId)
-    const flow = getDemoTutorialFlow(nextFlowId)
+    const flow = getDemoTutorialFlow(nextFlowId, { surface })
     if (!flow) return
 
+    saveTutorialDismissed(storageScope, false)
     setDismissed(false)
     setModalOpen(false)
     setCoachmarkOpen(true)
@@ -247,7 +310,7 @@ export function DemoTutorialProvider({ children }) {
       activeFlowId: flow.id,
       currentStepIndex: 0,
       completedStepIds: [],
-      completedFlowIds: prev.completedFlowIds.filter((flowId) => flowId !== flow.id),
+      completedFlowIds: prev.completedFlowIds.filter((completedFlowId) => completedFlowId !== flow.id),
       startedAt: new Date().toISOString(),
       finishedAt: null,
     }))
@@ -256,9 +319,10 @@ export function DemoTutorialProvider({ children }) {
 
   function resumeFlow() {
     if (!activeFlow || !currentStep || activeFlowCompleted) {
-      startFlow(activeFlow?.id || selectedFlowId || preferredFlowId)
+      startFlow(activeFlow?.id || selectedFlowId || defaultFlowId)
       return
     }
+    saveTutorialDismissed(storageScope, false)
     setDismissed(false)
     setCoachmarkOpen(true)
     navigateToStep(currentStep)
@@ -269,19 +333,20 @@ export function DemoTutorialProvider({ children }) {
   }
 
   function dismissTutorial() {
+    saveTutorialDismissed(storageScope, true)
     setDismissed(true)
     setModalOpen(false)
     setCoachmarkOpen(false)
   }
 
   function resetTutorial() {
-    clearTutorialState()
-    clearTutorialDismissed()
-    clearPreferredTutorialFlow()
+    clearTutorialState(storageScope)
+    clearTutorialDismissed(storageScope)
+    clearPreferredTutorialFlow(storageScope)
     setDismissed(false)
     setCoachmarkOpen(false)
-    setModalOpen(policy.shouldAutoStart || policy.shouldShowFirstLoginPrompt)
-    setSelectedFlowId(defaultFlowIdForUser(user, capabilities))
+    setModalOpen(routeIsTutorialHome && (policy.shouldAutoStart || policy.shouldShowFirstLoginPrompt))
+    setSelectedFlowId(defaultFlowId)
     setState(DEFAULT_STATE)
   }
 
@@ -293,6 +358,7 @@ export function DemoTutorialProvider({ children }) {
     if (nextIndex < 0 || nextIndex >= activeFlow.steps.length) return
 
     const nextStep = activeFlow.steps[nextIndex]
+    saveTutorialDismissed(storageScope, false)
     setDismissed(false)
     setState((prev) => ({
       ...prev,
@@ -315,6 +381,7 @@ export function DemoTutorialProvider({ children }) {
 
   function finishFlow() {
     if (!activeFlow) return
+    saveTutorialDismissed(storageScope, true)
     setCoachmarkOpen(false)
     setDismissed(true)
     setState((prev) => ({
@@ -341,6 +408,7 @@ export function DemoTutorialProvider({ children }) {
     }
 
     const nextStepDef = activeFlow.steps[nextIndex]
+    saveTutorialDismissed(storageScope, false)
     setDismissed(false)
     setState((prev) => ({
       ...prev,
@@ -356,8 +424,8 @@ export function DemoTutorialProvider({ children }) {
   const contextValue = useMemo(() => ({
     isEnabled,
     policy,
-    preferredFlowId,
-    selectedFlowId: selectedFlowId || preferredFlowId,
+    preferredFlowId: selectedFlowId || defaultFlowId,
+    selectedFlowId: selectedFlowId || defaultFlowId,
     setSelectedFlowId: persistFlowSelection,
     flowSummaries,
     activeFlow,
@@ -387,6 +455,7 @@ export function DemoTutorialProvider({ children }) {
     activeFlowCompleted,
     coachmarkOpen,
     currentStep,
+    defaultFlowId,
     dismissed,
     flowSummaries,
     hasTutorialState,
@@ -394,7 +463,6 @@ export function DemoTutorialProvider({ children }) {
     location.pathname,
     modalOpen,
     policy,
-    preferredFlowId,
     progress,
     routeReady,
     selectedFlowId,

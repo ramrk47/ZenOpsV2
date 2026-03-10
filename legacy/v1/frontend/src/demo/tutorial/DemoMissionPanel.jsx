@@ -26,6 +26,7 @@ export default function DemoMissionPanel({ mobile = false, className = '' }) {
 
   const recommendedFlow = activeFlow || flowSummaries.find((flow) => flow.id === preferredFlowId) || flowSummaries[0]
   const panelClassName = `demo-mission-panel ${mobile ? 'demo-mission-panel--mobile' : ''} ${className}`.trim()
+  const compactFlowSwitcher = mobile && !activeFlow
 
   return (
     <section className={panelClassName} data-tour-id="demo-mission-panel">
@@ -108,12 +109,17 @@ export default function DemoMissionPanel({ mobile = false, className = '' }) {
             )
           })}
         </div>
-      ) : (
-        <div className="demo-mission-flow-pills">
+      ) : mobile ? null : (
+        <div className={`demo-mission-flow-pills ${compactFlowSwitcher ? 'demo-mission-flow-pills--compact' : ''}`.trim()}>
           {flowSummaries.map((flow) => (
-            <button key={flow.id} type="button" className="demo-flow-pill" onClick={() => startFlow(flow.id)}>
-              <strong>{flow.shortLabel}</strong>
-              <small>{flow.stepCount} steps</small>
+            <button
+              key={flow.id}
+              type="button"
+              className={`demo-flow-pill ${compactFlowSwitcher ? 'demo-flow-pill--compact' : ''}`.trim()}
+              onClick={() => startFlow(flow.id)}
+            >
+              <strong>{compactFlowSwitcher ? flow.shortLabel : flow.shortLabel}</strong>
+              <small>{compactFlowSwitcher ? flow.duration : `${flow.stepCount} steps`}</small>
             </button>
           ))}
         </div>

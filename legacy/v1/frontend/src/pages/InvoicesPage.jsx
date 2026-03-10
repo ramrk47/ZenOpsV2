@@ -1101,7 +1101,7 @@ export default function InvoicesPage() {
         <StatCard label="60+ overdue" value={agingStats['60+']} tone="danger" />
       </div>
 
-      <Card>
+      <Card data-tour-id="desktop-invoices-list">
         <CardHeader
           title="Ledger"
           subtitle={`Showing ${visibleInvoices.length} of ${invoicePage.total || 0} invoices.`}

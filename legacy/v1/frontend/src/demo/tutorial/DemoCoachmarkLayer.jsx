@@ -16,6 +16,17 @@ function readTargetRect(selector) {
   }
 }
 
+function readMobileBottomOffset() {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return null
+
+  const occupiedBottom = [document.querySelector('.m-tabs'), document.querySelector('.m-sticky-footer-inner')]
+    .filter(Boolean)
+    .map((element) => window.innerHeight - element.getBoundingClientRect().top + 12)
+
+  if (!occupiedBottom.length) return null
+  return Math.max(...occupiedBottom)
+}
+
 export default function DemoCoachmarkLayer() {
   const {
     isEnabled,
@@ -33,6 +44,7 @@ export default function DemoCoachmarkLayer() {
   } = useDemoTutorial()
 
   const [rect, setRect] = useState(null)
+  const [mobileBottomOffset, setMobileBottomOffset] = useState(null)
   const mobileSurface = currentStep?.route?.startsWith('/m/')
 
   useEffect(() => {
@@ -44,6 +56,7 @@ export default function DemoCoachmarkLayer() {
     function updateRect() {
       const nextRect = readTargetRect(currentStep.target)
       setRect(nextRect)
+      setMobileBottomOffset(mobileSurface ? readMobileBottomOffset() : null)
       if (nextRect) {
         const element = document.querySelector(currentStep.target)
         element?.scrollIntoView?.({ block: 'center', inline: 'nearest', behavior: 'smooth' })
@@ -59,7 +72,7 @@ export default function DemoCoachmarkLayer() {
       window.removeEventListener('resize', updateRect)
       window.removeEventListener('scroll', updateRect, true)
     }
-  }, [currentStep, isCoachmarkOpen])
+  }, [currentStep, isCoachmarkOpen, mobileSurface])
 
   const statusLabel = useMemo(() => {
     if (!routeReady) return 'Open the highlighted screen to continue.'
@@ -85,6 +98,7 @@ export default function DemoCoachmarkLayer() {
 
       <aside
         className={`demo-coachmark-card ${mobileSurface ? 'demo-coachmark-card--mobile' : ''}`.trim()}
+        style={mobileSurface && mobileBottomOffset ? { bottom: `${mobileBottomOffset}px` } : undefined}
         role="dialog"
         aria-modal="false"
         aria-labelledby="demo-coachmark-title"

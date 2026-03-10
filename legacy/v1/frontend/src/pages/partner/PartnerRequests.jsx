@@ -150,7 +150,7 @@ export default function PartnerRequests() {
 
       {error ? <div className="alert alert-danger">{error}</div> : null}
 
-      <Card>
+      <Card data-tour-id="partner-requests-table">
         <CardHeader
           title="Requests"
           subtitle="Only the updates and next steps that matter to the associate are shown here."

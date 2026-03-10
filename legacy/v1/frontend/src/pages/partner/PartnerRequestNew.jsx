@@ -257,7 +257,7 @@ export default function PartnerRequestNew() {
       {loadingDraft ? <div className="muted">Loading draft…</div> : null}
 
       <div className="grid" style={{ gap: '1rem' }}>
-        <Card>
+        <Card data-tour-id="partner-request-form">
           <CardHeader title="Case Details" subtitle="Tell us about the borrower and property." />
           <div
             className="grid"

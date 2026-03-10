@@ -4294,6 +4294,18 @@ form button:not(:first-of-type) {
   gap: 0.7rem;
 }
 
+.demo-mission-flow-pills--compact {
+  display: flex;
+  gap: 0.55rem;
+  overflow-x: auto;
+  padding-bottom: 0.2rem;
+  scrollbar-width: none;
+}
+
+.demo-mission-flow-pills--compact::-webkit-scrollbar {
+  display: none;
+}
+
 .demo-flow-pill,
 .demo-mission-step,
 .demo-modal-flow,
@@ -4322,6 +4334,17 @@ form button:not(:first-of-type) {
   align-items: center;
   justify-content: space-between;
   gap: 0.6rem;
+}
+
+.demo-flow-pill--compact {
+  min-width: 116px;
+  flex: 0 0 auto;
+  padding: 0.75rem 0.85rem;
+  gap: 0.2rem;
+}
+
+.demo-flow-pill--compact strong {
+  display: block;
 }
 
 .demo-mission-step {
@@ -4356,6 +4379,11 @@ form button:not(:first-of-type) {
   margin: 0 0 0.9rem;
   padding: 0.9rem 1rem;
   border-radius: 18px;
+}
+
+.demo-inline-help--compact {
+  gap: 0.34rem;
+  padding: 0.8rem 0.9rem;
 }
 
 .demo-inline-help p {
