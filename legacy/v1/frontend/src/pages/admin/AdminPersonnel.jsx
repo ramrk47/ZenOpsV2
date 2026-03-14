@@ -45,6 +45,18 @@ const PERSONNEL_TABS = [
 ]
 
 const FILTERS_KEY = 'maulya.personnel.filters.v1'
+const PASSWORD_RULE_HINT = 'Use at least 12 characters with uppercase, lowercase, a number, and a special character.'
+
+function validateStrongPassword(password) {
+  const value = String(password || '').trim()
+  if (!value) return 'Password is required.'
+  if (value.length < 12) return PASSWORD_RULE_HINT
+  if (!/[A-Z]/.test(value)) return PASSWORD_RULE_HINT
+  if (!/[a-z]/.test(value)) return PASSWORD_RULE_HINT
+  if (!/\d/.test(value)) return PASSWORD_RULE_HINT
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?~`]/.test(value)) return PASSWORD_RULE_HINT
+  return ''
+}
 
 export default function AdminPersonnel() {
   const { user: currentUser } = useAuth()
@@ -120,7 +132,7 @@ export default function AdminPersonnel() {
     phone: '',
     role: 'ASSISTANT_VALUER',
     roles: ['ASSISTANT_VALUER'],
-    password: 'password',
+    password: '',
     is_active: true,
   })
 
@@ -142,7 +154,7 @@ export default function AdminPersonnel() {
     service_lines: [],
     multi_floor_enabled: false,
     notes: '',
-    password: 'password',
+    password: '',
     is_active: true,
   })
 
@@ -530,8 +542,13 @@ export default function AdminPersonnel() {
         setError('Email is required')
         return
       }
+      const passwordError = validateStrongPassword(payload.password)
+      if (passwordError) {
+        setError(passwordError)
+        return
+      }
       await createUser(payload)
-      setForm((prev) => ({ ...prev, email: '', full_name: '', phone: '' }))
+      setForm((prev) => ({ ...prev, email: '', full_name: '', phone: '', password: '' }))
       setReloadKey((k) => k + 1)
     } catch (err) {
       console.error(err)
@@ -556,6 +573,11 @@ export default function AdminPersonnel() {
       }
       if (!partnerForm.email.trim()) {
         setPartnerError('Associate email is required for login')
+        return
+      }
+      const passwordError = validateStrongPassword(partnerForm.password)
+      if (passwordError) {
+        setPartnerError(passwordError)
         return
       }
       const partnerPayload = {
@@ -585,7 +607,7 @@ export default function AdminPersonnel() {
         phone: partnerPayload.phone,
         role: 'EXTERNAL_PARTNER',
         roles: ['EXTERNAL_PARTNER'],
-        password: partnerForm.password || 'password',
+        password: partnerForm.password.trim(),
         is_active: true,
         partner_id: createdPartner.id,
       })
@@ -607,7 +629,7 @@ export default function AdminPersonnel() {
         service_lines: [],
         multi_floor_enabled: false,
         notes: '',
-        password: 'password',
+        password: '',
         is_active: true,
       })
       setPartnerNotice('Associate firm and account created.')
@@ -641,8 +663,13 @@ export default function AdminPersonnel() {
 
   async function handleResetPartnerPassword(user) {
     if (!canSetPassword) return
-    const nextPassword = window.prompt(`Reset password for ${user.email}. Enter new password:`) || ''
+    const nextPassword = window.prompt(`Reset password for ${user.email}. ${PASSWORD_RULE_HINT}`) || ''
     if (!nextPassword.trim()) return
+    const passwordError = validateStrongPassword(nextPassword)
+    if (passwordError) {
+      setPartnerError(passwordError)
+      return
+    }
     try {
       await resetPassword(user.id, nextPassword.trim())
       setPartnerNotice('Password updated.')
@@ -712,10 +739,15 @@ export default function AdminPersonnel() {
   }
 
   async function handleResetPassword(user) {
-    const password = window.prompt(`Set new password for ${user.full_name || user.email}:`, 'password')
-    if (!password) return
+    const password = window.prompt(`Set new password for ${user.full_name || user.email}. ${PASSWORD_RULE_HINT}`) || ''
+    if (!password.trim()) return
+    const passwordError = validateStrongPassword(password)
+    if (passwordError) {
+      setError(passwordError)
+      return
+    }
     try {
-      const result = await resetPassword(user.id, password)
+      const result = await resetPassword(user.id, password.trim())
       if (result?.action_type) {
         setNotice('Password reset requires approval and has been requested.')
       } else {
@@ -743,10 +775,13 @@ export default function AdminPersonnel() {
         setSaving(false)
         return
       }
-      if (editForm.password.trim() && editForm.password.trim().length < 8) {
-        setError('Password must be at least 8 characters.')
-        setSaving(false)
-        return
+      if (editForm.password.trim()) {
+        const passwordError = validateStrongPassword(editForm.password)
+        if (passwordError) {
+          setError(passwordError)
+          setSaving(false)
+          return
+        }
       }
       const overridesPayload = Object.entries(editOverrides).reduce((acc, [key, mode]) => {
         if (mode === 'allow') acc[key] = true
@@ -1310,8 +1345,14 @@ export default function AdminPersonnel() {
 
               <label className="grid" style={{ gap: 6 }}>
                 <span className="kicker">Password</span>
-                <input value={form.password} onChange={(e) => updateForm('password', e.target.value)} />
+                <input
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => updateForm('password', e.target.value)}
+                  placeholder="TempPass@1234"
+                />
               </label>
+              <div className="muted" style={{ fontSize: 12 }}>{PASSWORD_RULE_HINT}</div>
 
               <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <input type="checkbox" checked={form.is_active} onChange={(e) => updateForm('is_active', e.target.checked)} />
@@ -1582,8 +1623,14 @@ export default function AdminPersonnel() {
               </label>
               <label className="grid" style={{ gap: 6 }}>
                 <span className="kicker">Temp Password</span>
-                <input value={partnerForm.password} onChange={(e) => setPartnerForm((prev) => ({ ...prev, password: e.target.value }))} />
+                <input
+                  type="password"
+                  value={partnerForm.password}
+                  onChange={(e) => setPartnerForm((prev) => ({ ...prev, password: e.target.value }))}
+                  placeholder="TempPass@1234"
+                />
               </label>
+              <div className="muted" style={{ fontSize: 12 }}>{PASSWORD_RULE_HINT}</div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <input type="checkbox" checked={partnerForm.is_active} onChange={(e) => setPartnerForm((prev) => ({ ...prev, is_active: e.target.checked }))} />
                 <span>Active</span>
